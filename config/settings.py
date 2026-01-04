@@ -30,8 +30,15 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-unsafe")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1"
+).split(",")
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.railway.app",
+    "https://cini-english-cini-english.up.railway.app/"
+]
 
 # Application definition
 
@@ -83,11 +90,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=False,  # se o Railway pedir SSL, depois trocamos para True
-    )
+    "default": dj_database_url.config(conn_max_age=600, ssl_require=True)
 }
 
 
