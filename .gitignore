@@ -1,0 +1,25 @@
+# venv
+.venv/
+venv/
+
+# Django stuff
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# VSCode
+.vscode/
+
+# Static collect
+staticfiles/
+static_root/
+
+# Config local / segredos
+.env
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
