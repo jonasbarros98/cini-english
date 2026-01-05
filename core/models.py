@@ -5,11 +5,11 @@ class Student(models.Model):
     name = models.CharField(max_length=255)
     guardians = models.CharField(
         max_length=255,
-        help_text="Pai/mãe ou 'Responsável próprio'",
+        help_text="Pai/mãe ou 'Responsável próprio'", blank=True
     )
     phone = models.CharField(max_length=50, blank=True)
     address = models.CharField(max_length=255, blank=True)
-    plan_name = models.CharField(max_length=255)
+    plan_name = models.CharField(max_length=255, blank=True)
     lessons_total = models.PositiveSmallIntegerField(default=0)
     lessons_done = models.PositiveSmallIntegerField(default=0)
     pix_key = models.CharField(max_length=255, blank=True)

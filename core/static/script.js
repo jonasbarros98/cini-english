@@ -101,8 +101,12 @@ async function fetchJSON(path, options = {}) {
 
 // resto continua igual:
 function toISO(date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
+
 
 function monthName(date) {
   return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -253,17 +257,35 @@ function renderCalendar() {
   const year = state.currentMonth.getFullYear();
   const month = state.currentMonth.getMonth();
   const label = monthName(state.currentMonth);
+
+  // título do mês
   document.getElementById("monthTitle").textContent =
     label.charAt(0).toUpperCase() + label.slice(1);
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // ---------- CÉLULAS DO MÊS ----------
 
+  // Usando UTC pra evitar bug de fuso
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const firstWeekday = new Date(Date.UTC(year, month, 1)).getUTCDay(); // 0 = DOM
+
+  // placeholders vazios antes do dia 1 para alinhar com o dia da semana certo
+  for (let i = 0; i < firstWeekday; i++) {
+    const empty = document.createElement("div");
+    empty.className = "day empty";
+    grid.append(empty);
+  }
+
+  // dias do mês
   for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month, day);
-    const key = toISO(date);
+    // chave de data SEM usar Date/toISOString => sem “dia anterior”
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+      day
+    ).padStart(2, "0")}`;
+
     const notes = state.notes[key] || [];
 
     const dayEl = document.createElement("button");
+    dayEl.type = "button";
     dayEl.className = "day";
     if (state.selectedDate === key) dayEl.classList.add("selected");
 
@@ -277,15 +299,19 @@ function renderCalendar() {
     const countEl = document.createElement("span");
     countEl.className = "pill pending";
     countEl.textContent = `${notes.length} notas`;
+
     header.append(dateEl, countEl);
 
     const list = document.createElement("div");
     list.className = "day-notes";
+
     notes.slice(0, 3).forEach((note) => {
       const chip = document.createElement("div");
       chip.className = "note-chip";
       chip.innerHTML = `
-        <span class="pill ${note.status}">${lessonStatusEmoji[note.status] || "•"}</span>
+        <span class="pill ${note.status}">
+          ${lessonStatusEmoji[note.status] || "•"}
+        </span>
         <span>${note.title}</span>
       `;
       list.append(chip);
@@ -296,6 +322,9 @@ function renderCalendar() {
     grid.append(dayEl);
   }
 }
+
+
+
 
 function selectDay(key) {
   state.selectedDate = key;
@@ -350,7 +379,7 @@ function renderDayDetails() {
     return;
   }
 
-  const date = new Date(state.selectedDate);
+  const date = parseISODateLocal(state.selectedDate);  // <-- aqui
   titleEl.textContent = date.toLocaleDateString("pt-BR", {
     weekday: "long",
     day: "2-digit",
@@ -1169,6 +1198,13 @@ function attachForms() {
   }
 
 }
+
+function parseISODateLocal(iso) {
+  const [year, month, day] = iso.split("-").map(Number);
+  // month - 1 porque no JS janeiro = 0
+  return new Date(year, month - 1, day);
+}
+
 
 
 // ==========================
