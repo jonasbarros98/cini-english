@@ -239,12 +239,32 @@
             <button class="primary" id="addStudent">+ Novo aluno</button>
           </header>
 
+          <!-- Filtro de Alunos -->
+          <section class="card detail-card">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Filtros</p>
+                <h3>Filtrar Alunos</h3>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="studentFilter">Buscar aluno</label>
+              <input 
+                type="text" 
+                id="studentFilter" 
+                placeholder="Digite o nome, telefone, endereço ou plano do aluno..."
+                style="width: 100%; max-width: 500px;"
+              />
+              <small class="muted">Filtre alunos por nome, telefone, endereço ou plano</small>
+            </div>
+          </section>
+
           <section class="card detail-card">
             <div class="section-header">
               <div>
                 <p class="eyebrow">Lista de alunos</p>
-                <h3>Cadastro e status</h3>
-                <p class="muted">Ajuste rapidamente dados e acompanhe aulas restantes.</p>
+                <h3 id="studentListTitle">Cadastro e status</h3>
+                <p class="muted" id="studentListSubtitle">Ajuste rapidamente dados e acompanhe aulas restantes.</p>
               </div>
             </div>
             <div id="studentList" class="student-list"></div>

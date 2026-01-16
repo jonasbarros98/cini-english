@@ -442,10 +442,24 @@ function renderCalendar() {
 
     const notes = state.notes[key] || [];
 
+    // Data de hoje para comparação
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDay = today.getDate();
+
+    // Verifica se é dia passado ou dia atual
+    const isToday = year === todayYear && month === todayMonth && day === todayDay;
+    const isPast = year < todayYear || 
+                   (year === todayYear && month < todayMonth) || 
+                   (year === todayYear && month === todayMonth && day < todayDay);
+
     const dayEl = document.createElement("button");
     dayEl.type = "button";
     dayEl.className = "day";
     if (state.selectedDate === key) dayEl.classList.add("selected");
+    if (isToday) dayEl.classList.add("today");
+    if (isPast) dayEl.classList.add("past");
 
     const header = document.createElement("div");
     header.className = "day-header";
@@ -657,9 +671,38 @@ async function updateLessonStatus(note, newStatus) {
 // Alunos (lista + tela de cadastro/edição)
 // ==========================
 
+function getFilteredStudents() {
+  const filterValue = document.getElementById("studentFilter")?.value.toLowerCase().trim() || "";
+  
+  if (!filterValue) {
+    return state.students.filter((s) => s.active !== false);
+  }
+
+  return state.students.filter((student) => {
+    if (student.active === false) return false;
+    
+    const searchText = filterValue.toLowerCase();
+    const name = (student.name || "").toLowerCase();
+    const phone = (student.phone || "").toLowerCase();
+    const address = (student.address || "").toLowerCase();
+    const plan = (student.plan || "").toLowerCase();
+    const guardians = (student.guardians || "").toLowerCase();
+    
+    return (
+      name.includes(searchText) ||
+      phone.includes(searchText) ||
+      address.includes(searchText) ||
+      plan.includes(searchText) ||
+      guardians.includes(searchText)
+    );
+  });
+}
+
 function renderStudents() {
   const list = document.getElementById("studentList");
   const select = document.getElementById("billingStudent");
+  const titleEl = document.getElementById("studentListTitle");
+  const subtitleEl = document.getElementById("studentListSubtitle");
 
   // Guardas de segurança
   if (!list) return;
@@ -668,11 +711,41 @@ function renderStudents() {
     return;
   }
 
+  const filteredStudents = getFilteredStudents();
+
+  // Atualiza título e subtítulo
+  if (titleEl && subtitleEl) {
+    if (filteredStudents.length === state.students.filter((s) => s.active !== false).length) {
+      titleEl.textContent = "Cadastro e status";
+      subtitleEl.textContent = `${filteredStudents.length} aluno(s) cadastrado(s)`;
+    } else {
+      titleEl.textContent = "Alunos Filtrados";
+      subtitleEl.textContent = `${filteredStudents.length} de ${state.students.filter((s) => s.active !== false).length} aluno(s)`;
+    }
+  }
+
   list.innerHTML = "";
   select.innerHTML = "";
 
-  state.students.forEach((student) => {
-    if (student.active === false) return;
+  if (filteredStudents.length === 0) {
+    list.innerHTML = `
+      <div style="text-align: center; padding: 48px; color: var(--text-muted);">
+        <p style="font-size: 18px; margin-bottom: 8px;">Nenhum aluno encontrado</p>
+        <p style="font-size: 14px;">Tente ajustar o filtro de busca</p>
+      </div>
+    `;
+    // Ainda popula o select para cobrança mesmo sem resultados na lista
+    state.students.forEach((student) => {
+      if (student.active === false) return;
+      const opt = document.createElement("option");
+      opt.value = student.id;
+      opt.textContent = student.name;
+      select.appendChild(opt);
+    });
+    return;
+  }
+
+  filteredStudents.forEach((student) => {
 
     const card = document.createElement("div");
     card.className = "student-card";
@@ -2017,6 +2090,12 @@ async function showView(viewId) {
     }
   }
   
+  // Se abrir a visualização de alunos
+  if (viewId === "view-students") {
+    renderStudents();
+    initStudentFilter();
+  }
+  
   // Se abrir a visualização financeira, garante que o mês está sincronizado
   if (viewId === "view-finance") {
     // Se financeViewMonth não foi inicializado ou está muito diferente, usa o mês atual
@@ -3049,6 +3128,19 @@ async function deletePlan(planId) {
   } catch (error) {
     console.error(error);
     alert("Não foi possível excluir o planejamento.");
+  }
+}
+
+function initStudentFilter() {
+  const filterInput = document.getElementById("studentFilter");
+  if (filterInput) {
+    // Remove listener antigo se existir
+    const newInput = filterInput.cloneNode(true);
+    filterInput.parentNode.replaceChild(newInput, filterInput);
+    
+    newInput.addEventListener("input", () => {
+      renderStudents();
+    });
   }
 }
 
