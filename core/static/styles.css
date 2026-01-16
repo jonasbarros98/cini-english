@@ -49,31 +49,36 @@ p {
   position: sticky;
   top: 24px;
   height: calc(100vh - 48px);
+  max-height: calc(100vh - 48px);
   background: linear-gradient(160deg, #ffffff, #f1f5fb);
   border: 1px solid var(--border);
   border-radius: 24px;
-  padding: 24px;
+  padding: 16px;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .brand-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #4ca1ff, #7bdcb5);
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 20px;
   color: #0b1f33;
+  flex-shrink: 0;
 }
 
 .brand-kicker {
@@ -84,13 +89,17 @@ p {
 
 .brand-name {
   font-weight: 700;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
+  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .nav-item {
@@ -104,8 +113,9 @@ p {
   cursor: pointer;
   text-align: left;
   border-radius: 16px;
-  padding: 12px;
+  padding: 10px;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .nav-item:hover {
@@ -139,22 +149,25 @@ p {
   background: #f9fbff;
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 16px;
+  padding: 12px;
+  flex-shrink: 0;
 }
 
 .sidebar-title {
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  font-size: 14px;
 }
 
 .sidebar-highlights {
   list-style: none;
   padding: 0;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   color: var(--muted);
+  font-size: 13px;
 }
 
 .main {
@@ -219,6 +232,8 @@ p {
   color: #1f2c3d;
   box-shadow: none;
   border: 1px solid var(--border);
+  padding: 10px 16px;
+  font-size: 14px;
 }
 
 .primary.ghost.danger {
@@ -457,6 +472,7 @@ p {
   color: #b52b2b;
   background: #fff3f3;
 }
+
 .tag.danger:hover {
   background: #ffe4e4;
 }
@@ -599,6 +615,7 @@ textarea:focus {
   .sidebar {
     position: static;
     height: auto;
+    max-height: none;
   }
 
   .topbar {

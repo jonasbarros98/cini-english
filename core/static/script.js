@@ -14,11 +14,14 @@ const state = {
   tasks: [],     // vindo da API
   finances: [],   // <--- NOVO: lista de cobranças do mês
   financialEntries: [], // lançamentos financeiros a receber
+  currentUser: null, // usuário atual autenticado
+  users: [], // lista de usuários (apenas para admins)
 };
 
 let editingLessonId = null;
 let editingTaskId = null;
 let editingFinancialEntryId = null;
+let editingUserId = null;
 
 
 // Labels separados pra não misturar aula x tarefa
@@ -323,8 +326,11 @@ async function loadFinancesForCurrentMonth() {
 async function loadFinancialEntries() {
   const year = state.financeViewMonth.getFullYear();
   const month = String(state.financeViewMonth.getMonth() + 1).padStart(2, "0");
+  const url = `/financial-entries/?month=${year}-${month}`;
+  console.log("Carregando lançamentos financeiros:", url);
   try {
-    const entries = await fetchJSON(`/financial-entries/?month=${year}-${month}`);
+    const entries = await fetchJSON(url);
+    console.log("Lançamentos recebidos:", entries);
     state.financialEntries = entries.map((e) => ({
       id: e.id,
       studentId: e.student,
@@ -340,6 +346,7 @@ async function loadFinancialEntries() {
       paymentMethod: e.payment_method,
       notes: e.notes || "",
     }));
+    console.log("Lançamentos processados:", state.financialEntries.length);
   } catch (error) {
     console.error("Erro ao carregar lançamentos financeiros:", error);
     state.financialEntries = [];
@@ -348,9 +355,9 @@ async function loadFinancialEntries() {
 
 async function loadInitialData() {
   await Promise.all([
-    loadStudents(), 
-    loadTasks(), 
-    loadLessonsForCurrentMonth(), 
+    loadStudents(),
+    loadTasks(),
+    loadLessonsForCurrentMonth(),
     loadFinancesForCurrentMonth(),
     loadFinancialEntries()
   ]);
@@ -1357,8 +1364,8 @@ function renderFinancialEntries() {
     const dueText = entry.dueDate
       ? `Venc: ${formatDateBR(entry.dueDate)}`
       : "Sem vencimento";
-    const installmentText = entry.installments > 1 
-      ? `Parcela ${entry.currentInstallment}/${entry.installments}` 
+    const installmentText = entry.installments > 1
+      ? `Parcela ${entry.currentInstallment}/${entry.installments}`
       : "À vista";
 
     infoEl.textContent = `${formatBRL(entry.amount)} • ${installmentText} • ${statusLabel} • ${dueText}`;
@@ -1385,6 +1392,16 @@ function renderFinancialEntries() {
     editBtn.textContent = "Editar";
     editBtn.addEventListener("click", () => openFinancialEntryForm(entry));
     actions.append(editBtn);
+
+    // Botão excluir
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "tag";
+    deleteBtn.style.background = "#fee";
+    deleteBtn.style.color = "#c33";
+    deleteBtn.textContent = "Excluir";
+    deleteBtn.addEventListener("click", () => deleteFinancialEntry(entry));
+    actions.append(deleteBtn);
 
     row.append(main, actions);
     list.append(row);
@@ -1414,11 +1431,30 @@ async function updateFinancialEntryStatus(entry, newStatus) {
   }
 }
 
+async function deleteFinancialEntry(entry) {
+  if (!confirm(`Tem certeza que deseja excluir o lançamento "${entry.description}"?`)) {
+    return;
+  }
+
+  try {
+    await fetchJSON(`/financial-entries/${entry.id}/`, {
+      method: "DELETE",
+    });
+    alert("Lançamento excluído com sucesso!");
+    await loadFinancialEntries();
+    renderFinancialEntries();
+    renderFinancialStats();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível excluir o lançamento.");
+  }
+}
+
 function openFinancialEntryForm(entry = null) {
   const card = document.getElementById("financialEntryFormCard");
   const titleEl = document.getElementById("financialEntryFormTitle");
   const form = document.getElementById("financialEntryForm");
-  
+
   if (!card || !form || !titleEl) {
     console.error("Elementos do formulário financeiro não encontrados");
     return;
@@ -1442,7 +1478,7 @@ function openFinancialEntryForm(entry = null) {
     // Modo edição
     editingFinancialEntryId = entry.id;
     titleEl.textContent = "Editar Lançamento";
-    
+
     document.getElementById("feStudent").value = entry.studentId || "";
     document.getElementById("feDescription").value = entry.description || "";
     document.getElementById("feAmount").value = entry.amount || "";
@@ -1452,7 +1488,7 @@ function openFinancialEntryForm(entry = null) {
     document.getElementById("feStatus").value = entry.status || "pending";
     document.getElementById("fePaymentMethod").value = entry.paymentMethod || "pix";
     document.getElementById("feNotes").value = entry.notes || "";
-    
+
     // Desabilita parcelas em modo edição (não pode alterar)
     document.getElementById("feInstallments").disabled = true;
   } else {
@@ -1460,13 +1496,13 @@ function openFinancialEntryForm(entry = null) {
     editingFinancialEntryId = null;
     titleEl.textContent = "Cadastrar Recebimento";
     form.reset();
-    
+
     // Data de lançamento = hoje
     const feIssueDate = document.getElementById("feIssueDate");
     if (feIssueDate) {
       feIssueDate.value = toISO(new Date());
     }
-    
+
     // Data de vencimento = dia 5 do próximo mês
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1);
@@ -1475,7 +1511,7 @@ function openFinancialEntryForm(entry = null) {
     if (feDueDate) {
       feDueDate.value = toISO(nextMonth);
     }
-    
+
     const feInstallments = document.getElementById("feInstallments");
     if (feInstallments) {
       feInstallments.value = 1;
@@ -1498,22 +1534,22 @@ async function createInstallments(basePayload, totalInstallments) {
   // Cria as parcelas restantes
   const baseDueDate = new Date(basePayload.due_date);
   const baseIssueDate = new Date(basePayload.issue_date);
-  
+
   for (let i = 2; i <= totalInstallments; i++) {
     const installmentPayload = { ...basePayload };
     installmentPayload.current_installment = i;
-    
+
     // Calcula data de vencimento (mesmo dia do mês seguinte)
     const dueDate = new Date(baseDueDate);
     dueDate.setMonth(dueDate.getMonth() + (i - 1));
-    
+
     // Calcula data de lançamento (mesmo dia do mês seguinte)
     const issueDate = new Date(baseIssueDate);
     issueDate.setMonth(issueDate.getMonth() + (i - 1));
-    
+
     installmentPayload.due_date = toISO(dueDate);
     installmentPayload.issue_date = toISO(issueDate);
-    
+
     await fetchJSON("/financial-entries/", {
       method: "POST",
       body: JSON.stringify(installmentPayload),
@@ -1542,7 +1578,13 @@ function showView(viewId) {
   document.querySelectorAll(".nav-item").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.view === viewId);
   });
-  
+
+  // Mostra/oculta menu de usuários baseado em is_admin
+  const navUsers = document.getElementById("navUsers");
+  if (navUsers && state.currentUser) {
+    navUsers.style.display = state.currentUser.is_admin ? "flex" : "none";
+  }
+
   // Se abrir a visualização financeira, garante que o mês está sincronizado
   if (viewId === "view-finance") {
     // Se financeViewMonth não foi inicializado ou está muito diferente, usa o mês atual
@@ -1559,7 +1601,7 @@ function showView(viewId) {
       renderFinancialStats();
     });
   }
-  
+
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -1714,7 +1756,7 @@ function attachForms() {
   // Navegação de meses na visualização financeira
   const financeMonthBack = document.getElementById("financeMonthBack");
   const financeMonthForward = document.getElementById("financeMonthForward");
-  
+
   if (financeMonthBack) {
     financeMonthBack.addEventListener("click", async () => {
       const current = state.financeViewMonth;
@@ -1728,7 +1770,7 @@ function attachForms() {
       renderFinancialStats();
     });
   }
-  
+
   if (financeMonthForward) {
     financeMonthForward.addEventListener("click", async () => {
       const current = state.financeViewMonth;
@@ -1748,7 +1790,7 @@ function attachForms() {
   if (financialEntryForm) {
     financialEntryForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      
+
       const studentId = document.getElementById("feStudent")?.value;
       const description = document.getElementById("feDescription")?.value.trim();
       const amount = document.getElementById("feAmount")?.value;
@@ -1776,7 +1818,7 @@ function attachForms() {
         payment_method: paymentMethod,
         notes,
       };
-      
+
       // Se o status for "paid" e não tiver payment_date, define como hoje
       if (status === "paid" && !payload.payment_date) {
         payload.payment_date = toISO(new Date());
@@ -1806,17 +1848,17 @@ function attachForms() {
             alert("Lançamento salvo com sucesso!");
           }
         }
-        
+
         // Fecha o formulário
         const card = document.getElementById("financialEntryFormCard");
         if (card) {
           card.style.display = "none";
         }
-        
+
         // Reseta o formulário
         financialEntryForm.reset();
         editingFinancialEntryId = null;
-        
+
         // Recarrega e renderiza os lançamentos
         await loadFinancialEntries();
         renderFinancialEntries();
@@ -1870,8 +1912,316 @@ async function init() {
   showView("view-calendar");
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+// ==========================
+// Autenticação
+// ==========================
+
+async function checkAuth() {
+  try {
+    const csrf = getCookie("csrftoken");
+    console.log("Fazendo requisição para /api/auth/current-user/");
+    const response = await fetch("/api/auth/current-user/", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf || "",
+      },
+      credentials: "same-origin",
+    });
+
+    console.log("Resposta recebida:", response.status, response.statusText);
+
+    // Se não for OK, verifica o conteúdo
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = { error: "Erro desconhecido" };
+      }
+
+      if (response.status === 401 || response.status === 403 || errorData.error) {
+        console.log("Usuário não autenticado (status " + response.status + "), redirecionando para login...");
+        window.location.href = "/login/";
+        return false;
+      }
+
+      console.error("Erro na API:", response.status, errorData);
+      if (response.status >= 500) {
+        throw new Error(`Erro no servidor (${response.status})`);
+      }
+      // Se não for erro de autenticação, tenta continuar
+    }
+
+    const user = await response.json();
+    console.log("Dados do usuário recebidos:", user);
+
+    // Verifica se a resposta contém erro (quando não autenticado)
+    if (user && user.error) {
+      console.log("Erro de autenticação:", user.error);
+      window.location.href = "/login/";
+      return false;
+    }
+
+    if (user && user.id) {
+      state.currentUser = user;
+      console.log("Usuário autenticado:", user.username, "Admin:", user.is_admin);
+      return true;
+    } else {
+      console.log("Resposta inválida do servidor:", user);
+      window.location.href = "/login/";
+      return false;
+    }
+  } catch (error) {
+    console.error("Erro ao verificar autenticação:", error);
+    window.location.href = "/login/";
+    return false;
+  }
+}
+
+async function handleLogout() {
+  console.log("Iniciando logout...");
+  try {
+    const csrf = getCookie("csrftoken");
+    const response = await fetch("/api/auth/logout/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrf || "",
+      },
+      credentials: "same-origin",
+    });
+    console.log("Logout realizado, redirecionando...");
+    window.location.href = "/login/";
+  } catch (error) {
+    console.error("Erro ao fazer logout:", error);
+    // Mesmo com erro, redireciona para login
+    window.location.href = "/login/";
+  }
+}
+
+// ==========================
+// Gerenciamento de Usuários
+// ==========================
+
+async function loadUsers() {
+  try {
+    const users = await fetchJSON("/users/");
+    state.users = users;
+  } catch (error) {
+    console.error("Erro ao carregar usuários:", error);
+    state.users = [];
+  }
+}
+
+function renderUsers() {
+  const list = document.getElementById("usersList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (state.users.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Nenhum usuário cadastrado.";
+    list.append(empty);
+    return;
+  }
+
+  state.users.forEach((user) => {
+    const row = document.createElement("div");
+    row.className = "student-row";
+    row.innerHTML = `
+      <div class="student-main">
+        <div class="student-name">
+          <strong>${user.username}</strong>
+          ${user.is_admin ? '<span class="tag" style="margin-left: 8px;">Admin</span>' : ''}
+        </div>
+        <div class="student-info">
+          ${user.email || "Sem email"} • ${user.is_active ? "Ativo" : "Inativo"}
+        </div>
+      </div>
+      <div class="student-actions">
+        <button class="tag" onclick="openUserForm(${user.id})">Editar</button>
+        <button class="tag" onclick="deleteUser(${user.id})" style="background: #fee; color: #c33;">Excluir</button>
+      </div>
+    `;
+    list.append(row);
+  });
+}
+
+function openUserForm(userId = null) {
+  const card = document.getElementById("userFormCard");
+  const titleEl = document.getElementById("userFormTitle");
+  const form = document.getElementById("userForm");
+
+  if (!card || !form || !titleEl) {
+    console.error("Elementos do formulário de usuário não encontrados");
+    return;
+  }
+
+  if (userId) {
+    const user = state.users.find((u) => u.id === userId);
+    if (!user) return;
+
+    editingUserId = userId;
+    titleEl.textContent = "Editar Usuário";
+
+    document.getElementById("uUsername").value = user.username || "";
+    document.getElementById("uEmail").value = user.email || "";
+    document.getElementById("uFirstName").value = user.first_name || "";
+    document.getElementById("uLastName").value = user.last_name || "";
+    document.getElementById("uIsAdmin").checked = user.is_admin || false;
+    document.getElementById("uIsActive").checked = user.is_active !== false;
+    document.getElementById("uPassword").value = "";
+    document.getElementById("uPassword").required = false;
+  } else {
+    editingUserId = null;
+    titleEl.textContent = "Novo Usuário";
+    form.reset();
+    document.getElementById("uPassword").required = true;
+  }
+
+  card.style.display = "flex";
+}
+
+function closeUserForm() {
+  const card = document.getElementById("userFormCard");
+  if (card) {
+    card.style.display = "none";
+  }
+  editingUserId = null;
+  const form = document.getElementById("userForm");
+  if (form) form.reset();
+}
+
+async function onUserFormSubmit(event) {
+  event.preventDefault();
+
+  const username = document.getElementById("uUsername")?.value.trim();
+  const email = document.getElementById("uEmail")?.value.trim();
+  const firstName = document.getElementById("uFirstName")?.value.trim();
+  const lastName = document.getElementById("uLastName")?.value.trim();
+  const password = document.getElementById("uPassword")?.value;
+  const isAdmin = document.getElementById("uIsAdmin")?.checked || false;
+  const isActive = document.getElementById("uIsActive")?.checked !== false;
+
+  if (!username) {
+    alert("Username é obrigatório.");
+    return;
+  }
+
+  if (!editingUserId && !password) {
+    alert("Senha é obrigatória para novos usuários.");
+    return;
+  }
+
+  const payload = {
+    username,
+    email,
+    first_name: firstName,
+    last_name: lastName,
+    is_admin: isAdmin,
+    is_active: isActive,
+  };
+
+  if (password) {
+    payload.password = password;
+  }
+
+  try {
+    if (editingUserId) {
+      await fetchJSON(`/users/${editingUserId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      alert("Usuário atualizado com sucesso!");
+    } else {
+      await fetchJSON("/users/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      alert("Usuário criado com sucesso!");
+    }
+
+    closeUserForm();
+    await loadUsers();
+    renderUsers();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível salvar o usuário. Verifique o console para mais detalhes.");
+  }
+}
+
+async function deleteUser(userId) {
+  if (!confirm("Tem certeza que deseja excluir este usuário?")) {
+    return;
+  }
+
+  try {
+    await fetchJSON(`/users/${userId}/`, {
+      method: "DELETE",
+    });
+    alert("Usuário excluído com sucesso!");
+    await loadUsers();
+    renderUsers();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível excluir o usuário.");
+  }
+}
+
+function initUsersUI() {
+  const newUserBtn = document.getElementById("newUserBtn");
+  if (newUserBtn) {
+    newUserBtn.addEventListener("click", () => openUserForm(null));
+  }
+
+  const cancelUserForm = document.getElementById("cancelUserForm");
+  if (cancelUserForm) {
+    cancelUserForm.addEventListener("click", closeUserForm);
+  }
+
+  const userForm = document.getElementById("userForm");
+  if (userForm) {
+    userForm.addEventListener("submit", onUserFormSubmit);
+  }
+
+}
+
+// Anexa o botão de logout para todos os usuários (não apenas admins)
+function attachLogoutButton() {
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", handleLogout);
+    console.log("Botão de logout anexado");
+  } else {
+    console.warn("Botão de logout não encontrado no DOM");
+  }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  // Verifica autenticação antes de inicializar
+  console.log("Verificando autenticação...");
+  const isAuthenticated = await checkAuth();
+  if (!isAuthenticated) {
+    console.log("Usuário não autenticado, redirecionando...");
+    return; // Redireciona para login
+  }
+
+  console.log("Usuário autenticado, inicializando aplicação...");
+
+  // Anexa botão de logout para todos os usuários
+  attachLogoutButton();
+
   init().catch((err) => console.error(err));
+
+  // Se for admin, inicializa UI de usuários
+  if (state.currentUser && state.currentUser.is_admin) {
+    initUsersUI();
+    await loadUsers();
+    renderUsers();
+  }
 });
 
 function renderFinanceTotal() {

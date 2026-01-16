@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice  # ajuste se os nomes forem diferentes
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile
 
 
 @admin.register(Student)
@@ -25,3 +25,15 @@ class InvoiceAdmin(admin.ModelAdmin):
     list_display = ("student", "month", "amount", "status")
     list_filter = ("status", "month")
     search_fields = ("student__name",)
+
+@admin.register(FinancialEntry)
+class FinancialEntryAdmin(admin.ModelAdmin):
+    list_display = ("student", "description", "amount", "status", "due_date")
+    list_filter = ("status", "due_date")
+    search_fields = ("student__name", "description")
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "is_admin", "created_at")
+    list_filter = ("is_admin",)
+    search_fields = ("user__username", "user__email")

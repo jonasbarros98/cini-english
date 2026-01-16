@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from datetime import date
 
 class Student(models.Model):
@@ -129,7 +130,6 @@ class Invoice(models.Model):
 
 
 class FinancialEntry(models.Model):
-    """Lançamento financeiro a receber de alunos"""
     STATUS_PENDING = "pending"
     STATUS_PAID = "paid"
     STATUS_OVERDUE = "overdue"
@@ -142,31 +142,46 @@ class FinancialEntry(models.Model):
         (STATUS_CANCELLED, "Cancelado"),
     ]
 
+    PAYMENT_METHOD_PIX = "pix"
+    PAYMENT_METHOD_CASH = "cash"
+    PAYMENT_METHOD_CARD = "card"
+    PAYMENT_METHOD_TRANSFER = "transfer"
+    PAYMENT_METHOD_OTHER = "other"
+
     PAYMENT_METHOD_CHOICES = [
-        ("pix", "PIX"),
-        ("cash", "Dinheiro"),
-        ("card", "Cartão"),
-        ("transfer", "Transferência"),
-        ("other", "Outro"),
+        (PAYMENT_METHOD_PIX, "PIX"),
+        (PAYMENT_METHOD_CASH, "Dinheiro"),
+        (PAYMENT_METHOD_CARD, "Cartão"),
+        (PAYMENT_METHOD_TRANSFER, "Transferência"),
+        (PAYMENT_METHOD_OTHER, "Outro"),
     ]
 
     student = models.ForeignKey(
         Student, on_delete=models.CASCADE, related_name="financial_entries"
     )
     description = models.CharField(max_length=255, help_text="Descrição do lançamento")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Valor total")
-    installments = models.PositiveSmallIntegerField(default=1, help_text="Número de parcelas")
-    current_installment = models.PositiveSmallIntegerField(default=1, help_text="Parcela atual")
-    
+    amount = models.DecimalField(
+        max_digits=10, decimal_places=2, help_text="Valor total"
+    )
+    installments = models.PositiveSmallIntegerField(
+        default=1, help_text="Número de parcelas"
+    )
+    current_installment = models.PositiveSmallIntegerField(
+        default=1, help_text="Parcela atual"
+    )
     issue_date = models.DateField(help_text="Data de lançamento")
     due_date = models.DateField(help_text="Data de vencimento")
-    payment_date = models.DateField(null=True, blank=True, help_text="Data do pagamento")
-    
+    payment_date = models.DateField(
+        null=True, blank=True, help_text="Data do pagamento"
+    )
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
     )
     payment_method = models.CharField(
-        max_length=20, choices=PAYMENT_METHOD_CHOICES, default="pix", blank=True
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default=PAYMENT_METHOD_PIX,
+        blank=True,
     )
     notes = models.TextField(blank=True, help_text="Observações")
 
@@ -174,9 +189,21 @@ class FinancialEntry(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-due_date", "student__name"]
         verbose_name = "Lançamento Financeiro"
         verbose_name_plural = "Lançamentos Financeiros"
+        ordering = ["-due_date", "student__name"]
 
     def __str__(self):
         return f"{self.student.name} - {self.description} - {self.amount}"
+
+
+class UserProfile(models.Model):
+    """Perfil estendido do usuário"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    is_admin = models.BooleanField(default=False, help_text="Usuário administrador pode cadastrar outros usuários")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {'Admin' if self.is_admin else 'Usuário'}"

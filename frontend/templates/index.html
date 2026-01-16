@@ -63,6 +63,13 @@
               <p class="nav-subtitle">Recebimentos do mês</p>
             </div>
           </button>
+          <button class="nav-item" data-view="view-users" id="navUsers" style="display: none;">
+            <span class="nav-emoji">👥</span>
+            <div>
+              <p class="nav-title">Usuários</p>
+              <p class="nav-subtitle">Gerenciar usuários</p>
+            </div>
+          </button>
 
         </nav>
         <div class="sidebar-card">
@@ -73,6 +80,7 @@
             <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
           </ul>
           <button class="primary ghost" id="createLessonBtn">+ Novo agendamento</button>
+          <button class="primary ghost" id="logoutBtn" style="margin-top: 12px; width: 100%;">Sair</button>
         </div>
       </aside>
 
@@ -450,6 +458,85 @@
     <div class="finance-table" id="financialEntriesList"></div>
   </section>
 </section>
+
+        <section class="view" id="view-users">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Usuários</p>
+              <h1>Gerenciamento de Usuários</h1>
+              <p class="muted">Cadastre e gerencie usuários do sistema. Apenas administradores têm acesso a esta tela.</p>
+            </div>
+            <button class="primary" id="newUserBtn">+ Novo Usuário</button>
+          </header>
+
+          <!-- Formulário de Usuário (oculto por padrão) -->
+          <section class="card detail-card" id="userFormCard" style="display: none;">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Usuário</p>
+                <h3 id="userFormTitle">Novo Usuário</h3>
+                <p class="muted">Preencha os dados do usuário.</p>
+              </div>
+            </div>
+            <form id="userForm" class="form">
+              <div class="form-row grid-two">
+                <div>
+                  <label for="uUsername">Username *</label>
+                  <input type="text" id="uUsername" name="uUsername" required />
+                </div>
+                <div>
+                  <label for="uEmail">Email</label>
+                  <input type="email" id="uEmail" name="uEmail" />
+                </div>
+              </div>
+              <div class="form-row grid-two">
+                <div>
+                  <label for="uFirstName">Nome</label>
+                  <input type="text" id="uFirstName" name="uFirstName" />
+                </div>
+                <div>
+                  <label for="uLastName">Sobrenome</label>
+                  <input type="text" id="uLastName" name="uLastName" />
+                </div>
+              </div>
+              <div class="form-row">
+                <label for="uPassword">Senha <span id="passwordRequired">*</span></label>
+                <input type="password" id="uPassword" name="uPassword" required />
+                <small class="muted">Deixe em branco para manter a senha atual (ao editar)</small>
+              </div>
+              <div class="form-row grid-two">
+                <div>
+                  <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="uIsAdmin" name="uIsAdmin" />
+                    <span>Administrador</span>
+                  </label>
+                </div>
+                <div>
+                  <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="uIsActive" name="uIsActive" checked />
+                    <span>Ativo</span>
+                  </label>
+                </div>
+              </div>
+              <div class="form-row" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button type="submit" class="primary">Salvar Usuário</button>
+                <button type="button" class="primary ghost" id="cancelUserForm">Cancelar</button>
+              </div>
+            </form>
+          </section>
+
+          <!-- Lista de Usuários -->
+          <section class="card detail-card">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Lista de Usuários</p>
+                <h3>Usuários Cadastrados</h3>
+                <p class="muted">Gerencie os usuários do sistema.</p>
+              </div>
+            </div>
+            <div id="usersList" class="student-list"></div>
+          </section>
+        </section>
 
       </main>
     </div>

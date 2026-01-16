@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Student, Lesson, Task, Invoice, FinancialEntry
+from django.contrib.auth.models import User
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile
 
 
 class StudentSerializer(serializers.ModelSerializer):
@@ -94,3 +95,65 @@ class FinancialEntrySerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class UserSerializer(serializers.ModelSerializer):
+    is_admin = serializers.SerializerMethodField()
+    password = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "password",
+            "is_admin",
+            "is_active",
+            "date_joined",
+        ]
+        read_only_fields = ["date_joined"]
+
+    def get_is_admin(self, obj):
+        try:
+            return obj.profile.is_admin
+        except UserProfile.DoesNotExist:
+            return False
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        is_admin = validated_data.pop('is_admin', False)
+        
+        user = User.objects.create_user(**validated_data)
+        if password:
+            user.set_password(password)
+            user.save()
+        
+        # Cria ou atualiza o perfil
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        profile.is_admin = is_admin
+        profile.save()
+        
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        is_admin = validated_data.pop('is_admin', None)
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        if password:
+            instance.set_password(password)
+        
+        instance.save()
+        
+        # Atualiza perfil
+        if is_admin is not None:
+            profile, created = UserProfile.objects.get_or_create(user=instance)
+            profile.is_admin = is_admin
+            profile.save()
+        
+        return instance
