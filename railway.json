@@ -3,11 +3,7 @@
   "deploy": {
     "runtime": "V2",
     "numReplicas": 1,
-    "preDeployCommand": [
-      "python manage.py migrate --noinput",
-      "python manage.py collectstatic --noinput",
-      "python manage.py ensure_superuser"
-    ],
+    "preDeployCommand": "python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py create_master_user",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
