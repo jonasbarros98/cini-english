@@ -3,10 +3,10 @@ from datetime import date
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Invoice
+from .models import Invoice, FinancialEntry
 from .models import Student, Lesson, Task
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
-from .serializers import InvoiceSerializer
+from .serializers import InvoiceSerializer, FinancialEntrySerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all().order_by("name")
@@ -86,4 +86,29 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(month__gte=start, month__lt=end)
             except ValueError:
                 pass
+        return qs
+
+
+class FinancialEntryViewSet(viewsets.ModelViewSet):
+    queryset = FinancialEntry.objects.select_related("student").all()
+    serializer_class = FinancialEntrySerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Filtro por mês de vencimento
+        month_param = self.request.query_params.get("month")
+        if month_param:
+            try:
+                year, month = map(int, month_param.split("-"))
+                qs = qs.filter(due_date__year=year, due_date__month=month)
+            except ValueError:
+                pass
+        # Filtro por status
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        # Filtro por aluno
+        student_param = self.request.query_params.get("student")
+        if student_param:
+            qs = qs.filter(student_id=student_param)
         return qs

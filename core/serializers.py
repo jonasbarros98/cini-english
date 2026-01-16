@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Student, Lesson, Task, Invoice
+from .models import Student, Lesson, Task, Invoice, FinancialEntry
 
 
 class StudentSerializer(serializers.ModelSerializer):
@@ -48,6 +48,9 @@ class TaskSerializer(serializers.ModelSerializer):
             "title",
             "status",
             "tags",
+            "date",
+            "due_date",
+            "notes",
             "created_at",
             "updated_at",
         ]
@@ -66,4 +69,28 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "amount",
             "status",
             "notes",
+        ]
+
+
+class FinancialEntrySerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source="student.name", read_only=True)
+
+    class Meta:
+        model = FinancialEntry
+        fields = [
+            "id",
+            "student",
+            "student_name",
+            "description",
+            "amount",
+            "installments",
+            "current_installment",
+            "issue_date",
+            "due_date",
+            "payment_date",
+            "status",
+            "payment_method",
+            "notes",
+            "created_at",
+            "updated_at",
         ]
