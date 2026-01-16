@@ -4,6 +4,8 @@ from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile
 
 
 class StudentSerializer(serializers.ModelSerializer):
+    contract_pdf_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = Student
         fields = [
@@ -17,9 +19,31 @@ class StudentSerializer(serializers.ModelSerializer):
             "lessons_done",
             "pix_key",
             "active",
+            "contract_pdf",
+            "contract_pdf_url",
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["contract_pdf_url"]
+    
+    def get_contract_pdf_url(self, obj):
+        if obj.contract_pdf:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.contract_pdf.url)
+            return obj.contract_pdf.url
+        return None
+    
+    def update(self, instance, validated_data):
+        # Permite remover o arquivo enviando string vazia ou None
+        if 'contract_pdf' in validated_data:
+            contract_value = validated_data.get('contract_pdf')
+            # Se for string vazia, arquivo vazio, ou None, remove o arquivo
+            if contract_value == "" or contract_value is None or (hasattr(contract_value, 'size') and contract_value.size == 0):
+                if instance.contract_pdf:
+                    instance.contract_pdf.delete(save=False)
+                validated_data['contract_pdf'] = None
+        return super().update(instance, validated_data)
 
 
 class LessonSerializer(serializers.ModelSerializer):

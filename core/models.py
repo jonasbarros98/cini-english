@@ -15,6 +15,12 @@ class Student(models.Model):
     lessons_done = models.PositiveSmallIntegerField(default=0)
     pix_key = models.CharField(max_length=255, blank=True)
     active = models.BooleanField(default=True)
+    contract_pdf = models.FileField(
+        upload_to="contracts/",
+        blank=True,
+        null=True,
+        help_text="Contrato do aluno em PDF"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

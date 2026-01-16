@@ -16,6 +16,11 @@ class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all().order_by("name")
     serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 class LessonViewSet(viewsets.ModelViewSet):
