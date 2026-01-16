@@ -2,7 +2,41 @@
 
 import django.db.models.deletion
 from django.conf import settings
-from django.db import migrations, models
+from django.db import migrations, models, connection
+
+
+def create_userprofile_if_not_exists(apps, schema_editor):
+    """Cria a tabela apenas se ela não existir"""
+    db_table = 'core_userprofile'
+    with connection.cursor() as cursor:
+        # Verifica se a tabela já existe
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = %s
+            );
+        """, [db_table])
+        exists = cursor.fetchone()[0]
+        
+        if not exists:
+            # Cria a tabela apenas se não existir
+            cursor.execute("""
+                CREATE TABLE core_userprofile (
+                    id BIGSERIAL PRIMARY KEY,
+                    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    user_id INTEGER NOT NULL UNIQUE REFERENCES auth_user(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS core_userprofile_user_id_idx ON core_userprofile(user_id);
+            """)
+
+
+def reverse_create_userprofile(apps, schema_editor):
+    """Remove a tabela se existir"""
+    with connection.cursor() as cursor:
+        cursor.execute("DROP TABLE IF EXISTS core_userprofile;")
 
 
 class Migration(migrations.Migration):
@@ -15,25 +49,41 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             sql="""
-                CREATE TABLE IF NOT EXISTS core_userprofile (
-                    id BIGSERIAL PRIMARY KEY,
-                    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-                    user_id INTEGER NOT NULL UNIQUE REFERENCES auth_user(id) ON DELETE CASCADE
-                );
-                CREATE INDEX IF NOT EXISTS core_userprofile_user_id_idx ON core_userprofile(user_id);
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'core_userprofile'
+                    ) THEN
+                        CREATE TABLE core_userprofile (
+                            id BIGSERIAL PRIMARY KEY,
+                            is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+                            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                            user_id INTEGER NOT NULL UNIQUE REFERENCES auth_user(id) ON DELETE CASCADE
+                        );
+                        CREATE INDEX core_userprofile_user_id_idx ON core_userprofile(user_id);
+                    END IF;
+                END $$;
             """,
             reverse_sql="DROP TABLE IF EXISTS core_userprofile;",
         ),
-        migrations.CreateModel(
-            name='UserProfile',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_admin', models.BooleanField(default=False, help_text='Usuário administrador pode cadastrar outros usuários')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to=settings.AUTH_USER_MODEL)),
+        migrations.SeparateDatabaseAndState(
+            # Não faz nada no banco (a tabela já foi criada pelo RunSQL se necessário)
+            database_operations=[],
+            # Apenas atualiza o estado do Django
+            state_operations=[
+                migrations.CreateModel(
+                    name='UserProfile',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('is_admin', models.BooleanField(default=False, help_text='Usuário administrador pode cadastrar outros usuários')),
+                        ('created_at', models.DateTimeField(auto_now_add=True)),
+                        ('updated_at', models.DateTimeField(auto_now=True)),
+                        ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to=settings.AUTH_USER_MODEL)),
+                    ],
+                ),
             ],
         ),
     ]
