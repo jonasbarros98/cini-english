@@ -12,9 +12,14 @@ const state = {
   students: [],  // vindo da API
   tasks: [],     // vindo da API
   finances: [],   // <--- NOVO: lista de cobranças do mês
+  financialEntries: [], // lançamentos financeiros a receber
 };
 
+let editingFinancialEntryId = null;
+
 let editingLessonId = null;
+let editingTaskId = null;
+
 
 // Labels separados pra não misturar aula x tarefa
 const lessonStatusLabels = {
@@ -41,6 +46,21 @@ const financeStatusLabels = {
   paid: "Pago",
   overdue: "Vencido",
   remind: "Lembrar de cobrar",
+};
+
+const financialEntryStatusLabels = {
+  pending: "Pendente",
+  paid: "Pago",
+  overdue: "Vencido",
+  cancelled: "Cancelado",
+};
+
+const paymentMethodLabels = {
+  pix: "PIX",
+  cash: "Dinheiro",
+  card: "Cartão",
+  transfer: "Transferência",
+  other: "Outro",
 };
 
 function formatBRL(value) {
@@ -146,10 +166,121 @@ async function loadTasks() {
   state.tasks = tasks.map((t) => ({
     id: t.id,
     title: t.title,
-    status: t.status, // 'todo', 'doing', 'done'
-    tags: t.tags ? t.tags.split(",").map((tag) => tag.trim()) : [],
+    status: t.status,               // 'todo', 'doing', 'done'
+    date: t.date || null,           // "2026-01-05"
+    dueDate: t.due_date || null,    // "2026-01-10"
+    notes: t.notes || "",
   }));
 }
+
+function resetTaskForm(task = null) {
+  const titleInput = document.getElementById("taskTitle");
+  const dateInput = document.getElementById("taskDate");
+  const dueInput = document.getElementById("taskDue");
+  const statusSelect = document.getElementById("taskStatus");
+  const notesInput = document.getElementById("taskNotes");
+
+  if (!titleInput || !dateInput || !dueInput || !statusSelect || !notesInput) {
+    return;
+  }
+
+  if (task) {
+    titleInput.value = task.title || "";
+    dateInput.value = task.date || "";
+    dueInput.value = task.dueDate || "";
+    statusSelect.value = task.status || "todo";
+    notesInput.value = task.notes || "";
+  } else {
+    titleInput.value = "";
+    dateInput.value = "";
+    dueInput.value = "";
+    statusSelect.value = "todo";
+    notesInput.value = "";
+  }
+}
+
+
+function openTaskForm(task = null) {
+  const card = document.getElementById("taskFormCard");
+  const form = document.getElementById("taskForm");
+
+  const title = document.getElementById("taskTitle");
+  const date = document.getElementById("taskDate");
+  const due = document.getElementById("taskDue");
+  const status = document.getElementById("taskStatus");
+  const notes = document.getElementById("taskNotes");
+
+  if (task) {
+    // edição
+    form.dataset.id = task.id;
+    title.value = task.title || "";
+    date.value = task.date || "";
+    due.value = task.due_date || "";
+    status.value = task.status || "todo";
+    notes.value = task.notes || "";
+  } else {
+    // nova tarefa
+    delete form.dataset.id;
+    title.value = "";
+    // padrão: hoje
+    const today = new Date().toISOString().slice(0, 10);
+    date.value = today;
+    due.value = "";
+    status.value = "todo";
+    notes.value = "";
+  }
+
+  card.hidden = false;
+  title.focus();
+}
+
+function closeTaskForm() {
+  const card = document.getElementById("taskFormCard");
+  card.hidden = true;
+}
+
+async function onTaskFormSubmit(event) {
+  event.preventDefault();
+  const form = event.target;
+
+  const payload = {
+    title: document.getElementById("taskTitle").value.trim(),
+    date: document.getElementById("taskDate").value || null,
+    due_date: document.getElementById("taskDue").value || null,
+    status: document.getElementById("taskStatus").value,
+    notes: document.getElementById("taskNotes").value.trim(),
+  };
+
+  if (!payload.title) {
+    alert("Dá um título pra tarefa primeiro 😉");
+    return;
+  }
+
+  const id = form.dataset.id;
+
+  try {
+    if (id) {
+      // editar
+      await fetchJSON(`/tasks/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+    } else {
+      // criar
+      await fetchJSON("/tasks/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+
+    await loadTasks(); // garante state.tasks atualizado
+    closeTaskForm();
+  } catch (err) {
+    console.error(err);
+    alert("Não foi possível salvar a tarefa.");
+  }
+}
+
 
 async function loadLessonsForCurrentMonth() {
   const year = state.currentMonth.getFullYear();
@@ -189,9 +320,31 @@ async function loadFinancesForCurrentMonth() {
   }));
 }
 
+async function loadFinancialEntries() {
+  const year = state.currentMonth.getFullYear();
+  const month = String(state.currentMonth.getMonth() + 1).padStart(2, "0");
+  const entries = await fetchJSON(`/financial-entries/?month=${year}-${month}`);
+
+  state.financialEntries = entries.map((e) => ({
+    id: e.id,
+    studentId: e.student,
+    studentName: e.student_name,
+    description: e.description,
+    amount: e.amount,
+    installments: e.installments,
+    currentInstallment: e.current_installment,
+    issueDate: e.issue_date,
+    dueDate: e.due_date,
+    paymentDate: e.payment_date,
+    status: e.status,
+    paymentMethod: e.payment_method,
+    notes: e.notes || "",
+  }));
+}
+
 
 async function loadInitialData() {
-  await Promise.all([loadStudents(), loadTasks(), loadLessonsForCurrentMonth(), loadFinancesForCurrentMonth()]);
+  await Promise.all([loadStudents(), loadTasks(), loadLessonsForCurrentMonth(), loadFinancesForCurrentMonth(), loadFinancialEntries()]);
 }
 
 
@@ -239,14 +392,17 @@ async function changeMonth(delta) {
 
   await Promise.all([
     loadLessonsForCurrentMonth(),
-    loadFinancesForCurrentMonth(),   // <--- NOVO
+    loadFinancesForCurrentMonth(),
+    loadFinancialEntries(),
   ]);
 
   renderCalendar();
   renderDayDetails();
   renderStats();
-  renderFinance();                    // <--- NOVO
-  renderFinanceTotal();    
+  renderFinance();
+  renderFinanceTotal();
+  renderFinancialEntries();
+  renderFinancialStats();
 }
 
 
@@ -920,47 +1076,118 @@ Conte comigo para qualquer dúvida. Obrigado por estudar comigo! `;
 
 function renderTasks() {
   const list = document.getElementById("taskList");
+  if (!list) return;
+
   list.innerHTML = "";
 
   state.tasks.forEach((task) => {
     const card = document.createElement("div");
     card.className = "task-card";
 
-    const title = document.createElement("strong");
-    title.textContent = task.title;
+    // header: título + status
+    const header = document.createElement("div");
+    header.className = "task-header";
 
-    const status = document.createElement("div");
-    status.className = "task-status";
-    status.innerHTML = `<span class="pill ${task.status}">${taskStatusLabels[task.status] || "Em aberto"}</span>`;
+    const titleEl = document.createElement("strong");
+    titleEl.textContent = task.title;
 
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `pill task-status-badge ${task.status}`;
+    let statusLabel = "A fazer";
+    if (task.status === "doing") statusLabel = "Fazendo";
+    if (task.status === "done") statusLabel = "Concluída";
+    statusBadge.textContent = statusLabel;
+
+    header.append(titleEl, statusBadge);
+
+    // linha de datas
+    const datesRow = document.createElement("p");
+    datesRow.className = "muted task-dates";
+
+    const parts = [];
+    if (task.date) {
+      parts.push(`Data: ${task.date}`);
+    }
+    if (task.dueDate) {
+      parts.push(`Vencimento: ${task.dueDate}`);
+    }
+    datesRow.textContent = parts.join("  •  ");
+
+    // notas
+    const notesEl = document.createElement("p");
+    notesEl.className = "muted";
+    notesEl.textContent = task.notes || "";
+
+    // ações
     const actions = document.createElement("div");
     actions.className = "task-actions";
 
-    ["todo", "doing", "done"].forEach((statusKey) => {
+    // botão editar
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "tag";
+    editBtn.textContent = "Editar";
+    editBtn.addEventListener("click", () => {
+      editingTaskId = task.id;
+      resetTaskForm(task);
+      const formCard = document.getElementById("taskFormCard");
+      if (formCard) formCard.classList.remove("hidden");
+    });
+
+    // botão excluir
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "tag danger";
+    deleteBtn.textContent = "Excluir";
+    deleteBtn.addEventListener("click", async () => {
+      if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
+      try {
+        await fetchJSON(`/tasks/${task.id}/`, {
+          method: "DELETE",
+        });
+        await loadTasks();
+        renderTasks();
+      } catch (error) {
+        console.error(error);
+        alert("Não foi possível excluir a tarefa.");
+      }
+    });
+
+    // botões de status rápido
+    ["todo", "doing", "done"].forEach((st) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "tag";
-      btn.textContent = `Marcar ${taskStatusLabels[statusKey]}`;
+      let label = "A fazer";
+      if (st === "doing") label = "Fazendo";
+      if (st === "done") label = "Concluída";
+      btn.textContent = label;
+
       btn.addEventListener("click", async () => {
         try {
           await fetchJSON(`/tasks/${task.id}/`, {
             method: "PATCH",
-            body: JSON.stringify({ status: statusKey }),
+            body: JSON.stringify({ status: st }),
           });
-          task.status = statusKey;
+          task.status = st;
           renderTasks();
         } catch (error) {
           console.error(error);
-          alert("Não foi possível atualizar a tarefa.");
+          alert("Não foi possível atualizar o status.");
         }
       });
+
       actions.append(btn);
     });
 
-    card.append(title, status, actions);
+    actions.append(editBtn, deleteBtn);
+
+    card.append(header, datesRow, notesEl, actions);
     list.append(card);
   });
 }
+
+
 
 function renderFinance() {
   const list = document.getElementById("financeList");
@@ -1038,26 +1265,359 @@ async function updateInvoiceStatus(invoice, newStatus) {
   }
 }
 
-async function addTask() {
-  const title = prompt("Título da tarefa");
-  if (!title) return;
+// ==========================
+// Lançamentos Financeiros
+// ==========================
 
-  try {
-    await fetchJSON("/tasks/", {
-      method: "POST",
-      body: JSON.stringify({
-        title: title.trim(),
-        status: "todo",
-        tags: "",
-      }),
+function renderFinancialStats() {
+  const pendingEl = document.getElementById("statFinancePending");
+  const paidEl = document.getElementById("statFinancePaid");
+  const overdueEl = document.getElementById("statFinanceOverdue");
+  const countEl = document.getElementById("statFinanceCount");
+
+  if (!pendingEl || !paidEl || !overdueEl || !countEl) return;
+
+  const pending = state.financialEntries
+    .filter((e) => e.status === "pending")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  const paid = state.financialEntries
+    .filter((e) => e.status === "paid")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  const overdue = state.financialEntries
+    .filter((e) => e.status === "overdue")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  pendingEl.textContent = formatBRL(pending);
+  paidEl.textContent = formatBRL(paid);
+  overdueEl.textContent = formatBRL(overdue);
+  countEl.textContent = state.financialEntries.length;
+}
+
+function renderFinancialEntries() {
+  const list = document.getElementById("financialEntriesList");
+  const monthTitleEl = document.getElementById("financeMonthTitle");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (monthTitleEl) {
+    const label = monthName(state.currentMonth);
+    monthTitleEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  // Filtro de status
+  const filterSelect = document.getElementById("financeFilterStatus");
+  const statusFilter = filterSelect ? filterSelect.value : "";
+
+  let entries = state.financialEntries;
+  if (statusFilter) {
+    entries = entries.filter((e) => e.status === statusFilter);
+  }
+
+  if (entries.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Nenhum lançamento financeiro para este mês. Clique em '+ Novo Lançamento' para criar.";
+    list.append(empty);
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = `finance-row ${entry.status}`;
+
+    const main = document.createElement("div");
+    main.className = "finance-main";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "finance-name";
+    nameEl.innerHTML = `<strong>${entry.studentName || "Aluno"}</strong> - ${entry.description}`;
+
+    const infoEl = document.createElement("div");
+    infoEl.className = "finance-info";
+
+    const statusLabel = financialEntryStatusLabels[entry.status] || entry.status;
+    const dueText = entry.dueDate
+      ? `Venc: ${formatDateBR(entry.dueDate)}`
+      : "Sem vencimento";
+    const installmentText = entry.installments > 1 
+      ? `Parcela ${entry.currentInstallment}/${entry.installments}` 
+      : "À vista";
+
+    infoEl.textContent = `${formatBRL(entry.amount)} • ${installmentText} • ${statusLabel} • ${dueText}`;
+
+    main.append(nameEl, infoEl);
+
+    const actions = document.createElement("div");
+    actions.className = "finance-actions";
+
+    // Botões de status
+    ["paid", "pending", "overdue"].forEach((statusKey) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tag";
+      btn.textContent = financialEntryStatusLabels[statusKey];
+      btn.addEventListener("click", () => updateFinancialEntryStatus(entry, statusKey));
+      actions.append(btn);
     });
-    await loadTasks();
-    renderTasks();
+
+    // Botão editar
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "tag";
+    editBtn.textContent = "Editar";
+    editBtn.addEventListener("click", () => openFinancialEntryForm(entry));
+    actions.append(editBtn);
+
+    // Botão excluir
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "tag danger";
+    deleteBtn.textContent = "Excluir";
+    deleteBtn.addEventListener("click", () => deleteFinancialEntry(entry));
+    actions.append(deleteBtn);
+
+    row.append(main, actions);
+    list.append(row);
+  });
+}
+
+function formatDateBR(dateStr) {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+async function updateFinancialEntryStatus(entry, newStatus) {
+  try {
+    const payload = { status: newStatus };
+    if (newStatus === "paid") {
+      payload.payment_date = toISO(new Date());
+    }
+    await fetchJSON(`/financial-entries/${entry.id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    entry.status = newStatus;
+    if (newStatus === "paid") {
+      entry.paymentDate = toISO(new Date());
+    }
+    renderFinancialEntries();
+    renderFinancialStats();
   } catch (error) {
     console.error(error);
-    alert("Não foi possível criar a tarefa.");
+    alert("Não foi possível atualizar o status.");
   }
 }
+
+async function deleteFinancialEntry(entry) {
+  if (!confirm(`Tem certeza que deseja excluir o lançamento "${entry.description}"?`)) return;
+  
+  try {
+    await fetchJSON(`/financial-entries/${entry.id}/`, { method: "DELETE" });
+    state.financialEntries = state.financialEntries.filter((e) => e.id !== entry.id);
+    renderFinancialEntries();
+    renderFinancialStats();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível excluir o lançamento.");
+  }
+}
+
+function openFinancialEntryForm(entry = null) {
+  try {
+    const card = document.getElementById("financialEntryFormCard");
+    const titleEl = document.getElementById("financialEntryFormTitle");
+    const form = document.getElementById("financialEntryForm");
+    
+    if (!card || !form || !titleEl) {
+      console.error("Elementos do formulário financeiro não encontrados", {
+        card: !!card,
+        form: !!form,
+        titleEl: !!titleEl
+      });
+      alert("Erro: Elementos do formulário não encontrados. Recarregue a página.");
+      return;
+    }
+
+    // Popula select de alunos
+    populateFinancialEntryStudentSelect();
+
+    if (entry) {
+      editingFinancialEntryId = entry.id;
+      titleEl.textContent = "Editar Lançamento";
+      
+      const feStudent = document.getElementById("feStudent");
+      const feDescription = document.getElementById("feDescription");
+      const feAmount = document.getElementById("feAmount");
+      const feInstallments = document.getElementById("feInstallments");
+      const feIssueDate = document.getElementById("feIssueDate");
+      const feDueDate = document.getElementById("feDueDate");
+      const feStatus = document.getElementById("feStatus");
+      const fePaymentMethod = document.getElementById("fePaymentMethod");
+      const feNotes = document.getElementById("feNotes");
+      
+      if (feStudent) feStudent.value = entry.studentId || "";
+      if (feDescription) feDescription.value = entry.description || "";
+      if (feAmount) feAmount.value = entry.amount || "";
+      if (feInstallments) feInstallments.value = entry.installments || 1;
+      if (feIssueDate) feIssueDate.value = entry.issueDate || "";
+      if (feDueDate) feDueDate.value = entry.dueDate || "";
+      if (feStatus) feStatus.value = entry.status || "pending";
+      if (fePaymentMethod) fePaymentMethod.value = entry.paymentMethod || "pix";
+      if (feNotes) feNotes.value = entry.notes || "";
+    } else {
+      editingFinancialEntryId = null;
+      titleEl.textContent = "Cadastrar Recebimento";
+      form.reset();
+      
+      // Data de lançamento = hoje
+      const feIssueDate = document.getElementById("feIssueDate");
+      if (feIssueDate) {
+        feIssueDate.value = toISO(new Date());
+      }
+      
+      // Data de vencimento = dia 5 do próximo mês
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      nextMonth.setDate(5);
+      const feDueDate = document.getElementById("feDueDate");
+      if (feDueDate) {
+        feDueDate.value = toISO(nextMonth);
+      }
+      
+      const feInstallments = document.getElementById("feInstallments");
+      if (feInstallments) {
+        feInstallments.value = 1;
+      }
+    }
+
+    card.style.display = "flex";
+    const feStudent = document.getElementById("feStudent");
+    if (feStudent) {
+      feStudent.focus();
+    }
+  } catch (error) {
+    console.error("Erro ao abrir formulário de lançamento financeiro:", error);
+    alert("Erro ao abrir o formulário. Verifique o console para mais detalhes.");
+  }
+}
+
+function closeFinancialEntryForm() {
+  const card = document.getElementById("financialEntryFormCard");
+  if (card) card.style.display = "none";
+  editingFinancialEntryId = null;
+}
+
+function populateFinancialEntryStudentSelect() {
+  const select = document.getElementById("feStudent");
+  if (!select) return;
+
+  select.innerHTML = "";
+  
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Selecione um aluno";
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  select.append(placeholder);
+
+  state.students.forEach((student) => {
+    if (student.active === false) return;
+    const opt = document.createElement("option");
+    opt.value = student.id;
+    opt.textContent = student.name;
+    select.append(opt);
+  });
+}
+
+async function onFinancialEntryFormSubmit(event) {
+  event.preventDefault();
+
+  const studentId = document.getElementById("feStudent").value;
+  const description = document.getElementById("feDescription").value.trim();
+  const amount = document.getElementById("feAmount").value;
+  const installments = document.getElementById("feInstallments").value || 1;
+  const issueDate = document.getElementById("feIssueDate").value;
+  const dueDate = document.getElementById("feDueDate").value;
+  const status = document.getElementById("feStatus").value;
+  const paymentMethod = document.getElementById("fePaymentMethod").value;
+  const notes = document.getElementById("feNotes").value.trim();
+
+  if (!studentId || !description || !amount || !issueDate || !dueDate) {
+    alert("Preencha todos os campos obrigatórios.");
+    return;
+  }
+
+  const payload = {
+    student: Number(studentId),
+    description,
+    amount: parseFloat(amount),
+    installments: Number(installments),
+    current_installment: 1,
+    issue_date: issueDate,
+    due_date: dueDate,
+    status,
+    payment_method: paymentMethod,
+    notes,
+  };
+
+  try {
+    if (editingFinancialEntryId) {
+      await fetchJSON(`/financial-entries/${editingFinancialEntryId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+    } else {
+      await fetchJSON("/financial-entries/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+
+    await loadFinancialEntries();
+    closeFinancialEntryForm();
+    renderFinancialEntries();
+    renderFinancialStats();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível salvar o lançamento.");
+  }
+}
+
+function initFinancialEntriesUI() {
+  const newBtn = document.getElementById("newFinancialEntryBtn");
+  const cancelBtn = document.getElementById("cancelFinancialEntryForm");
+  const form = document.getElementById("financialEntryForm");
+  const filterSelect = document.getElementById("financeFilterStatus");
+
+  if (newBtn) {
+    newBtn.addEventListener("click", () => openFinancialEntryForm(null));
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", closeFinancialEntryForm);
+  }
+
+  if (form) {
+    form.addEventListener("submit", onFinancialEntryFormSubmit);
+  }
+
+  if (filterSelect) {
+    filterSelect.addEventListener("change", renderFinancialEntries);
+  }
+}
+
+// antes: usava prompt
+// async function addTask() { ... }
+
+function addTask() {
+  // só abre o modal já preparado pra criação
+  openTaskFormToCreate();
+}
+
 
 
 // ==========================
@@ -1171,11 +1731,6 @@ function attachForms() {
     document.getElementById("noteTitle").focus();
   });
 
-  // tarefas
-  document.getElementById("addTask").addEventListener("click", () => {
-    addTask().catch((err) => console.error(err));
-  });
-
   // alunos
   document.getElementById("addStudent").addEventListener("click", () => {
     openStudentForm(null);
@@ -1227,11 +1782,16 @@ async function init() {
   renderCalendar();
   renderTasks();
   renderBillingPreview();
-  renderFinance();  // <--- NOVO
-  enderFinanceTotal();   // 👈 AQUI
+  renderFinance();
+  renderFinanceTotal();
+  renderFinancialEntries();
+  renderFinancialStats();
 
   state.selectedDate = toISO(state.today);
   renderDayDetails();
+
+  initTasksUI();
+  initFinancialEntriesUI();
   showView("view-calendar");
 }
 
@@ -1252,3 +1812,92 @@ function renderFinanceTotal() {
     currency: "BRL",
   });
 }
+
+function initTasksUI() {
+  const formCard   = document.getElementById("taskFormCard");
+  const newBtn     = document.getElementById("newTaskBtn");
+  const saveBtn    = document.getElementById("saveTaskBtn");
+  const cancelBtn  = document.getElementById("cancelTaskBtn");
+
+  // Se não tiver esses elementos na tela, não faz nada
+  if (!formCard || !newBtn) {
+    console.warn("UI de tarefas não encontrada no DOM.");
+    return;
+  }
+
+  const titleInput  = document.getElementById("taskTitle");
+  const dateInput   = document.getElementById("taskDate");
+  const dueInput    = document.getElementById("taskDue");
+  const statusInput = document.getElementById("taskStatus");
+  const notesInput  = document.getElementById("taskNotes");
+
+  function resetForm() {
+    if (titleInput)  titleInput.value = "";
+    if (dateInput)   dateInput.value = "";
+    if (dueInput)    dueInput.value = "";
+    if (statusInput) statusInput.value = "todo";
+    if (notesInput)  notesInput.value = "";
+  }
+
+  // Abrir formulário
+  newBtn.onclick = () => {
+    resetForm();
+    formCard.classList.remove("hidden");
+    if (titleInput) titleInput.focus();
+  };
+
+  // Cancelar (fechar formulário)
+  if (cancelBtn) {
+    cancelBtn.onclick = () => {
+      formCard.classList.add("hidden");
+    };
+  }
+
+  // Salvar tarefa
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      if (!titleInput) return;
+
+      const payload = {
+        title: titleInput.value.trim(),
+        date: dateInput ? dateInput.value || null : null,
+        due:  dueInput  ? dueInput.value  || null : null,
+        status: statusInput ? statusInput.value : "todo",
+        notes: notesInput ? notesInput.value.trim() : "",
+      };
+
+      if (!payload.title) {
+        alert("Informe um título para a tarefa.");
+        return;
+      }
+
+      try {
+        const resp = await fetch("/api/tasks/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!resp.ok) {
+          console.error("Erro na resposta da API de tarefas:", resp.status);
+          throw new Error("Erro ao salvar tarefa");
+        }
+
+        const newTask = await resp.json();
+
+        // Garante que state.tasks existe
+        if (!Array.isArray(state.tasks)) {
+          state.tasks = [];
+        }
+
+        state.tasks.push(newTask);
+        renderTasks();
+        formCard.classList.add("hidden");
+      } catch (err) {
+        console.error(err);
+        alert("Não foi possível salvar a tarefa. Verifique a API e tente novamente.");
+      }
+    };
+  }
+}
+
