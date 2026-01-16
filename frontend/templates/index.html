@@ -63,6 +63,13 @@
               <p class="nav-subtitle">Recebimentos do mês</p>
             </div>
           </button>
+          <button class="nav-item" data-view="view-planning">
+            <span class="nav-emoji">📚</span>
+            <div>
+              <p class="nav-title">Planejamento</p>
+              <p class="nav-subtitle">Planejar aulas por aluno</p>
+            </div>
+          </button>
           <button class="nav-item" data-view="view-users" id="navUsers" style="display: none;">
             <span class="nav-emoji">👥</span>
             <div>
@@ -458,6 +465,92 @@
     <div class="finance-table" id="financialEntriesList"></div>
   </section>
 </section>
+
+        <section class="view" id="view-planning">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Planejamento</p>
+              <h1>Planejar Aulas por Aluno</h1>
+              <p class="muted">Organize os materiais e objetivos de cada aula para seus alunos.</p>
+            </div>
+            <button class="primary" id="newPlanBtn">+ Novo Planejamento</button>
+          </header>
+
+          <!-- Filtro por Aluno -->
+          <section class="card detail-card">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Filtros</p>
+                <h3>Selecione o Aluno</h3>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="planStudentFilter">Aluno</label>
+              <select id="planStudentFilter" style="width: 100%; max-width: 400px;">
+                <option value="">Todos os alunos</option>
+              </select>
+            </div>
+          </section>
+
+          <!-- Lista de Planejamentos -->
+          <section class="card detail-card">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Planejamentos</p>
+                <h3 id="planningListTitle">Todos os Planejamentos</h3>
+                <p class="muted" id="planningListSubtitle">Visualize e gerencie os planejamentos de aulas.</p>
+              </div>
+            </div>
+            <div id="planningList" class="planning-list"></div>
+          </section>
+
+          <!-- Formulário de Planejamento (oculto por padrão) -->
+          <section class="card detail-card" id="planFormCard" style="display: none;">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Planejamento</p>
+                <h3 id="planFormTitle">Novo Planejamento</h3>
+                <p class="muted">Preencha os dados do planejamento da aula.</p>
+              </div>
+            </div>
+            <form id="planForm" class="form">
+              <div class="form-row">
+                <label for="planStudent">Aluno *</label>
+                <select id="planStudent" name="planStudent" required>
+                  <option value="">Selecione um aluno</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="planDate">Data da Aula *</label>
+                <input type="date" id="planDate" name="planDate" required />
+              </div>
+              <div class="form-row">
+                <label for="planLinks">Links (Google Slides, YouTube, etc.)</label>
+                <textarea 
+                  id="planLinks" 
+                  name="planLinks" 
+                  rows="6" 
+                  placeholder="Cole um link por linha&#10;Exemplo:&#10;https://docs.google.com/presentation/d/...&#10;https://www.youtube.com/watch?v=..."
+                ></textarea>
+                <small class="muted">Cole um link por linha. Links para apresentações, vídeos, documentos, etc.</small>
+              </div>
+              <div class="form-row">
+                <label for="planGoals">Objetivos / Metas (GOALS)</label>
+                <textarea 
+                  id="planGoals" 
+                  name="planGoals" 
+                  rows="4" 
+                  placeholder="Exemplo: Advice - SHOULD, Present Perfect, etc."
+                ></textarea>
+                <small class="muted">Descreva os objetivos e metas desta aula.</small>
+              </div>
+              <div class="form-row" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button type="submit" class="primary">Salvar Planejamento</button>
+                <button type="button" class="primary ghost" id="cancelPlanForm">Cancelar</button>
+              </div>
+            </form>
+          </section>
+        </section>
 
         <section class="view" id="view-users">
           <header class="topbar">

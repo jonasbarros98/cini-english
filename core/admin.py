@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan
 
 
 @admin.register(Student)
@@ -37,3 +37,10 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "is_admin", "created_at")
     list_filter = ("is_admin",)
     search_fields = ("user__username", "user__email")
+
+@admin.register(LessonPlan)
+class LessonPlanAdmin(admin.ModelAdmin):
+    list_display = ("student", "date", "goals", "created_at")
+    list_filter = ("date", "student")
+    search_fields = ("student__name", "goals", "links")
+    date_hierarchy = "date"

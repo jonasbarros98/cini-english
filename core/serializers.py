@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan
 
 
 class StudentSerializer(serializers.ModelSerializer):
@@ -119,6 +119,30 @@ class FinancialEntrySerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class LessonPlanSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source="student.name", read_only=True)
+    links_list = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonPlan
+        fields = [
+            "id",
+            "student",
+            "student_name",
+            "date",
+            "links",
+            "links_list",
+            "goals",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["links_list"]
+
+    def get_links_list(self, obj):
+        """Retorna os links como uma lista"""
+        return obj.get_links_list()
 
 
 class UserSerializer(serializers.ModelSerializer):

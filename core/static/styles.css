@@ -749,3 +749,32 @@ textarea:focus {
 .finance-row.cancelled .finance-name {
   text-decoration: line-through;
 }
+
+/* Planning styles */
+.planning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.planning-date-group {
+  margin-bottom: 32px;
+}
+
+.planning-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.planning-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.planning-card a {
+  transition: color 0.2s ease;
+}
+
+.planning-card a:hover {
+  color: var(--accent-dark, #0056b3);
+  text-decoration: underline;
+}

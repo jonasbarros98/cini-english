@@ -203,6 +203,42 @@ class FinancialEntry(models.Model):
         return f"{self.student.name} - {self.description} - {self.amount}"
 
 
+class LessonPlan(models.Model):
+    """Planejamento de aulas por aluno"""
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="lesson_plans",
+        help_text="Aluno para o qual este planejamento é destinado"
+    )
+    date = models.DateField(help_text="Data da aula planejada")
+    links = models.TextField(
+        blank=True,
+        help_text="Links separados por quebra de linha (Google Slides, YouTube, etc.)"
+    )
+    goals = models.TextField(
+        blank=True,
+        help_text="Objetivos e metas da aula"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "student__name"]
+        verbose_name = "Planejamento de Aula"
+        verbose_name_plural = "Planejamentos de Aulas"
+
+    def __str__(self):
+        return f"{self.student.name} - {self.date}"
+
+    def get_links_list(self):
+        """Retorna os links como uma lista"""
+        if not self.links:
+            return []
+        return [link.strip() for link in self.links.split('\n') if link.strip()]
+
+
 class UserProfile(models.Model):
     """Perfil estendido do usuário"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")

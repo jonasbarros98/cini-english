@@ -4,7 +4,7 @@ from django.views.generic import TemplateView
 
 from .views import (
     StudentViewSet, LessonViewSet, TaskViewSet, DashboardView, 
-    InvoiceViewSet, FinancialEntryViewSet, UserViewSet,
+    InvoiceViewSet, FinancialEntryViewSet, UserViewSet, LessonPlanViewSet,
     login_view, logout_view, current_user_view
 )
 
@@ -15,6 +15,7 @@ router.register(r"tasks", TaskViewSet, basename="task")
 router.register(r"invoices", InvoiceViewSet, basename="invoice")
 router.register(r"financial-entries", FinancialEntryViewSet, basename="financial-entry")
 router.register(r"users", UserViewSet, basename="user")
+router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
     path("", DashboardView.as_view(), name="dashboard"),

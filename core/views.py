@@ -7,10 +7,10 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from .models import Invoice, FinancialEntry, UserProfile
+from .models import Invoice, FinancialEntry, UserProfile, LessonPlan
 from .models import Student, Lesson, Task
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
-from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer
+from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanSerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all().order_by("name")
@@ -217,6 +217,19 @@ def current_user_view(request):
         'last_name': user.last_name,
         'is_admin': is_admin,
     })
+
+
+class LessonPlanViewSet(viewsets.ModelViewSet):
+    queryset = LessonPlan.objects.all().order_by("-date", "student__name")
+    serializer_class = LessonPlanSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        student_id = self.request.query_params.get('student', None)
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+        return queryset
 
 
 class UserViewSet(viewsets.ModelViewSet):

@@ -16,12 +16,14 @@ const state = {
   financialEntries: [], // lançamentos financeiros a receber
   currentUser: null, // usuário atual autenticado
   users: [], // lista de usuários (apenas para admins)
+  lessonPlans: [], // planejamentos de aulas
 };
 
 let editingLessonId = null;
 let editingTaskId = null;
 let editingFinancialEntryId = null;
 let editingUserId = null;
+let editingPlanId = null;
 
 
 // Labels separados pra não misturar aula x tarefa
@@ -1691,7 +1693,7 @@ function addTask() {
 // Navegação e formulários
 // ==========================
 
-function showView(viewId) {
+async function showView(viewId) {
   document.querySelectorAll(".view").forEach((view) => {
     view.classList.toggle("active", view.id === viewId);
   });
@@ -1705,6 +1707,17 @@ function showView(viewId) {
     navUsers.style.display = state.currentUser.is_admin ? "flex" : "none";
   }
 
+  // Se abrir a visualização de planejamento
+  if (viewId === "view-planning") {
+    try {
+      await loadLessonPlans();
+      renderPlanning();
+      initPlanningUI();
+    } catch (error) {
+      console.error("Erro ao carregar planejamento:", error);
+    }
+  }
+  
   // Se abrir a visualização financeira, garante que o mês está sincronizado
   if (viewId === "view-finance") {
     // Se financeViewMonth não foi inicializado ou está muito diferente, usa o mês atual
@@ -2443,6 +2456,389 @@ function initTasksUI() {
         alert("Não foi possível salvar a tarefa. Verifique a API e tente novamente.");
       }
     };
+  }
+}
+
+// ==========================
+// Planejamento de Aulas
+// ==========================
+
+async function loadLessonPlans(studentId = null) {
+  try {
+    const url = studentId 
+      ? `/lesson-plans/?student=${studentId}` 
+      : "/lesson-plans/";
+    const plans = await fetchJSON(url);
+    state.lessonPlans = plans.map((p) => ({
+      id: p.id,
+      studentId: p.student,
+      studentName: p.student_name,
+      date: p.date,
+      links: p.links || "",
+      linksList: p.links_list || [],
+      goals: p.goals || "",
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    }));
+  } catch (error) {
+    console.error("Erro ao carregar planejamentos:", error);
+    state.lessonPlans = [];
+  }
+}
+
+// Função helper para normalizar URLs e verificar se são válidas
+function normalizeUrl(url) {
+  if (!url || typeof url !== 'string') return { url: '', isValid: false };
+  const trimmed = url.trim();
+  if (!trimmed) return { url: '', isValid: false };
+  
+  // Se já começa com http:// ou https://, retorna como está
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return { url: trimmed, isValid: true };
+  }
+  
+  // Se começa com //, adiciona https:
+  if (trimmed.startsWith('//')) {
+    return { url: 'https:' + trimmed, isValid: true };
+  }
+  
+  // Se parece ser um domínio (contém ponto e não tem espaços), adiciona https://
+  if (trimmed.includes('.') && !trimmed.includes(' ')) {
+    return { url: 'https://' + trimmed, isValid: true };
+  }
+  
+  // Se contém espaços ou não parece URL, não é válido
+  if (trimmed.includes(' ')) {
+    return { url: '', isValid: false };
+  }
+  
+  // Tenta adicionar https:// para outros casos
+  return { url: 'https://' + trimmed, isValid: true };
+}
+
+function renderPlanning() {
+  const container = document.getElementById("planningList");
+  if (!container) return;
+
+  const selectedStudentId = document.getElementById("planStudentFilter")?.value || "";
+  const filteredPlans = selectedStudentId
+    ? state.lessonPlans.filter((p) => p.studentId === parseInt(selectedStudentId))
+    : state.lessonPlans;
+
+  // Atualiza título
+  const titleEl = document.getElementById("planningListTitle");
+  const subtitleEl = document.getElementById("planningListSubtitle");
+  if (titleEl && subtitleEl) {
+    if (selectedStudentId) {
+      const student = state.students.find((s) => s.id === parseInt(selectedStudentId));
+      titleEl.textContent = student ? `Planejamentos - ${student.name}` : "Planejamentos";
+      subtitleEl.textContent = `${filteredPlans.length} planejamento(s) encontrado(s)`;
+    } else {
+      titleEl.textContent = "Todos os Planejamentos";
+      subtitleEl.textContent = `${filteredPlans.length} planejamento(s) no total`;
+    }
+  }
+
+  if (filteredPlans.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 48px; color: var(--text-muted);">
+        <p style="font-size: 18px; margin-bottom: 8px;">Nenhum planejamento encontrado</p>
+        <p style="font-size: 14px;">Clique em "+ Novo Planejamento" para começar</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Agrupa por data
+  const plansByDate = {};
+  filteredPlans.forEach((plan) => {
+    const dateKey = plan.date;
+    if (!plansByDate[dateKey]) {
+      plansByDate[dateKey] = [];
+    }
+    plansByDate[dateKey].push(plan);
+  });
+
+  // Ordena datas (mais recente primeiro)
+  const sortedDates = Object.keys(plansByDate).sort((a, b) => new Date(b) - new Date(a));
+
+  container.innerHTML = sortedDates
+    .map((dateKey) => {
+      const plans = plansByDate[dateKey];
+      const dateObj = new Date(dateKey);
+      const dateFormatted = dateObj.toLocaleDateString("pt-BR", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+
+      return `
+        <div class="planning-date-group" style="margin-bottom: 32px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--border);">
+            <h4 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">
+              ${dateFormatted.charAt(0).toUpperCase() + dateFormatted.slice(1)}
+            </h4>
+            <span style="color: var(--text-muted); font-size: 14px;">${plans.length} aula(s)</span>
+          </div>
+          ${plans
+            .map((plan) => {
+              const linksHtml = plan.linksList.length > 0
+                ? plan.linksList
+                    .filter((link) => link && link.trim()) // Remove links vazios
+                    .map((link) => {
+                      const { url: normalizedUrl, isValid } = normalizeUrl(link);
+                      const displayText = link.length > 60 ? link.substring(0, 60) + "..." : link;
+                      
+                      if (!isValid || !normalizedUrl) {
+                        // Se não for uma URL válida, mostra como texto simples
+                        return `
+                        <div style="margin-bottom: 8px; padding: 8px; background: #fff3cd; border-radius: 6px; border-left: 3px solid #ffc107;">
+                          <span style="color: #856404; font-size: 14px;">
+                            <span>⚠️</span>
+                            <span style="margin-left: 6px;">${displayText}</span>
+                            <span style="margin-left: 8px; font-size: 12px; font-style: italic;">(URL inválida)</span>
+                          </span>
+                        </div>
+                      `;
+                      }
+                      
+                      return `
+                      <div style="margin-bottom: 8px;">
+                        <a href="${normalizedUrl}" target="_blank" rel="noopener noreferrer" 
+                           style="color: var(--accent); text-decoration: none; word-break: break-all; display: inline-flex; align-items: center; gap: 6px;">
+                          <span>🔗</span>
+                          <span>${displayText}</span>
+                        </a>
+                      </div>
+                    `;
+                    })
+                    .join("")
+                : '<p style="color: var(--text-muted); font-size: 14px; font-style: italic;">Nenhum link adicionado</p>';
+
+              return `
+                <div class="planning-card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+                    <div style="flex: 1;">
+                      <h5 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: var(--text-primary);">
+                        ${plan.studentName}
+                      </h5>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="tag edit-plan-btn" data-plan-id="${plan.id}" style="background: var(--accent-light); color: var(--accent); padding: 6px 12px; font-size: 12px; border: none; border-radius: 6px; cursor: pointer;">
+                        Editar
+                      </button>
+                      <button class="tag delete-plan-btn" data-plan-id="${plan.id}" style="background: #fee; color: #c33; padding: 6px 12px; font-size: 12px; border: none; border-radius: 6px; cursor: pointer;">
+                        Excluir
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div style="margin-bottom: 16px;">
+                    <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                      Links e Materiais
+                    </p>
+                    <div style="background: #f9fbff; border-radius: 8px; padding: 12px;">
+                      ${linksHtml}
+                    </div>
+                  </div>
+                  
+                  ${plan.goals
+                    ? `
+                    <div>
+                      <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                        Objetivos (GOALS)
+                      </p>
+                      <p style="margin: 0; color: var(--text-primary); line-height: 1.6;">
+                        ${plan.goals}
+                      </p>
+                    </div>
+                  `
+                    : '<p style="color: var(--text-muted); font-size: 14px; font-style: italic;">Nenhum objetivo definido</p>'}
+                </div>
+              `;
+            })
+            .join("")}
+        </div>
+      `;
+    })
+    .join("");
+
+  // Anexa event listeners aos botões de editar e excluir
+  container.querySelectorAll(".edit-plan-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const planId = parseInt(btn.dataset.planId);
+      openPlanForm(planId);
+    });
+  });
+
+  container.querySelectorAll(".delete-plan-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const planId = parseInt(btn.dataset.planId);
+      deletePlan(planId);
+    });
+  });
+}
+
+let planningUIInitialized = false;
+
+function initPlanningUI() {
+  // Evita inicializar múltiplas vezes
+  if (planningUIInitialized) return;
+  planningUIInitialized = true;
+
+  // Popula filtro de alunos
+  const studentFilter = document.getElementById("planStudentFilter");
+  if (studentFilter) {
+    studentFilter.innerHTML = '<option value="">Todos os alunos</option>';
+    if (state.students && state.students.length > 0) {
+      state.students
+        .filter((s) => s.active !== false)
+        .forEach((student) => {
+          const option = document.createElement("option");
+          option.value = student.id;
+          option.textContent = student.name;
+          studentFilter.appendChild(option);
+        });
+    }
+
+    studentFilter.addEventListener("change", async (e) => {
+      const studentId = e.target.value;
+      if (studentId) {
+        await loadLessonPlans(studentId);
+      } else {
+        await loadLessonPlans();
+      }
+      renderPlanning();
+    });
+  }
+
+  // Popula select do formulário
+  const planStudentSelect = document.getElementById("planStudent");
+  if (planStudentSelect) {
+    planStudentSelect.innerHTML = '<option value="">Selecione um aluno</option>';
+    if (state.students && state.students.length > 0) {
+      state.students
+        .filter((s) => s.active !== false)
+        .forEach((student) => {
+          const option = document.createElement("option");
+          option.value = student.id;
+          option.textContent = student.name;
+          planStudentSelect.appendChild(option);
+        });
+    }
+  }
+
+  // Botão novo planejamento
+  const newPlanBtn = document.getElementById("newPlanBtn");
+  if (newPlanBtn) {
+    newPlanBtn.addEventListener("click", () => openPlanForm(null));
+  }
+
+  // Botão cancelar formulário
+  const cancelPlanBtn = document.getElementById("cancelPlanForm");
+  if (cancelPlanBtn) {
+    cancelPlanBtn.addEventListener("click", closePlanForm);
+  }
+
+  // Submit do formulário
+  const planForm = document.getElementById("planForm");
+  if (planForm) {
+    planForm.addEventListener("submit", onPlanFormSubmit);
+  }
+}
+
+function openPlanForm(planId = null) {
+  editingPlanId = planId;
+  const formCard = document.getElementById("planFormCard");
+  const titleEl = document.getElementById("planFormTitle");
+  const form = document.getElementById("planForm");
+
+  if (!formCard || !form || !titleEl) return;
+
+  if (planId) {
+    const plan = state.lessonPlans.find((p) => p.id === planId);
+    if (plan) {
+      titleEl.textContent = "Editar Planejamento";
+      form.planStudent.value = plan.studentId;
+      form.planDate.value = plan.date;
+      form.planLinks.value = plan.links;
+      form.planGoals.value = plan.goals;
+    }
+  } else {
+    titleEl.textContent = "Novo Planejamento";
+    form.reset();
+  }
+
+  formCard.style.display = "flex";
+  window.scrollTo({ top: formCard.offsetTop - 80, behavior: "smooth" });
+}
+
+function closePlanForm() {
+  const formCard = document.getElementById("planFormCard");
+  if (formCard) {
+    formCard.style.display = "none";
+  }
+  editingPlanId = null;
+}
+
+async function onPlanFormSubmit(event) {
+  event.preventDefault();
+  const form = event.target;
+
+  const payload = {
+    student: parseInt(form.planStudent.value),
+    date: form.planDate.value,
+    links: form.planLinks.value.trim(),
+    goals: form.planGoals.value.trim(),
+  };
+
+  if (!payload.student || !payload.date) {
+    alert("Preencha o aluno e a data da aula.");
+    return;
+  }
+
+  try {
+    if (editingPlanId) {
+      await fetchJSON(`/lesson-plans/${editingPlanId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+    } else {
+      await fetchJSON("/lesson-plans/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+
+    await loadLessonPlans();
+    renderPlanning();
+    closePlanForm();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Não foi possível salvar o planejamento.");
+  }
+}
+
+async function deletePlan(planId) {
+  const plan = state.lessonPlans.find((p) => p.id === planId);
+  if (!plan) return;
+
+  const ok = confirm(
+    `Tem certeza que deseja excluir o planejamento de ${plan.studentName} para ${new Date(plan.date).toLocaleDateString("pt-BR")}?`
+  );
+  if (!ok) return;
+
+  try {
+    await fetchJSON(`/lesson-plans/${planId}/`, {
+      method: "DELETE",
+    });
+
+    await loadLessonPlans();
+    renderPlanning();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível excluir o planejamento.");
   }
 }
 
