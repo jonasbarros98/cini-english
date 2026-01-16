@@ -316,16 +316,132 @@
           <header class="topbar">
             <div>
               <p class="eyebrow">Tarefas</p>
-              <h1>Planejamento rápido</h1>
+              <h1>Gerenciamento de Tarefas</h1>
               <p class="muted">
-                Use para lembrar materiais, conteúdos de aula e pendências administrativas.
+                Organize suas tarefas, lembretes e pendências de forma eficiente.
               </p>
             </div>
-            <button class="primary ghost" id="addTask">Nova tarefa</button>
+            <button class="primary" id="newTaskBtn">+ Nova Tarefa</button>
           </header>
 
-          <section class="card detail-card" id="tasks">
-            <div class="task-list" id="taskList"></div>
+          <!-- Filtros -->
+          <section class="card detail-card">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Filtros</p>
+                <h3>Filtrar Tarefas</h3>
+              </div>
+            </div>
+            <div class="form-row grid-three">
+              <div>
+                <label for="taskFilterStatus">Status</label>
+                <select id="taskFilterStatus">
+                  <option value="">Todos os status</option>
+                  <option value="todo">A fazer</option>
+                  <option value="doing">Fazendo</option>
+                  <option value="done">Concluída</option>
+                </select>
+              </div>
+              <div>
+                <label for="taskFilterDate">Data</label>
+                <input type="date" id="taskFilterDate" />
+              </div>
+              <div>
+                <label for="taskFilterTags">Tags</label>
+                <input type="text" id="taskFilterTags" placeholder="Ex: Planejamento, Financeiro" />
+              </div>
+            </div>
+            <div class="form-row" style="margin-top: 12px;">
+              <button type="button" class="primary ghost" id="clearTaskFilters">Limpar Filtros</button>
+            </div>
+          </section>
+
+          <!-- Estatísticas Rápidas -->
+          <section class="card detail-card">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Resumo</p>
+                <h3>Estatísticas</h3>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+              <div style="text-align: center; padding: 16px; background: #fff3cd; border-radius: 8px;">
+                <p style="font-size: 32px; font-weight: 700; margin: 0; color: #856404;" id="taskStatsTodo">0</p>
+                <p style="margin: 4px 0 0 0; color: #856404; font-size: 14px;">A fazer</p>
+              </div>
+              <div style="text-align: center; padding: 16px; background: #cfe2ff; border-radius: 8px;">
+                <p style="font-size: 32px; font-weight: 700; margin: 0; color: #084298;" id="taskStatsDoing">0</p>
+                <p style="margin: 4px 0 0 0; color: #084298; font-size: 14px;">Fazendo</p>
+              </div>
+              <div style="text-align: center; padding: 16px; background: #d1e7dd; border-radius: 8px;">
+                <p style="font-size: 32px; font-weight: 700; margin: 0; color: #0f5132;" id="taskStatsDone">0</p>
+                <p style="margin: 4px 0 0 0; color: #0f5132; font-size: 14px;">Concluída</p>
+              </div>
+              <div style="text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                <p style="font-size: 32px; font-weight: 700; margin: 0; color: #495057;" id="taskStatsTotal">0</p>
+                <p style="margin: 4px 0 0 0; color: #495057; font-size: 14px;">Total</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Lista de Tarefas -->
+          <section class="card detail-card">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Tarefas</p>
+                <h3 id="taskListTitle">Todas as Tarefas</h3>
+                <p class="muted" id="taskListSubtitle">Visualize e gerencie suas tarefas.</p>
+              </div>
+            </div>
+            <div id="taskList" class="task-list"></div>
+          </section>
+
+          <!-- Formulário de Tarefa (oculto por padrão) -->
+          <section class="card detail-card" id="taskFormCard" style="display: none;">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Tarefa</p>
+                <h3 id="taskFormTitle">Nova Tarefa</h3>
+                <p class="muted">Preencha os dados da tarefa.</p>
+              </div>
+            </div>
+            <form id="taskForm" class="form">
+              <div class="form-row">
+                <label for="taskTitle">Título *</label>
+                <input type="text" id="taskTitle" name="taskTitle" required placeholder="Ex: Preparar material para aula de inglês" />
+              </div>
+              <div class="form-row grid-two">
+                <div>
+                  <label for="taskDate">Data</label>
+                  <input type="date" id="taskDate" name="taskDate" />
+                </div>
+                <div>
+                  <label for="taskDueDate">Data de Vencimento</label>
+                  <input type="date" id="taskDueDate" name="taskDueDate" />
+                </div>
+              </div>
+              <div class="form-row">
+                <label for="taskStatus">Status</label>
+                <select id="taskStatus" name="taskStatus">
+                  <option value="todo">A fazer</option>
+                  <option value="doing">Fazendo</option>
+                  <option value="done">Concluída</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="taskTags">Tags (separadas por vírgula)</label>
+                <input type="text" id="taskTags" name="taskTags" placeholder="Ex: Planejamento, Financeiro, Aulas" />
+                <small class="muted">Use tags para categorizar suas tarefas</small>
+              </div>
+              <div class="form-row">
+                <label for="taskNotes">Observações / Notas</label>
+                <textarea id="taskNotes" name="taskNotes" rows="4" placeholder="Adicione observações, detalhes ou lembretes sobre esta tarefa..."></textarea>
+              </div>
+              <div class="form-row" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button type="submit" class="primary">Salvar Tarefa</button>
+                <button type="button" class="primary ghost" id="cancelTaskForm">Cancelar</button>
+              </div>
+            </form>
           </section>
         </section>
         <section class="view" id="view-finance">

@@ -168,42 +168,25 @@ async function loadStudents() {
 }
 
 async function loadTasks() {
-  const tasks = await fetchJSON("/tasks/");
-  state.tasks = tasks.map((t) => ({
-    id: t.id,
-    title: t.title,
-    status: t.status,               // 'todo', 'doing', 'done'
-    date: t.date || null,           // "2026-01-05"
-    dueDate: t.due_date || null,    // "2026-01-10"
-    notes: t.notes || "",
-  }));
-}
-
-function resetTaskForm(task = null) {
-  const titleInput = document.getElementById("taskTitle");
-  const dateInput = document.getElementById("taskDate");
-  const dueInput = document.getElementById("taskDue");
-  const statusSelect = document.getElementById("taskStatus");
-  const notesInput = document.getElementById("taskNotes");
-
-  if (!titleInput || !dateInput || !dueInput || !statusSelect || !notesInput) {
-    return;
-  }
-
-  if (task) {
-    titleInput.value = task.title || "";
-    dateInput.value = task.date || "";
-    dueInput.value = task.dueDate || "";
-    statusSelect.value = task.status || "todo";
-    notesInput.value = task.notes || "";
-  } else {
-    titleInput.value = "";
-    dateInput.value = "";
-    dueInput.value = "";
-    statusSelect.value = "todo";
-    notesInput.value = "";
+  try {
+    const tasks = await fetchJSON("/tasks/");
+    state.tasks = tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,               // 'todo', 'doing', 'done'
+      date: t.date || null,           // "2026-01-05"
+      dueDate: t.due_date || null,    // "2026-01-10"
+      tags: t.tags || "",
+      notes: t.notes || "",
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+    }));
+  } catch (error) {
+    console.error("Erro ao carregar tarefas:", error);
+    state.tasks = [];
   }
 }
+
 
 
 function openTaskForm(task = null) {
@@ -1212,118 +1195,398 @@ Conte comigo para qualquer dúvida. Obrigado por estudar comigo! `;
 // Tarefas
 // ==========================
 
+function renderTaskStats() {
+  const todo = state.tasks.filter((t) => t.status === "todo").length;
+  const doing = state.tasks.filter((t) => t.status === "doing").length;
+  const done = state.tasks.filter((t) => t.status === "done").length;
+  const total = state.tasks.length;
+
+  const todoEl = document.getElementById("taskStatsTodo");
+  const doingEl = document.getElementById("taskStatsDoing");
+  const doneEl = document.getElementById("taskStatsDone");
+  const totalEl = document.getElementById("taskStatsTotal");
+
+  if (todoEl) todoEl.textContent = todo;
+  if (doingEl) doingEl.textContent = doing;
+  if (doneEl) doneEl.textContent = done;
+  if (totalEl) totalEl.textContent = total;
+}
+
+function getFilteredTasks() {
+  const statusFilter = document.getElementById("taskFilterStatus")?.value || "";
+  const dateFilter = document.getElementById("taskFilterDate")?.value || "";
+  const tagsFilter = document.getElementById("taskFilterTags")?.value.toLowerCase().trim() || "";
+
+  let filtered = [...state.tasks];
+
+  if (statusFilter) {
+    filtered = filtered.filter((t) => t.status === statusFilter);
+  }
+
+  if (dateFilter) {
+    filtered = filtered.filter((t) => {
+      if (!t.date && !t.dueDate) return false;
+      return t.date === dateFilter || t.dueDate === dateFilter;
+    });
+  }
+
+  if (tagsFilter) {
+    const tagsArray = tagsFilter.split(",").map((t) => t.trim().toLowerCase());
+    filtered = filtered.filter((t) => {
+      if (!t.tags) return false;
+      const taskTags = t.tags.toLowerCase();
+      return tagsArray.some((tag) => taskTags.includes(tag));
+    });
+  }
+
+  return filtered;
+}
+
 function renderTasks() {
   const list = document.getElementById("taskList");
   if (!list) return;
 
-  list.innerHTML = "";
+  const filteredTasks = getFilteredTasks();
+  const titleEl = document.getElementById("taskListTitle");
+  const subtitleEl = document.getElementById("taskListSubtitle");
 
-  state.tasks.forEach((task) => {
-    const card = document.createElement("div");
-    card.className = "task-card";
-
-    // header: título + status
-    const header = document.createElement("div");
-    header.className = "task-header";
-
-    const titleEl = document.createElement("strong");
-    titleEl.textContent = task.title;
-
-    const statusBadge = document.createElement("span");
-    statusBadge.className = `pill task-status-badge ${task.status}`;
-    let statusLabel = "A fazer";
-    if (task.status === "doing") statusLabel = "Fazendo";
-    if (task.status === "done") statusLabel = "Concluída";
-    statusBadge.textContent = statusLabel;
-
-    header.append(titleEl, statusBadge);
-
-    // linha de datas
-    const datesRow = document.createElement("p");
-    datesRow.className = "muted task-dates";
-
-    const parts = [];
-    if (task.date) {
-      parts.push(`Data: ${task.date}`);
+  if (titleEl && subtitleEl) {
+    if (filteredTasks.length === state.tasks.length) {
+      titleEl.textContent = "Todas as Tarefas";
+      subtitleEl.textContent = `${filteredTasks.length} tarefa(s) no total`;
+    } else {
+      titleEl.textContent = "Tarefas Filtradas";
+      subtitleEl.textContent = `${filteredTasks.length} de ${state.tasks.length} tarefa(s)`;
     }
-    if (task.dueDate) {
-      parts.push(`Vencimento: ${task.dueDate}`);
-    }
-    datesRow.textContent = parts.join("  •  ");
+  }
 
-    // notas
-    const notesEl = document.createElement("p");
-    notesEl.className = "muted";
-    notesEl.textContent = task.notes || "";
+  if (filteredTasks.length === 0) {
+    list.innerHTML = `
+      <div style="text-align: center; padding: 48px; color: var(--text-muted);">
+        <p style="font-size: 18px; margin-bottom: 8px;">Nenhuma tarefa encontrada</p>
+        <p style="font-size: 14px;">${state.tasks.length === 0 ? 'Clique em "+ Nova Tarefa" para começar' : 'Tente ajustar os filtros'}</p>
+      </div>
+    `;
+    return;
+  }
 
-    // ações
-    const actions = document.createElement("div");
-    actions.className = "task-actions";
+  // Agrupa por status
+  const tasksByStatus = {
+    todo: filteredTasks.filter((t) => t.status === "todo"),
+    doing: filteredTasks.filter((t) => t.status === "doing"),
+    done: filteredTasks.filter((t) => t.status === "done"),
+  };
 
-    // botão editar
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "tag";
-    editBtn.textContent = "Editar";
-    editBtn.addEventListener("click", () => {
-      editingTaskId = task.id;
-      resetTaskForm(task);
-      const formCard = document.getElementById("taskFormCard");
-      if (formCard) formCard.classList.remove("hidden");
+  // Ordena cada grupo por data de vencimento (mais próximas primeiro)
+  Object.keys(tasksByStatus).forEach((status) => {
+    tasksByStatus[status].sort((a, b) => {
+      const dateA = a.dueDate || a.date || "9999-12-31";
+      const dateB = b.dueDate || b.date || "9999-12-31";
+      return dateA.localeCompare(dateB);
     });
+  });
 
-    // botão excluir
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className = "tag danger";
-    deleteBtn.textContent = "Excluir";
-    deleteBtn.addEventListener("click", async () => {
-      if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
-      try {
-        await fetchJSON(`/tasks/${task.id}/`, {
-          method: "DELETE",
-        });
-        await loadTasks();
-        renderTasks();
-      } catch (error) {
-        console.error(error);
-        alert("Não foi possível excluir a tarefa.");
-      }
+  list.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+      ${["todo", "doing", "done"]
+        .map((status) => {
+          const tasks = tasksByStatus[status];
+          const statusLabels = {
+            todo: "A fazer",
+            doing: "Fazendo",
+            done: "Concluída",
+          };
+          const statusColors = {
+            todo: { bg: "#fff3cd", border: "#ffc107", text: "#856404" },
+            doing: { bg: "#cfe2ff", border: "#0d6efd", text: "#084298" },
+            done: { bg: "#d1e7dd", border: "#198754", text: "#0f5132" },
+          };
+
+          return `
+            <div style="background: ${statusColors[status].bg}; border: 2px solid ${statusColors[status].border}; border-radius: 12px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid ${statusColors[status].border};">
+                <h4 style="margin: 0; font-size: 16px; font-weight: 600; color: ${statusColors[status].text};">
+                  ${statusLabels[status]}
+                </h4>
+                <span style="background: ${statusColors[status].border}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                  ${tasks.length}
+                </span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                ${tasks.length === 0
+                  ? `<p style="text-align: center; color: ${statusColors[status].text}; font-size: 14px; font-style: italic; padding: 16px;">Nenhuma tarefa</p>`
+                  : tasks
+                      .map((task) => {
+                        const isOverdue =
+                          task.dueDate &&
+                          new Date(task.dueDate) < new Date() &&
+                          task.status !== "done";
+                        const tagsArray = task.tags
+                          ? task.tags.split(",").map((t) => t.trim()).filter((t) => t)
+                          : [];
+
+                        return `
+                          <div class="task-card" style="background: white; border: 1px solid ${statusColors[status].border}; border-radius: 8px; padding: 12px; ${isOverdue ? "border-left: 4px solid #dc3545;" : ""}">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                              <h5 style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); flex: 1;">
+                                ${task.title}
+                              </h5>
+                              <div style="display: flex; gap: 4px;">
+                                <button class="tag edit-task-btn" data-task-id="${task.id}" style="background: var(--accent-light); color: var(--accent); padding: 4px 8px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer;">
+                                  Editar
+                                </button>
+                                <button class="tag delete-task-btn" data-task-id="${task.id}" style="background: #fee; color: #c33; padding: 4px 8px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer;">
+                                  Excluir
+                                </button>
+                              </div>
+                            </div>
+                            
+                            ${task.date || task.dueDate
+                              ? `
+                              <div style="margin-bottom: 8px; font-size: 12px; color: var(--text-muted);">
+                                ${task.date ? `<span>📅 ${formatDate(task.date)}</span>` : ""}
+                                ${task.dueDate
+                                  ? `<span style="margin-left: 8px; ${isOverdue ? "color: #dc3545; font-weight: 600;" : ""}">⏰ ${formatDate(task.dueDate)} ${isOverdue ? "(Vencida)" : ""}</span>`
+                                  : ""}
+                              </div>
+                            `
+                              : ""}
+                            
+                            ${tagsArray.length > 0
+                              ? `
+                              <div style="margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
+                                ${tagsArray
+                                  .map(
+                                    (tag) =>
+                                      `<span style="background: #e9ecef; color: #495057; padding: 2px 6px; border-radius: 4px; font-size: 11px;">#${tag}</span>`
+                                  )
+                                  .join("")}
+                              </div>
+                            `
+                              : ""}
+                            
+                            ${task.notes
+                              ? `<p style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">${task.notes}</p>`
+                              : ""}
+                            
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e9ecef; display: flex; gap: 4px; flex-wrap: wrap;">
+                              ${["todo", "doing", "done"]
+                                .filter((s) => s !== task.status)
+                                .map(
+                                  (s) => `
+                                <button class="tag change-status-btn" data-task-id="${task.id}" data-status="${s}" style="background: ${statusColors[s].bg}; color: ${statusColors[s].text}; padding: 4px 8px; font-size: 11px; border: 1px solid ${statusColors[s].border}; border-radius: 4px; cursor: pointer;">
+                                  ${statusLabels[s]}
+                                </button>
+                              `
+                                )
+                                .join("")}
+                            </div>
+                          </div>
+                        `;
+                      })
+                      .join("")}
+              </div>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+
+  // Anexa event listeners
+  list.querySelectorAll(".edit-task-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const taskId = parseInt(btn.dataset.taskId);
+      openTaskForm(taskId);
     });
+  });
 
-    // botões de status rápido
-    ["todo", "doing", "done"].forEach((st) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "tag";
-      let label = "A fazer";
-      if (st === "doing") label = "Fazendo";
-      if (st === "done") label = "Concluída";
-      btn.textContent = label;
-
-      btn.addEventListener("click", async () => {
-        try {
-          await fetchJSON(`/tasks/${task.id}/`, {
-            method: "PATCH",
-            body: JSON.stringify({ status: st }),
-          });
-          task.status = st;
-          renderTasks();
-        } catch (error) {
-          console.error(error);
-          alert("Não foi possível atualizar o status.");
-        }
-      });
-
-      actions.append(btn);
+  list.querySelectorAll(".delete-task-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const taskId = parseInt(btn.dataset.taskId);
+      deleteTask(taskId);
     });
+  });
 
-    actions.append(editBtn, deleteBtn);
-
-    card.append(header, datesRow, notesEl, actions);
-    list.append(card);
+  list.querySelectorAll(".change-status-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const taskId = parseInt(btn.dataset.taskId);
+      const newStatus = btn.dataset.status;
+      await changeTaskStatus(taskId, newStatus);
+    });
   });
 }
+
+function formatDate(dateString) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("pt-BR");
+}
+
+function changeTaskStatus(taskId, newStatus) {
+  return fetchJSON(`/tasks/${taskId}/`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: newStatus }),
+  })
+    .then(async () => {
+      await loadTasks();
+      renderTasks();
+      renderTaskStats();
+    })
+    .catch((error) => {
+      console.error(error);
+      alert("Não foi possível atualizar o status da tarefa.");
+    });
+}
+
+function deleteTask(taskId) {
+  const task = state.tasks.find((t) => t.id === taskId);
+  if (!task) return;
+
+  const ok = confirm(`Tem certeza que deseja excluir a tarefa "${task.title}"?`);
+  if (!ok) return;
+
+  fetchJSON(`/tasks/${taskId}/`, {
+    method: "DELETE",
+  })
+    .then(async () => {
+      await loadTasks();
+      renderTasks();
+      renderTaskStats();
+    })
+    .catch((error) => {
+      console.error(error);
+      alert("Não foi possível excluir a tarefa.");
+    });
+}
+
+function openTaskForm(taskId = null) {
+  editingTaskId = taskId;
+  const formCard = document.getElementById("taskFormCard");
+  const titleEl = document.getElementById("taskFormTitle");
+  const form = document.getElementById("taskForm");
+
+  if (!formCard || !form || !titleEl) return;
+
+  if (taskId) {
+    const task = state.tasks.find((t) => t.id === taskId);
+    if (task) {
+      titleEl.textContent = "Editar Tarefa";
+      form.taskTitle.value = task.title;
+      form.taskDate.value = task.date || "";
+      form.taskDueDate.value = task.dueDate || "";
+      form.taskStatus.value = task.status;
+      form.taskTags.value = task.tags || "";
+      form.taskNotes.value = task.notes || "";
+    }
+  } else {
+    titleEl.textContent = "Nova Tarefa";
+    form.reset();
+    form.taskStatus.value = "todo";
+  }
+
+  formCard.style.display = "flex";
+  window.scrollTo({ top: formCard.offsetTop - 80, behavior: "smooth" });
+}
+
+function closeTaskForm() {
+  const formCard = document.getElementById("taskFormCard");
+  if (formCard) {
+    formCard.style.display = "none";
+  }
+  editingTaskId = null;
+}
+
+async function onTaskFormSubmit(event) {
+  event.preventDefault();
+  const form = event.target;
+
+  const payload = {
+    title: form.taskTitle.value.trim(),
+    date: form.taskDate.value || null,
+    due_date: form.taskDueDate.value || null,
+    status: form.taskStatus.value,
+    tags: form.taskTags.value.trim(),
+    notes: form.taskNotes.value.trim(),
+  };
+
+  if (!payload.title) {
+    alert("Informe um título para a tarefa.");
+    return;
+  }
+
+  try {
+    if (editingTaskId) {
+      await fetchJSON(`/tasks/${editingTaskId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+    } else {
+      await fetchJSON("/tasks/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+
+    await loadTasks();
+    renderTasks();
+    renderTaskStats();
+    closeTaskForm();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Não foi possível salvar a tarefa.");
+  }
+}
+
+function initTasksUI() {
+  // Botão nova tarefa
+  const newTaskBtn = document.getElementById("newTaskBtn");
+  if (newTaskBtn) {
+    newTaskBtn.addEventListener("click", () => openTaskForm(null));
+  }
+
+  // Botão cancelar formulário
+  const cancelTaskBtn = document.getElementById("cancelTaskForm");
+  if (cancelTaskBtn) {
+    cancelTaskBtn.addEventListener("click", closeTaskForm);
+  }
+
+  // Submit do formulário
+  const taskForm = document.getElementById("taskForm");
+  if (taskForm) {
+    taskForm.addEventListener("submit", onTaskFormSubmit);
+  }
+
+  // Filtros
+  const statusFilter = document.getElementById("taskFilterStatus");
+  const dateFilter = document.getElementById("taskFilterDate");
+  const tagsFilter = document.getElementById("taskFilterTags");
+  const clearFiltersBtn = document.getElementById("clearTaskFilters");
+
+  const applyFilters = () => {
+    renderTasks();
+    renderTaskStats();
+  };
+
+  if (statusFilter) {
+    statusFilter.addEventListener("change", applyFilters);
+  }
+  if (dateFilter) {
+    dateFilter.addEventListener("change", applyFilters);
+  }
+  if (tagsFilter) {
+    tagsFilter.addEventListener("input", applyFilters);
+  }
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener("click", () => {
+      if (statusFilter) statusFilter.value = "";
+      if (dateFilter) dateFilter.value = "";
+      if (tagsFilter) tagsFilter.value = "";
+      applyFilters();
+    });
+  }
+}
+
 
 
 
@@ -1718,6 +1981,18 @@ async function showView(viewId) {
     }
   }
   
+  // Se abrir a visualização de tarefas
+  if (viewId === "view-tasks") {
+    try {
+      await loadTasks();
+      renderTasks();
+      renderTaskStats();
+      initTasksUI();
+    } catch (error) {
+      console.error("Erro ao carregar tarefas:", error);
+    }
+  }
+  
   // Se abrir a visualização financeira, garante que o mês está sincronizado
   if (viewId === "view-finance") {
     // Se financeViewMonth não foi inicializado ou está muito diferente, usa o mês atual
@@ -2031,7 +2306,6 @@ async function init() {
   renderStudents();
   renderStats();
   renderCalendar();
-  renderTasks();
   renderBillingPreview();
   renderFinance();
   renderFinanceTotal();
@@ -2041,7 +2315,6 @@ async function init() {
   state.selectedDate = toISO(state.today);
   renderDayDetails();
 
-  initTasksUI();
   showView("view-calendar");
 }
 
@@ -2371,93 +2644,6 @@ function renderFinanceTotal() {
   });
 }
 
-function initTasksUI() {
-  const formCard = document.getElementById("taskFormCard");
-  const newBtn = document.getElementById("newTaskBtn");
-  const saveBtn = document.getElementById("saveTaskBtn");
-  const cancelBtn = document.getElementById("cancelTaskBtn");
-
-  // Se não tiver esses elementos na tela, não faz nada
-  if (!formCard || !newBtn) {
-    console.warn("UI de tarefas não encontrada no DOM.");
-    return;
-  }
-
-  const titleInput = document.getElementById("taskTitle");
-  const dateInput = document.getElementById("taskDate");
-  const dueInput = document.getElementById("taskDue");
-  const statusInput = document.getElementById("taskStatus");
-  const notesInput = document.getElementById("taskNotes");
-
-  function resetForm() {
-    if (titleInput) titleInput.value = "";
-    if (dateInput) dateInput.value = "";
-    if (dueInput) dueInput.value = "";
-    if (statusInput) statusInput.value = "todo";
-    if (notesInput) notesInput.value = "";
-  }
-
-  // Abrir formulário
-  newBtn.onclick = () => {
-    resetForm();
-    formCard.classList.remove("hidden");
-    if (titleInput) titleInput.focus();
-  };
-
-  // Cancelar (fechar formulário)
-  if (cancelBtn) {
-    cancelBtn.onclick = () => {
-      formCard.classList.add("hidden");
-    };
-  }
-
-  // Salvar tarefa
-  if (saveBtn) {
-    saveBtn.onclick = async () => {
-      if (!titleInput) return;
-
-      const payload = {
-        title: titleInput.value.trim(),
-        date: dateInput ? dateInput.value || null : null,
-        due: dueInput ? dueInput.value || null : null,
-        status: statusInput ? statusInput.value : "todo",
-        notes: notesInput ? notesInput.value.trim() : "",
-      };
-
-      if (!payload.title) {
-        alert("Informe um título para a tarefa.");
-        return;
-      }
-
-      try {
-        const resp = await fetch("/api/tasks/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!resp.ok) {
-          console.error("Erro na resposta da API de tarefas:", resp.status);
-          throw new Error("Erro ao salvar tarefa");
-        }
-
-        const newTask = await resp.json();
-
-        // Garante que state.tasks existe
-        if (!Array.isArray(state.tasks)) {
-          state.tasks = [];
-        }
-
-        state.tasks.push(newTask);
-        renderTasks();
-        formCard.classList.add("hidden");
-      } catch (err) {
-        console.error(err);
-        alert("Não foi possível salvar a tarefa. Verifique a API e tente novamente.");
-      }
-    };
-  }
-}
 
 // ==========================
 // Planejamento de Aulas
