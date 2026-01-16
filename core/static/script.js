@@ -149,6 +149,7 @@ function ensureDayArray(dateKey) {
 async function loadStudents() {
   const students = await fetchJSON("/students/");
   state.students = students.map((s) => ({
+    contractPdfUrl: s.contract_pdf_url || null,
     id: s.id,
     name: s.name,
     guardians: s.guardians,
@@ -877,6 +878,18 @@ function ensureStudentFormCard() {
         <label for="studentPix">Chave Pix (opcional)</label>
         <input id="studentPix" name="studentPix" type="text" />
       </div>
+      <div class="form-row">
+        <label for="studentContractPdf">Contrato PDF (opcional)</label>
+        <input id="studentContractPdf" name="studentContractPdf" type="file" accept=".pdf" />
+        <small class="muted">Apenas arquivos PDF são aceitos</small>
+        <div id="studentContractPreview" style="margin-top: 12px; display: none;">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9fbff; border-radius: 8px; border: 1px solid var(--border);">
+            <span>📄</span>
+            <a id="studentContractLink" href="#" target="_blank" style="color: var(--accent); text-decoration: none; flex: 1;">Ver contrato atual</a>
+            <button type="button" id="removeContractBtn" class="tag" style="background: #fee; color: #c33; padding: 4px 8px; font-size: 12px;">Remover</button>
+          </div>
+        </div>
+      </div>
       <div class="form-row" style="display:flex; gap:8px; flex-wrap:wrap;">
         <button type="submit" class="primary">Salvar aluno</button>
         <button type="button" class="primary ghost" id="cancelStudentForm">Cancelar</button>
@@ -886,9 +899,48 @@ function ensureStudentFormCard() {
 
   const form = card.querySelector("#studentForm");
   const cancelBtn = card.querySelector("#cancelStudentForm");
+  const removeContractBtn = card.querySelector("#removeContractBtn");
+  const contractInput = card.querySelector("#studentContractPdf");
 
   form.addEventListener("submit", onStudentFormSubmit);
   cancelBtn.addEventListener("click", () => hideStudentForm());
+
+  // Event listener para remover contrato
+  if (removeContractBtn) {
+    removeContractBtn.addEventListener("click", () => {
+      const preview = document.getElementById("studentContractPreview");
+      const link = document.getElementById("studentContractLink");
+      if (preview) preview.style.display = "none";
+      if (link) {
+        link.href = "#";
+        link.textContent = "";
+      }
+      if (contractInput) contractInput.value = "";
+      removeContractBtn.dataset.shouldRemove = "true";
+    });
+  }
+
+  // Event listener para mudança de arquivo
+  if (contractInput) {
+    contractInput.addEventListener("change", (e) => {
+      const removeBtn = document.getElementById("removeContractBtn");
+      if (removeBtn) {
+        removeBtn.dataset.shouldRemove = "false";
+      }
+      if (e.target.files && e.target.files.length > 0) {
+        const preview = document.getElementById("studentContractPreview");
+        const link = document.getElementById("studentContractLink");
+        if (preview) {
+          preview.style.display = "block";
+          if (link) {
+            link.href = URL.createObjectURL(e.target.files[0]);
+            link.textContent = e.target.files[0].name;
+            link.download = e.target.files[0].name;
+          }
+        }
+      }
+    });
+  }
 
   view.insertBefore(card, studentsSection);
   return card;
@@ -909,6 +961,9 @@ function hideStudentForm() {
 function resetStudentForm(student = null) {
   const form = document.getElementById("studentForm");
   const titleEl = document.getElementById("studentFormTitle");
+  const contractPreview = document.getElementById("studentContractPreview");
+  const contractLink = document.getElementById("studentContractLink");
+  const contractInput = document.getElementById("studentContractPdf");
   if (!form || !titleEl) return;
 
   if (student) {
@@ -921,11 +976,23 @@ function resetStudentForm(student = null) {
     form.studentLessonsTotal.value = student.progress.total || 0;
     form.studentLessonsDone.value = student.progress.done || 0;
     form.studentPix.value = student.pix || "";
+
+    // Mostra preview do contrato se existir
+    if (student.contractPdfUrl) {
+      contractLink.href = student.contractPdfUrl;
+      contractLink.textContent = "Ver contrato atual";
+      contractPreview.style.display = "block";
+    } else {
+      contractPreview.style.display = "none";
+    }
+    contractInput.value = ""; // Limpa o input de arquivo
   } else {
     titleEl.textContent = "Novo aluno";
     form.reset();
     form.studentLessonsTotal.value = "";
     form.studentLessonsDone.value = "";
+    contractPreview.style.display = "none";
+    contractInput.value = "";
   }
 }
 
@@ -962,44 +1029,97 @@ async function inactivateStudent(studentId) {
 async function onStudentFormSubmit(event) {
   event.preventDefault();
   const form = event.target;
+  const contractInput = document.getElementById("studentContractPdf");
+  const removeContractBtn = document.getElementById("removeContractBtn");
+  const shouldRemoveContract = removeContractBtn && removeContractBtn.dataset.shouldRemove === "true";
 
-  const payload = {
-    name: form.studentName.value.trim(),
-    guardians: form.studentGuardians.value.trim() || "Responsável próprio",
-    phone: form.studentPhone.value.trim(),
-    address: form.studentAddress.value.trim(),
-    plan_name: form.studentPlan.value.trim(),
-    lessons_total: Number(form.studentLessonsTotal.value || 0),
-    lessons_done: Number(form.studentLessonsDone.value || 0),
-    pix_key: form.studentPix.value.trim(),
-    active: true,
-  };
+  // Verifica se há arquivo para upload ou se deve remover
+  const hasFile = contractInput && contractInput.files && contractInput.files.length > 0;
+  const useFormData = hasFile || shouldRemoveContract;
 
-  if (!payload.name) {
+  let payload;
+  let options = {};
+
+  if (useFormData) {
+    // Usa FormData para upload de arquivo
+    const formData = new FormData();
+    formData.append("name", form.studentName.value.trim());
+    formData.append("guardians", form.studentGuardians.value.trim() || "Responsável próprio");
+    formData.append("phone", form.studentPhone.value.trim());
+    formData.append("address", form.studentAddress.value.trim());
+    formData.append("plan_name", form.studentPlan.value.trim());
+    formData.append("lessons_total", Number(form.studentLessonsTotal.value || 0));
+    formData.append("lessons_done", Number(form.studentLessonsDone.value || 0));
+    formData.append("pix_key", form.studentPix.value.trim());
+    formData.append("active", "true");
+
+    if (hasFile) {
+      formData.append("contract_pdf", contractInput.files[0]);
+    } else if (shouldRemoveContract) {
+      // Para remover, envia string vazia
+      formData.append("contract_pdf", "");
+    }
+
+    payload = formData;
+    // Para FormData, não define Content-Type (o browser define automaticamente com boundary)
+    options = {
+      method: editingStudentId ? "PATCH" : "POST",
+      body: payload,
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken") || "",
+      },
+      credentials: "same-origin",
+    };
+  } else {
+    // Usa JSON normal (sem arquivo)
+    payload = {
+      name: form.studentName.value.trim(),
+      guardians: form.studentGuardians.value.trim() || "Responsável próprio",
+      phone: form.studentPhone.value.trim(),
+      address: form.studentAddress.value.trim(),
+      plan_name: form.studentPlan.value.trim(),
+      lessons_total: Number(form.studentLessonsTotal.value || 0),
+      lessons_done: Number(form.studentLessonsDone.value || 0),
+      pix_key: form.studentPix.value.trim(),
+      active: true,
+    };
+
+    options = {
+      method: editingStudentId ? "PATCH" : "POST",
+      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken") || "",
+      },
+      credentials: "same-origin",
+    };
+  }
+
+  // Validação do nome
+  if (!form.studentName.value.trim()) {
     alert("Informe o nome do aluno.");
     return;
   }
 
   // 1) API: PATCH / POST
   try {
-    if (editingStudentId) {
-      await fetchJSON(`/students/${editingStudentId}/`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-    } else {
-      await fetchJSON("/students/", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    const url = editingStudentId ? `/students/${editingStudentId}/` : "/students/";
+    const response = await fetch(`${API_BASE_URL}${url}`, options);
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(errorText || `Erro ${response.status}`);
     }
+
+    const data = await response.json();
+    console.log("Aluno salvo:", data);
   } catch (error) {
     console.error(error);
     alert(error.message || "Não foi possível salvar o aluno na API.");
-    return; // não tenta atualizar tela se a API falhou
+    return;
   }
 
-  // 2) Atualizar tela (se der erro aqui, a gente avisa diferente)
+  // 2) Atualizar tela
   try {
     await loadStudents();
     renderStudents();
