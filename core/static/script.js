@@ -1916,31 +1916,48 @@ function openFinancialEntryForm(entry = null) {
 }
 
 async function createInstallments(basePayload, totalInstallments) {
-  // Cria a primeira parcela
+  // Função helper para criar data local a partir de string YYYY-MM-DD
+  function parseDateLocal(dateString) {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return new Date(year, month - 1, day); // month - 1 porque janeiro = 0
+  }
+
+  // Função helper para formatar data como YYYY-MM-DD
+  function formatDateLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  // Cria a primeira parcela (com as datas originais)
   const firstPayload = { ...basePayload, current_installment: 1 };
   await fetchJSON("/financial-entries/", {
     method: "POST",
     body: JSON.stringify(firstPayload),
   });
 
-  // Cria as parcelas restantes
-  const baseDueDate = new Date(basePayload.due_date);
-  const baseIssueDate = new Date(basePayload.issue_date);
+  // Cria as parcelas restantes (2, 3, 4, ...)
+  const baseDueDate = parseDateLocal(basePayload.due_date);
+  const baseIssueDate = parseDateLocal(basePayload.issue_date);
 
   for (let i = 2; i <= totalInstallments; i++) {
     const installmentPayload = { ...basePayload };
     installmentPayload.current_installment = i;
 
-    // Calcula data de vencimento (mesmo dia do mês seguinte)
+    // Calcula data de vencimento: adiciona (i - 1) meses à data base
+    // Exemplo: se base é fevereiro e i=2, adiciona 1 mês = março
+    //          se base é fevereiro e i=3, adiciona 2 meses = abril
     const dueDate = new Date(baseDueDate);
     dueDate.setMonth(dueDate.getMonth() + (i - 1));
 
-    // Calcula data de lançamento (mesmo dia do mês seguinte)
+    // Calcula data de lançamento: mesma lógica
     const issueDate = new Date(baseIssueDate);
     issueDate.setMonth(issueDate.getMonth() + (i - 1));
 
-    installmentPayload.due_date = toISO(dueDate);
-    installmentPayload.issue_date = toISO(issueDate);
+    // Formata as datas corretamente
+    installmentPayload.due_date = formatDateLocal(dueDate);
+    installmentPayload.issue_date = formatDateLocal(issueDate);
 
     await fetchJSON("/financial-entries/", {
       method: "POST",
