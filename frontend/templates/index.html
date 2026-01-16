@@ -435,7 +435,9 @@
         <h3 id="financeMonthTitle">Mês</h3>
         <p class="muted">Clique em um lançamento para editar ou alterar o status.</p>
       </div>
-      <div class="top-actions">
+      <div class="top-actions" style="display: flex; gap: 8px; align-items: center;">
+        <button class="primary ghost" id="financeMonthBack" style="padding: 8px 12px;">← Mês anterior</button>
+        <button class="primary ghost" id="financeMonthForward" style="padding: 8px 12px;">Próximo mês →</button>
         <select id="financeFilterStatus" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);">
           <option value="">Todos os status</option>
           <option value="pending">Pendente</option>

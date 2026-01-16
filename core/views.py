@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import date
+from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -95,12 +96,16 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        # Filtro por mês de vencimento
+        # Filtro por mês - mostra lançamentos com vencimento OU lançamento no mês
         month_param = self.request.query_params.get("month")
         if month_param:
             try:
                 year, month = map(int, month_param.split("-"))
-                qs = qs.filter(due_date__year=year, due_date__month=month)
+                # Mostra lançamentos que têm vencimento OU lançamento no mês especificado
+                qs = qs.filter(
+                    Q(due_date__year=year, due_date__month=month) |
+                    Q(issue_date__year=year, issue_date__month=month)
+                )
             except ValueError:
                 pass
         # Filtro por status

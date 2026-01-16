@@ -7,15 +7,18 @@ const API_BASE_URL = "/api";
 const state = {
   today: new Date(),
   currentMonth: new Date(),
+  financeViewMonth: new Date(), // Mês atual da visualização financeira (pode ser diferente do calendário)
   selectedDate: null,
   notes: {},     // { 'YYYY-MM-DD': [ { id, status, title, info, studentId, studentName } ] }
   students: [],  // vindo da API
   tasks: [],     // vindo da API
   finances: [],   // <--- NOVO: lista de cobranças do mês
+  financialEntries: [], // lançamentos financeiros a receber
 };
 
 let editingLessonId = null;
 let editingTaskId = null;
+let editingFinancialEntryId = null;
 
 
 // Labels separados pra não misturar aula x tarefa
@@ -43,6 +46,21 @@ const financeStatusLabels = {
   paid: "Pago",
   overdue: "Vencido",
   remind: "Lembrar de cobrar",
+};
+
+const financialEntryStatusLabels = {
+  pending: "Pendente",
+  paid: "Pago",
+  overdue: "Vencido",
+  cancelled: "Cancelado",
+};
+
+const paymentMethodLabels = {
+  pix: "PIX",
+  cash: "Dinheiro",
+  card: "Cartão",
+  transfer: "Transferência",
+  other: "Outro",
 };
 
 function formatBRL(value) {
@@ -302,9 +320,40 @@ async function loadFinancesForCurrentMonth() {
   }));
 }
 
+async function loadFinancialEntries() {
+  const year = state.financeViewMonth.getFullYear();
+  const month = String(state.financeViewMonth.getMonth() + 1).padStart(2, "0");
+  try {
+    const entries = await fetchJSON(`/financial-entries/?month=${year}-${month}`);
+    state.financialEntries = entries.map((e) => ({
+      id: e.id,
+      studentId: e.student,
+      studentName: e.student_name,
+      description: e.description,
+      amount: e.amount,
+      installments: e.installments,
+      currentInstallment: e.current_installment,
+      issueDate: e.issue_date,
+      dueDate: e.due_date,
+      paymentDate: e.payment_date,
+      status: e.status,
+      paymentMethod: e.payment_method,
+      notes: e.notes || "",
+    }));
+  } catch (error) {
+    console.error("Erro ao carregar lançamentos financeiros:", error);
+    state.financialEntries = [];
+  }
+}
 
 async function loadInitialData() {
-  await Promise.all([loadStudents(), loadTasks(), loadLessonsForCurrentMonth(), loadFinancesForCurrentMonth()]);
+  await Promise.all([
+    loadStudents(), 
+    loadTasks(), 
+    loadLessonsForCurrentMonth(), 
+    loadFinancesForCurrentMonth(),
+    loadFinancialEntries()
+  ]);
 }
 
 
@@ -352,14 +401,17 @@ async function changeMonth(delta) {
 
   await Promise.all([
     loadLessonsForCurrentMonth(),
-    loadFinancesForCurrentMonth(),   // <--- NOVO
+    loadFinancesForCurrentMonth(),
+    loadFinancialEntries(),
   ]);
 
   renderCalendar();
   renderDayDetails();
   renderStats();
-  renderFinance();                    // <--- NOVO
+  renderFinance();
   renderFinanceTotal();
+  renderFinancialEntries();
+  renderFinancialStats();
 }
 
 
@@ -1222,6 +1274,253 @@ async function updateInvoiceStatus(invoice, newStatus) {
   }
 }
 
+// ==========================
+// Lançamentos Financeiros
+// ==========================
+
+function formatDateBR(dateStr) {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function renderFinancialStats() {
+  const pendingEl = document.getElementById("statFinancePending");
+  const paidEl = document.getElementById("statFinancePaid");
+  const overdueEl = document.getElementById("statFinanceOverdue");
+  const countEl = document.getElementById("statFinanceCount");
+
+  if (!pendingEl || !paidEl || !overdueEl || !countEl) return;
+
+  const pending = state.financialEntries
+    .filter((e) => e.status === "pending")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  const paid = state.financialEntries
+    .filter((e) => e.status === "paid")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  const overdue = state.financialEntries
+    .filter((e) => e.status === "overdue")
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  pendingEl.textContent = formatBRL(pending);
+  paidEl.textContent = formatBRL(paid);
+  overdueEl.textContent = formatBRL(overdue);
+  countEl.textContent = state.financialEntries.length;
+}
+
+function renderFinancialEntries() {
+  const list = document.getElementById("financialEntriesList");
+  const monthTitleEl = document.getElementById("financeMonthTitle");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (monthTitleEl) {
+    const label = monthName(state.financeViewMonth);
+    monthTitleEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  // Filtro de status
+  const filterSelect = document.getElementById("financeFilterStatus");
+  const statusFilter = filterSelect ? filterSelect.value : "";
+
+  let entries = state.financialEntries;
+  if (statusFilter) {
+    entries = entries.filter((e) => e.status === statusFilter);
+  }
+
+  if (entries.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Nenhum lançamento financeiro para este mês. Clique em '+ Novo Lançamento' para criar.";
+    list.append(empty);
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = `finance-row ${entry.status}`;
+
+    const main = document.createElement("div");
+    main.className = "finance-main";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "finance-name";
+    nameEl.innerHTML = `<strong>${entry.studentName || "Aluno"}</strong> - ${entry.description}`;
+
+    const infoEl = document.createElement("div");
+    infoEl.className = "finance-info";
+
+    const statusLabel = financialEntryStatusLabels[entry.status] || entry.status;
+    const dueText = entry.dueDate
+      ? `Venc: ${formatDateBR(entry.dueDate)}`
+      : "Sem vencimento";
+    const installmentText = entry.installments > 1 
+      ? `Parcela ${entry.currentInstallment}/${entry.installments}` 
+      : "À vista";
+
+    infoEl.textContent = `${formatBRL(entry.amount)} • ${installmentText} • ${statusLabel} • ${dueText}`;
+
+    main.append(nameEl, infoEl);
+
+    const actions = document.createElement("div");
+    actions.className = "finance-actions";
+
+    // Botões de status
+    ["paid", "pending", "overdue"].forEach((statusKey) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tag";
+      btn.textContent = financialEntryStatusLabels[statusKey];
+      btn.addEventListener("click", () => updateFinancialEntryStatus(entry, statusKey));
+      actions.append(btn);
+    });
+
+    // Botão editar
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "tag";
+    editBtn.textContent = "Editar";
+    editBtn.addEventListener("click", () => openFinancialEntryForm(entry));
+    actions.append(editBtn);
+
+    row.append(main, actions);
+    list.append(row);
+  });
+}
+
+async function updateFinancialEntryStatus(entry, newStatus) {
+  try {
+    const payload = { status: newStatus };
+    if (newStatus === "paid") {
+      payload.payment_date = toISO(new Date());
+    }
+    await fetchJSON(`/financial-entries/${entry.id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    entry.status = newStatus;
+    if (newStatus === "paid") {
+      entry.paymentDate = toISO(new Date());
+    }
+    await loadFinancialEntries();
+    renderFinancialEntries();
+    renderFinancialStats();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível atualizar o status.");
+  }
+}
+
+function openFinancialEntryForm(entry = null) {
+  const card = document.getElementById("financialEntryFormCard");
+  const titleEl = document.getElementById("financialEntryFormTitle");
+  const form = document.getElementById("financialEntryForm");
+  
+  if (!card || !form || !titleEl) {
+    console.error("Elementos do formulário financeiro não encontrados");
+    return;
+  }
+
+  // Popula select de alunos
+  const feStudent = document.getElementById("feStudent");
+  if (feStudent && feStudent.options.length <= 1) {
+    feStudent.innerHTML = '<option value="">Selecione um aluno</option>';
+    state.students.forEach((student) => {
+      if (student.active !== false) {
+        const opt = document.createElement("option");
+        opt.value = student.id;
+        opt.textContent = student.name;
+        feStudent.append(opt);
+      }
+    });
+  }
+
+  if (entry) {
+    // Modo edição
+    editingFinancialEntryId = entry.id;
+    titleEl.textContent = "Editar Lançamento";
+    
+    document.getElementById("feStudent").value = entry.studentId || "";
+    document.getElementById("feDescription").value = entry.description || "";
+    document.getElementById("feAmount").value = entry.amount || "";
+    document.getElementById("feInstallments").value = entry.installments || 1;
+    document.getElementById("feIssueDate").value = entry.issueDate || "";
+    document.getElementById("feDueDate").value = entry.dueDate || "";
+    document.getElementById("feStatus").value = entry.status || "pending";
+    document.getElementById("fePaymentMethod").value = entry.paymentMethod || "pix";
+    document.getElementById("feNotes").value = entry.notes || "";
+    
+    // Desabilita parcelas em modo edição (não pode alterar)
+    document.getElementById("feInstallments").disabled = true;
+  } else {
+    // Modo criação
+    editingFinancialEntryId = null;
+    titleEl.textContent = "Cadastrar Recebimento";
+    form.reset();
+    
+    // Data de lançamento = hoje
+    const feIssueDate = document.getElementById("feIssueDate");
+    if (feIssueDate) {
+      feIssueDate.value = toISO(new Date());
+    }
+    
+    // Data de vencimento = dia 5 do próximo mês
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    nextMonth.setDate(5);
+    const feDueDate = document.getElementById("feDueDate");
+    if (feDueDate) {
+      feDueDate.value = toISO(nextMonth);
+    }
+    
+    const feInstallments = document.getElementById("feInstallments");
+    if (feInstallments) {
+      feInstallments.value = 1;
+      feInstallments.disabled = false;
+    }
+  }
+
+  card.style.display = "flex";
+  if (feStudent) feStudent.focus();
+}
+
+async function createInstallments(basePayload, totalInstallments) {
+  // Cria a primeira parcela
+  const firstPayload = { ...basePayload, current_installment: 1 };
+  await fetchJSON("/financial-entries/", {
+    method: "POST",
+    body: JSON.stringify(firstPayload),
+  });
+
+  // Cria as parcelas restantes
+  const baseDueDate = new Date(basePayload.due_date);
+  const baseIssueDate = new Date(basePayload.issue_date);
+  
+  for (let i = 2; i <= totalInstallments; i++) {
+    const installmentPayload = { ...basePayload };
+    installmentPayload.current_installment = i;
+    
+    // Calcula data de vencimento (mesmo dia do mês seguinte)
+    const dueDate = new Date(baseDueDate);
+    dueDate.setMonth(dueDate.getMonth() + (i - 1));
+    
+    // Calcula data de lançamento (mesmo dia do mês seguinte)
+    const issueDate = new Date(baseIssueDate);
+    issueDate.setMonth(issueDate.getMonth() + (i - 1));
+    
+    installmentPayload.due_date = toISO(dueDate);
+    installmentPayload.issue_date = toISO(issueDate);
+    
+    await fetchJSON("/financial-entries/", {
+      method: "POST",
+      body: JSON.stringify(installmentPayload),
+    });
+  }
+}
+
 // antes: usava prompt
 // async function addTask() { ... }
 
@@ -1243,6 +1542,24 @@ function showView(viewId) {
   document.querySelectorAll(".nav-item").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.view === viewId);
   });
+  
+  // Se abrir a visualização financeira, garante que o mês está sincronizado
+  if (viewId === "view-finance") {
+    // Se financeViewMonth não foi inicializado ou está muito diferente, usa o mês atual
+    const monthsDiff = Math.abs(
+      (state.financeViewMonth.getFullYear() - state.today.getFullYear()) * 12 +
+      (state.financeViewMonth.getMonth() - state.today.getMonth())
+    );
+    if (monthsDiff > 12) {
+      state.financeViewMonth = new Date(state.today);
+    }
+    // Recarrega os dados do mês financeiro
+    loadFinancialEntries().then(() => {
+      renderFinancialEntries();
+      renderFinancialStats();
+    });
+  }
+  
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -1364,6 +1681,153 @@ function attachForms() {
     openWaBtn.addEventListener("click", openBillingWhatsApp);
   }
 
+  // Botão de novo lançamento financeiro
+  const newFinancialEntryBtn = document.getElementById("newFinancialEntryBtn");
+  if (newFinancialEntryBtn) {
+    newFinancialEntryBtn.addEventListener("click", () => {
+      openFinancialEntryForm(null);
+    });
+  }
+
+  // Botão cancelar formulário financeiro
+  const cancelFinancialEntryForm = document.getElementById("cancelFinancialEntryForm");
+  if (cancelFinancialEntryForm) {
+    cancelFinancialEntryForm.addEventListener("click", () => {
+      const card = document.getElementById("financialEntryFormCard");
+      if (card) {
+        card.style.display = "none";
+      }
+      editingFinancialEntryId = null;
+      const form = document.getElementById("financialEntryForm");
+      if (form) form.reset();
+    });
+  }
+
+  // Filtro de status dos lançamentos financeiros
+  const financeFilterStatus = document.getElementById("financeFilterStatus");
+  if (financeFilterStatus) {
+    financeFilterStatus.addEventListener("change", () => {
+      renderFinancialEntries();
+    });
+  }
+
+  // Navegação de meses na visualização financeira
+  const financeMonthBack = document.getElementById("financeMonthBack");
+  const financeMonthForward = document.getElementById("financeMonthForward");
+  
+  if (financeMonthBack) {
+    financeMonthBack.addEventListener("click", async () => {
+      const current = state.financeViewMonth;
+      state.financeViewMonth = new Date(
+        current.getFullYear(),
+        current.getMonth() - 1,
+        1
+      );
+      await loadFinancialEntries();
+      renderFinancialEntries();
+      renderFinancialStats();
+    });
+  }
+  
+  if (financeMonthForward) {
+    financeMonthForward.addEventListener("click", async () => {
+      const current = state.financeViewMonth;
+      state.financeViewMonth = new Date(
+        current.getFullYear(),
+        current.getMonth() + 1,
+        1
+      );
+      await loadFinancialEntries();
+      renderFinancialEntries();
+      renderFinancialStats();
+    });
+  }
+
+  // Submit do formulário financeiro
+  const financialEntryForm = document.getElementById("financialEntryForm");
+  if (financialEntryForm) {
+    financialEntryForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      
+      const studentId = document.getElementById("feStudent")?.value;
+      const description = document.getElementById("feDescription")?.value.trim();
+      const amount = document.getElementById("feAmount")?.value;
+      const installments = document.getElementById("feInstallments")?.value || 1;
+      const issueDate = document.getElementById("feIssueDate")?.value;
+      const dueDate = document.getElementById("feDueDate")?.value;
+      const status = document.getElementById("feStatus")?.value || "pending";
+      const paymentMethod = document.getElementById("fePaymentMethod")?.value || "pix";
+      const notes = document.getElementById("feNotes")?.value.trim() || "";
+
+      if (!studentId || !description || !amount || !issueDate || !dueDate) {
+        alert("Preencha todos os campos obrigatórios.");
+        return;
+      }
+
+      const payload = {
+        student: Number(studentId),
+        description,
+        amount: parseFloat(amount),
+        installments: Number(installments),
+        current_installment: 1,
+        issue_date: issueDate,
+        due_date: dueDate,
+        status,
+        payment_method: paymentMethod,
+        notes,
+      };
+      
+      // Se o status for "paid" e não tiver payment_date, define como hoje
+      if (status === "paid" && !payload.payment_date) {
+        payload.payment_date = toISO(new Date());
+      }
+
+      try {
+        if (editingFinancialEntryId) {
+          // Edição
+          await fetchJSON(`/financial-entries/${editingFinancialEntryId}/`, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          });
+          alert("Lançamento atualizado com sucesso!");
+        } else {
+          // Criação - verifica se precisa criar parcelas
+          const installmentsNum = Number(installments);
+          if (installmentsNum > 1) {
+            // Cria todas as parcelas
+            await createInstallments(payload, installmentsNum);
+            alert(`${installmentsNum} parcelas criadas com sucesso!`);
+          } else {
+            // Cria apenas um lançamento
+            await fetchJSON("/financial-entries/", {
+              method: "POST",
+              body: JSON.stringify(payload),
+            });
+            alert("Lançamento salvo com sucesso!");
+          }
+        }
+        
+        // Fecha o formulário
+        const card = document.getElementById("financialEntryFormCard");
+        if (card) {
+          card.style.display = "none";
+        }
+        
+        // Reseta o formulário
+        financialEntryForm.reset();
+        editingFinancialEntryId = null;
+        
+        // Recarrega e renderiza os lançamentos
+        await loadFinancialEntries();
+        renderFinancialEntries();
+        renderFinancialStats();
+      } catch (error) {
+        console.error(error);
+        alert("Não foi possível salvar o lançamento. Verifique o console para mais detalhes.");
+      }
+    });
+  }
+
 }
 
 function parseISODateLocal(iso) {
@@ -1394,12 +1858,13 @@ async function init() {
   renderCalendar();
   renderTasks();
   renderBillingPreview();
-  renderFinance();  // <--- NOVO
-  renderFinanceTotal();   // 👈 AQUI
+  renderFinance();
+  renderFinanceTotal();
+  renderFinancialEntries();
+  renderFinancialStats();
 
   state.selectedDate = toISO(state.today);
   renderDayDetails();
-
 
   initTasksUI();
   showView("view-calendar");
