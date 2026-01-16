@@ -1317,10 +1317,15 @@ function renderTasks() {
                   ? `<p style="text-align: center; color: ${statusColors[status].text}; font-size: 14px; font-style: italic; padding: 16px;">Nenhuma tarefa</p>`
                   : tasks
                       .map((task) => {
-                        const isOverdue =
-                          task.dueDate &&
-                          new Date(task.dueDate) < new Date() &&
-                          task.status !== "done";
+                        // Verifica se está vencida (cria data local para evitar problema de fuso horário)
+                        const isOverdue = (() => {
+                          if (!task.dueDate || task.status === "done") return false;
+                          const [year, month, day] = task.dueDate.split("-").map(Number);
+                          const dueDate = new Date(year, month - 1, day);
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0); // Zera horas para comparar apenas datas
+                          return dueDate < today;
+                        })();
                         const tagsArray = task.tags
                           ? task.tags.split(",").map((t) => t.trim()).filter((t) => t)
                           : [];
@@ -1419,7 +1424,9 @@ function renderTasks() {
 
 function formatDate(dateString) {
   if (!dateString) return "";
-  const date = new Date(dateString);
+  // Evita problema de fuso horário: cria a data localmente
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day); // month - 1 porque janeiro = 0
   return date.toLocaleDateString("pt-BR");
 }
 
