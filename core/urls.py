@@ -18,6 +18,7 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
+    path("landing/", TemplateView.as_view(template_name="landing.html"), name="landing"),
     path("", DashboardView.as_view(), name="dashboard"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("api/", include(router.urls)),

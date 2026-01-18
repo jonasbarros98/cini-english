@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cini English | Gestão completa para professores particulares</title>
+
+  <meta name="description" content="Cini English é um sistema para professores particulares controlarem agenda, alunos, planejamento, tarefas e financeiro em um só lugar — com cobrança via WhatsApp e mais tempo livre." />
+  <meta name="theme-color" content="#6366f1" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-soft: #e0e7ff;
+
+      --accent: #f97316;
+      --accent-dark: #ea580c;
+      --accent-soft: #ffedd5;
+
+      --bg-warm: #fffbf5;
+      --bg-white: #ffffff;
+      --bg-soft: #f0f4ff;
+
+      --text-dark: #1e1b4b;
+      --text-medium: #475569;
+      --text-soft: #64748b;
+
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-full: 999px;
+
+      --shadow-soft: 0 20px 40px -15px rgba(99, 102, 241, 0.16);
+      --shadow-hover: 0 25px 50px -12px rgba(99, 102, 241, 0.28);
+      --shadow-accent: 0 16px 35px -12px rgba(249, 115, 22, 0.45);
+
+      --border: rgba(30, 27, 75, 0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg-warm);
+      color: var(--text-medium);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; }
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 2rem; }
+
+    /* ====== Background blobs ====== */
+    .decorative-blob {
+      position: absolute;
+      width: 520px; height: 520px;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.14;
+      z-index: -1;
+      pointer-events: none;
+    }
+    .blob-1 { top: -240px; right: -140px; background: var(--primary); }
+    .blob-2 { bottom: -260px; left: -160px; background: var(--accent); }
+
+    /* ====== Header ====== */
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      background: rgba(255, 251, 245, 0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(30, 27, 75, 0.06);
+    }
+    .nav-container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      color: var(--text-dark);
+      letter-spacing: -0.02em;
+      text-decoration: none;
+    }
+    .logo .mark {
+      width: 36px; height: 36px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px -14px rgba(0,0,0,0.35);
+    }
+    .logo .mark i { color: white; width: 18px; height: 18px; }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .nav-link {
+      text-decoration: none;
+      font-weight: 600;
+      color: var(--text-medium);
+      padding: 0.55rem 0.9rem;
+      border-radius: var(--radius-full);
+      transition: 0.2s;
+      border: 1px solid transparent;
+    }
+    .nav-link:hover {
+      background: rgba(99, 102, 241, 0.08);
+      color: var(--text-dark);
+      border-color: rgba(99, 102, 241, 0.12);
+    }
+    .btn-nav {
+      background: var(--primary);
+      color: white;
+      padding: 0.72rem 1.2rem;
+      border-radius: var(--radius-full);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.92rem;
+      transition: all 0.25s ease;
+      box-shadow: 0 10px 22px -14px rgba(99, 102, 241, 0.65);
+      border: 1px solid rgba(255,255,255,0.2);
+      white-space: nowrap;
+    }
+    .btn-nav:hover { transform: translateY(-2px); background: var(--primary-dark); }
+    .btn-nav:focus-visible, .nav-link:focus-visible, .btn:focus-visible, button:focus-visible {
+      outline: 3px solid rgba(99, 102, 241, 0.35);
+      outline-offset: 2px;
+    }
+
+    /* ====== Hero ====== */
+    .hero {
+      padding: 10.5rem 0 5.5rem;
+      position: relative;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 3rem;
+      align-items: center;
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 5.2vw, 4rem);
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      color: var(--text-dark);
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+    .highlight {
+      background: linear-gradient(120deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .sub {
+      max-width: 640px;
+      font-size: 1.14rem;
+      color: var(--text-medium);
+      margin-bottom: 1.6rem;
+    }
+
+    .hero-bullets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin: 1.4rem 0 1.8rem;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0.65rem 0.95rem;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      box-shadow: 0 10px 25px -18px rgba(0,0,0,0.25);
+      font-weight: 600;
+      color: var(--text-dark);
+      font-size: 0.92rem;
+    }
+    .pill i { color: var(--primary); width: 18px; height: 18px; }
+
+    .hero-ctas {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 1rem 1.4rem;
+      border-radius: var(--radius-full);
+      font-weight: 800;
+      text-decoration: none;
+      transition: 0.25s;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      color: white;
+      box-shadow: var(--shadow-accent);
+    }
+    .btn-accent:hover { transform: translateY(-3px); filter: saturate(1.05); }
+    .btn-soft {
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      border-color: rgba(99, 102, 241, 0.18);
+    }
+    .btn-soft:hover { background: #d7e0ff; transform: translateY(-2px); }
+    .micro {
+      font-size: 0.92rem;
+      color: var(--text-soft);
+      margin-top: 0.9rem;
+    }
+    .micro strong { color: var(--text-dark); }
+
+    /* Mock UI Card */
+    .mock {
+      background: rgba(255,255,255,0.8);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+    .mock-top {
+      padding: 1rem 1rem 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(30, 27, 75, 0.06);
+      background: linear-gradient(to bottom, rgba(99,102,241,0.07), transparent);
+    }
+    .mock-title {
+      display: flex; flex-direction: column;
+      gap: 2px;
+    }
+    .mock-title strong { color: var(--text-dark); font-size: 0.95rem; }
+    .mock-title span { color: var(--text-soft); font-size: 0.85rem; }
+    .mock-chip {
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--accent-dark);
+      border: 1px solid rgba(249, 115, 22, 0.18);
+      padding: 0.45rem 0.7rem;
+      border-radius: var(--radius-full);
+      font-weight: 800;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+    .mock-body { padding: 1rem; }
+    .mock-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+    .mock-card {
+      background: white;
+      border: 1px solid rgba(30,27,75,0.08);
+      border-radius: var(--radius-md);
+      padding: 0.9rem;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      margin-top: 0.35rem;
+      background: var(--primary);
+      box-shadow: 0 0 0 6px rgba(99,102,241,0.10);
+      flex: none;
+    }
+    .dot.orange { background: var(--accent); box-shadow: 0 0 0 6px rgba(249,115,22,0.10); }
+    .dot.green { background: #16a34a; box-shadow: 0 0 0 6px rgba(22,163,74,0.10); }
+    .mock-card strong { color: var(--text-dark); font-size: 0.92rem; display: block; }
+    .mock-card span { color: var(--text-soft); font-size: 0.86rem; display: block; margin-top: 2px; }
+
+    /* ====== Section header ====== */
+    section { position: relative; }
+    .section {
+      padding: 5.5rem 0;
+    }
+    .section-header {
+      text-align: center;
+      margin-bottom: 3.2rem;
+    }
+    .section-header h2 {
+      font-size: 2.35rem;
+      color: var(--text-dark);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.8rem;
+    }
+    .section-header p {
+      max-width: 760px;
+      margin: 0 auto;
+      color: var(--text-medium);
+      font-size: 1.08rem;
+    }
+
+    /* ====== Modules / Features ====== */
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.4rem;
+    }
+    .card {
+      background: var(--bg-white);
+      border: 1px solid rgba(30,27,75,0.09);
+      border-radius: var(--radius-lg);
+      padding: 1.8rem;
+      transition: 0.25s;
+      box-shadow: 0 14px 30px -22px rgba(0,0,0,0.35);
+    }
+    .card:hover {
+      transform: translateY(-7px);
+      box-shadow: var(--shadow-soft);
+      border-color: rgba(99,102,241,0.18);
+    }
+    .icon-box {
+      width: 56px; height: 56px;
+      border-radius: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      transition: 0.25s;
+    }
+    .icon-box.alt { background: var(--accent-soft); color: var(--accent-dark); }
+    .icon-box.green { background: #dcfce7; color: #16a34a; }
+    .card:hover .icon-box { transform: rotate(4deg) scale(1.06); }
+
+    .card h3 {
+      color: var(--text-dark);
+      font-size: 1.2rem;
+      font-weight: 900;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.01em;
+    }
+    .card p { color: var(--text-medium); }
+
+    /* ====== How it works ====== */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.4rem;
+      margin-top: 2.2rem;
+    }
+    .step {
+      background: rgba(255,255,255,0.72);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.6rem;
+      box-shadow: 0 18px 38px -28px rgba(0,0,0,0.35);
+    }
+    .step .n {
+      width: 42px; height: 42px;
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: white;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      margin-bottom: 0.9rem;
+    }
+    .step h4 {
+      color: var(--text-dark);
+      font-size: 1.05rem;
+      font-weight: 900;
+      margin-bottom: 0.35rem;
+    }
+    .step p { color: var(--text-medium); }
+
+    /* ====== Testimonials ====== */
+    .testimonials {
+      background: linear-gradient(to bottom, var(--bg-warm), var(--bg-soft));
+      border-top: 1px solid rgba(30, 27, 75, 0.06);
+      border-bottom: 1px solid rgba(30, 27, 75, 0.06);
+    }
+    .quote {
+      background: var(--bg-white);
+      border: 1px solid rgba(30,27,75,0.09);
+      border-radius: var(--radius-lg);
+      padding: 1.8rem;
+      box-shadow: 0 18px 38px -30px rgba(0,0,0,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .quote::before {
+      content: "";
+      position: absolute;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      top: -160px; right: -120px;
+      background: rgba(99,102,241,0.10);
+      filter: blur(2px);
+    }
+    .quote p {
+      color: var(--text-medium);
+      font-size: 1.03rem;
+      margin-bottom: 1.1rem;
+    }
+    .who {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-dark);
+      font-weight: 900;
+    }
+    .avatar {
+      width: 44px; height: 44px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(249,115,22,0.25));
+      border: 1px solid rgba(30,27,75,0.08);
+    }
+    .who small {
+      display: block;
+      font-weight: 600;
+      color: var(--text-soft);
+      margin-top: 2px;
+    }
+
+    /* ====== Pricing ====== */
+    .pricing {
+      padding: 6.2rem 0 6.6rem;
+      background: linear-gradient(to bottom, var(--bg-warm), #f0f4ff);
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.4rem;
+      margin-top: 2.4rem;
+      align-items: stretch;
+    }
+    .price-card {
+      background: var(--bg-white);
+      border: 1px solid rgba(30,27,75,0.09);
+      border-radius: var(--radius-lg);
+      padding: 2.2rem;
+      box-shadow: var(--shadow-soft);
+      transition: 0.25s;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    .price-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-hover); }
+
+    .price-card.popular {
+      border: 2px solid rgba(249,115,22,0.9);
+      transform: translateY(-6px);
+    }
+    .popular-tag {
+      position: absolute;
+      top: -14px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: white;
+      padding: 0.45rem 1.1rem;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(255,255,255,0.25);
+      box-shadow: 0 16px 30px -18px rgba(249,115,22,0.8);
+    }
+    .price-card h3 {
+      color: var(--text-dark);
+      font-size: 1.35rem;
+      font-weight: 900;
+      margin-bottom: 0.45rem;
+    }
+    .price-sub {
+      color: var(--text-soft);
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      font-size: 0.95rem;
+    }
+    .price-value {
+      color: var(--text-dark);
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin: 0.2rem 0 1.4rem;
+    }
+    .price-value span {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-soft);
+    }
+    .price-list { list-style: none; margin: 0 0 1.7rem; padding: 0; }
+    .price-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 0.85rem;
+      color: var(--text-medium);
+      font-weight: 600;
+    }
+    .price-list i { color: var(--primary); margin-top: 2px; }
+    .btn-price {
+      margin-top: auto;
+      width: 100%;
+      border-radius: var(--radius-full);
+      padding: 1rem 1.2rem;
+      font-weight: 900;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 1rem;
+    }
+    .btn-price-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 14px 26px -18px rgba(99,102,241,0.85);
+    }
+    .btn-price-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+    .btn-price-outline {
+      background: transparent;
+      color: var(--primary-dark);
+      border: 2px solid rgba(99,102,241,0.16);
+    }
+    .btn-price-outline:hover { background: rgba(99,102,241,0.08); transform: translateY(-2px); }
+    .fineprint {
+      margin-top: 1.2rem;
+      color: var(--text-soft);
+      font-size: 0.92rem;
+      text-align: center;
+    }
+
+    /* ====== FAQ ====== */
+    .faq-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 2.2rem;
+    }
+    details {
+      background: rgba(255,255,255,0.78);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.35rem;
+      box-shadow: 0 18px 38px -30px rgba(0,0,0,0.35);
+    }
+    summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      font-weight: 900;
+      color: var(--text-dark);
+    }
+    summary::-webkit-details-marker { display: none; }
+    details p {
+      margin-top: 0.75rem;
+      color: var(--text-medium);
+      font-weight: 600;
+    }
+    .chev { width: 20px; height: 20px; color: var(--text-soft); transition: 0.2s; }
+    details[open] .chev { transform: rotate(180deg); }
+
+    /* ====== Footer ====== */
+    footer {
+      padding: 4.5rem 0 4rem;
+      text-align: center;
+      color: var(--text-soft);
+    }
+    footer .mini {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    /* ====== Mobile sticky CTA ====== */
+    .sticky-cta {
+      display: none;
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      padding: 0.9rem 1rem;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(30, 27, 75, 0.08);
+      z-index: 999;
+    }
+    .sticky-cta .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sticky-cta .wrap span {
+      font-weight: 900;
+      color: var(--text-dark);
+      font-size: 0.95rem;
+    }
+
+    /* ====== Responsive ====== */
+    @media (max-width: 980px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .grid-3 { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .faq-grid { grid-template-columns: 1fr; }
+      .mock-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .nav-actions .nav-link { display: none; }
+      .hero { padding-top: 9.5rem; padding-bottom: 4.5rem; }
+      .sticky-cta { display: block; }
+      body { padding-bottom: 86px; } /* espaço pro sticky */
+    }
+  </style>
+</head>
+
+<body>
+  <div class="decorative-blob blob-1"></div>
+  <div class="decorative-blob blob-2"></div>
+
+  <header>
+    <div class="nav-container">
+      <a class="logo" href="#top" aria-label="Ir para o topo">
+        <span class="mark"><i data-lucide="sparkles"></i></span>
+        <span>Cini English</span>
+      </a>
+
+      <nav class="nav-actions" aria-label="Navegação principal">
+        <a class="nav-link" href="#modules">Módulos</a>
+        <a class="nav-link" href="#how">Como funciona</a>
+        <a class="nav-link" href="#pricing">Planos</a>
+        <a class="nav-link" href="#faq">FAQ</a>
+        <a class="btn-nav" href="#pricing">Testar 7 dias grátis</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <h1>
+            Gestão completa pra professor particular
+            <span class="highlight">sem planilha zumbi</span>.
+          </h1>
+
+          <p class="sub">
+            Agenda, alunos, planejamento, tarefas e financeiro em um só lugar.
+            Resultado: menos “cadê aquele pagamento?” e mais tempo pra dar aula (e viver).
+          </p>
+
+          <div class="hero-bullets" aria-label="Benefícios principais">
+            <div class="pill"><i data-lucide="clock-3"></i> Economize tempo toda semana</div>
+            <div class="pill"><i data-lucide="wallet"></i> Cobrança organizada</div>
+            <div class="pill"><i data-lucide="shield-check"></i> Dados protegidos</div>
+            <div class="pill"><i data-lucide="message-circle"></i> WhatsApp com 1 clique</div>
+          </div>
+
+          <div class="hero-ctas">
+            <a class="btn btn-accent" href="#pricing">
+              <i data-lucide="zap"></i> Testar 7 dias grátis
+            </a>
+            <a class="btn btn-soft" href="#modules">
+              <i data-lucide="layout-grid"></i> Ver módulos
+            </a>
+          </div>
+
+          <p class="micro">
+            <strong>Sem cartão pra testar</strong> • Cancele quando quiser • Comece em menos de 2 minutos
+          </p>
+        </div>
+
+        <!-- Mock UI -->
+        <aside class="mock" aria-label="Prévia do sistema">
+          <div class="mock-top">
+            <div class="mock-title">
+              <strong>Seu dia, numa tela</strong>
+              <span>Agenda • Tarefas • Financeiro</span>
+            </div>
+            <div class="mock-chip">Hoje</div>
+          </div>
+
+          <div class="mock-body">
+            <div class="mock-grid">
+              <div class="mock-card">
+                <span class="dot"></span>
+                <div>
+                  <strong>08:00 • Aula (Camila)</strong>
+                  <span>Planejamento: Past Perfect</span>
+                </div>
+              </div>
+
+              <div class="mock-card">
+                <span class="dot orange"></span>
+                <div>
+                  <strong>11:30 • Cobrança pendente</strong>
+                  <span>Mensagem WhatsApp pronta</span>
+                </div>
+              </div>
+
+              <div class="mock-card">
+                <span class="dot green"></span>
+                <div>
+                  <strong>Tarefa: corrigir redação</strong>
+                  <span>Aluno: Pedro • Hoje</span>
+                </div>
+              </div>
+
+              <div class="mock-card">
+                <span class="dot"></span>
+                <div>
+                  <strong>Relatório do mês</strong>
+                  <span>Recebido x Pendente</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- MODULES -->
+    <section class="section" id="modules">
+      <div class="container">
+        <div class="section-header">
+          <h2>Módulos que atacam o caos pelo pescoço</h2>
+          <p>Não é “mais um app”. É o seu painel de controle como professora — do agendamento ao caixa.</p>
+        </div>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="icon-box"><i data-lucide="calendar"></i></div>
+            <h3>Calendário & Reagendamentos</h3>
+            <p>Visão semanal limpa, conflitos evitados e controle de faltas/reagendamentos sem drama.</p>
+          </div>
+
+          <div class="card">
+            <div class="icon-box alt"><i data-lucide="users"></i></div>
+            <h3>Alunos & Histórico</h3>
+            <p>Cadastro, progresso, objetivos, materiais e observações — tudo do aluno em um lugar só.</p>
+          </div>
+
+          <div class="card">
+            <div class="icon-box green"><i data-lucide="notebook-pen"></i></div>
+            <h3>Planejamento de Aulas</h3>
+            <p>Templates, planos por nível, checklists e o que foi dado em cada encontro (pra nunca se perder).</p>
+          </div>
+
+          <div class="card">
+            <div class="icon-box"><i data-lucide="check-square"></i></div>
+            <h3>Tarefas & Pendências</h3>
+            <p>Atividades, correções e follow-ups organizados por aluno e data. Sua cabeça agradece.</p>
+          </div>
+
+          <div class="card">
+            <div class="icon-box alt"><i data-lucide="wallet-cards"></i></div>
+            <h3>Financeiro Inteligente</h3>
+            <p>Recebimentos, pendências, pacotes, recorrência e lembretes. Menos “me manda o pix?”.</p>
+          </div>
+
+          <div class="card">
+            <div class="icon-box green"><i data-lucide="message-circle"></i></div>
+            <h3>Mensagens & WhatsApp</h3>
+            <p>Modelos prontos (cobrança, confirmação, reagendamento). Copiar/colar com classe.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="section" id="how">
+      <div class="container">
+        <div class="section-header">
+          <h2>Como funciona (sem enrolação)</h2>
+          <p>Você cria, organiza e cobra. O sistema segura a bronca do resto.</p>
+        </div>
+
+        <div class="steps">
+          <div class="step">
+            <div class="n">1</div>
+            <h4>Cadastre alunos e pacotes</h4>
+            <p>Nome, horários, valores e observações. Deixa o perfil do aluno redondo.</p>
+          </div>
+
+          <div class="step">
+            <div class="n">2</div>
+            <h4>Planeje e execute a semana</h4>
+            <p>Agenda + tarefas + materiais. Você vê o mapa do território antes de entrar na selva.</p>
+          </div>
+
+          <div class="step">
+            <div class="n">3</div>
+            <h4>Controle pagamentos e lembretes</h4>
+            <p>Quando atrasar, a mensagem já sai pronta. Você cobra sem parecer o Serasa.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TESTIMONIALS -->
+    <section class="section testimonials" id="testimonials">
+      <div class="container">
+        <div class="section-header">
+          <h2>O que muda na prática</h2>
+          <p>Menos fricção, menos esquecimento, mais previsibilidade de grana.</p>
+        </div>
+
+        <div class="grid-3">
+          <div class="quote">
+            <p>“Eu parei de me perder com reagendamento. Agora eu abro e sei exatamente como tá minha semana.”</p>
+            <div class="who">
+              <div class="avatar" aria-hidden="true"></div>
+              <div>
+                Prof. Ana
+                <small>Inglês • Particular</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="quote">
+            <p>“O financeiro ficou ridiculamente simples. Eu finalmente sei quem pagou e quem tá devendo.”</p>
+            <div class="who">
+              <div class="avatar" aria-hidden="true"></div>
+              <div>
+                Prof. Bruna
+                <small>Kids & Teens</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="quote">
+            <p>“Planejamento + histórico do aluno num lugar só. Isso vira ‘memória externa’ e salva a rotina.”</p>
+            <div class="who">
+              <div class="avatar" aria-hidden="true"></div>
+              <div>
+                Prof. Carol
+                <small>Business English</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="fineprint">* Depoimentos ilustrativos (coloque os reais assim que tiver — conversão sobe bonito).</p>
+      </div>
+    </section>
+
+    <!-- PRICING -->
+    <section class="pricing" id="pricing">
+      <div class="decorative-blob" style="top: 8%; left: 20%; width: 320px; height: 320px; background: var(--primary); opacity: 0.12;"></div>
+
+      <div class="container">
+        <div class="section-header">
+          <h2>Planos simples. Zero pegadinha.</h2>
+          <p>Teste grátis por 7 dias. Depois você escolhe o ritmo.</p>
+        </div>
+
+        <div class="pricing-grid">
+          <div class="price-card">
+            <h3>Mensal</h3>
+            <div class="price-sub">Pra começar sem compromisso</div>
+            <div class="price-value">R$ 49 <span>/mês</span></div>
+            <ul class="price-list">
+              <li><i data-lucide="check"></i> Alunos ilimitados</li>
+              <li><i data-lucide="check"></i> Agenda + reagendamentos</li>
+              <li><i data-lucide="check"></i> Financeiro básico</li>
+              <li><i data-lucide="check"></i> Mensagens prontas</li>
+            </ul>
+            <a href="https://buy.stripe.com/test_3cI5kv8aF95IbZIbmP5J605" target="_blank" class="btn-price btn-price-outline" style="text-decoration: none; display: block; text-align: center;">Assinar Mensal</a>
+          </div>
+
+          <div class="price-card popular">
+            <div class="popular-tag">MAIS ESCOLHIDO</div>
+            <h3>Semestral</h3>
+            <div class="price-sub">Melhor custo-benefício</div>
+            <div class="price-value" style="color: var(--accent-dark);">R$ 269 <span>/6 meses</span></div>
+            <ul class="price-list">
+              <li><i data-lucide="check"></i> Tudo do mensal</li>
+              <li><i data-lucide="check"></i> 10% de desconto</li>
+              <li><i data-lucide="check"></i> Suporte prioritário</li>
+              <li><i data-lucide="check"></i> Relatórios melhorados</li>
+            </ul>
+            <a href="https://buy.stripe.com/test_5kQbITez31Dg1l4duX5J606" target="_blank" class="btn-price btn-price-primary" style="background: var(--accent); text-decoration: none; display: block; text-align: center;">
+              Quero o Semestral
+            </a>
+          </div>
+
+          <div class="price-card">
+            <h3>Anual</h3>
+            <div class="price-sub">Pra quem quer estabilidade</div>
+            <div class="price-value">R$ 479 <span>/ano</span></div>
+            <ul class="price-list">
+              <li><i data-lucide="check"></i> Economia de 2 meses</li>
+              <li><i data-lucide="check"></i> Treinamento rápido</li>
+              <li><i data-lucide="check"></i> Acesso antecipado a novidades</li>
+              <li><i data-lucide="check"></i> Suporte VIP</li>
+            </ul>
+            <a href="https://buy.stripe.com/test_9B6cMX8aF1Dge7QcqT5J607" target="_blank" class="btn-price btn-price-outline" style="text-decoration: none; display: block; text-align: center;">Assinar Anual</a>
+          </div>
+        </div>
+
+        <p class="fineprint">
+          Precisa de nota fiscal, turma maior ou multi-professores? Faz um plano custom.
+        </p>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-header">
+          <h2>FAQ (objeções assassinadas com carinho)</h2>
+          <p>Se ainda sobrar dúvida, é porque você é detalhista — respeito isso.</p>
+        </div>
+
+        <div class="faq-grid">
+          <details>
+            <summary>
+              Precisa instalar alguma coisa?
+              <i class="chev" data-lucide="chevron-down"></i>
+            </summary>
+            <p>Não. É tudo online. Você abre no celular ou no computador e pronto.</p>
+          </details>
+
+          <details>
+            <summary>
+              Posso cancelar quando quiser?
+              <i class="chev" data-lucide="chevron-down"></i>
+            </summary>
+            <p>Sim. Sem drama, sem telefonema, sem “fale com o setor de retenção”.</p>
+          </details>
+
+          <details>
+            <summary>
+              Como funciona a cobrança por WhatsApp?
+              <i class="chev" data-lucide="chevron-down"></i>
+            </summary>
+            <p>Você gera uma mensagem elegante com os dados do pagamento e envia com 1 clique (copiar/colar ou integração, dependendo do seu setup).</p>
+          </details>
+
+          <details>
+            <summary>
+              Meus dados ficam seguros?
+              <i class="chev" data-lucide="chevron-down"></i>
+            </summary>
+            <p>Sim. A ideia é tratar dados como coisa séria: acesso com login, controle e boas práticas de segurança.</p>
+          </details>
+
+          <details>
+            <summary>
+              Serve pra pacotes (1, 3, 6 meses) e recorrência?
+              <i class="chev" data-lucide="chevron-down"></i>
+            </summary>
+            <p>Sim. Esse é o coração do produto: controlar pacotes, aulas realizadas e pagamentos sem virar contador.</p>
+          </details>
+
+          <details>
+            <summary>
+              Tem suporte pra migrar do “Excel do caos”?
+              <i class="chev" data-lucide="chevron-down"></i>
+            </summary>
+            <p>Tem. Você importa alunos e dados básicos. O resto você ajusta em minutos.</p>
+          </details>
+        </div>
+
+        <div style="text-align:center; margin-top: 2.6rem;">
+          <a class="btn btn-accent" href="#pricing"><i data-lucide="rocket"></i> Começar teste grátis</a>
+          <p class="micro">Você não precisa de “mais disciplina”. Precisa de um sistema.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <a class="logo" href="#top" style="justify-content: center; gap: 10px; opacity: 0.9;">
+        <span class="mark"><i data-lucide="sparkles"></i></span>
+        <span>Cini English</span>
+      </a>
+      <div class="mini">Feito para professoras incríveis. &copy; 2026</div>
+    </div>
+  </footer>
+
+  <!-- Mobile sticky CTA -->
+  <div class="sticky-cta" role="region" aria-label="Chamada para ação fixa no mobile">
+    <div class="wrap">
+      <span>Teste grátis 7 dias</span>
+      <a class="btn btn-accent" href="#pricing" style="padding: .85rem 1.1rem; font-size: 0.95rem;">
+        <i data-lucide="zap"></i> Começar
+      </a>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // Smooth scroll com offset do header fixo
+    const header = document.querySelector("header");
+    const headerHeight = () => header?.getBoundingClientRect().height || 80;
+
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener("click", (e) => {
+        const id = a.getAttribute("href");
+        if (!id || id === "#") return;
+
+        const el = document.querySelector(id);
+        if (!el) return;
+
+        e.preventDefault();
+        const y = el.getBoundingClientRect().top + window.pageYOffset - headerHeight() - 12;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      });
+    });
+  </script>
+</body>
+</html>
