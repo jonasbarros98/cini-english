@@ -5,6 +5,8 @@ from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile,
 
 class StudentSerializer(serializers.ModelSerializer):
     contract_pdf_url = serializers.SerializerMethodField()
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user_username = serializers.CharField(source="user.username", read_only=True)
     
     class Meta:
         model = Student
@@ -21,10 +23,12 @@ class StudentSerializer(serializers.ModelSerializer):
             "active",
             "contract_pdf",
             "contract_pdf_url",
+            "user",
+            "user_username",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["contract_pdf_url"]
+        read_only_fields = ["contract_pdf_url", "user"]
     
     def get_contract_pdf_url(self, obj):
         if obj.contract_pdf:
@@ -48,6 +52,8 @@ class StudentSerializer(serializers.ModelSerializer):
 
 class LessonSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user_username = serializers.CharField(source="user.username", read_only=True)
 
     class Meta:
         model = Lesson
@@ -55,6 +61,8 @@ class LessonSerializer(serializers.ModelSerializer):
             "id",
             "student",
             "student_name",
+            "user",
+            "user_username",
             "date",
             "time",
             "title",
@@ -66,6 +74,9 @@ class LessonSerializer(serializers.ModelSerializer):
 
 
 class TaskSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user_username = serializers.CharField(source="user.username", read_only=True)
+
     class Meta:
         model = Task
         fields = [
@@ -76,9 +87,12 @@ class TaskSerializer(serializers.ModelSerializer):
             "date",
             "due_date",
             "notes",
+            "user",
+            "user_username",
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["user"]
 
 class InvoiceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
@@ -99,6 +113,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 class FinancialEntrySerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user_username = serializers.CharField(source="user.username", read_only=True)
 
     class Meta:
         model = FinancialEntry
@@ -116,14 +132,19 @@ class FinancialEntrySerializer(serializers.ModelSerializer):
             "status",
             "payment_method",
             "notes",
+            "user",
+            "user_username",
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["user"]
 
 
 class LessonPlanSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
     links_list = serializers.SerializerMethodField()
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user_username = serializers.CharField(source="user.username", read_only=True)
 
     class Meta:
         model = LessonPlan
@@ -135,10 +156,12 @@ class LessonPlanSerializer(serializers.ModelSerializer):
             "links",
             "links_list",
             "goals",
+            "user",
+            "user_username",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["links_list"]
+        read_only_fields = ["links_list", "user"]
 
     def get_links_list(self, obj):
         """Retorna os links como uma lista"""
@@ -147,7 +170,21 @@ class LessonPlanSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()
+    user_profile = serializers.SerializerMethodField()
+    partner_teachers = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=False)
+    user_profile_write = serializers.ChoiceField(
+        choices=UserProfile.PROFILE_CHOICES,
+        write_only=True,
+        required=True
+    )
+    partner_teachers_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+        allow_empty=True
+    )
 
     class Meta:
         model = User
@@ -159,10 +196,14 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "password",
             "is_admin",
+            "user_profile",
+            "partner_teachers",
+            "user_profile_write",
+            "partner_teachers_ids",
             "is_active",
             "date_joined",
         ]
-        read_only_fields = ["date_joined"]
+        read_only_fields = ["date_joined", "user_profile", "partner_teachers"]
 
     def get_is_admin(self, obj):
         try:
@@ -170,9 +211,31 @@ class UserSerializer(serializers.ModelSerializer):
         except UserProfile.DoesNotExist:
             return False
 
+    def get_user_profile(self, obj):
+        try:
+            return obj.profile.user_profile
+        except UserProfile.DoesNotExist:
+            return None
+
+    def get_partner_teachers(self, obj):
+        try:
+            partner_teachers = obj.profile.partner_teachers.all()
+            return [
+                {
+                    "id": teacher.user.id,
+                    "username": teacher.user.username,
+                    "email": teacher.user.email,
+                }
+                for teacher in partner_teachers
+            ]
+        except UserProfile.DoesNotExist:
+            return []
+
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         is_admin = validated_data.pop('is_admin', False)
+        user_profile = validated_data.pop('user_profile_write', UserProfile.PROFILE_TEACHER)
+        partner_teachers_ids = validated_data.pop('partner_teachers_ids', [])
         
         user = User.objects.create_user(**validated_data)
         if password:
@@ -182,13 +245,24 @@ class UserSerializer(serializers.ModelSerializer):
         # Cria ou atualiza o perfil
         profile, created = UserProfile.objects.get_or_create(user=user)
         profile.is_admin = is_admin
+        profile.user_profile = user_profile
         profile.save()
+        
+        # Vincula professores parceiros
+        if partner_teachers_ids:
+            partner_profiles = UserProfile.objects.filter(
+                user_id__in=partner_teachers_ids,
+                user_profile=UserProfile.PROFILE_PARTNER_TEACHER
+            )
+            profile.partner_teachers.set(partner_profiles)
         
         return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
         is_admin = validated_data.pop('is_admin', None)
+        user_profile = validated_data.pop('user_profile_write', None)
+        partner_teachers_ids = validated_data.pop('partner_teachers_ids', None)
         
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -199,9 +273,22 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         
         # Atualiza perfil
+        profile, created = UserProfile.objects.get_or_create(user=instance)
         if is_admin is not None:
-            profile, created = UserProfile.objects.get_or_create(user=instance)
             profile.is_admin = is_admin
-            profile.save()
+        if user_profile is not None:
+            profile.user_profile = user_profile
+        profile.save()
+        
+        # Atualiza professores parceiros
+        if partner_teachers_ids is not None:
+            if partner_teachers_ids:
+                partner_profiles = UserProfile.objects.filter(
+                    user_id__in=partner_teachers_ids,
+                    user_profile=UserProfile.PROFILE_PARTNER_TEACHER
+                )
+                profile.partner_teachers.set(partner_profiles)
+            else:
+                profile.partner_teachers.clear()
         
         return instance

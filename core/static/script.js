@@ -2538,6 +2538,7 @@ function renderUsers() {
   }
 
   state.users.forEach((user) => {
+    const profileLabel = user.user_profile === "prof_parceiro" ? "Prof. Parceiro" : "Professor";
     const row = document.createElement("div");
     row.className = "student-row";
     row.innerHTML = `
@@ -2545,9 +2546,12 @@ function renderUsers() {
         <div class="student-name">
           <strong>${user.username}</strong>
           ${user.is_admin ? '<span class="tag" style="margin-left: 8px;">Admin</span>' : ''}
+          <span class="tag" style="margin-left: 8px; background: #e0e7ff; color: #4338ca;">${profileLabel}</span>
         </div>
         <div class="student-info">
           ${user.email || "Sem email"} • ${user.is_active ? "Ativo" : "Inativo"}
+          ${user.partner_teachers && user.partner_teachers.length > 0 ? 
+            ` • ${user.partner_teachers.length} parceiro(s)` : ''}
         </div>
       </div>
       <div class="student-actions">
@@ -2559,7 +2563,45 @@ function renderUsers() {
   });
 }
 
-function openUserForm(userId = null) {
+async function loadPartnerTeachers() {
+  // Carrega apenas professores parceiros para o select
+  try {
+    const users = await fetchJSON("/users/");
+    return users.filter(u => u.user_profile === "prof_parceiro");
+  } catch (error) {
+    console.error("Erro ao carregar professores parceiros:", error);
+    return [];
+  }
+}
+
+function updatePartnerTeachersSelect() {
+  const profileSelect = document.getElementById("uUserProfile");
+  const partnerTeachersRow = document.getElementById("partnerTeachersRow");
+  const partnerTeachersSelect = document.getElementById("uPartnerTeachers");
+
+  if (!profileSelect || !partnerTeachersRow || !partnerTeachersSelect) return;
+
+  // Mostra o campo apenas se o perfil for "Professor"
+  if (profileSelect.value === "professor") {
+    partnerTeachersRow.style.display = "flex";
+    // Carrega e popula professores parceiros
+    loadPartnerTeachers().then(partners => {
+      // Remove todas as opções exceto "Nenhum selecionado"
+      partnerTeachersSelect.innerHTML = '<option value="">Nenhum selecionado</option>';
+      partners.forEach(partner => {
+        const option = document.createElement("option");
+        option.value = partner.id;
+        option.textContent = `${partner.username}${partner.email ? ` (${partner.email})` : ''}`;
+        partnerTeachersSelect.appendChild(option);
+      });
+    });
+  } else {
+    partnerTeachersRow.style.display = "none";
+    partnerTeachersSelect.value = "";
+  }
+}
+
+async function openUserForm(userId = null) {
   const card = document.getElementById("userFormCard");
   const titleEl = document.getElementById("userFormTitle");
   const form = document.getElementById("userForm");
@@ -2580,15 +2622,35 @@ function openUserForm(userId = null) {
     document.getElementById("uEmail").value = user.email || "";
     document.getElementById("uFirstName").value = user.first_name || "";
     document.getElementById("uLastName").value = user.last_name || "";
+    document.getElementById("uUserProfile").value = user.user_profile || "professor";
     document.getElementById("uIsAdmin").checked = user.is_admin || false;
     document.getElementById("uIsActive").checked = user.is_active !== false;
     document.getElementById("uPassword").value = "";
     document.getElementById("uPassword").required = false;
+
+    // Atualiza select de professores parceiros
+    await updatePartnerTeachersSelect();
+    
+    // Seleciona professores parceiros vinculados
+    const partnerTeachersSelect = document.getElementById("uPartnerTeachers");
+    if (partnerTeachersSelect && user.partner_teachers) {
+      // Limpa seleção anterior
+      Array.from(partnerTeachersSelect.options).forEach(opt => opt.selected = false);
+      // Seleciona os parceiros vinculados
+      user.partner_teachers.forEach(partner => {
+        const option = Array.from(partnerTeachersSelect.options).find(
+          opt => parseInt(opt.value) === partner.id
+        );
+        if (option) option.selected = true;
+      });
+    }
   } else {
     editingUserId = null;
     titleEl.textContent = "Novo Usuário";
     form.reset();
     document.getElementById("uPassword").required = true;
+    document.getElementById("uUserProfile").value = "professor";
+    await updatePartnerTeachersSelect();
   }
 
   card.style.display = "flex";
@@ -2602,6 +2664,12 @@ function closeUserForm() {
   editingUserId = null;
   const form = document.getElementById("userForm");
   if (form) form.reset();
+  
+  // Oculta o campo de professores parceiros ao fechar
+  const partnerTeachersRow = document.getElementById("partnerTeachersRow");
+  if (partnerTeachersRow) {
+    partnerTeachersRow.style.display = "none";
+  }
 }
 
 async function onUserFormSubmit(event) {
@@ -2612,6 +2680,7 @@ async function onUserFormSubmit(event) {
   const firstName = document.getElementById("uFirstName")?.value.trim();
   const lastName = document.getElementById("uLastName")?.value.trim();
   const password = document.getElementById("uPassword")?.value;
+  const userProfile = document.getElementById("uUserProfile")?.value;
   const isAdmin = document.getElementById("uIsAdmin")?.checked || false;
   const isActive = document.getElementById("uIsActive")?.checked !== false;
 
@@ -2620,9 +2689,25 @@ async function onUserFormSubmit(event) {
     return;
   }
 
+  if (!userProfile) {
+    alert("Perfil de usuário é obrigatório.");
+    return;
+  }
+
   if (!editingUserId && !password) {
     alert("Senha é obrigatória para novos usuários.");
     return;
+  }
+
+  // Coleta IDs dos professores parceiros selecionados
+  const partnerTeachersSelect = document.getElementById("uPartnerTeachers");
+  const partnerTeachersIds = [];
+  if (partnerTeachersSelect && userProfile === "professor") {
+    Array.from(partnerTeachersSelect.selectedOptions).forEach(option => {
+      if (option.value) {
+        partnerTeachersIds.push(parseInt(option.value));
+      }
+    });
   }
 
   const payload = {
@@ -2630,12 +2715,20 @@ async function onUserFormSubmit(event) {
     email,
     first_name: firstName,
     last_name: lastName,
+    user_profile_write: userProfile,
     is_admin: isAdmin,
     is_active: isActive,
   };
 
   if (password) {
     payload.password = password;
+  }
+
+  // Adiciona professores parceiros apenas se for perfil Professor
+  if (userProfile === "professor" && partnerTeachersIds.length > 0) {
+    payload.partner_teachers_ids = partnerTeachersIds;
+  } else if (userProfile === "professor") {
+    payload.partner_teachers_ids = [];
   }
 
   try {
@@ -2658,7 +2751,8 @@ async function onUserFormSubmit(event) {
     renderUsers();
   } catch (error) {
     console.error(error);
-    alert("Não foi possível salvar o usuário. Verifique o console para mais detalhes.");
+    const errorMsg = error.message || "Erro desconhecido";
+    alert(`Não foi possível salvar o usuário: ${errorMsg}`);
   }
 }
 
@@ -2694,6 +2788,12 @@ function initUsersUI() {
   const userForm = document.getElementById("userForm");
   if (userForm) {
     userForm.addEventListener("submit", onUserFormSubmit);
+  }
+
+  // Listener para mudança de perfil - mostra/oculta campo de professores parceiros
+  const userProfileSelect = document.getElementById("uUserProfile");
+  if (userProfileSelect) {
+    userProfileSelect.addEventListener("change", updatePartnerTeachersSelect);
   }
 
 }

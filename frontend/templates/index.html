@@ -733,6 +733,21 @@
                 <input type="password" id="uPassword" name="uPassword" required />
                 <small class="muted">Deixe em branco para manter a senha atual (ao editar)</small>
               </div>
+              <div class="form-row">
+                <label for="uUserProfile">Perfil de Usuário *</label>
+                <select id="uUserProfile" name="uUserProfile" required>
+                  <option value="professor">Professor</option>
+                  <option value="prof_parceiro">Prof. Parceiro</option>
+                </select>
+                <small class="muted">Selecione o perfil do usuário no sistema</small>
+              </div>
+              <div class="form-row" id="partnerTeachersRow" style="display: none;">
+                <label for="uPartnerTeachers">Professores Parceiros</label>
+                <select id="uPartnerTeachers" name="uPartnerTeachers" multiple style="min-height: 120px;">
+                  <option value="">Nenhum selecionado</option>
+                </select>
+                <small class="muted">Selecione os professores parceiros vinculados (apenas para perfil Professor). Use Ctrl+Click para selecionar múltiplos.</small>
+              </div>
               <div class="form-row grid-two">
                 <div>
                   <label style="display: flex; align-items: center; gap: 8px;">

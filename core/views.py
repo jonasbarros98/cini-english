@@ -13,23 +13,52 @@ from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanSerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
-    queryset = Student.objects.all().order_by("name")
+    queryset = Student.objects.select_related("user").all().order_by("name")
     serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        
+        # Admin vê todos os students, usuários normais veem apenas os seus
+        try:
+            is_admin = self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        
+        if not is_admin:
+            # Filtra apenas students do usuário logado
+            qs = qs.filter(user=self.request.user)
+        
+        return qs
     
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    
+    def perform_create(self, serializer):
+        # Preenche automaticamente o usuário logado ao criar um student
+        serializer.save(user=self.request.user)
 
 
 class LessonViewSet(viewsets.ModelViewSet):
-    queryset = Lesson.objects.select_related("student").all()
+    queryset = Lesson.objects.select_related("student", "user").all()
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         qs = super().get_queryset()
+        
+        # Admin vê todas as lessons, usuários normais veem apenas as suas
+        try:
+            is_admin = self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        
+        if not is_admin:
+            # Filtra apenas lessons do usuário logado
+            qs = qs.filter(user=self.request.user)
 
         # Filtros opcionais via query string:
         # /api/lessons/?date=2026-01-19
@@ -55,6 +84,10 @@ class LessonViewSet(viewsets.ModelViewSet):
 
         return qs.order_by("date", "time")
 
+    def perform_create(self, serializer):
+        # Preenche automaticamente o usuário logado ao criar uma lesson
+        serializer.save(user=self.request.user)
+
     @action(detail=False, methods=["get"])
     def stats(self, request):
         """
@@ -70,9 +103,28 @@ class LessonViewSet(viewsets.ModelViewSet):
 
 
 class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.all().order_by("-created_at")
+    queryset = Task.objects.select_related("user").all().order_by("-created_at")
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        
+        # Admin vê todas as tasks, usuários normais veem apenas as suas
+        try:
+            is_admin = self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        
+        if not is_admin:
+            # Filtra apenas tasks do usuário logado
+            qs = qs.filter(user=self.request.user)
+        
+        return qs
+
+    def perform_create(self, serializer):
+        # Preenche automaticamente o usuário logado ao criar uma task
+        serializer.save(user=self.request.user)
 
 from django.views.generic import TemplateView
 
@@ -103,12 +155,23 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
 
 class FinancialEntryViewSet(viewsets.ModelViewSet):
-    queryset = FinancialEntry.objects.select_related("student").all()
+    queryset = FinancialEntry.objects.select_related("student", "user").all()
     serializer_class = FinancialEntrySerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         qs = super().get_queryset()
+        
+        # Admin vê todos os financial entries, usuários normais veem apenas os seus
+        try:
+            is_admin = self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        
+        if not is_admin:
+            # Filtra apenas financial entries do usuário logado
+            qs = qs.filter(user=self.request.user)
+        
         # Filtro por mês - mostra lançamentos com vencimento OU lançamento no mês
         month_param = self.request.query_params.get("month")
         if month_param:
@@ -130,6 +193,10 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
         if student_param:
             qs = qs.filter(student_id=student_param)
         return qs
+
+    def perform_create(self, serializer):
+        # Preenche automaticamente o usuário logado ao criar um financial entry
+        serializer.save(user=self.request.user)
 
 
 # ==========================
@@ -220,16 +287,31 @@ def current_user_view(request):
 
 
 class LessonPlanViewSet(viewsets.ModelViewSet):
-    queryset = LessonPlan.objects.all().order_by("-date", "student__name")
+    queryset = LessonPlan.objects.select_related("student", "user").all().order_by("-date", "student__name")
     serializer_class = LessonPlanSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        
+        # Admin vê todos os lesson plans, usuários normais veem apenas os seus
+        try:
+            is_admin = self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        
+        if not is_admin:
+            # Filtra apenas lesson plans do usuário logado
+            queryset = queryset.filter(user=self.request.user)
+        
         student_id = self.request.query_params.get('student', None)
         if student_id:
             queryset = queryset.filter(student_id=student_id)
         return queryset
+
+    def perform_create(self, serializer):
+        # Preenche automaticamente o usuário logado ao criar um lesson plan
+        serializer.save(user=self.request.user)
 
 
 class UserViewSet(viewsets.ModelViewSet):

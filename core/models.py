@@ -21,6 +21,12 @@ class Student(models.Model):
         null=True,
         help_text="Contrato do aluno em PDF"
     )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="students",
+        help_text="Professor responsável pelo aluno"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -40,6 +46,12 @@ class Lesson(models.Model):
         Student,
         on_delete=models.CASCADE,
         related_name="lessons",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="lessons",
+        help_text="Professor responsável pela aula"
     )
     date = models.DateField()
     time = models.TimeField(null=True, blank=True)
@@ -91,6 +103,13 @@ class Task(models.Model):
 
     # descrição / observações
     notes = models.TextField(blank=True)
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="tasks",
+        help_text="Usuário responsável pela tarefa"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -165,6 +184,12 @@ class FinancialEntry(models.Model):
     student = models.ForeignKey(
         Student, on_delete=models.CASCADE, related_name="financial_entries"
     )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="financial_entries",
+        help_text="Professor responsável pelo lançamento financeiro"
+    )
     description = models.CharField(max_length=255, help_text="Descrição do lançamento")
     amount = models.DecimalField(
         max_digits=10, decimal_places=2, help_text="Valor total"
@@ -211,6 +236,12 @@ class LessonPlan(models.Model):
         related_name="lesson_plans",
         help_text="Aluno para o qual este planejamento é destinado"
     )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="lesson_plans",
+        help_text="Professor responsável pelo planejamento"
+    )
     date = models.DateField(help_text="Data da aula planejada")
     links = models.TextField(
         blank=True,
@@ -241,11 +272,37 @@ class LessonPlan(models.Model):
 
 class UserProfile(models.Model):
     """Perfil estendido do usuário"""
+    PROFILE_TEACHER = "professor"
+    PROFILE_PARTNER_TEACHER = "prof_parceiro"
+
+    PROFILE_CHOICES = [
+        (PROFILE_TEACHER, "Professor"),
+        (PROFILE_PARTNER_TEACHER, "Prof. Parceiro"),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     is_admin = models.BooleanField(default=False, help_text="Usuário administrador pode cadastrar outros usuários")
+    user_profile = models.CharField(
+        max_length=20,
+        choices=PROFILE_CHOICES,
+        default=PROFILE_TEACHER,
+        help_text="Perfil do usuário no sistema"
+    )
+    partner_teachers = models.ManyToManyField(
+        'self',
+        symmetrical=False,
+        blank=True,
+        related_name='teachers',
+        help_text="Professores parceiros vinculados (apenas para perfil Professor)"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.username} - {'Admin' if self.is_admin else 'Usuário'}"
+        profile_display = dict(self.PROFILE_CHOICES).get(self.user_profile, self.user_profile)
+        return f"{self.user.username} - {profile_display}"
+
+    class Meta:
+        verbose_name = "Perfil de Usuário"
+        verbose_name_plural = "Perfis de Usuários"
