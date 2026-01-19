@@ -157,13 +157,18 @@ async function loadStudents() {
     guardians: s.guardians,
     phone: s.phone,
     address: s.address,
+    email: s.email || "",
+    status: s.status || "active",
     plan: s.plan_name,
+    planStartDate: s.plan_start_date || null,
     progress: {
       done: s.lessons_done,
       total: s.lessons_total,
     },
+    defaultDueDay: s.default_due_day || null,
+    preferredPaymentMethod: s.preferred_payment_method || "",
     pix: s.pix_key || "",
-    active: s.active,
+    active: s.status === "active", // Mantém compatibilidade com código antigo
   }));
 }
 
@@ -702,16 +707,12 @@ function getFilteredStudents() {
 
 function renderStudents() {
   const list = document.getElementById("studentList");
-  const select = document.getElementById("billingStudent");
+  const select = document.getElementById("billingStudent"); // Elemento pode não existir mais (nova tela de cobrança)
   const titleEl = document.getElementById("studentListTitle");
   const subtitleEl = document.getElementById("studentListSubtitle");
 
   // Guardas de segurança
   if (!list) return;
-  if (!select) {
-    list.innerHTML = "";
-    return;
-  }
 
   const filteredStudents = getFilteredStudents();
 
@@ -727,7 +728,11 @@ function renderStudents() {
   }
 
   list.innerHTML = "";
-  select.innerHTML = "";
+  
+  // Popula select de cobrança apenas se existir (compatibilidade)
+  if (select) {
+    select.innerHTML = "";
+  }
 
   if (filteredStudents.length === 0) {
     list.innerHTML = `
@@ -736,14 +741,16 @@ function renderStudents() {
         <p style="font-size: 14px;">Tente ajustar o filtro de busca</p>
       </div>
     `;
-    // Ainda popula o select para cobrança mesmo sem resultados na lista
-    state.students.forEach((student) => {
-      if (student.active === false) return;
-      const opt = document.createElement("option");
-      opt.value = student.id;
-      opt.textContent = student.name;
-      select.appendChild(opt);
-    });
+    // Ainda popula o select para cobrança mesmo sem resultados na lista (se existir)
+    if (select) {
+      state.students.forEach((student) => {
+        if (student.active === false) return;
+        const opt = document.createElement("option");
+        opt.value = student.id;
+        opt.textContent = student.name;
+        select.appendChild(opt);
+      });
+    }
     return;
   }
 
@@ -808,13 +815,16 @@ function renderStudents() {
     card.append(heading, meta, progress, info, actions);
     list.append(card);
 
-    const option = document.createElement("option");
-    option.value = student.id;
-    option.textContent = student.name;
-    select.append(option);
+    // Popula select de cobrança apenas se existir (compatibilidade)
+    if (select) {
+      const option = document.createElement("option");
+      option.value = student.id;
+      option.textContent = student.name;
+      select.append(option);
+    }
   });
 
-  populateBilling();
+  loadBillingEntries();
   populateNoteStudentSelect();
   renderStats();
 }
@@ -848,40 +858,6 @@ function populateNoteStudentSelect() {
   }
 }
 
-function openBillingWhatsApp() {
-  const select = document.getElementById("billingStudent");
-  const studentId = select.value;
-  const student = state.students.find((s) => String(s.id) === String(studentId));
-
-  if (!student) {
-    alert("Selecione um aluno para enviar a cobrança.");
-    return;
-  }
-
-  if (!student.phone) {
-    alert(`O aluno ${student.name} não tem telefone cadastrado.`);
-    return;
-  }
-
-  const message = document.getElementById("billingPreview").textContent.trim();
-  if (!message) {
-    alert("Preencha os dados de cobrança antes de enviar.");
-    return;
-  }
-
-  // limpa telefone: só dígitos
-  let phoneDigits = student.phone.replace(/\D/g, ""); // "(11) 99999-0000" -> "11999990000"
-
-  // se não tiver DDI, supõe Brasil (55)
-  if (phoneDigits.length <= 11) {
-    phoneDigits = "55" + phoneDigits;
-  }
-
-  const url = `https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`;
-  window.open(url, "_blank");
-}
-
-
 // cria uma card-form no meio da tela de alunos (se ainda não existir)
 function ensureStudentFormCard() {
   let card = document.getElementById("studentFormCard");
@@ -904,52 +880,99 @@ function ensureStudentFormCard() {
       </div>
     </div>
     <form id="studentForm" class="form">
-      <div class="form-row">
-        <label for="studentName">Nome completo</label>
-        <input id="studentName" name="studentName" type="text" required />
-      </div>
-      <div class="form-row">
-        <label for="studentGuardians">Responsáveis (pai/mãe) ou "Responsável próprio"</label>
-        <input id="studentGuardians" name="studentGuardians" type="text" />
-      </div>
-      <div class="form-row">
-        <label for="studentPhone">Telefone</label>
-        <input id="studentPhone" name="studentPhone" type="text" />
-      </div>
-      <div class="form-row">
-        <label for="studentAddress">Endereço / cidade</label>
-        <input id="studentAddress" name="studentAddress" type="text" />
-      </div>
-      <div class="form-row">
-        <label for="studentPlan">Plano atual (ex.: Intensivo - 8 aulas)</label>
-        <input id="studentPlan" name="studentPlan" type="text" />
-      </div>
-      <div class="form-row grid-two">
-        <div>
-          <label for="studentLessonsTotal">Aulas do plano</label>
-          <input id="studentLessonsTotal" name="studentLessonsTotal" type="number" min="0" />
+      <!-- IDENTIDADE -->
+      <div style="margin-bottom: 24px;">
+        <h4 style="margin-bottom: 16px; color: var(--text); font-size: 16px; font-weight: 600;">Identidade</h4>
+        <div class="form-row">
+          <label for="studentName">Nome completo <span style="color: #c33;">*</span></label>
+          <input id="studentName" name="studentName" type="text" required />
         </div>
-        <div>
-          <label for="studentLessonsDone">Aulas realizadas</label>
-          <input id="studentLessonsDone" name="studentLessonsDone" type="number" min="0" />
+        <div class="form-row">
+          <label for="studentGuardians">Responsável</label>
+          <input id="studentGuardians" name="studentGuardians" type="text" placeholder="Pai/mãe ou 'Responsável próprio'" />
+        </div>
+        <div class="form-row">
+          <label for="studentPhone">Telefone</label>
+          <input id="studentPhone" name="studentPhone" type="text" />
+        </div>
+        <div class="form-row">
+          <label for="studentAddress">Endereço</label>
+          <input id="studentAddress" name="studentAddress" type="text" placeholder="Endereço / cidade" />
+        </div>
+        <div class="form-row">
+          <label for="studentEmail">E-mail</label>
+          <input id="studentEmail" name="studentEmail" type="email" />
         </div>
       </div>
-      <div class="form-row">
-        <label for="studentPix">Chave Pix (opcional)</label>
-        <input id="studentPix" name="studentPix" type="text" />
-      </div>
-      <div class="form-row">
-        <label for="studentContractPdf">Contrato PDF (opcional)</label>
-        <input id="studentContractPdf" name="studentContractPdf" type="file" accept=".pdf" />
-        <small class="muted">Apenas arquivos PDF são aceitos</small>
-        <div id="studentContractPreview" style="margin-top: 12px; display: none;">
-          <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9fbff; border-radius: 8px; border: 1px solid var(--border);">
-            <span>📄</span>
-            <a id="studentContractLink" href="#" target="_blank" style="color: var(--accent); text-decoration: none; flex: 1;">Ver contrato atual</a>
-            <button type="button" id="removeContractBtn" class="tag" style="background: #fee; color: #c33; padding: 4px 8px; font-size: 12px;">Remover</button>
+
+      <!-- PLANO -->
+      <div style="margin-bottom: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+        <h4 style="margin-bottom: 16px; color: var(--text); font-size: 16px; font-weight: 600;">Plano</h4>
+        <div class="form-row">
+          <label for="studentStatus">Status do aluno <span style="color: #c33;">*</span></label>
+          <select id="studentStatus" name="studentStatus" required>
+            <option value="active">Ativo</option>
+            <option value="paused">Pausado</option>
+            <option value="ended">Encerrado</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="studentPlan">Plano atual</label>
+          <input id="studentPlan" name="studentPlan" type="text" placeholder="Ex.: Intensivo - 8 aulas" />
+        </div>
+        <div class="form-row">
+          <label for="studentPlanStartDate">Data de início</label>
+          <input id="studentPlanStartDate" name="studentPlanStartDate" type="date" />
+        </div>
+        <div class="form-row grid-two">
+          <div>
+            <label for="studentLessonsTotal">Aulas do plano</label>
+            <input id="studentLessonsTotal" name="studentLessonsTotal" type="number" min="0" />
+          </div>
+          <div>
+            <label for="studentLessonsDone">Aulas realizadas</label>
+            <input id="studentLessonsDone" name="studentLessonsDone" type="number" min="0" />
+          </div>
+        </div>
+        <div class="form-row grid-two">
+          <div>
+            <label for="studentDefaultDueDay">Dia de vencimento padrão</label>
+            <input id="studentDefaultDueDay" name="studentDefaultDueDay" type="number" min="1" max="28" placeholder="1 a 28" />
+          </div>
+          <div>
+            <label for="studentPreferredPaymentMethod">Forma de pagamento preferida</label>
+            <select id="studentPreferredPaymentMethod" name="studentPreferredPaymentMethod">
+              <option value="">Selecione...</option>
+              <option value="pix">PIX</option>
+              <option value="card">Cartão</option>
+              <option value="cash">Dinheiro</option>
+              <option value="transfer">Transferência</option>
+            </select>
           </div>
         </div>
       </div>
+
+      <!-- FINANCEIRO -->
+      <div style="margin-bottom: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+        <h4 style="margin-bottom: 16px; color: var(--text); font-size: 16px; font-weight: 600;">Financeiro</h4>
+        <div class="form-row">
+          <label for="studentPix">Chave Pix</label>
+          <input id="studentPix" name="studentPix" type="text" />
+        </div>
+        <div class="form-row">
+          <label for="studentContractPdf">Contrato PDF</label>
+          <input id="studentContractPdf" name="studentContractPdf" type="file" accept=".pdf" />
+          <small class="muted">Apenas arquivos PDF são aceitos</small>
+          <div id="studentContractPreview" style="margin-top: 12px; display: none;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f9fbff; border-radius: 8px; border: 1px solid var(--border);">
+              <span>📄</span>
+              <a id="studentContractLink" href="#" target="_blank" style="color: var(--accent); text-decoration: none; flex: 1;">Ver contrato atual</a>
+              <button type="button" id="removeContractBtn" class="tag" style="background: #fee; color: #c33; padding: 4px 8px; font-size: 12px;">Remover</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="form-row" style="display:flex; gap:8px; flex-wrap:wrap;">
         <button type="submit" class="primary">Salvar aluno</button>
         <button type="button" class="primary ghost" id="cancelStudentForm">Cancelar</button>
@@ -1032,9 +1055,14 @@ function resetStudentForm(student = null) {
     form.studentGuardians.value = student.guardians || "";
     form.studentPhone.value = student.phone || "";
     form.studentAddress.value = student.address || "";
+    form.studentEmail.value = student.email || "";
+    form.studentStatus.value = student.status || "active";
     form.studentPlan.value = student.plan || "";
+    form.studentPlanStartDate.value = student.planStartDate ? student.planStartDate.split("T")[0] : "";
     form.studentLessonsTotal.value = student.progress.total || 0;
     form.studentLessonsDone.value = student.progress.done || 0;
+    form.studentDefaultDueDay.value = student.defaultDueDay || "";
+    form.studentPreferredPaymentMethod.value = student.preferredPaymentMethod || "";
     form.studentPix.value = student.pix || "";
 
     // Mostra preview do contrato se existir
@@ -1049,6 +1077,7 @@ function resetStudentForm(student = null) {
   } else {
     titleEl.textContent = "Novo aluno";
     form.reset();
+    form.studentStatus.value = "active"; // Valor padrão
     form.studentLessonsTotal.value = "";
     form.studentLessonsDone.value = "";
     contractPreview.style.display = "none";
@@ -1073,7 +1102,7 @@ async function inactivateStudent(studentId) {
   try {
     await fetchJSON(`/students/${studentId}/`, {
       method: "PATCH",
-      body: JSON.stringify({ active: false }),
+      body: JSON.stringify({ status: "ended" }),
     });
 
     await loadStudents();
@@ -1107,11 +1136,21 @@ async function onStudentFormSubmit(event) {
     formData.append("guardians", form.studentGuardians.value.trim() || "Responsável próprio");
     formData.append("phone", form.studentPhone.value.trim());
     formData.append("address", form.studentAddress.value.trim());
+    formData.append("email", form.studentEmail.value.trim());
+    formData.append("status", form.studentStatus.value || "active");
     formData.append("plan_name", form.studentPlan.value.trim());
+    if (form.studentPlanStartDate.value) {
+      formData.append("plan_start_date", form.studentPlanStartDate.value);
+    }
     formData.append("lessons_total", Number(form.studentLessonsTotal.value || 0));
     formData.append("lessons_done", Number(form.studentLessonsDone.value || 0));
+    if (form.studentDefaultDueDay.value) {
+      formData.append("default_due_day", Number(form.studentDefaultDueDay.value));
+    }
+    if (form.studentPreferredPaymentMethod.value) {
+      formData.append("preferred_payment_method", form.studentPreferredPaymentMethod.value);
+    }
     formData.append("pix_key", form.studentPix.value.trim());
-    formData.append("active", "true");
 
     if (hasFile) {
       formData.append("contract_pdf", contractInput.files[0]);
@@ -1137,11 +1176,15 @@ async function onStudentFormSubmit(event) {
       guardians: form.studentGuardians.value.trim() || "Responsável próprio",
       phone: form.studentPhone.value.trim(),
       address: form.studentAddress.value.trim(),
+      email: form.studentEmail.value.trim(),
+      status: form.studentStatus.value || "active",
       plan_name: form.studentPlan.value.trim(),
+      plan_start_date: form.studentPlanStartDate.value || null,
       lessons_total: Number(form.studentLessonsTotal.value || 0),
       lessons_done: Number(form.studentLessonsDone.value || 0),
+      default_due_day: form.studentDefaultDueDay.value ? Number(form.studentDefaultDueDay.value) : null,
+      preferred_payment_method: form.studentPreferredPaymentMethod.value || "",
       pix_key: form.studentPix.value.trim(),
-      active: true,
     };
 
     options = {
@@ -1191,78 +1234,399 @@ async function onStudentFormSubmit(event) {
 }
 
 // ==========================
-// Cobrança
+// Cobrança - Nova Implementação
 // ==========================
 
+let currentBillingData = null;
+let currentMessageTemplate = null;
 
+// Carrega lançamentos financeiros pendentes/vencidos para o seletor
+async function loadBillingEntries() {
+  const select = document.getElementById("billingEntrySelect");
+  if (!select) return;
 
-function populateBilling() {
-  const select = document.getElementById("billingStudent");
-  if (!select) return; // ainda não montou a tela de cobrança
-
-  const studentId = select.value;
-  const student = state.students.find(
-    (s) => String(s.id) === String(studentId)
-  );
-  if (!student) return;
-
-  const planInput = document.getElementById("billingPlan");
-  const installmentsInput = document.getElementById("billingInstallments");
-  const deliveredInput = document.getElementById("billingDelivered");
-  const totalInput = document.getElementById("billingTotal");
-  const pixInput = document.getElementById("billingPix");
-  const valueInput = document.getElementById("BillingValue"); // só se existir
-
-  if (planInput) {
-    planInput.value = student.plan || "";
+  try {
+    // Carrega todos os lançamentos financeiros (o filtro será feito no frontend)
+    const entries = await fetchJSON("/financial-entries/");
+    
+    // Filtra apenas pendentes e vencidos
+    const filteredEntries = entries.filter(entry => 
+      entry.status === "pending" || entry.status === "overdue"
+    );
+    
+    select.innerHTML = '<option value="">Selecione um lançamento financeiro...</option>';
+    
+    filteredEntries.forEach(entry => {
+      const option = document.createElement("option");
+      option.value = entry.id;
+      const dueDate = entry.due_date ? formatDateBR(entry.due_date) : "Sem vencimento";
+      const status = entry.status === "overdue" ? "🔴 Vencido" : entry.status === "pending" ? "🟡 Pendente" : "";
+      option.textContent = `${entry.student_name} - ${formatBRL(entry.amount)} - Venc: ${dueDate} ${status}`;
+      select.appendChild(option);
+    });
+  } catch (error) {
+    console.error("Erro ao carregar lançamentos financeiros:", error);
   }
-  if (installmentsInput) {
-    installmentsInput.value = "Mensal - Vencimento dia 05";
-  }
-  if (deliveredInput) {
-    deliveredInput.value = student.progress.done || 0;
-  }
-  if (totalInput) {
-    totalInput.value = student.progress.total || 0;
-  }
-  if (pixInput) {
-    // se tiver pix do aluno usa, senão cai na chave padrão
-    pixInput.value = student.pix || "61.185.079/0001-67";
-  }
-  if (valueInput) {
-    valueInput.value = "R$: 0,00";
-  }
-
-  renderBillingPreview();
 }
 
-
-function renderBillingPreview() {
-  const select = document.getElementById("billingStudent");
-  const studentId = select.value;
-  const student = state.students.find((s) => String(s.id) === String(studentId));
-  if (!student) {
-    document.getElementById("billingPreview").textContent = "";
+// Carrega dados de cobrança baseado no lançamento selecionado
+async function loadBillingData(entryId) {
+  if (!entryId) {
+    document.getElementById("billingContent").style.display = "none";
     return;
   }
 
-  const plan = document.getElementById("billingPlan").value;
-  const installments = document.getElementById("billingInstallments").value;
-  const delivered = document.getElementById("billingDelivered").value || 0;
-  const total = document.getElementById("billingTotal").value || 0;
-  const pix = document.getElementById("billingPix").value;
-  const total_value = document.getElementById("billingValue").value;
+  try {
+    const data = await fetchJSON(`/financial-entries/${entryId}/billing_data/`);
+    currentBillingData = data;
+    
+    renderBillingHeader(data);
+    renderBillingSummary(data);
+    renderBillingOrigin(data);
+    renderBillingHistory(data);
+    
+    // Seleciona modelo padrão baseado no status
+    if (data.status.text === "Vencido") {
+      selectBillingTemplate("overdue");
+    } else if (data.status.text === "Vence hoje") {
+      selectBillingTemplate("due_today");
+    } else {
+      selectBillingTemplate("friendly");
+    }
+    
+    document.getElementById("billingContent").style.display = "block";
+  } catch (error) {
+    console.error("Erro ao carregar dados de cobrança:", error);
+    alert("Não foi possível carregar os dados de cobrança.");
+  }
+}
 
-  const preview = `Olá ${student.name}. Espero que você esteja bem!
+// Renderiza cabeçalho contextual
+function renderBillingHeader(data) {
+  const studentNameEl = document.getElementById("billingStudentName");
+  const contextInfoEl = document.getElementById("billingContextInfo");
+  const metaChips = document.getElementById("billingMetaChips");
+  const metaStatusText = document.getElementById("metaStatusText");
+  const metaDueText = document.getElementById("metaDueText");
+  const metaInstallmentText = document.getElementById("metaInstallmentText");
+  const metaDot = metaChips ? metaChips.querySelector(".meta-dot") : null;
+  
+  if (studentNameEl) {
+    studentNameEl.textContent = `Cobrança • ${data.student.name}`;
+  }
+  
+  if (contextInfoEl) {
+    const planText = data.student.plan_name || "Plano não informado";
+    contextInfoEl.textContent = planText;
+  }
 
-Este é um lembrete automático do seu Plano: ${plan}
-Parcelamento: ${installments}
-Valor R$: ${total_value}
-Progresso: ${delivered}/${total} Aulas Concluídas
-Chave Pix: ${pix || "informar no contato"}
+  // Preenche meta chips no header
+  if (metaChips) {
+    metaChips.setAttribute("aria-hidden", "false");
+  }
+  
+  if (metaStatusText) {
+    metaStatusText.textContent = data.status.text;
+  }
 
-Conte comigo para qualquer dúvida. Obrigado por estudar comigo! `;
-  document.getElementById("billingPreview").textContent = preview;
+  if (metaDueText) {
+    const dueDate = data.entry.due_date ? formatDateBR(data.entry.due_date) : "—";
+    metaDueText.textContent = dueDate;
+  }
+
+  if (metaInstallmentText) {
+    const installmentText = data.entry.installments > 1 
+      ? `${data.entry.current_installment}/${data.entry.installments}`
+      : "À vista";
+    metaInstallmentText.textContent = installmentText;
+  }
+
+  // Atualiza cor do dot baseado no status
+  if (metaDot) {
+    metaDot.className = "meta-dot";
+    if (data.status.color === "🟢") {
+      metaDot.classList.add("ok");
+    } else if (data.status.color === "🔴") {
+      metaDot.classList.add("bad");
+    }
+  }
+}
+
+// Renderiza card principal de resumo financeiro
+function renderBillingSummary(data) {
+  // Preenche apenas os spans específicos, não injeta HTML
+  const amountValue = document.getElementById("billingAmountValue");
+  const dueValue = document.getElementById("billingDueValue");
+  const progressValue = document.getElementById("billingProgressValue");
+  const installmentValue = document.getElementById("billingInstallmentValue");
+  const statusText = document.getElementById("billingStatusText");
+  const statusPill = document.getElementById("billingStatusPill");
+  const statusDot = document.getElementById("billingStatusDot");
+
+  if (amountValue) {
+    amountValue.textContent = formatBRL(data.entry.amount).replace("R$ ", "");
+  }
+
+  if (dueValue) {
+    dueValue.textContent = data.entry.due_date ? formatDateBR(data.entry.due_date) : "—";
+  }
+
+  if (progressValue) {
+    progressValue.textContent = `${data.student.lessons_done}/${data.student.lessons_total}`;
+  }
+
+  if (installmentValue) {
+    const installmentText = data.entry.installments > 1 
+      ? `${data.entry.current_installment}/${data.entry.installments}`
+      : "À vista";
+    installmentValue.textContent = installmentText;
+  }
+
+  if (statusText) {
+    statusText.textContent = data.status.text;
+  }
+
+  // Atualiza classes e cor do status
+  if (statusPill) {
+    statusPill.className = "billing-status";
+    if (data.status.color === "🟢") {
+      statusPill.classList.add("ok");
+    } else if (data.status.color === "🔴") {
+      statusPill.classList.add("bad");
+    }
+  }
+}
+
+// Renderiza card de origem da cobrança
+function renderBillingOrigin(data) {
+  const originReference = document.getElementById("originReference");
+  const originDesc = document.getElementById("originDesc");
+  const originCreatedAt = document.getElementById("originCreatedAt");
+  const originPaymentMethod = document.getElementById("originPaymentMethod");
+
+  if (originReference) {
+    // Período de referência = data de vencimento
+    originReference.textContent = data.entry.due_date ? formatDateBR(data.entry.due_date) : "—";
+  }
+
+  if (originDesc) {
+    originDesc.textContent = data.entry.description || "Mensalidade";
+  }
+
+  if (originCreatedAt) {
+    const entryDate = data.entry.issue_date ? formatDateBR(data.entry.issue_date) : "—";
+    originCreatedAt.textContent = entryDate;
+  }
+
+  if (originPaymentMethod) {
+    const paymentMethodLabels = {
+      "pix": "PIX",
+      "card": "Cartão",
+      "cash": "Dinheiro",
+      "transfer": "Transferência",
+      "other": "Outro",
+    };
+    const method = paymentMethodLabels[data.entry.payment_method] || data.entry.payment_method || "—";
+    originPaymentMethod.textContent = method;
+  }
+}
+
+// Gera mensagem baseada no template selecionado
+function generateBillingMessage(template, data) {
+  const studentName = data.student.name.split(" ")[0]; // Primeiro nome
+  const amount = formatBRL(data.entry.amount);
+  const dueDate = data.entry.due_date ? formatDateBR(data.entry.due_date) : "data não informada";
+  const pixKey = data.student.pix_key || "Informar no contato";
+  const progress = `${data.student.lessons_done}/${data.student.lessons_total}`;
+  const planName = data.student.plan_name || "seu plano";
+  
+  // Formata informação da parcela
+  const installmentText = data.entry.installments > 1 
+    ? `Parcela: ${data.entry.current_installment}/${data.entry.installments}`
+    : "Parcela: À vista";
+
+  const templates = {
+    friendly: `Olá ${studentName}! 😊
+
+Este é um lembrete referente ao seu ${planName}, com vencimento em ${dueDate}.
+
+Valor: ${amount}
+${installmentText}
+Progresso: ${progress} aulas
+Chave Pix: ${pixKey}
+
+Qualquer dúvida, fico à disposição!`,
+
+    due_today: `Olá ${studentName}! 🟡
+
+Lembrando que o vencimento do seu ${planName} é hoje (${dueDate}).
+
+Valor: ${amount}
+${installmentText}
+Progresso: ${progress} aulas
+Chave Pix: ${pixKey}
+
+Fico aguardando o pagamento. Obrigada!`,
+
+    overdue: `Olá ${studentName}! 🔴
+
+Lembro que o pagamento referente ao seu ${planName} está em atraso.
+
+Valor: ${amount}
+${installmentText}
+Vencimento: ${dueDate}
+Progresso: ${progress} aulas
+Chave Pix: ${pixKey}
+
+Por favor, regularize o quanto antes. Qualquer dúvida, estou à disposição!`,
+
+    thank_you: `Olá ${studentName}! 🙏
+
+Agradeço pelo pagamento referente ao seu ${planName}.
+
+Valor: ${amount}
+${installmentText}
+Progresso: ${progress} aulas
+
+Fico feliz em ter você como aluno(a)! Qualquer dúvida, estou à disposição.`
+  };
+
+  return templates[template] || templates.friendly;
+}
+
+// Seleciona template de mensagem
+function selectBillingTemplate(template) {
+  currentMessageTemplate = template;
+  
+  // Atualiza botões usando a classe "active"
+  document.querySelectorAll(".billing-template-btn").forEach(btn => {
+    if (btn.dataset.template === template) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+  
+  // Gera mensagem
+  if (currentBillingData) {
+    const message = generateBillingMessage(template, currentBillingData);
+    const messageEl = document.getElementById("billingMessage");
+    if (messageEl) {
+      messageEl.value = message;
+    }
+  }
+}
+
+// Abre WhatsApp
+function openBillingWhatsApp() {
+  if (!currentBillingData || !currentBillingData.student.phone) {
+    alert("Telefone do aluno não cadastrado.");
+    return;
+  }
+
+  const messageEl = document.getElementById("billingMessage");
+  const message = messageEl ? messageEl.value.trim() : "";
+
+  if (!message) {
+    alert("A mensagem está vazia.");
+    return;
+  }
+
+  let phoneDigits = currentBillingData.student.phone.replace(/\D/g, "");
+  if (phoneDigits.length <= 11) {
+    phoneDigits = "55" + phoneDigits;
+  }
+
+  const url = `https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`;
+  window.open(url, "_blank");
+}
+
+// Copia mensagem
+async function copyBillingMessage() {
+  const messageEl = document.getElementById("billingMessage");
+  const message = messageEl ? messageEl.value.trim() : "";
+
+  if (!message) {
+    alert("A mensagem está vazia.");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(message);
+    alert("Mensagem copiada para a área de transferência!");
+  } catch (error) {
+    alert("Não foi possível copiar automaticamente. Selecione o texto manualmente.");
+  }
+}
+
+// Marca como enviada
+async function markBillingAsSent() {
+  if (!currentBillingData || !currentMessageTemplate) {
+    alert("Selecione um template de mensagem primeiro.");
+    return;
+  }
+
+  const messageEl = document.getElementById("billingMessage");
+  const message = messageEl ? messageEl.value.trim() : "";
+
+  if (!message) {
+    alert("A mensagem está vazia.");
+    return;
+  }
+
+  try {
+    await fetchJSON("/billing-logs/", {
+      method: "POST",
+      body: JSON.stringify({
+        financial_entry: currentBillingData.entry.id,
+        message_type: currentMessageTemplate,
+        send_method: "whatsapp",
+        message_content: message,
+      }),
+    });
+
+    alert("Cobrança registrada com sucesso!");
+    
+    // Recarrega histórico
+    if (currentBillingData) {
+      await loadBillingData(currentBillingData.entry.id);
+    }
+  } catch (error) {
+    console.error("Erro ao registrar cobrança:", error);
+    alert("Não foi possível registrar a cobrança.");
+  }
+}
+
+// Renderiza histórico de cobranças
+function renderBillingHistory(data) {
+  const historyList = document.getElementById("billingHistoryList");
+  if (!historyList) return;
+
+  if (!data.billing_logs || data.billing_logs.length === 0) {
+    historyList.innerHTML = '<p class="muted" style="text-align: center; padding: 24px;">Nenhuma cobrança registrada ainda.</p>';
+    return;
+  }
+
+  // Formata data e hora para o formato brasileiro
+  function formatDateTime(datetimeString) {
+    const date = new Date(datetimeString);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  }
+
+  historyList.innerHTML = data.billing_logs.map(log => `
+    <div class="history-item">
+      <div>
+        <strong>${log.send_method_display} • ${log.message_type_display}</strong>
+        <span>${formatDateTime(log.sent_at)} • por ${log.user_username}</span>
+      </div>
+      <span class="history-tag">Enviado</span>
+    </div>
+  `).join("");
 }
 
 
@@ -1996,7 +2360,12 @@ function openFinancialEntryForm(entry = null) {
     document.getElementById("feDescription").value = entry.description || "";
     document.getElementById("feAmount").value = entry.amount || "";
     document.getElementById("feInstallments").value = entry.installments || 1;
-    document.getElementById("feIssueDate").value = entry.issueDate || "";
+    // Data do Registro: sempre atual (não editável)
+    const feIssueDate = document.getElementById("feIssueDate");
+    if (feIssueDate) {
+      feIssueDate.value = toISO(new Date());
+      feIssueDate.readOnly = true;
+    }
     document.getElementById("feDueDate").value = entry.dueDate || "";
     
     // Preenche beneficiário se existir
@@ -2018,10 +2387,11 @@ function openFinancialEntryForm(entry = null) {
     titleEl.textContent = "Cadastrar Recebimento";
     form.reset();
 
-    // Data de lançamento = hoje
+    // Data do Registro = sempre hoje (não editável)
     const feIssueDate = document.getElementById("feIssueDate");
     if (feIssueDate) {
       feIssueDate.value = toISO(new Date());
+      feIssueDate.readOnly = true;
     }
 
     // Data de vencimento = dia 5 do próximo mês
@@ -2065,34 +2435,26 @@ async function createInstallments(basePayload, totalInstallments) {
     return `${year}-${month}-${day}`;
   }
 
-  // Cria a primeira parcela (com as datas originais)
-  const firstPayload = { ...basePayload, current_installment: 1 };
-  await fetchJSON("/financial-entries/", {
-    method: "POST",
-    body: JSON.stringify(firstPayload),
-  });
+  // Data do registro: sempre a data atual (hoje)
+  const today = new Date();
+  const todayStr = formatDateLocal(today);
 
-  // Cria as parcelas restantes (2, 3, 4, ...)
+  // Data base de vencimento (vencimento da 1ª parcela)
   const baseDueDate = parseDateLocal(basePayload.due_date);
-  const baseIssueDate = parseDateLocal(basePayload.issue_date);
 
-  for (let i = 2; i <= totalInstallments; i++) {
+  // Cria todas as parcelas (1, 2, 3, ...)
+  for (let i = 1; i <= totalInstallments; i++) {
     const installmentPayload = { ...basePayload };
     installmentPayload.current_installment = i;
 
-    // Calcula data de vencimento: adiciona (i - 1) meses à data base
-    // Exemplo: se base é fevereiro e i=2, adiciona 1 mês = março
-    //          se base é fevereiro e i=3, adiciona 2 meses = abril
+    // Data de vencimento: adiciona (i - 1) meses à data base da 1ª parcela
+    // Exemplo: 1ª parcela vence 05/02/2026, 2ª vence 05/03/2026, 3ª vence 05/04/2026
     const dueDate = new Date(baseDueDate);
     dueDate.setMonth(dueDate.getMonth() + (i - 1));
 
-    // Calcula data de lançamento: mesma lógica
-    const issueDate = new Date(baseIssueDate);
-    issueDate.setMonth(issueDate.getMonth() + (i - 1));
-
-    // Formata as datas corretamente
+    // Data do registro: sempre a data atual (não muda entre parcelas)
+    installmentPayload.issue_date = todayStr;
     installmentPayload.due_date = formatDateLocal(dueDate);
-    installmentPayload.issue_date = formatDateLocal(issueDate);
 
     await fetchJSON("/financial-entries/", {
       method: "POST",
@@ -2253,19 +2615,66 @@ function attachForms() {
     }
   });
 
-  // cobrança
-  document.getElementById("billingForm").addEventListener("input", renderBillingPreview);
-  document.getElementById("billingStudent").addEventListener("change", populateBilling);
-  document.getElementById("copyBilling").addEventListener("click", async () => {
-    const preview = document.getElementById("billingPreview").textContent;
-    if (!preview) return;
-    try {
-      await navigator.clipboard.writeText(preview);
-      alert("Mensagem copiada!");
-    } catch {
-      alert("Não foi possível copiar automaticamente, selecione o texto manualmente.");
-    }
+  // cobrança - nova implementação
+  const billingEntrySelect = document.getElementById("billingEntrySelect");
+  if (billingEntrySelect) {
+    billingEntrySelect.addEventListener("change", async (e) => {
+      const entryId = e.target.value;
+      if (entryId) {
+        await loadBillingData(entryId);
+      } else {
+        document.getElementById("billingContent").style.display = "none";
+      }
+    });
+  }
+
+  // Botões de template
+  document.querySelectorAll(".billing-template-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      selectBillingTemplate(btn.dataset.template);
+    });
   });
+
+  // Ações de cobrança
+  const billingOpenWhatsApp = document.getElementById("billingOpenWhatsApp");
+  if (billingOpenWhatsApp) {
+    billingOpenWhatsApp.addEventListener("click", openBillingWhatsApp);
+  }
+
+  const billingCopyMessage = document.getElementById("billingCopyMessage");
+  if (billingCopyMessage) {
+    billingCopyMessage.addEventListener("click", copyBillingMessage);
+  }
+
+  const billingMarkSent = document.getElementById("billingMarkSent");
+  if (billingMarkSent) {
+    billingMarkSent.addEventListener("click", markBillingAsSent);
+  }
+
+  // Toggle histórico
+  const billingHistoryToggle = document.getElementById("billingHistoryToggle");
+  if (billingHistoryToggle) {
+    billingHistoryToggle.addEventListener("click", () => {
+      const historyContent = document.getElementById("billingHistoryContent");
+      const isVisible = historyContent.style.display !== "none";
+      historyContent.style.display = isVisible ? "none" : "block";
+      billingHistoryToggle.textContent = isVisible ? "🕒 Mostrar histórico" : "🕒 Ocultar histórico";
+    });
+  }
+
+  // Botão reset template
+  const billingResetTemplate = document.getElementById("billingResetTemplate");
+  if (billingResetTemplate) {
+    billingResetTemplate.addEventListener("click", () => {
+      if (currentMessageTemplate && currentBillingData) {
+        const message = generateBillingMessage(currentMessageTemplate, currentBillingData);
+        const messageEl = document.getElementById("billingMessage");
+        if (messageEl) {
+          messageEl.value = message;
+        }
+      }
+    });
+  }
 
   // navegação entre meses
   document.getElementById("monthBack").addEventListener("click", () => {
@@ -2287,21 +2696,6 @@ function attachForms() {
     openStudentForm(null);
   });
 
-  document.getElementById("copyBilling").addEventListener("click", async () => {
-    const preview = document.getElementById("billingPreview").textContent;
-    if (!preview) return;
-    try {
-      await navigator.clipboard.writeText(preview);
-      alert("Mensagem copiada!");
-    } catch {
-      alert("Não foi possível copiar automaticamente, selecione o texto manualmente.");
-    }
-  });
-
-  const openWaBtn = document.getElementById("openBillingWhatsApp");
-  if (openWaBtn) {
-    openWaBtn.addEventListener("click", openBillingWhatsApp);
-  }
 
   // Botão de novo lançamento financeiro
   const newFinancialEntryBtn = document.getElementById("newFinancialEntryBtn");
@@ -2380,13 +2774,14 @@ function attachForms() {
       const description = document.getElementById("feDescription")?.value.trim();
       const amount = document.getElementById("feAmount")?.value;
       const installments = document.getElementById("feInstallments")?.value || 1;
-      const issueDate = document.getElementById("feIssueDate")?.value;
+      // Data do Registro: sempre a data atual (automática)
+      const issueDate = toISO(new Date());
       const dueDate = document.getElementById("feDueDate")?.value;
       const status = document.getElementById("feStatus")?.value || "pending";
       const paymentMethod = document.getElementById("fePaymentMethod")?.value || "pix";
       const notes = document.getElementById("feNotes")?.value.trim() || "";
 
-      if (!studentId || !description || !amount || !issueDate || !dueDate) {
+      if (!studentId || !description || !amount || !dueDate) {
         alert("Preencha todos os campos obrigatórios.");
         return;
       }
@@ -2490,7 +2885,6 @@ async function init() {
   renderStudents();
   renderStats();
   renderCalendar();
-  renderBillingPreview();
   renderFinance();
   renderFinanceTotal();
   renderFinancialEntries();
@@ -2943,7 +3337,8 @@ async function loadLessonPlans(studentId = null) {
       id: p.id,
       studentId: p.student,
       studentName: p.student_name,
-      date: p.date,
+      // Garante que a data está no formato YYYY-MM-DD (sem timezone)
+      date: p.date ? p.date.split('T')[0] : p.date,
       links: p.links || "",
       linksList: p.links_list || [],
       goals: p.goals || "",
@@ -3231,7 +3626,9 @@ function openPlanForm(planId = null) {
     if (plan) {
       titleEl.textContent = "Editar Planejamento";
       form.planStudent.value = plan.studentId;
-      form.planDate.value = plan.date;
+      // Garante que a data está no formato YYYY-MM-DD (extrai apenas a data se vier como ISO string)
+      const dateValue = plan.date ? plan.date.split('T')[0] : '';
+      form.planDate.value = dateValue;
       form.planLinks.value = plan.links;
       form.planGoals.value = plan.goals;
     }
@@ -3256,37 +3653,46 @@ async function onPlanFormSubmit(event) {
   event.preventDefault();
   const form = event.target;
 
-  const payload = {
-    student: parseInt(form.planStudent.value),
-    date: form.planDate.value,
-    links: form.planLinks.value.trim(),
-    goals: form.planGoals.value.trim(),
-  };
+  // Garante que a data está no formato YYYY-MM-DD (sem timezone)
+  const dateValue = form.planDate.value;
+  if (dateValue) {
+    // Extrai apenas YYYY-MM-DD se houver algo após (como timezone)
+    const dateOnly = dateValue.split('T')[0];
+    
+    const payload = {
+      student: parseInt(form.planStudent.value),
+      date: dateOnly,
+      links: form.planLinks.value.trim(),
+      goals: form.planGoals.value.trim(),
+    };
 
-  if (!payload.student || !payload.date) {
-    alert("Preencha o aluno e a data da aula.");
-    return;
-  }
-
-  try {
-    if (editingPlanId) {
-      await fetchJSON(`/lesson-plans/${editingPlanId}/`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-    } else {
-      await fetchJSON("/lesson-plans/", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    if (!payload.student || !payload.date) {
+      alert("Preencha o aluno e a data da aula.");
+      return;
     }
 
-    await loadLessonPlans();
-    renderPlanning();
-    closePlanForm();
-  } catch (error) {
-    console.error(error);
-    alert(error.message || "Não foi possível salvar o planejamento.");
+    try {
+      if (editingPlanId) {
+        await fetchJSON(`/lesson-plans/${editingPlanId}/`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetchJSON("/lesson-plans/", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      await loadLessonPlans();
+      renderPlanning();
+      closePlanForm();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Não foi possível salvar o planejamento.");
+    }
+  } else {
+    alert("Preencha a data da aula.");
   }
 }
 

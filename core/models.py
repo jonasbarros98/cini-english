@@ -1,8 +1,31 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import date
 
 class Student(models.Model):
+    STATUS_ACTIVE = "active"
+    STATUS_PAUSED = "paused"
+    STATUS_ENDED = "ended"
+    
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, "Ativo"),
+        (STATUS_PAUSED, "Pausado"),
+        (STATUS_ENDED, "Encerrado"),
+    ]
+    
+    PAYMENT_METHOD_PIX = "pix"
+    PAYMENT_METHOD_CARD = "card"
+    PAYMENT_METHOD_CASH = "cash"
+    PAYMENT_METHOD_TRANSFER = "transfer"
+    
+    PAYMENT_METHOD_CHOICES = [
+        (PAYMENT_METHOD_PIX, "PIX"),
+        (PAYMENT_METHOD_CARD, "Cartão"),
+        (PAYMENT_METHOD_CASH, "Dinheiro"),
+        (PAYMENT_METHOD_TRANSFER, "Transferência"),
+    ]
+    
     name = models.CharField(max_length=255)
     guardians = models.CharField(
         max_length=255,
@@ -10,17 +33,41 @@ class Student(models.Model):
     )
     phone = models.CharField(max_length=50, blank=True)
     address = models.CharField(max_length=255, blank=True)
-    plan_name = models.CharField(max_length=255, blank=True)
-    lessons_total = models.PositiveSmallIntegerField(default=0)
-    lessons_done = models.PositiveSmallIntegerField(default=0)
-    pix_key = models.CharField(max_length=255, blank=True)
-    active = models.BooleanField(default=True)
+    email = models.EmailField(blank=True, help_text="E-mail do aluno ou responsável")
+    
+    # Plano
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=STATUS_ACTIVE,
+        help_text="Status do aluno"
+    )
+    plan_name = models.CharField(max_length=255, blank=True, help_text="Plano atual")
+    plan_start_date = models.DateField(null=True, blank=True, help_text="Data de início do plano")
+    lessons_total = models.PositiveSmallIntegerField(default=0, help_text="Aulas do plano")
+    lessons_done = models.PositiveSmallIntegerField(default=0, help_text="Aulas realizadas")
+    default_due_day = models.PositiveSmallIntegerField(
+        null=True, 
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(28)],
+        help_text="Dia de vencimento padrão (1 a 28)"
+    )
+    preferred_payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        blank=True,
+        help_text="Forma de pagamento preferida"
+    )
+    
+    # Financeiro
+    pix_key = models.CharField(max_length=255, blank=True, help_text="Chave Pix")
     contract_pdf = models.FileField(
         upload_to="contracts/",
         blank=True,
         null=True,
         help_text="Contrato do aluno em PDF"
     )
+    
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -206,8 +253,8 @@ class FinancialEntry(models.Model):
     current_installment = models.PositiveSmallIntegerField(
         default=1, help_text="Parcela atual"
     )
-    issue_date = models.DateField(help_text="Data de lançamento")
-    due_date = models.DateField(help_text="Data de vencimento")
+    issue_date = models.DateField(help_text="Data do registro (automática)")
+    due_date = models.DateField(help_text="Vencimento da 1ª parcela")
     payment_date = models.DateField(
         null=True, blank=True, help_text="Data do pagamento"
     )
@@ -232,6 +279,73 @@ class FinancialEntry(models.Model):
 
     def __str__(self):
         return f"{self.student.name} - {self.description} - {self.amount}"
+
+
+class BillingLog(models.Model):
+    """Registro de cobranças enviadas aos alunos"""
+    
+    MESSAGE_TYPE_FRIENDLY = "friendly"
+    MESSAGE_TYPE_DUE_TODAY = "due_today"
+    MESSAGE_TYPE_OVERDUE = "overdue"
+    MESSAGE_TYPE_THANK_YOU = "thank_you"
+    
+    MESSAGE_TYPE_CHOICES = [
+        (MESSAGE_TYPE_FRIENDLY, "Lembrete amigável"),
+        (MESSAGE_TYPE_DUE_TODAY, "Vence hoje"),
+        (MESSAGE_TYPE_OVERDUE, "Em atraso"),
+        (MESSAGE_TYPE_THANK_YOU, "Agradecimento"),
+    ]
+    
+    SEND_METHOD_WHATSAPP = "whatsapp"
+    SEND_METHOD_EMAIL = "email"
+    SEND_METHOD_SMS = "sms"
+    SEND_METHOD_OTHER = "other"
+    
+    SEND_METHOD_CHOICES = [
+        (SEND_METHOD_WHATSAPP, "WhatsApp"),
+        (SEND_METHOD_EMAIL, "E-mail"),
+        (SEND_METHOD_SMS, "SMS"),
+        (SEND_METHOD_OTHER, "Outro"),
+    ]
+    
+    financial_entry = models.ForeignKey(
+        FinancialEntry,
+        on_delete=models.CASCADE,
+        related_name="billing_logs",
+        help_text="Lançamento financeiro cobrado"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="billing_logs",
+        help_text="Professor que realizou a cobrança"
+    )
+    message_type = models.CharField(
+        max_length=20,
+        choices=MESSAGE_TYPE_CHOICES,
+        help_text="Tipo de mensagem enviada"
+    )
+    send_method = models.CharField(
+        max_length=20,
+        choices=SEND_METHOD_CHOICES,
+        default=SEND_METHOD_WHATSAPP,
+        help_text="Método de envio"
+    )
+    message_content = models.TextField(
+        help_text="Conteúdo da mensagem enviada"
+    )
+    sent_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Data e hora do envio"
+    )
+    
+    class Meta:
+        ordering = ["-sent_at"]
+        verbose_name = "Log de Cobrança"
+        verbose_name_plural = "Logs de Cobrança"
+    
+    def __str__(self) -> str:
+        return f"{self.financial_entry.student.name} - {self.message_type} - {self.sent_at:%d/%m/%Y %H:%M}"
 
 
 class LessonPlan(models.Model):

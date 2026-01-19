@@ -271,66 +271,710 @@
           </section>
         </section>
 
+        <!-- =========================
+             BILLING VIEW (COBRANÇA)
+             ========================= -->
+        <style>
+          /* ---- Design tokens (fallbacks; keep your global vars if you already have them) ---- */
+          :root{
+            --bg: #f7fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: rgba(15, 23, 42, .10);
+            --shadow: 0 10px 30px rgba(2, 6, 23, .06);
+            --shadow-sm: 0 6px 16px rgba(2, 6, 23, .06);
+            --radius: 18px;
+
+            --brand: #2f7cff;
+            --brand-2: #6d28d9;
+
+            --ok: #16a34a;
+            --warn: #f59e0b;
+            --bad: #ef4444;
+
+            --pill-bg: rgba(15, 23, 42, .06);
+            --ring: rgba(47, 124, 255, .35);
+          }
+
+          /* ----- Layout wrapper ----- */
+          #view-billing{
+            padding: 28px 24px 40px;
+            max-width: 1180px;
+            margin: 0 auto;
+          }
+
+          /* ----- Topbar ----- */
+          #view-billing .topbar{
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+          }
+
+          #view-billing .eyebrow{
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--muted);
+            margin: 0 0 6px;
+          }
+
+          #view-billing h1{
+            margin: 0;
+            font-size: 34px;
+            line-height: 1.12;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -0.02em;
+          }
+
+          #view-billing .muted{
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+          }
+
+          /* ----- Subheader chips (optional: can be filled via JS) ----- */
+          .billing-meta{
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-top: 4px;
+          }
+
+          .meta-pill{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: var(--pill-bg);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(6px);
+          }
+
+          .meta-dot{
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: var(--warn);
+          }
+          .meta-dot.ok{ background: var(--ok); }
+          .meta-dot.bad{ background: var(--bad); }
+
+          /* ----- Card baseline ----- */
+          #view-billing .card{
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+          }
+
+          /* Remove "detail-card" visual monotony by adding section styling */
+          .billing-card{
+            padding: 18px 18px;
+          }
+
+          .billing-card-header{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+          }
+
+          .billing-card-title{
+            margin: 0;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -0.01em;
+          }
+
+          .billing-card-sub{
+            margin: 2px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+          }
+
+          /* ----- Selector row ----- */
+          #billingEntrySelector{
+            padding: 16px 18px;
+          }
+
+          #view-billing label{
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            margin-bottom: 8px;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+          }
+
+          #billingEntrySelect{
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: #fff;
+            color: var(--text);
+            outline: none;
+            font-size: 14px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.0);
+            transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+          }
+
+          #billingEntrySelect:focus{
+            border-color: rgba(47, 124, 255, .55);
+            box-shadow: 0 0 0 6px var(--ring);
+          }
+
+          /* ----- Two-column grid to reduce vertical bloat ----- */
+          .billing-grid{
+            display: grid;
+            grid-template-columns: 1.25fr .75fr;
+            gap: 18px;
+          }
+
+          @media (max-width: 980px){
+            .billing-grid{
+              grid-template-columns: 1fr;
+            }
+          }
+
+          /* ----- Summary "hero" card ----- */
+          #billingSummaryCard{
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+          }
+
+          #billingSummaryCard::before{
+            content:"";
+            position: absolute;
+            inset: -120px -120px auto auto;
+            width: 260px;
+            height: 260px;
+            background: radial-gradient(circle at 30% 30%, rgba(47,124,255,.26), rgba(109,40,217,.12), transparent 70%);
+            filter: blur(0px);
+            transform: rotate(18deg);
+            pointer-events: none;
+          }
+
+          .billing-summary{
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 14px;
+            align-items: center;
+          }
+
+          @media (max-width: 540px){
+            .billing-summary{
+              grid-template-columns: 1fr;
+            }
+          }
+
+          .billing-amount{
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            margin: 0;
+            color: var(--text);
+          }
+
+          .billing-amount small{
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: .02em;
+          }
+
+          .billing-kpis{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+          }
+
+          .kpi{
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,.75);
+            backdrop-filter: blur(6px);
+            font-size: 12px;
+            color: var(--text);
+            font-weight: 700;
+          }
+
+          .kpi span{
+            color: var(--muted);
+            font-weight: 700;
+          }
+
+          .billing-status{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,.75);
+            backdrop-filter: blur(6px);
+            font-weight: 800;
+            font-size: 12px;
+            white-space: nowrap;
+          }
+
+          .status-dot{
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--warn);
+          }
+          .billing-status.ok .status-dot{ background: var(--ok); }
+          .billing-status.bad .status-dot{ background: var(--bad); }
+
+          /* ----- Origin compact list ----- */
+          .billing-origin{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 14px;
+            margin-top: 6px;
+          }
+
+          @media (max-width: 540px){
+            .billing-origin{
+              grid-template-columns: 1fr;
+            }
+          }
+
+          .origin-item{
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, .02);
+          }
+
+          .origin-item .k{
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 800;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+          }
+
+          .origin-item .v{
+            font-size: 13px;
+            color: var(--text);
+            font-weight: 700;
+          }
+
+          /* ----- Template chooser (toggle pills) ----- */
+          .billing-templates{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+
+          .billing-template-btn{
+            appearance: none;
+            border: 1px solid var(--border);
+            background: #fff;
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .billing-template-btn:hover{
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+            border-color: rgba(47,124,255,.35);
+          }
+
+          .billing-template-btn.active{
+            border-color: rgba(47,124,255,.55);
+            box-shadow: 0 0 0 6px var(--ring);
+            background: linear-gradient(135deg, rgba(47,124,255,.10), rgba(109,40,217,.08));
+          }
+
+          /* ----- Message editor ----- */
+          .billing-textarea{
+            width: 100%;
+            padding: 14px 14px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            transition: box-shadow .18s ease, border-color .18s ease;
+            background: #fff;
+            min-height: 220px;
+          }
+
+          .billing-textarea:focus{
+            border-color: rgba(47, 124, 255, .55);
+            box-shadow: 0 0 0 6px var(--ring);
+          }
+
+          .billing-editor-footer{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 10px;
+          }
+
+          .char-count{
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 700;
+          }
+
+          .mini-btn{
+            appearance: none;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, .02);
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform .12s ease, box-shadow .12s ease;
+          }
+          .mini-btn:hover{
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+          }
+
+          /* ----- Actions ----- */
+          .billing-actions{
+            display: grid;
+            grid-template-columns: 1.2fr .9fr .9fr;
+            gap: 10px;
+          }
+
+          @media (max-width: 980px){
+            .billing-actions{
+              grid-template-columns: 1fr;
+            }
+          }
+
+          .btn{
+            appearance: none;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 14px;
+            font-weight: 900;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .btn:hover{
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+          }
+
+          .btn-primary{
+            color: #fff;
+            background: linear-gradient(135deg, var(--brand), var(--brand-2));
+            border-color: rgba(47,124,255,.45);
+          }
+
+          .btn-ghost{
+            background: #fff;
+            color: var(--text);
+          }
+
+          .btn-confirm{
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            border-color: rgba(124,58,237,.45);
+            color: #fff;
+          }
+
+          /* ----- History ----- */
+          .history-toggle{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            font-weight: 900;
+            font-size: 12px;
+            transition: transform .12s ease, box-shadow .12s ease;
+          }
+
+          .history-toggle:hover{
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+          }
+
+          .history-list{
+            display: grid;
+            gap: 10px;
+            margin-top: 12px;
+          }
+
+          .history-item{
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 12px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: rgba(15,23,42,.02);
+          }
+
+          .history-item strong{
+            display: block;
+            font-size: 13px;
+            font-weight: 900;
+            color: var(--text);
+            margin-bottom: 2px;
+          }
+
+          .history-item span{
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 700;
+          }
+
+          .history-tag{
+            font-size: 11px;
+            font-weight: 900;
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: #fff;
+            color: var(--text);
+            white-space: nowrap;
+          }
+
+          /* Utility */
+          .hidden{ display:none !important; }
+          .mb-18{ margin-bottom: 18px; }
+          .mb-24{ margin-bottom: 24px; }
+        </style>
+
         <section class="view" id="view-billing">
+          <!-- Cabeçalho contextual -->
           <header class="topbar">
             <div>
               <p class="eyebrow">Cobrança</p>
-              <h1>Mensagem pronta para WhatsApp</h1>
-              <p class="muted">Personalize e envie em um clique para o WhatsApp do aluno.</p>
+              <h1 id="billingStudentName">Selecione um lançamento</h1>
+              <p class="muted" id="billingContextInfo">Escolha um lançamento financeiro para cobrar</p>
             </div>
-            <div class="top-actions">
-              <button class="primary ghost" id="copyBilling">Copiar mensagem</button>
-              <button class="primary" id="openBillingWhatsApp">Abrir no WhatsApp</button>
+
+            <!-- Opcional: você pode preencher via JS com plano/status/vencimento -->
+            <div class="billing-meta" id="billingMetaChips" aria-hidden="true">
+              <span class="meta-pill"><span class="meta-dot"></span><span id="metaStatusText">Pendente</span></span>
+              <span class="meta-pill">Vencimento: <b id="metaDueText">—</b></span>
+              <span class="meta-pill">Parcela: <b id="metaInstallmentText">—</b></span>
             </div>
           </header>
 
-
-          <section class="card detail-card" id="billing">
-            <form class="form billing-form" id="billingForm">
-              <div class="form-row">
-                <label for="billingStudent">Aluno</label>
-                <select id="billingStudent" name="billingStudent"></select>
-              </div>
-              <div class="form-row">
-                <label for="billingPlan">Plano atual</label>
-                <input type="text" id="billingPlan" name="billingPlan" required />
-              </div>
-              <div class="form-row">
-                <label for="billingInstallments">Parcelamento</label>
-                <input
-                  type="text"
-                  id="billingInstallments"
-                  name="billingInstallments"
-                  placeholder="Ex.: 3x de R$ 320"
-                />
-              </div>
-              <div class="form-row">
-                <label for="billingValue">Valor R$:</label>
-                <input
-                  type="text"
-                  id="billingValue"
-                  name="billingValue"
-                  placeholder="Ex.: R$ 960,00"
-                />
-              </div>
-              <div class="form-row grid-two">
-                <div>
-                  <label for="billingDelivered">Aulas ministradas</label>
-                  <input type="number" id="billingDelivered" min="0" />
-                </div>
-                <div>
-                  <label for="billingTotal">Aulas do pacote</label>
-                  <input type="number" id="billingTotal" min="1" />
-                </div>
-              </div>
-              <div class="form-row">
-                <label for="billingPix">Chave Pix</label>
-                <input type="text" id="billingPix" name="billingPix" placeholder="cini@pix.com" />
-              </div>
-            </form>
-            <div class="billing-preview" id="billingPreview"></div>
+          <!-- Seletor de lançamento -->
+          <section class="card billing-card mb-24" id="billingEntrySelector">
+            <div class="form-row">
+              <label for="billingEntrySelect">Lançamento a cobrar</label>
+              <select id="billingEntrySelect" name="billingEntrySelect">
+                <option value="">Selecione um lançamento financeiro...</option>
+              </select>
+            </div>
           </section>
+
+          <!-- Conteúdo principal (aparece quando um lançamento é selecionado) -->
+          <div id="billingContent" style="display: none;">
+
+            <div class="billing-grid mb-24">
+              <!-- Card principal de resumo financeiro -->
+              <section class="card" id="billingSummaryCard">
+                <div id="billingSummaryContent">
+                  <div class="billing-summary">
+                    <div>
+                      <p class="billing-amount">
+                        <small>Total</small><br>
+                        R$ <span id="billingAmountValue">0,00</span>
+                      </p>
+
+                      <div class="billing-kpis">
+                        <div class="kpi">📅 <span>Vencimento</span> <b id="billingDueValue">—</b></div>
+                        <div class="kpi">📚 <span>Progresso</span> <b id="billingProgressValue">—</b></div>
+                        <div class="kpi">🧾 <span>Parcela</span> <b id="billingInstallmentValue">—</b></div>
+                      </div>
+                    </div>
+
+                    <div class="billing-status" id="billingStatusPill">
+                      <span class="status-dot" id="billingStatusDot"></span>
+                      <span id="billingStatusText">Pendente</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Origem (compacta) -->
+              <section class="card billing-card" id="billingOriginCard">
+                <div class="billing-card-header">
+                  <div>
+                    <h3 class="billing-card-title">Contexto rápido</h3>
+                    <p class="billing-card-sub">Informações essenciais (sem blá-blá-blá).</p>
+                  </div>
+                </div>
+
+                <div id="billingOriginContent" class="billing-origin">
+                  <div class="origin-item">
+                    <div class="k">Referência</div>
+                    <div class="v" id="originReference">—</div>
+                  </div>
+                  <div class="origin-item">
+                    <div class="k">Descrição</div>
+                    <div class="v" id="originDesc">—</div>
+                  </div>
+                  <div class="origin-item">
+                    <div class="k">Criado em</div>
+                    <div class="v" id="originCreatedAt">—</div>
+                  </div>
+                  <div class="origin-item">
+                    <div class="k">Forma</div>
+                    <div class="v" id="originPaymentMethod">—</div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <!-- Modelos de cobrança -->
+            <section class="card billing-card mb-24" id="billingTemplateCard">
+              <div class="billing-card-header">
+                <div>
+                  <h3 class="billing-card-title">Modelo de cobrança</h3>
+                  <p class="billing-card-sub">Clique em um modelo e a mensagem se ajusta sozinha.</p>
+                </div>
+              </div>
+
+              <div class="billing-templates">
+                <button type="button" class="billing-template-btn" data-template="friendly">😊 Lembrete amigável</button>
+                <button type="button" class="billing-template-btn" data-template="due_today">🟡 Vence hoje</button>
+                <button type="button" class="billing-template-btn" data-template="overdue">🔴 Em atraso</button>
+                <button type="button" class="billing-template-btn" data-template="thank_you">🙏 Agradecimento</button>
+              </div>
+            </section>
+
+            <!-- Mensagem automática (editável) -->
+            <section class="card billing-card mb-24" id="billingMessageCard">
+              <div class="billing-card-header">
+                <div>
+                  <h3 class="billing-card-title">Mensagem de cobrança</h3>
+                  <p class="billing-card-sub">Edite se quiser. Sem sofrimento.</p>
+                </div>
+                <button type="button" class="mini-btn" id="billingResetTemplate">Resetar para modelo</button>
+              </div>
+
+              <label for="billingMessage" class="hidden">Mensagem de cobrança</label>
+              <textarea
+                id="billingMessage"
+                name="billingMessage"
+                rows="12"
+                class="billing-textarea"
+                placeholder="Selecione um modelo acima para preencher automaticamente…"
+              ></textarea>
+
+              <div class="billing-editor-footer">
+                <span class="char-count"><span id="billingCharCount">0</span> caracteres</span>
+                <span class="char-count">Dica: WhatsApp ama mensagens curtas 😄</span>
+              </div>
+            </section>
+
+            <!-- Ações principais -->
+            <section class="card billing-card mb-24" id="billingActionsCard">
+              <div class="billing-card-header">
+                <div>
+                  <h3 class="billing-card-title">Ações</h3>
+                  <p class="billing-card-sub">O objetivo é: enviar e registrar.</p>
+                </div>
+              </div>
+
+              <div class="billing-actions">
+                <button type="button" class="btn btn-primary" id="billingOpenWhatsApp">
+                  💬 Enviar no WhatsApp
+                </button>
+
+                <button type="button" class="btn btn-ghost" id="billingCopyMessage">
+                  📋 Copiar mensagem
+                </button>
+
+                <button type="button" class="btn btn-confirm" id="billingMarkSent">
+                  ✅ Marcar como enviada
+                </button>
+              </div>
+            </section>
+
+            <!-- Histórico de cobranças (colapsável) -->
+            <section class="card billing-card" id="billingHistoryCard">
+              <div class="billing-card-header">
+                <div>
+                  <h3 class="billing-card-title">Histórico</h3>
+                  <p class="billing-card-sub">Linha do tempo das cobranças enviadas.</p>
+                </div>
+
+                <button type="button" id="billingHistoryToggle" class="history-toggle">
+                  🕒 Mostrar histórico
+                </button>
+              </div>
+
+              <div id="billingHistoryContent" style="display: none;">
+                <div id="billingHistoryList" class="history-list">
+                  <!-- JS preenche -->
+                </div>
+              </div>
+            </section>
+
+          </div>
         </section>
+
+        <script>
+          // UX bônus: contador de caracteres para mensagem de cobrança
+          (function(){
+            const ta = document.getElementById("billingMessage");
+            const cc = document.getElementById("billingCharCount");
+            if(!ta || !cc) return;
+
+            function upd(){ cc.textContent = String(ta.value.length); }
+            ta.addEventListener("input", upd);
+            upd();
+          })();
+        </script>
 
         <section class="view" id="view-tasks">
           <header class="topbar">
@@ -545,11 +1189,12 @@
       </div>
       <div class="form-row grid-two">
         <div>
-          <label for="feIssueDate">Data de Lançamento</label>
-          <input type="date" id="feIssueDate" name="feIssueDate" required />
+          <label for="feIssueDate">Data do Registro</label>
+          <input type="date" id="feIssueDate" name="feIssueDate" readonly style="background-color: #f5f5f5; cursor: not-allowed;" />
+          <small class="muted">Preenchida automaticamente com a data atual</small>
         </div>
         <div>
-          <label for="feDueDate">Data de Vencimento</label>
+          <label for="feDueDate">Vencimento da 1ª parcela</label>
           <input type="date" id="feDueDate" name="feDueDate" required />
         </div>
       </div>

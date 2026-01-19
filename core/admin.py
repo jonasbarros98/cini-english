@@ -1,12 +1,12 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog, BillingLog
 
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ("name", "phone", "plan_name", "user", "lessons_done", "lessons_total", "active")
-    search_fields = ("name", "phone", "guardians", "address", "plan_name", "user__username")
-    list_filter = ("active", "user")
+    list_display = ("name", "phone", "email", "status", "plan_name", "user", "lessons_done", "lessons_total")
+    search_fields = ("name", "phone", "email", "guardians", "address", "plan_name", "user__username")
+    list_filter = ("status", "user", "preferred_payment_method")
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
@@ -45,3 +45,14 @@ class LessonPlanAdmin(admin.ModelAdmin):
     list_filter = ("date", "student", "user")
     search_fields = ("student__name", "goals", "links", "user__username")
     date_hierarchy = "date"
+
+@admin.register(BillingLog)
+class BillingLogAdmin(admin.ModelAdmin):
+    list_display = ("financial_entry", "student_name", "user", "message_type", "send_method", "sent_at")
+    list_filter = ("message_type", "send_method", "sent_at", "user")
+    search_fields = ("financial_entry__student__name", "financial_entry__description", "user__username")
+    readonly_fields = ("sent_at",)
+    
+    def student_name(self, obj):
+        return obj.financial_entry.student.name
+    student_name.short_description = "Aluno"

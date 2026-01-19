@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog
 
 
 class StudentSerializer(serializers.ModelSerializer):
@@ -16,11 +16,15 @@ class StudentSerializer(serializers.ModelSerializer):
             "guardians",
             "phone",
             "address",
+            "email",
+            "status",
             "plan_name",
+            "plan_start_date",
             "lessons_total",
             "lessons_done",
+            "default_due_day",
+            "preferred_payment_method",
             "pix_key",
-            "active",
             "contract_pdf",
             "contract_pdf_url",
             "user",
@@ -318,3 +322,29 @@ class UserSerializer(serializers.ModelSerializer):
                 profile.partner_teachers.clear()
         
         return instance
+
+
+class BillingLogSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source="financial_entry.student.name", read_only=True)
+    financial_entry_id = serializers.IntegerField(source="financial_entry.id", read_only=True)
+    user_username = serializers.CharField(source="user.username", read_only=True)
+    message_type_display = serializers.CharField(source="get_message_type_display", read_only=True)
+    send_method_display = serializers.CharField(source="get_send_method_display", read_only=True)
+    
+    class Meta:
+        model = BillingLog
+        fields = [
+            "id",
+            "financial_entry",
+            "financial_entry_id",
+            "student_name",
+            "user",
+            "user_username",
+            "message_type",
+            "message_type_display",
+            "send_method",
+            "send_method_display",
+            "message_content",
+            "sent_at",
+        ]
+        read_only_fields = ["user", "sent_at"]

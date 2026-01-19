@@ -7,10 +7,10 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from .models import Invoice, FinancialEntry, UserProfile, LessonPlan
+from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog
 from .models import Student, Lesson, Task
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
-from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanSerializer
+from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, BillingLogSerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.select_related("user").all().order_by("name")
@@ -254,16 +254,13 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
                 # Usuário sem perfil definido vê apenas os seus
                 qs = qs.filter(user=self.request.user)
         
-        # Filtro por mês - mostra lançamentos com vencimento OU lançamento no mês
+        # Filtro por mês - mostra lançamentos com vencimento no mês (baseado na data de vencimento)
         month_param = self.request.query_params.get("month")
         if month_param:
             try:
                 year, month = map(int, month_param.split("-"))
-                # Mostra lançamentos que têm vencimento OU lançamento no mês especificado
-                qs = qs.filter(
-                    Q(due_date__year=year, due_date__month=month) |
-                    Q(issue_date__year=year, issue_date__month=month)
-                )
+                # Mostra lançamentos que têm vencimento no mês especificado
+                qs = qs.filter(due_date__year=year, due_date__month=month)
             except ValueError:
                 pass
         # Filtro por status
@@ -309,6 +306,79 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
             # Se não especificado, o beneficiário é o próprio criador
             beneficiary_user = self.request.user
         serializer.save(user=self.request.user, beneficiary_user=beneficiary_user)
+    
+    @action(detail=True, methods=['get'])
+    def billing_data(self, request, pk=None):
+        """Retorna dados formatados para a tela de cobrança baseado no lançamento financeiro"""
+        entry = self.get_object()
+        student = entry.student
+        
+        # Calcula dias em atraso
+        days_overdue = 0
+        status_color = "🟢"
+        status_text = "Pago"
+        
+        if entry.status == FinancialEntry.STATUS_OVERDUE:
+            days_overdue = (date.today() - entry.due_date).days
+            status_color = "🔴"
+            status_text = "Vencido"
+        elif entry.status == FinancialEntry.STATUS_PENDING:
+            if entry.due_date == date.today():
+                status_color = "🟡"
+                status_text = "Vence hoje"
+            elif entry.due_date > date.today():
+                status_color = "🟢"
+                status_text = "Pendente"
+            else:
+                days_overdue = (date.today() - entry.due_date).days
+                status_color = "🔴"
+                status_text = "Vencido"
+        elif entry.status == FinancialEntry.STATUS_PAID:
+            status_color = "🟢"
+            status_text = "Pago"
+        
+        # Busca histórico de cobranças
+        billing_logs = BillingLog.objects.filter(financial_entry=entry).order_by('-sent_at')
+        logs_serializer = BillingLogSerializer(billing_logs, many=True, context={'request': request})
+        
+        # Formata dados do aluno
+        student_data = {
+            'id': student.id,
+            'name': student.name,
+            'phone': student.phone or '',
+            'email': student.email or '',
+            'plan_name': student.plan_name or '',
+            'status': student.status or 'active',
+            'lessons_total': student.lessons_total,
+            'lessons_done': student.lessons_done,
+            'pix_key': student.pix_key or '',
+            'default_due_day': student.default_due_day,
+            'preferred_payment_method': student.preferred_payment_method or '',
+        }
+        
+        # Formata dados do lançamento
+        entry_data = {
+            'id': entry.id,
+            'description': entry.description,
+            'amount': float(entry.amount),
+            'due_date': entry.due_date.isoformat() if entry.due_date else None,
+            'issue_date': entry.issue_date.isoformat() if entry.issue_date else None,
+            'status': entry.status,
+            'current_installment': entry.current_installment,
+            'installments': entry.installments,
+            'payment_method': entry.payment_method or '',
+        }
+        
+        return Response({
+            'student': student_data,
+            'entry': entry_data,
+            'status': {
+                'color': status_color,
+                'text': status_text,
+                'days_overdue': days_overdue,
+            },
+            'billing_logs': logs_serializer.data,
+        })
 
 
 # ==========================
@@ -439,6 +509,49 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         # Preenche automaticamente o usuário logado ao criar um lesson plan
+        serializer.save(user=self.request.user)
+
+
+class BillingLogViewSet(viewsets.ModelViewSet):
+    queryset = BillingLog.objects.select_related("financial_entry", "financial_entry__student", "user").all()
+    serializer_class = BillingLogSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        
+        # Filtro por lançamento financeiro específico
+        financial_entry_id = self.request.query_params.get("financial_entry")
+        if financial_entry_id:
+            qs = qs.filter(financial_entry_id=financial_entry_id)
+        
+        # Usuário só vê seus próprios logs ou logs de lançamentos que pode ver
+        try:
+            is_admin = user.profile.is_admin
+            user_profile = user.profile.user_profile
+        except UserProfile.DoesNotExist:
+            is_admin = False
+            user_profile = None
+
+        if not is_admin:
+            if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                # Prof. Parceiro vê apenas logs de seus próprios lançamentos
+                qs = qs.filter(financial_entry__beneficiary_user=user)
+            elif user_profile == UserProfile.PROFILE_TEACHER:
+                # Prof. Principal vê logs de seus lançamentos e dos parceiros
+                partner_ids = list(user.profile.partner_teachers.values_list('user_id', flat=True))
+                partner_ids.append(user.id)
+                qs = qs.filter(
+                    Q(financial_entry__user_id__in=partner_ids) | 
+                    Q(financial_entry__beneficiary_user_id__in=partner_ids)
+                )
+            else:
+                qs = qs.filter(user=user)
+        
+        return qs
+
+    def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
 
