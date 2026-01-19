@@ -197,6 +197,18 @@ class LessonPlanSerializer(serializers.ModelSerializer):
         """Retorna os links como uma lista"""
         return obj.get_links_list()
 
+    def to_representation(self, instance):
+        """Garante que a data seja retornada como YYYY-MM-DD sem timezone"""
+        ret = super().to_representation(instance)
+        if 'date' in ret and ret['date']:
+            # Se a data vier como string ISO 8601, extrai apenas YYYY-MM-DD
+            if isinstance(ret['date'], str):
+                ret['date'] = ret['date'].split('T')[0].split(' ')[0]
+            # Se vier como objeto date, formata como YYYY-MM-DD
+            elif hasattr(ret['date'], 'strftime'):
+                ret['date'] = ret['date'].strftime('%Y-%m-%d')
+        return ret
+
 
 class UserSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()

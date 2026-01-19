@@ -420,7 +420,9 @@
             text-transform: uppercase;
           }
 
-          #billingEntrySelect{
+          #billingEntrySelect,
+          #billingStudentFilter,
+          #billingMonthFilter{
             width: 100%;
             padding: 12px 14px;
             border-radius: 12px;
@@ -433,7 +435,9 @@
             transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
           }
 
-          #billingEntrySelect:focus{
+          #billingEntrySelect:focus,
+          #billingStudentFilter:focus,
+          #billingMonthFilter:focus{
             border-color: rgba(47, 124, 255, .55);
             box-shadow: 0 0 0 6px var(--ring);
           }
@@ -807,7 +811,21 @@
 
           <!-- Seletor de lançamento -->
           <section class="card billing-card mb-24" id="billingEntrySelector">
-            <div class="form-row">
+            <!-- Filtros -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px;">
+              <div class="form-row" style="margin-bottom: 0;">
+                <label for="billingStudentFilter">Filtrar por Aluno</label>
+                <select id="billingStudentFilter" name="billingStudentFilter">
+                  <option value="">Todos os alunos</option>
+                </select>
+              </div>
+              <div class="form-row" style="margin-bottom: 0;">
+                <label for="billingMonthFilter">Filtrar por Mês</label>
+                <input type="month" id="billingMonthFilter" name="billingMonthFilter" />
+              </div>
+            </div>
+            
+            <div class="form-row" style="margin-bottom: 0;">
               <label for="billingEntrySelect">Lançamento a cobrar</label>
               <select id="billingEntrySelect" name="billingEntrySelect">
                 <option value="">Selecione um lançamento financeiro...</option>

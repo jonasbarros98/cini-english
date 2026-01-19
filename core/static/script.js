@@ -1241,20 +1241,85 @@ let currentBillingData = null;
 let currentMessageTemplate = null;
 
 // Carrega lançamentos financeiros pendentes/vencidos para o seletor
+// Popula o filtro de alunos na tela de cobrança
+function populateBillingStudentFilter() {
+  const select = document.getElementById("billingStudentFilter");
+  if (!select) return;
+
+  // Limpa o select mantendo a opção "Todos os alunos"
+  select.innerHTML = '<option value="">Todos os alunos</option>';
+
+  // Popula com os alunos disponíveis
+  if (state.students && state.students.length > 0) {
+    // Ordena alunos por nome
+    const sortedStudents = [...state.students].sort((a, b) => 
+      a.name.localeCompare(b.name)
+    );
+
+    sortedStudents.forEach(student => {
+      const option = document.createElement("option");
+      option.value = student.id;
+      option.textContent = student.name;
+      select.appendChild(option);
+    });
+  }
+}
+
 async function loadBillingEntries() {
   const select = document.getElementById("billingEntrySelect");
   if (!select) return;
 
+  // Obtém os valores dos filtros
+  const studentFilter = document.getElementById("billingStudentFilter")?.value || "";
+  const monthFilter = document.getElementById("billingMonthFilter")?.value || "";
+
   try {
-    // Carrega todos os lançamentos financeiros (o filtro será feito no frontend)
-    const entries = await fetchJSON("/financial-entries/");
+    // Monta a URL com os filtros (sem status, pois vamos buscar pendentes e vencidos)
+    const params = new URLSearchParams();
+    if (studentFilter) {
+      params.append("student", studentFilter);
+    }
+    if (monthFilter) {
+      // Converte formato YYYY-MM para o formato esperado pelo backend
+      params.append("month", monthFilter);
+    }
+
+    // Faz duas requisições: uma para pendentes e outra para vencidos
+    const paramsPending = new URLSearchParams(params);
+    paramsPending.append("status", "pending");
     
-    // Filtra apenas pendentes e vencidos
-    const filteredEntries = entries.filter(entry => 
-      entry.status === "pending" || entry.status === "overdue"
+    const paramsOverdue = new URLSearchParams(params);
+    paramsOverdue.append("status", "overdue");
+
+    const [entriesPending, entriesOverdue] = await Promise.all([
+      fetchJSON(`/financial-entries/?${paramsPending.toString()}`),
+      fetchJSON(`/financial-entries/?${paramsOverdue.toString()}`)
+    ]);
+    
+    // Combina os resultados e remove duplicatas
+    const allEntries = [...entriesPending, ...entriesOverdue];
+    const uniqueEntries = Array.from(
+      new Map(allEntries.map(entry => [entry.id, entry])).values()
     );
     
+    // Ordena por data de vencimento (mais próximos primeiro)
+    const filteredEntries = uniqueEntries.sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return new Date(a.due_date) - new Date(b.due_date);
+    });
+    
     select.innerHTML = '<option value="">Selecione um lançamento financeiro...</option>';
+    
+    if (filteredEntries.length === 0) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Nenhum lançamento encontrado com os filtros selecionados";
+      option.disabled = true;
+      select.appendChild(option);
+      return;
+    }
     
     filteredEntries.forEach(entry => {
       const option = document.createElement("option");
@@ -1266,6 +1331,7 @@ async function loadBillingEntries() {
     });
   } catch (error) {
     console.error("Erro ao carregar lançamentos financeiros:", error);
+    select.innerHTML = '<option value="">Erro ao carregar lançamentos...</option>';
   }
 }
 
@@ -2223,6 +2289,18 @@ function renderFinancialEntries() {
         actions.append(btn);
       });
 
+      // Botão Cobrar (apenas para lançamentos pendentes ou vencidos)
+      if (entry.status === "pending" || entry.status === "overdue") {
+        const chargeBtn = document.createElement("button");
+        chargeBtn.type = "button";
+        chargeBtn.className = "tag";
+        chargeBtn.style.background = "var(--accent, #2f7cff)";
+        chargeBtn.style.color = "#fff";
+        chargeBtn.textContent = "💬 Cobrar";
+        chargeBtn.addEventListener("click", () => openBillingForEntry(entry));
+        actions.append(chargeBtn);
+      }
+
       // Botão editar
       const editBtn = document.createElement("button");
       editBtn.type = "button";
@@ -2527,6 +2605,18 @@ async function showView(viewId) {
     initStudentFilter();
   }
   
+  // Se abrir a visualização de cobrança
+  if (viewId === "view-billing") {
+    try {
+      // Popula o filtro de alunos
+      populateBillingStudentFilter();
+      // Carrega os lançamentos com os filtros aplicados
+      await loadBillingEntries();
+    } catch (error) {
+      console.error("Erro ao carregar dados de cobrança:", error);
+    }
+  }
+
   // Se abrir a visualização financeira, garante que o mês está sincronizado
   if (viewId === "view-finance") {
     // Se financeViewMonth não foi inicializado ou está muito diferente, usa o mês atual
@@ -2544,6 +2634,58 @@ async function showView(viewId) {
     });
   }
 
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// Abre a tela de cobrança com um lançamento específico pré-selecionado
+async function openBillingForEntry(entry) {
+  // Primeiro, muda para a view de cobrança
+  await showView("view-billing");
+  
+  // Aguarda um pouco para garantir que os elementos estão renderizados
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  // Configura os filtros baseado no lançamento
+  const billingStudentFilter = document.getElementById("billingStudentFilter");
+  const billingMonthFilter = document.getElementById("billingMonthFilter");
+  const billingEntrySelect = document.getElementById("billingEntrySelect");
+  
+  if (!billingEntrySelect) {
+    console.error("Elemento billingEntrySelect não encontrado");
+    return;
+  }
+  
+  // Configura o filtro de aluno
+  if (billingStudentFilter && entry.studentId) {
+    billingStudentFilter.value = entry.studentId;
+  }
+  
+  // Configura o filtro de mês baseado na data de vencimento
+  if (billingMonthFilter && entry.dueDate) {
+    const dueDate = new Date(entry.dueDate);
+    const year = dueDate.getFullYear();
+    const month = String(dueDate.getMonth() + 1).padStart(2, "0");
+    billingMonthFilter.value = `${year}-${month}`;
+  }
+  
+  // Carrega os lançamentos com os filtros aplicados
+  await loadBillingEntries();
+  
+  // Seleciona o lançamento no dropdown
+  if (billingEntrySelect) {
+    billingEntrySelect.value = entry.id;
+    
+    // Dispara o evento change para carregar os dados
+    const changeEvent = new Event("change", { bubbles: true });
+    billingEntrySelect.dispatchEvent(changeEvent);
+    
+    // Também chama diretamente a função de carregamento caso o evento não funcione
+    setTimeout(async () => {
+      await loadBillingData(entry.id);
+    }, 200);
+  }
+  
+  // Scroll para o topo
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -2623,6 +2765,44 @@ function attachForms() {
       if (entryId) {
         await loadBillingData(entryId);
       } else {
+        document.getElementById("billingContent").style.display = "none";
+      }
+    });
+  }
+
+  // Filtros de cobrança
+  const billingStudentFilter = document.getElementById("billingStudentFilter");
+  if (billingStudentFilter) {
+    // Popula o select de alunos
+    populateBillingStudentFilter();
+    
+    // Listener para recarregar quando o filtro mudar
+    billingStudentFilter.addEventListener("change", async () => {
+      await loadBillingEntries();
+      // Limpa a seleção atual se existir
+      if (billingEntrySelect) {
+        billingEntrySelect.value = "";
+        document.getElementById("billingContent").style.display = "none";
+      }
+    });
+  }
+
+  const billingMonthFilter = document.getElementById("billingMonthFilter");
+  if (billingMonthFilter) {
+    // Define o mês atual como padrão (se ainda não estiver definido)
+    if (!billingMonthFilter.value) {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, "0");
+      billingMonthFilter.value = `${year}-${month}`;
+    }
+    
+    // Listener para recarregar quando o filtro mudar
+    billingMonthFilter.addEventListener("change", async () => {
+      await loadBillingEntries();
+      // Limpa a seleção atual se existir
+      if (billingEntrySelect) {
+        billingEntrySelect.value = "";
         document.getElementById("billingContent").style.display = "none";
       }
     });
@@ -3338,7 +3518,8 @@ async function loadLessonPlans(studentId = null) {
       studentId: p.student,
       studentName: p.student_name,
       // Garante que a data está no formato YYYY-MM-DD (sem timezone)
-      date: p.date ? p.date.split('T')[0] : p.date,
+      // Remove qualquer coisa após a data (timezone, hora, etc)
+      date: p.date ? p.date.split('T')[0].split(' ')[0] : p.date,
       links: p.links || "",
       linksList: p.links_list || [],
       goals: p.goals || "",
@@ -3424,13 +3605,16 @@ function renderPlanning() {
     plansByDate[dateKey].push(plan);
   });
 
-  // Ordena datas (mais recente primeiro)
-  const sortedDates = Object.keys(plansByDate).sort((a, b) => new Date(b) - new Date(a));
+  // Ordena datas (mais recente primeiro) - compara strings diretamente
+  const sortedDates = Object.keys(plansByDate).sort((a, b) => b.localeCompare(a));
 
   container.innerHTML = sortedDates
     .map((dateKey) => {
       const plans = plansByDate[dateKey];
-      const dateObj = new Date(dateKey);
+      // Formata data sem usar new Date para evitar problemas de timezone
+      // dateKey já está no formato YYYY-MM-DD
+      const [year, month, day] = dateKey.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day); // Cria Date local (sem timezone)
       const dateFormatted = dateObj.toLocaleDateString("pt-BR", {
         weekday: "long",
         year: "numeric",
@@ -3627,7 +3811,11 @@ function openPlanForm(planId = null) {
       titleEl.textContent = "Editar Planejamento";
       form.planStudent.value = plan.studentId;
       // Garante que a data está no formato YYYY-MM-DD (extrai apenas a data se vier como ISO string)
-      const dateValue = plan.date ? plan.date.split('T')[0] : '';
+      // Remove qualquer coisa após a data (timezone, hora, etc)
+      let dateValue = plan.date || '';
+      if (dateValue) {
+        dateValue = dateValue.split('T')[0].split(' ')[0]; // Pega apenas YYYY-MM-DD
+      }
       form.planDate.value = dateValue;
       form.planLinks.value = plan.links;
       form.planGoals.value = plan.goals;
@@ -3656,8 +3844,8 @@ async function onPlanFormSubmit(event) {
   // Garante que a data está no formato YYYY-MM-DD (sem timezone)
   const dateValue = form.planDate.value;
   if (dateValue) {
-    // Extrai apenas YYYY-MM-DD se houver algo após (como timezone)
-    const dateOnly = dateValue.split('T')[0];
+    // Extrai apenas YYYY-MM-DD - remove qualquer coisa após (timezone, hora, etc)
+    const dateOnly = dateValue.split('T')[0].split(' ')[0];
     
     const payload = {
       student: parseInt(form.planStudent.value),
@@ -3700,8 +3888,10 @@ async function deletePlan(planId) {
   const plan = state.lessonPlans.find((p) => p.id === planId);
   if (!plan) return;
 
+  // Formata data sem usar new Date (evita problemas de timezone)
+  const dateFormatted = plan.date ? formatDateBR(plan.date) : plan.date;
   const ok = confirm(
-    `Tem certeza que deseja excluir o planejamento de ${plan.studentName} para ${new Date(plan.date).toLocaleDateString("pt-BR")}?`
+    `Tem certeza que deseja excluir o planejamento de ${plan.studentName} para ${dateFormatted}?`
   );
   if (!ok) return;
 
