@@ -115,6 +115,12 @@ class FinancialEntrySerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     user_username = serializers.CharField(source="user.username", read_only=True)
+    beneficiary_user = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),  # Queryset inicial, será filtrado no __init__
+        required=False,
+        help_text="Professor que receberá o lançamento"
+    )
+    beneficiary_username = serializers.CharField(source="beneficiary_user.username", read_only=True)
 
     class Meta:
         model = FinancialEntry
@@ -134,10 +140,30 @@ class FinancialEntrySerializer(serializers.ModelSerializer):
             "notes",
             "user",
             "user_username",
+            "beneficiary_user",
+            "beneficiary_username",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["user"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Define o queryset do beneficiary_user baseado no request
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            user = request.user
+            try:
+                if user.profile.user_profile == UserProfile.PROFILE_TEACHER:
+                    # Professor pode escolher ele mesmo ou seus parceiros
+                    partner_ids = list(user.profile.partner_teachers.values_list('user_id', flat=True))
+                    partner_ids.append(user.id)
+                    self.fields['beneficiary_user'].queryset = User.objects.filter(id__in=partner_ids)
+                else:
+                    # Prof. Parceiro só pode escolher ele mesmo
+                    self.fields['beneficiary_user'].queryset = User.objects.filter(id=user.id)
+            except UserProfile.DoesNotExist:
+                self.fields['beneficiary_user'].queryset = User.objects.filter(id=user.id)
 
 
 class LessonPlanSerializer(serializers.ModelSerializer):

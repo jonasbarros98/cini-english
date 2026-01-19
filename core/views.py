@@ -27,8 +27,18 @@ class StudentViewSet(viewsets.ModelViewSet):
             is_admin = False
         
         if not is_admin:
-            # Filtra apenas students do usuário logado
-            qs = qs.filter(user=self.request.user)
+            try:
+                user_profile = self.request.user.profile.user_profile
+                if user_profile == UserProfile.PROFILE_TEACHER:
+                    # Prof. Principal vê seus students + students dos parceiros vinculados
+                    partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                    partner_ids.append(self.request.user.id)
+                    qs = qs.filter(user_id__in=partner_ids)
+                else:
+                    # Outros usuários veem apenas os seus
+                    qs = qs.filter(user=self.request.user)
+            except UserProfile.DoesNotExist:
+                qs = qs.filter(user=self.request.user)
         
         return qs
     
@@ -57,8 +67,18 @@ class LessonViewSet(viewsets.ModelViewSet):
             is_admin = False
         
         if not is_admin:
-            # Filtra apenas lessons do usuário logado
-            qs = qs.filter(user=self.request.user)
+            try:
+                user_profile = self.request.user.profile.user_profile
+                if user_profile == UserProfile.PROFILE_TEACHER:
+                    # Prof. Principal vê suas lessons + lessons dos parceiros vinculados
+                    partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                    partner_ids.append(self.request.user.id)
+                    qs = qs.filter(user_id__in=partner_ids)
+                else:
+                    # Outros usuários veem apenas as suas
+                    qs = qs.filter(user=self.request.user)
+            except UserProfile.DoesNotExist:
+                qs = qs.filter(user=self.request.user)
 
         # Filtros opcionais via query string:
         # /api/lessons/?date=2026-01-19
@@ -117,8 +137,18 @@ class TaskViewSet(viewsets.ModelViewSet):
             is_admin = False
         
         if not is_admin:
-            # Filtra apenas tasks do usuário logado
-            qs = qs.filter(user=self.request.user)
+            try:
+                user_profile = self.request.user.profile.user_profile
+                if user_profile == UserProfile.PROFILE_TEACHER:
+                    # Prof. Principal vê suas tasks + tasks dos parceiros vinculados
+                    partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                    partner_ids.append(self.request.user.id)
+                    qs = qs.filter(user_id__in=partner_ids)
+                else:
+                    # Outros usuários veem apenas as suas
+                    qs = qs.filter(user=self.request.user)
+            except UserProfile.DoesNotExist:
+                qs = qs.filter(user=self.request.user)
         
         return qs
 
@@ -137,6 +167,14 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # Prof. Parceiro não pode acessar Cobrança
+        try:
+            user_profile = self.request.user.profile.user_profile
+            if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return Invoice.objects.none()
+        except UserProfile.DoesNotExist:
+            pass
+        
         qs = super().get_queryset()
         month_param = self.request.query_params.get("month")
         if month_param:
@@ -153,6 +191,32 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 pass
         return qs
 
+    def create(self, request, *args, **kwargs):
+        # Bloqueia criação para Prof. Parceiro
+        try:
+            user_profile = request.user.profile.user_profile
+            if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return Response(
+                    {'error': 'Professores parceiros não podem criar cobranças'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except UserProfile.DoesNotExist:
+            pass
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        # Bloqueia edição para Prof. Parceiro
+        try:
+            user_profile = request.user.profile.user_profile
+            if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return Response(
+                    {'error': 'Professores parceiros não podem editar cobranças'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except UserProfile.DoesNotExist:
+            pass
+        return super().update(request, *args, **kwargs)
+
 
 class FinancialEntryViewSet(viewsets.ModelViewSet):
     queryset = FinancialEntry.objects.select_related("student", "user").all()
@@ -162,15 +226,33 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         
-        # Admin vê todos os financial entries, usuários normais veem apenas os seus
+        # Admin vê todos os financial entries
         try:
             is_admin = self.request.user.profile.is_admin
+            user_profile = self.request.user.profile.user_profile
         except UserProfile.DoesNotExist:
             is_admin = False
+            user_profile = None
         
         if not is_admin:
-            # Filtra apenas financial entries do usuário logado
-            qs = qs.filter(user=self.request.user)
+            if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                # Prof. Parceiro vê apenas lançamentos onde beneficiary_user = ele
+                qs = qs.filter(beneficiary_user=self.request.user)
+            elif user_profile == UserProfile.PROFILE_TEACHER:
+                # Prof. Principal vê:
+                # 1. Lançamentos criados por ele (user = ele)
+                # 2. Lançamentos atribuídos a ele (beneficiary_user = ele)
+                # 3. Lançamentos dos parceiros vinculados (user IN parceiros OU beneficiary_user IN parceiros)
+                partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                qs = qs.filter(
+                    Q(user=self.request.user) |
+                    Q(beneficiary_user=self.request.user) |
+                    Q(user_id__in=partner_ids) |
+                    Q(beneficiary_user_id__in=partner_ids)
+                ).distinct()
+            else:
+                # Usuário sem perfil definido vê apenas os seus
+                qs = qs.filter(user=self.request.user)
         
         # Filtro por mês - mostra lançamentos com vencimento OU lançamento no mês
         month_param = self.request.query_params.get("month")
@@ -194,9 +276,39 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
             qs = qs.filter(student_id=student_param)
         return qs
 
+    def create(self, request, *args, **kwargs):
+        # Bloqueia criação para Prof. Parceiro
+        try:
+            user_profile = request.user.profile.user_profile
+            if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return Response(
+                    {'error': 'Professores parceiros não podem criar lançamentos financeiros'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except UserProfile.DoesNotExist:
+            pass
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        # Bloqueia edição para Prof. Parceiro
+        try:
+            user_profile = request.user.profile.user_profile
+            if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return Response(
+                    {'error': 'Professores parceiros não podem editar lançamentos financeiros'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except UserProfile.DoesNotExist:
+            pass
+        return super().update(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         # Preenche automaticamente o usuário logado ao criar um financial entry
-        serializer.save(user=self.request.user)
+        beneficiary_user = serializer.validated_data.get('beneficiary_user')
+        if not beneficiary_user:
+            # Se não especificado, o beneficiário é o próprio criador
+            beneficiary_user = self.request.user
+        serializer.save(user=self.request.user, beneficiary_user=beneficiary_user)
 
 
 # ==========================
@@ -226,8 +338,10 @@ def login_view(request):
             # Obtém informações do perfil
             try:
                 is_admin = user.profile.is_admin
+                user_profile = user.profile.user_profile
             except UserProfile.DoesNotExist:
                 is_admin = False
+                user_profile = None
             
             return Response({
                 'success': True,
@@ -238,6 +352,7 @@ def login_view(request):
                     'first_name': user.first_name,
                     'last_name': user.last_name,
                     'is_admin': is_admin,
+                    'user_profile': user_profile,
                 }
             })
         else:
@@ -273,8 +388,10 @@ def current_user_view(request):
     user = request.user
     try:
         is_admin = user.profile.is_admin
+        user_profile = user.profile.user_profile
     except UserProfile.DoesNotExist:
         is_admin = False
+        user_profile = None
     
     return Response({
         'id': user.id,
@@ -283,6 +400,7 @@ def current_user_view(request):
         'first_name': user.first_name,
         'last_name': user.last_name,
         'is_admin': is_admin,
+        'user_profile': user_profile,
     })
 
 
@@ -301,8 +419,18 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
             is_admin = False
         
         if not is_admin:
-            # Filtra apenas lesson plans do usuário logado
-            queryset = queryset.filter(user=self.request.user)
+            try:
+                user_profile = self.request.user.profile.user_profile
+                if user_profile == UserProfile.PROFILE_TEACHER:
+                    # Prof. Principal vê seus lesson plans + lesson plans dos parceiros vinculados
+                    partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                    partner_ids.append(self.request.user.id)
+                    queryset = queryset.filter(user_id__in=partner_ids)
+                else:
+                    # Outros usuários veem apenas os seus
+                    queryset = queryset.filter(user=self.request.user)
+            except UserProfile.DoesNotExist:
+                queryset = queryset.filter(user=self.request.user)
         
         student_id = self.request.query_params.get('student', None)
         if student_id:

@@ -45,20 +45,23 @@ class Migration(migrations.Migration):
 
 
 def _assign_students_to_user(apps, schema_editor):
-    """Atribui students existentes ao primeiro usuário admin ou ao primeiro usuário disponível"""
+    """Atribui students existentes ao usuário ID 2 (professora piloto)"""
     Student = apps.get_model('core', 'Student')
     User = apps.get_model(settings.AUTH_USER_MODEL)
     
-    # Tenta encontrar um usuário admin primeiro
     try:
-        admin_user = User.objects.filter(is_superuser=True).first()
-        if not admin_user:
-            admin_user = User.objects.filter(is_staff=True).first()
-        if not admin_user:
-            admin_user = User.objects.first()
+        # Tenta encontrar o usuário com ID 2 primeiro
+        target_user = User.objects.filter(id=2).first()
+        if not target_user:
+            # Se não existir ID 2, usa o primeiro usuário não-admin
+            target_user = User.objects.exclude(id=1).first()
+        if not target_user:
+            # Último recurso: primeiro usuário disponível
+            target_user = User.objects.first()
         
-        if admin_user:
-            Student.objects.filter(user__isnull=True).update(user=admin_user)
+        if target_user:
+            Student.objects.filter(user__isnull=True).update(user=target_user)
+            print(f"Students atribuídos ao usuário: {target_user.id} - {target_user.username}")
     except Exception as e:
         print(f"Erro ao atribuir usuário aos students: {e}")
         # Se houver erro, deixa null e o usuário terá que corrigir manualmente

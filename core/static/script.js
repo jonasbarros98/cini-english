@@ -331,6 +331,8 @@ async function loadFinancialEntries() {
       status: e.status,
       paymentMethod: e.payment_method,
       notes: e.notes || "",
+      beneficiaryUserId: e.beneficiary_user,
+      beneficiaryUsername: e.beneficiary_username,
     }));
     console.log("Lançamentos processados:", state.financialEntries.length);
   } catch (error) {
@@ -1806,7 +1808,10 @@ function renderFinancialEntries() {
   if (entries.length === 0) {
     const empty = document.createElement("p");
     empty.className = "muted";
-    empty.textContent = "Nenhum lançamento financeiro para este mês. Clique em '+ Novo Lançamento' para criar.";
+    const isPartnerTeacher = state.currentUser && state.currentUser.user_profile === "prof_parceiro";
+    empty.textContent = isPartnerTeacher 
+      ? "Nenhum lançamento financeiro para este mês."
+      : "Nenhum lançamento financeiro para este mês. Clique em '+ Novo Lançamento' para criar.";
     list.append(empty);
     return;
   }
@@ -1840,33 +1845,45 @@ function renderFinancialEntries() {
     const actions = document.createElement("div");
     actions.className = "finance-actions";
 
-    // Botões de status
-    ["paid", "pending", "overdue"].forEach((statusKey) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "tag";
-      btn.textContent = financialEntryStatusLabels[statusKey];
-      btn.addEventListener("click", () => updateFinancialEntryStatus(entry, statusKey));
-      actions.append(btn);
-    });
+    // Verifica se é Prof. Parceiro (não pode editar/criar)
+    const isPartnerTeacher = state.currentUser && state.currentUser.user_profile === "prof_parceiro";
 
-    // Botão editar
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "tag";
-    editBtn.textContent = "Editar";
-    editBtn.addEventListener("click", () => openFinancialEntryForm(entry));
-    actions.append(editBtn);
+    if (!isPartnerTeacher) {
+      // Botões de status (apenas para não Prof. Parceiro)
+      ["paid", "pending", "overdue"].forEach((statusKey) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "tag";
+        btn.textContent = financialEntryStatusLabels[statusKey];
+        btn.addEventListener("click", () => updateFinancialEntryStatus(entry, statusKey));
+        actions.append(btn);
+      });
 
-    // Botão excluir
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className = "tag";
-    deleteBtn.style.background = "#fee";
-    deleteBtn.style.color = "#c33";
-    deleteBtn.textContent = "Excluir";
-    deleteBtn.addEventListener("click", () => deleteFinancialEntry(entry));
-    actions.append(deleteBtn);
+      // Botão editar
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "tag";
+      editBtn.textContent = "Editar";
+      editBtn.addEventListener("click", () => openFinancialEntryForm(entry));
+      actions.append(editBtn);
+
+      // Botão excluir
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "tag";
+      deleteBtn.style.background = "#fee";
+      deleteBtn.style.color = "#c33";
+      deleteBtn.textContent = "Excluir";
+      deleteBtn.addEventListener("click", () => deleteFinancialEntry(entry));
+      actions.append(deleteBtn);
+    } else {
+      // Prof. Parceiro só pode visualizar
+      const viewOnly = document.createElement("span");
+      viewOnly.className = "muted";
+      viewOnly.textContent = "Somente leitura";
+      viewOnly.style.fontSize = "12px";
+      actions.append(viewOnly);
+    }
 
     row.append(main, actions);
     list.append(row);
@@ -1939,6 +1956,37 @@ function openFinancialEntryForm(entry = null) {
     });
   }
 
+  // Configura campo de beneficiário (apenas para professores principais)
+  const feBeneficiaryRow = document.getElementById("feBeneficiaryRow");
+  const feBeneficiary = document.getElementById("feBeneficiary");
+  const isTeacher = state.currentUser && state.currentUser.user_profile === "professor";
+  
+  if (feBeneficiaryRow && feBeneficiary) {
+    if (isTeacher) {
+      feBeneficiaryRow.style.display = "flex";
+      // Popula com o próprio usuário e parceiros vinculados
+      feBeneficiary.innerHTML = '<option value="">Selecione o beneficiário</option>';
+      
+      // Adiciona o próprio usuário
+      const selfOpt = document.createElement("option");
+      selfOpt.value = state.currentUser.id;
+      selfOpt.textContent = `${state.currentUser.username} (Eu)`;
+      feBeneficiary.append(selfOpt);
+      
+      // Carrega parceiros vinculados
+      loadPartnerTeachers().then(partners => {
+        partners.forEach(partner => {
+          const opt = document.createElement("option");
+          opt.value = partner.id;
+          opt.textContent = `${partner.username}${partner.email ? ` (${partner.email})` : ''}`;
+          feBeneficiary.append(opt);
+        });
+      });
+    } else {
+      feBeneficiaryRow.style.display = "none";
+    }
+  }
+
   if (entry) {
     // Modo edição
     editingFinancialEntryId = entry.id;
@@ -1950,6 +1998,14 @@ function openFinancialEntryForm(entry = null) {
     document.getElementById("feInstallments").value = entry.installments || 1;
     document.getElementById("feIssueDate").value = entry.issueDate || "";
     document.getElementById("feDueDate").value = entry.dueDate || "";
+    
+    // Preenche beneficiário se existir
+    if (feBeneficiary && entry.beneficiaryUserId) {
+      feBeneficiary.value = entry.beneficiaryUserId;
+    } else if (feBeneficiary && isTeacher) {
+      // Se não tiver beneficiário, define como o próprio usuário
+      feBeneficiary.value = state.currentUser.id;
+    }
     document.getElementById("feStatus").value = entry.status || "pending";
     document.getElementById("fePaymentMethod").value = entry.paymentMethod || "pix";
     document.getElementById("feNotes").value = entry.notes || "";
@@ -1981,6 +2037,12 @@ function openFinancialEntryForm(entry = null) {
     if (feInstallments) {
       feInstallments.value = 1;
       feInstallments.disabled = false;
+    }
+    
+    // Define beneficiário padrão como o próprio usuário (se for professor)
+    const feBeneficiary = document.getElementById("feBeneficiary");
+    if (feBeneficiary && isTeacher) {
+      feBeneficiary.value = state.currentUser.id;
     }
   }
 
@@ -2065,6 +2127,13 @@ async function showView(viewId) {
   const navUsers = document.getElementById("navUsers");
   if (navUsers && state.currentUser) {
     navUsers.style.display = state.currentUser.is_admin ? "flex" : "none";
+  }
+
+  // Esconde menu de Cobrança para Prof. Parceiro
+  const navBilling = document.querySelector('[data-view="view-billing"]');
+  if (navBilling && state.currentUser) {
+    const isPartnerTeacher = state.currentUser.user_profile === "prof_parceiro";
+    navBilling.style.display = isPartnerTeacher ? "none" : "flex";
   }
 
   // Se abrir a visualização de planejamento
@@ -2237,9 +2306,14 @@ function attachForms() {
   // Botão de novo lançamento financeiro
   const newFinancialEntryBtn = document.getElementById("newFinancialEntryBtn");
   if (newFinancialEntryBtn) {
-    newFinancialEntryBtn.addEventListener("click", () => {
-      openFinancialEntryForm(null);
-    });
+    // Esconde/desabilita para Prof. Parceiro
+    if (state.currentUser && state.currentUser.user_profile === "prof_parceiro") {
+      newFinancialEntryBtn.style.display = "none";
+    } else {
+      newFinancialEntryBtn.addEventListener("click", () => {
+        openFinancialEntryForm(null);
+      });
+    }
   }
 
   // Botão cancelar formulário financeiro
@@ -2317,6 +2391,8 @@ function attachForms() {
         return;
       }
 
+      const beneficiaryUserId = document.getElementById("feBeneficiary")?.value;
+      
       const payload = {
         student: Number(studentId),
         description,
@@ -2329,6 +2405,11 @@ function attachForms() {
         payment_method: paymentMethod,
         notes,
       };
+      
+      // Adiciona beneficiary_user se especificado (apenas para professores principais)
+      if (beneficiaryUserId) {
+        payload.beneficiary_user = Number(beneficiaryUserId);
+      }
 
       // Se o status for "paid" e não tiver payment_date, define como hoje
       if (status === "paid" && !payload.payment_date) {

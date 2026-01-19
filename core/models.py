@@ -190,6 +190,12 @@ class FinancialEntry(models.Model):
         related_name="financial_entries",
         help_text="Professor responsável pelo lançamento financeiro"
     )
+    beneficiary_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="beneficiary_financial_entries",
+        help_text="Professor que receberá o lançamento (pode ser o próprio criador ou um parceiro)"
+    )
     description = models.CharField(max_length=255, help_text="Descrição do lançamento")
     amount = models.DecimalField(
         max_digits=10, decimal_places=2, help_text="Valor total"

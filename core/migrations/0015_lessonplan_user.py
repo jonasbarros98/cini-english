@@ -45,20 +45,23 @@ class Migration(migrations.Migration):
 
 
 def _assign_lesson_plans_to_user(apps, schema_editor):
-    """Atribui lesson plans existentes ao primeiro usuário admin ou ao primeiro usuário disponível"""
+    """Atribui lesson plans existentes ao usuário ID 2 (professora piloto)"""
     LessonPlan = apps.get_model('core', 'LessonPlan')
     User = apps.get_model(settings.AUTH_USER_MODEL)
     
-    # Tenta encontrar um usuário admin primeiro
     try:
-        admin_user = User.objects.filter(is_superuser=True).first()
-        if not admin_user:
-            admin_user = User.objects.filter(is_staff=True).first()
-        if not admin_user:
-            admin_user = User.objects.first()
+        # Tenta encontrar o usuário com ID 2 primeiro
+        target_user = User.objects.filter(id=2).first()
+        if not target_user:
+            # Se não existir ID 2, usa o primeiro usuário não-admin
+            target_user = User.objects.exclude(id=1).first()
+        if not target_user:
+            # Último recurso: primeiro usuário disponível
+            target_user = User.objects.first()
         
-        if admin_user:
-            LessonPlan.objects.filter(user__isnull=True).update(user=admin_user)
+        if target_user:
+            LessonPlan.objects.filter(user__isnull=True).update(user=target_user)
+            print(f"Lesson plans atribuídos ao usuário: {target_user.id} - {target_user.username}")
     except Exception as e:
         print(f"Erro ao atribuir usuário aos lesson plans: {e}")
         # Se houver erro, deixa null e o usuário terá que corrigir manualmente
