@@ -8,7 +8,9 @@ from .views import (
     login_view, logout_view, current_user_view,
     create_checkout_session, stripe_webhook, subscription_status, signup_view,
     create_portal_session, PlanosView, dashboard_summary_view, PerfilView, TutorialView,
-    profile_get_view, profile_update_view, welcome_dismiss_view
+    profile_get_view, profile_update_view, welcome_dismiss_view,
+    PlanningListView, planning_list_api,
+    planning_edit_redirect, planning_new_redirect,
 )
 
 router = DefaultRouter()
@@ -44,4 +46,8 @@ urlpatterns = [
     path("api/webhooks/stripe/", stripe_webhook, name="stripe-webhook"),
     path("planos/", PlanosView.as_view(), name="planos"),
     path("tutorial/", TutorialView.as_view(), name="tutorial"),
+    path("planejamento/", PlanningListView.as_view(), name="planning-list"),
+    path("planejamento/editar/", planning_edit_redirect, name="planning-edit"),
+    path("planejamento/novo/", planning_new_redirect, name="planning-new"),
+    path("api/planning/list/", planning_list_api, name="api-planning-list"),
 ]

@@ -1,0 +1,1105 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planejamento • EDUflow</title>
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --muted2: #94a3b8;
+      --border: rgba(15,23,42,.10);
+      --shadow: 0 16px 40px rgba(2,6,23,.08);
+      --shadow-soft: 0 10px 24px rgba(2,6,23,.06);
+      --primary: #2563eb;
+      --primary2: #3b82f6;
+      --ok: #16a34a;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --radius: 18px;
+      --radius-sm: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(900px 500px at 15% 0%, rgba(37,99,235,.10), transparent 60%),
+                  radial-gradient(700px 450px at 90% 15%, rgba(59,130,246,.10), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .page {
+      max-width: 100%;
+      margin: 0;
+      padding: 24px;
+    }
+    @media (max-width: 980px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0;
+    }
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+    .page-head h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+    .page-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    .primary-btn {
+      border: none;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 11px 14px;
+      border-radius: 14px;
+      box-shadow: 0 14px 32px rgba(37,99,235,.18);
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-block;
+      font-family: inherit;
+    }
+    .primary-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 40px rgba(37,99,235,.22);
+    }
+    .filters {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 0 12px;
+      background: linear-gradient(180deg, rgba(245,247,251,.96), rgba(245,247,251,.72));
+      backdrop-filter: blur(10px);
+    }
+    .filters-inner {
+      background: rgba(255,255,255,.86);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 1fr 0.9fr;
+      gap: 10px;
+      align-items: end;
+    }
+    .filters-inner.has-custom { grid-template-columns: 1fr 1fr 1fr 0.9fr 1fr 1fr; }
+    @media (max-width: 980px) {
+      .filters-inner { grid-template-columns: 1fr 1fr !important; }
+      .filters-inner.has-custom { grid-template-columns: 1fr 1fr !important; }
+    }
+    @media (max-width: 560px) {
+      .filters-inner { grid-template-columns: 1fr !important; }
+      .filters-inner.has-custom { grid-template-columns: 1fr !important; }
+    }
+    .field { display: flex; flex-direction: column; gap: 8px; }
+    .field label { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .field input, .field select {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.92);
+      outline: none;
+      font-weight: 600;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .field input:focus, .field select:focus {
+      border-color: rgba(37,99,235,.25);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    .custom-range { display: none; }
+    .filters-inner.has-custom .custom-range { display: flex !important; }
+    .section {
+      margin-top: 12px;
+      background: rgba(255,255,255,.86);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+    .section-head {
+      padding: 14px 14px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid rgba(15,23,42,.06);
+    }
+    .section-head h2 { margin: 0; font-size: 14px; font-weight: 700; }
+    .section-head .meta { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .timeline { padding: 0; }
+    .day { border-top: 1px solid rgba(15,23,42,.06); }
+    .day:first-child { border-top: none; }
+    .day-head {
+      width: 100%;
+      border: none;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: .15s;
+    }
+    .day-head:hover { background: rgba(2,6,23,.02); }
+    .day-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .day-title strong { font-size: 16px; font-weight: 700; }
+    .day-title span { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .caret {
+      width: 34px; height: 34px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.8);
+      display: grid; place-items: center;
+      font-weight: 700;
+      color: var(--muted);
+      transition: transform .15s ease;
+      flex-shrink: 0;
+    }
+    .day[data-open="true"] .caret { transform: rotate(180deg); }
+    .day-body {
+      padding: 0 14px 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .day-body.is-hidden { display: none !important; }
+    .plan-card {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.92);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 12px 26px rgba(2,6,23,.05);
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr auto;
+      gap: 12px;
+      align-items: start;
+    }
+    @media (max-width: 820px) { .plan-card { grid-template-columns: 1fr; } }
+    .plan-main strong { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: rgba(2,6,23,.02);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .chip .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--muted2); flex-shrink: 0; }
+    .chip.ok { background: rgba(22,163,74,.08); border-color: rgba(22,163,74,.14); color: #0d5c2e; }
+    .chip.ok .dot { background: var(--ok); }
+    .chip.warn { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.18); color: #92400e; }
+    .chip.warn .dot { background: var(--warn); }
+    .chip.bad { background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.18); color: #b91c1c; }
+    .chip.bad .dot { background: var(--bad); }
+    .plan-detail {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .plan-detail .line { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+    .plan-detail a { color: var(--primary); font-weight: 700; text-decoration: none; }
+    .plan-detail a:hover { text-decoration: underline; }
+    .plan-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.92);
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      transition: .15s;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); }
+    .btn.primary {
+      border: none;
+      background: linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.7));
+      color: #fff;
+      box-shadow: 0 14px 32px rgba(37,99,235,.18);
+    }
+    .btn.danger {
+      background: rgba(239,68,68,.08);
+      border-color: rgba(239,68,68,.18);
+      color: #b91c1c;
+    }
+    .fab {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 20;
+      border: none;
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color: #fff;
+      font-size: 22px;
+      font-weight: 700;
+      box-shadow: 0 18px 42px rgba(37,99,235,.22);
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .fab:hover { transform: translateY(-2px); box-shadow: 0 22px 54px rgba(37,99,235,.26); }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(2,6,23,.55);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+    }
+    .modal-overlay.is-open { display: flex; }
+    .modal {
+      width: min(620px, 96vw);
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transform: translateY(8px) scale(0.98);
+      opacity: 0;
+      transition: transform 0.18s ease, opacity 0.18s ease;
+    }
+    .modal-overlay.is-open .modal {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    .modal-head {
+      padding: 14px 14px 12px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(15,23,42,.06);
+    }
+    .modal-head h3 { margin: 0; font-size: 14px; font-weight: 700; }
+    .modal-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; font-weight: 600; }
+    .modal-close {
+      width: 36px; height: 36px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.9);
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .modal-body { padding: 14px; display: grid; gap: 12px; }
+    .modal-actions { padding: 0 14px 14px; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+    .help { font-size: 11px; color: var(--muted2); font-weight: 600; margin-top: 4px; line-height: 1.4; }
+    .modal-body .field textarea { resize: vertical; min-height: 80px; }
+    .empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .loading { padding: 24px; text-align: center; color: var(--muted); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/eduflow-8.png' %}" alt="EDUflow Logo"></div>
+        <div>
+          <p class="brand-kicker">Planejamento</p>
+          <p class="brand-name">EDUflow</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/dashboard/" class="nav-item">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        <a href="/?view=view-calendar" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/?view=view-students" class="nav-item">
+          <span class="nav-emoji">👩‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/planejamento/" class="nav-item active">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        <a href="/?view=view-tasks" class="nav-item">
+          <span class="nav-emoji">✅</span>
+          <div>
+            <p class="nav-title">Tarefas</p>
+            <p class="nav-subtitle">Planejamento rápido</p>
+          </div>
+        </a>
+        <a href="/?view=view-finance" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        <div class="nav-divider"></div>
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        <div class="nav-divider"></div>
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+            <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+              <span class="nav-emoji">👥</span>
+              <div>
+                <p class="nav-title">Usuários</p>
+                <p class="nav-subtitle">Gerenciar usuários</p>
+              </div>
+            </a>
+            <a href="/perfil/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">👤</span>
+              <div>
+                <p class="nav-title">Perfil</p>
+                <p class="nav-subtitle">Dados da conta</p>
+              </div>
+            </a>
+            <a href="/planos/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">💳</span>
+              <div>
+                <p class="nav-title">Plano e Faturamento</p>
+                <p class="nav-subtitle">Gerenciar assinatura</p>
+              </div>
+            </a>
+            <a href="/tutorial/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">🎬</span>
+              <div>
+                <p class="nav-title">Tutorial</p>
+                <p class="nav-subtitle">Vídeos rápidos</p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <a href="/?view=view-calendar" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Calendário</a>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      </div>
+    </aside>
+    
+    <main class="page">
+      <div class="wrap">
+        <div class="page-head">
+      <div>
+        <h1>Planejamento</h1>
+        <p>Filtre por período, aluno e status. Planeje aulas por data.</p>
+      </div>
+      <button type="button" class="primary-btn" id="btnNewPlan">+ Novo Planejamento</button>
+    </div>
+
+    <div class="filters">
+      <div class="filters-inner" id="filtersInner">
+        <div class="field">
+          <label for="period">Período</label>
+          <select id="period">
+            <option value="next7" selected>Próximos 7 dias</option>
+            <option value="today">Hoje</option>
+            <option value="week">Esta semana</option>
+            <option value="nextweek">Próxima semana</option>
+            <option value="month">Este mês</option>
+            <option value="custom">Custom (intervalo)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="student">Aluno</label>
+          <select id="student">
+            <option value="all" selected>Todos os alunos</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="status">Status</label>
+          <select id="status">
+            <option value="all" selected>Todos</option>
+            <option value="incomplete">Incompletos</option>
+            <option value="no_goals">Sem objetivos</option>
+            <option value="no_materials">Sem materiais</option>
+            <option value="ok">Completos</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="q">Busca</label>
+          <input id="q" type="search" placeholder="Aluno ou objetivos..." autocomplete="off" />
+        </div>
+        <div class="field custom-range">
+          <label for="start_date">Início</label>
+          <input id="start_date" type="date" />
+        </div>
+        <div class="field custom-range">
+          <label for="end_date">Fim</label>
+          <input id="end_date" type="date" />
+        </div>
+      </div>
+    </div>
+
+    <section class="section" aria-label="Planejamentos">
+      <div class="section-head">
+        <div>
+          <h2>Timeline</h2>
+          <div class="meta" id="meta">Carregando…</div>
+        </div>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </section>
+      </div>
+    </main>
+  </div>
+
+  <button class="fab" title="Novo planejamento" type="button" id="fabNew" aria-label="Novo planejamento">+</button>
+
+  <div class="modal-overlay" id="planModalOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="planModalTitle">
+      <div class="modal-head">
+        <div>
+          <h3 id="planModalTitle">Planejar aula</h3>
+          <p id="planModalSub">—</p>
+        </div>
+        <button class="modal-close" type="button" id="planModalClose" aria-label="Fechar">×</button>
+      </div>
+      <form id="planModalForm">
+        <div class="modal-body">
+          <div class="field">
+            <label for="modalStudent">Aluno *</label>
+            <select id="modalStudent" required>
+              <option value="">Selecione um aluno</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="modalDate">Data da Aula *</label>
+            <input type="date" id="modalDate" required />
+          </div>
+          <div class="field">
+            <label for="modalLinks">Links (Google Slides, YouTube, etc.)</label>
+            <textarea id="modalLinks" rows="6" placeholder="Cole um link por linha&#10;Exemplo:&#10;https://docs.google.com/presentation/d/...&#10;https://www.youtube.com/watch?v=..."></textarea>
+            <small class="help">Cole um link por linha. Links para apresentações, vídeos, documentos, etc.</small>
+          </div>
+          <div class="field">
+            <label for="modalGoals">Objetivos / Metas (GOALS)</label>
+            <textarea id="modalGoals" rows="4" placeholder="Exemplo: Advice - SHOULD, Present Perfect, etc."></textarea>
+            <small class="help">Descreva os objetivos e metas desta aula.</small>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" type="button" id="planModalCancel">Cancelar</button>
+          <button class="btn primary" type="submit" id="planModalSave">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+      var API_URL = "/api/planning/list/";
+      var LESSON_PLANS_API = "/api/lesson-plans/";
+      var DEBOUNCE_MS = 250;
+      var currentEditingPlanId = null;
+      var allStudents = [];
+
+      function $(sel, root) {
+        if (!root) root = document;
+        return root.querySelector(sel) || null;
+      }
+      function $$(sel, root) {
+        if (!root) root = document;
+        return Array.from(root.querySelectorAll(sel));
+      }
+
+      function escapeHtml(s) {
+        if (s == null || s === undefined) return "";
+        var t = String(s);
+        return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+
+      function buildParams() {
+        var period = ($("select#period") && $("select#period").value) ? $("select#period").value : "next7";
+        var params = { period: period };
+        var studentEl = $("select#student");
+        if (studentEl && studentEl.value && studentEl.value !== "all") params.student_id = studentEl.value;
+        var statusEl = $("select#status");
+        if (statusEl && statusEl.value && statusEl.value !== "all") params.status = statusEl.value;
+        var qEl = $("input#q");
+        if (qEl && qEl.value && qEl.value.trim()) params.q = qEl.value.trim();
+        if (period === "custom") {
+          var startEl = $("input#start_date");
+          var endEl = $("input#end_date");
+          if (startEl && startEl.value) params.start_date = startEl.value;
+          if (endEl && endEl.value) params.end_date = endEl.value;
+        }
+        return params;
+      }
+
+      function queryString(params) {
+        var parts = [];
+        for (var k in params) if (params.hasOwnProperty(k) && params[k] != null && params[k] !== "") parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(params[k]));
+        return parts.length ? "?" + parts.join("&") : "";
+      }
+
+      var fetchController = null;
+      function fetchList() {
+        if (fetchController) fetchController.abort();
+        fetchController = new AbortController();
+        var meta = $("#meta");
+        var timeline = $("#timeline");
+        if (meta) meta.textContent = "Carregando…";
+        if (timeline) timeline.innerHTML = '<div class="loading">Carregando planejamentos…</div>';
+        var url = API_URL + queryString(buildParams());
+        fetch(url, { credentials: "same-origin", signal: fetchController.signal })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Erro " + r.status);
+            return r.json();
+          })
+          .then(function (data) {
+            if (fetchController && fetchController.signal.aborted) return;
+            renderMeta(data);
+            renderStudents(data.students);
+            renderTimeline(data);
+          })
+          .catch(function (err) {
+            if (err.name === "AbortError") return;
+            if (meta) meta.textContent = "Erro ao carregar.";
+            if (timeline) timeline.innerHTML = '<div class="empty-state">Não foi possível carregar os planejamentos. Tente novamente.</div>';
+          });
+      }
+
+      function renderMeta(data) {
+        var meta = $("#meta");
+        if (!meta) return;
+        var label = (data && data.period_label) ? data.period_label : "";
+        var total = (data && typeof data.total === "number") ? data.total : 0;
+        meta.textContent = "Mostrando: " + label + " • " + total + " planejamento(s)";
+      }
+
+      function renderStudents(students) {
+        allStudents = students || [];
+        var sel = $("select#student");
+        if (!sel) return;
+        var cur = sel.value;
+        sel.innerHTML = '<option value="all" selected>Todos os alunos</option>';
+        if (allStudents && allStudents.length > 0) {
+          allStudents.forEach(function (s) {
+            var opt = document.createElement("option");
+            opt.value = String(s.id);
+            opt.textContent = s.name || ("Aluno " + s.id);
+            sel.appendChild(opt);
+          });
+        }
+        if (cur && cur !== "all") sel.value = cur;
+        populateModalStudentSelect();
+      }
+
+      function populateModalStudentSelect() {
+        var sel = $("#modalStudent");
+        if (!sel) return;
+        var cur = sel.value;
+        sel.innerHTML = '<option value="">Selecione um aluno</option>';
+        if (allStudents && allStudents.length > 0) {
+          allStudents.forEach(function (s) {
+            var opt = document.createElement("option");
+            opt.value = String(s.id);
+            opt.textContent = s.name || ("Aluno " + s.id);
+            sel.appendChild(opt);
+          });
+        }
+        if (cur) sel.value = cur;
+      }
+
+      function chips(item) {
+        var st = (item && item.status) ? item.status : {};
+        var hasGoals = !!st.has_goals;
+        var hasMats = !!st.has_materials;
+        var arr = [];
+        if (!hasGoals) arr.push('<span class="chip warn"><span class="dot"></span>Sem objetivos</span>');
+        if (!hasMats) arr.push('<span class="chip warn"><span class="dot"></span>Sem materiais</span>');
+        if (hasGoals && hasMats) arr.push('<span class="chip ok"><span class="dot"></span>OK</span>');
+        if (hasMats && (item.materials && item.materials.length)) arr.push('<span class="chip"><span class="dot"></span>📎 ' + item.materials.length + ' material(is)</span>');
+        if (hasGoals && (item.goals && item.goals.length)) arr.push('<span class="chip"><span class="dot"></span>🎯 Objetivos</span>');
+        return arr.join("");
+      }
+
+      function goalsLine(item) {
+        var g = (item && item.goals) ? String(item.goals).trim() : "";
+        if (!g) return '🎯 Objetivos: <span style="color:var(--muted2);font-weight:700;">Nenhum definido</span>';
+        var safe = escapeHtml(g);
+        if (safe.length > 120) safe = safe.slice(0, 120) + "…";
+        return "🎯 " + safe;
+      }
+
+      function materialsLine(item) {
+        var m = (item && item.materials) ? item.materials : [];
+        if (!m.length) return '📎 Materiais: <span style="color:var(--muted2);font-weight:700;">Nenhum link</span>';
+        var first = m[0];
+        var title = (first && first.title) ? escapeHtml(first.title) : "Link";
+        var url = (first && first.url) ? first.url : "#";
+        return '📎 <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + title + "</a>";
+      }
+
+      function renderCard(item) {
+        var studentName = (item.student && item.student.name) ? escapeHtml(item.student.name) : "—";
+        var date = (item && item.date) ? escapeHtml(item.date) : "";
+        var id = (item && item.id) ? item.id : "";
+        var html = '<article class="plan-card" data-plan-id="' + escapeHtml(String(id)) + '" data-student-id="' + (item.student && item.student.id ? item.student.id : "") + '" data-date="' + date + '">';
+        html += '<div class="plan-main"><strong>' + studentName + '</strong><div class="chips">' + chips(item) + '</div></div>';
+        html += '<div class="plan-detail"><div class="line">' + goalsLine(item) + '</div><div class="line">' + materialsLine(item) + '</div></div>';
+        html += '<div class="plan-actions">';
+        html += '<button class="btn primary js-plan-now" type="button">Planejar agora</button>';
+        html += '<button class="btn js-edit" type="button">Editar</button>';
+        html += '<button class="btn danger js-delete" type="button">Excluir</button>';
+        html += "</div></article>";
+        return html;
+      }
+
+      function renderTimeline(data) {
+        var timeline = $("#timeline");
+        if (!timeline) return;
+        var days = (data && data.days) ? data.days : [];
+        if (!days.length) {
+          timeline.innerHTML = '<div class="empty-state">Nenhum planejamento encontrado para os filtros selecionados.</div>';
+          return;
+        }
+        var buf = "";
+        days.forEach(function (d) {
+          var open = !!d.is_open;
+          var label = (d.label) ? escapeHtml(d.label) : d.date || "";
+          var count = typeof d.count === "number" ? d.count : 0;
+          buf += '<div class="day" data-open="' + (open ? "true" : "false") + '" data-date="' + escapeHtml(d.date || "") + '">';
+          buf += '<button class="day-head" type="button">';
+          buf += '<div class="day-title"><strong>' + label + '</strong><span>• ' + count + ' aula(s)</span></div>';
+          buf += '<div class="caret" aria-hidden="true">⌄</div></button>';
+          buf += '<div class="day-body' + (open ? "" : " is-hidden") + '">';
+          (d.items || []).forEach(function (it) { buf += renderCard(it); });
+          buf += "</div></div>";
+        });
+        timeline.innerHTML = buf;
+
+        $$(".day", timeline).forEach(function (day) {
+          var head = $(".day-head", day);
+          var body = $(".day-body", day);
+          if (!head || !body) return;
+          head.addEventListener("click", function () {
+            var open = day.getAttribute("data-open") === "true";
+            day.setAttribute("data-open", open ? "false" : "true");
+            body.classList.toggle("is-hidden", open);
+          });
+        });
+      }
+
+      function setupFilters() {
+        var period = $("#period");
+        var inner = $("#filtersInner");
+        if (period) {
+          period.addEventListener("change", function () {
+            if (inner) inner.classList.toggle("has-custom", period.value === "custom");
+            if (period.value === "custom") {
+              var startEl = $("#start_date");
+              var endEl = $("#end_date");
+              if (startEl || endEl) {
+                var today = new Date();
+                var y = today.getFullYear(), m = String(today.getMonth() + 1).padStart(2, "0"), d = String(today.getDate()).padStart(2, "0");
+                var todayStr = y + "-" + m + "-" + d;
+                var endDate = new Date(today);
+                endDate.setDate(endDate.getDate() + 6);
+                var ye = endDate.getFullYear(), me = String(endDate.getMonth() + 1).padStart(2, "0"), de = String(endDate.getDate()).padStart(2, "0");
+                var endStr = ye + "-" + me + "-" + de;
+                if (startEl && !startEl.value) startEl.value = todayStr;
+                if (endEl && !endEl.value) endEl.value = endStr;
+              }
+            }
+            fetchList();
+          });
+        }
+        var student = $("#student");
+        if (student) student.addEventListener("change", fetchList);
+        var status = $("#status");
+        if (status) status.addEventListener("change", fetchList);
+        var q = $("#q");
+        var debounceTimer = null;
+        if (q) {
+          q.addEventListener("input", function () {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(fetchList, DEBOUNCE_MS);
+          });
+        }
+        var start = $("#start_date");
+        var end = $("#end_date");
+        if (start) start.addEventListener("change", fetchList);
+        if (end) end.addEventListener("change", fetchList);
+      }
+
+      function setupCustomRange() {
+        var period = $("#period");
+        var inner = $("#filtersInner");
+        if (inner && period && period.value === "custom") inner.classList.add("has-custom");
+      }
+
+      var overlay = $("#planModalOverlay");
+      var sub = $("#planModalSub");
+      var form = $("#planModalForm");
+      var titleEl = $("#planModalTitle");
+
+      function openModalForNew() {
+        currentEditingPlanId = null;
+        if (titleEl) titleEl.textContent = "Novo Planejamento";
+        if (sub) sub.textContent = "Criar um novo planejamento de aula";
+        if (form) {
+          form.reset();
+          var today = new Date();
+          var y = today.getFullYear(), m = String(today.getMonth() + 1).padStart(2, "0"), d = String(today.getDate()).padStart(2, "0");
+          var modalDate = $("#modalDate");
+          if (modalDate) modalDate.value = y + "-" + m + "-" + d;
+        }
+        if (overlay) {
+          overlay.classList.add("is-open");
+          overlay.setAttribute("aria-hidden", "false");
+          if (document.documentElement) document.documentElement.style.overflow = "hidden";
+        }
+      }
+
+      function openModalForEdit(planId, studentId, date) {
+        if (!planId) return;
+        currentEditingPlanId = planId;
+        if (titleEl) titleEl.textContent = "Editar Planejamento";
+        if (sub) sub.textContent = "ID #" + planId + " • " + (date || "—");
+        if (form) {
+          var modalStudent = $("#modalStudent");
+          var modalDate = $("#modalDate");
+          if (modalStudent && studentId) modalStudent.value = String(studentId);
+          if (modalDate && date) modalDate.value = date;
+          $("#modalLinks").value = "";
+          $("#modalGoals").value = "";
+        }
+        loadPlanDetails(planId);
+        if (overlay) {
+          overlay.classList.add("is-open");
+          overlay.setAttribute("aria-hidden", "false");
+          if (document.documentElement) document.documentElement.style.overflow = "hidden";
+        }
+      }
+
+      function openModalForPlanNow(planId, studentId, studentName, date) {
+        if (!planId) return;
+        currentEditingPlanId = planId;
+        if (titleEl) titleEl.textContent = "Planejar agora";
+        if (sub) sub.textContent = studentName + " • " + (date || "—");
+        if (form) {
+          var modalStudent = $("#modalStudent");
+          var modalDate = $("#modalDate");
+          if (modalStudent && studentId) modalStudent.value = String(studentId);
+          if (modalDate && date) modalDate.value = date;
+        }
+        loadPlanDetails(planId);
+        if (overlay) {
+          overlay.classList.add("is-open");
+          overlay.setAttribute("aria-hidden", "false");
+          if (document.documentElement) document.documentElement.style.overflow = "hidden";
+        }
+      }
+
+      function loadPlanDetails(planId) {
+        if (!planId) return;
+        var csrf = getCookie("csrftoken");
+        fetch(LESSON_PLANS_API + planId + "/", {
+          method: "GET",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+          credentials: "same-origin"
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Erro " + r.status);
+            return r.json();
+          })
+          .then(function (data) {
+            var modalStudent = $("#modalStudent");
+            var modalDate = $("#modalDate");
+            var modalLinks = $("#modalLinks");
+            var modalGoals = $("#modalGoals");
+            if (modalStudent && data.student) modalStudent.value = String(data.student);
+            if (modalDate && data.date) {
+              var dateOnly = String(data.date).split("T")[0].split(" ")[0];
+              modalDate.value = dateOnly;
+            }
+            if (modalLinks) modalLinks.value = data.links || "";
+            if (modalGoals) modalGoals.value = data.goals || "";
+          })
+          .catch(function (err) {
+            console.error("Erro ao carregar detalhes:", err);
+          });
+      }
+
+      function closeModal() {
+        if (!overlay) return;
+        overlay.classList.remove("is-open");
+        overlay.setAttribute("aria-hidden", "true");
+        if (document.documentElement) document.documentElement.style.overflow = "";
+        currentEditingPlanId = null;
+        if (form) form.reset();
+      }
+      $("#planModalClose") && $("#planModalClose").addEventListener("click", closeModal);
+      $("#planModalCancel") && $("#planModalCancel").addEventListener("click", closeModal);
+      if (overlay) overlay.addEventListener("click", function (e) { if (e.target === overlay) closeModal(); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && overlay && overlay.classList.contains("is-open")) closeModal(); });
+
+      document.addEventListener("click", function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        var planNow = t.closest(".js-plan-now");
+        var editBtn = t.closest(".js-edit");
+        var delBtn = t.closest(".js-delete");
+        var card = t.closest(".plan-card");
+        if (planNow && card) {
+          e.preventDefault();
+          var id = card.getAttribute("data-plan-id") || "";
+          var studentId = card.getAttribute("data-student-id") || "";
+          var strong = $(".plan-main strong", card);
+          var name = strong ? strong.textContent.trim() : "";
+          var date = card.getAttribute("data-date") || "";
+          openModalForPlanNow(id, studentId, name, date);
+          return;
+        }
+        if (editBtn && card) {
+          e.preventDefault();
+          var id = card.getAttribute("data-plan-id") || "";
+          var studentId = card.getAttribute("data-student-id") || "";
+          var date = card.getAttribute("data-date") || "";
+          openModalForEdit(id, studentId, date);
+          return;
+        }
+        if (delBtn && card) {
+          e.preventDefault();
+          var strong = $(".plan-main strong", card);
+          var name = strong ? strong.textContent.trim() : "este planejamento";
+          var id = card.getAttribute("data-plan-id") || "";
+          if (!confirm("Excluir o planejamento de " + name + " (ID " + id + ")?")) return;
+          deletePlan(id, card);
+        }
+      });
+
+      function deletePlan(planId, cardEl) {
+        if (!planId) return;
+        var csrf = getCookie("csrftoken");
+        fetch(LESSON_PLANS_API + planId + "/", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+          credentials: "same-origin"
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Erro " + r.status);
+            if (cardEl) cardEl.remove();
+            fetchList();
+          })
+          .catch(function (err) {
+            console.error("Erro ao excluir:", err);
+            alert("Não foi possível excluir o planejamento.");
+          });
+      }
+
+      if (form) {
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var modalStudent = $("#modalStudent");
+          var modalDate = $("#modalDate");
+          var modalLinks = $("#modalLinks");
+          var modalGoals = $("#modalGoals");
+          var saveBtn = $("#planModalSave");
+          if (!modalStudent || !modalDate || !modalStudent.value || !modalDate.value) {
+            alert("Preencha o aluno e a data da aula.");
+            return;
+          }
+          var payload = {
+            student: parseInt(modalStudent.value),
+            date: modalDate.value.split("T")[0].split(" ")[0],
+            links: (modalLinks ? modalLinks.value.trim() : "") || "",
+            goals: (modalGoals ? modalGoals.value.trim() : "") || "",
+          };
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = "Salvando…";
+          }
+          var csrf = getCookie("csrftoken");
+          var url = LESSON_PLANS_API;
+          var method = "POST";
+          if (currentEditingPlanId) {
+            url = LESSON_PLANS_API + currentEditingPlanId + "/";
+            method = "PATCH";
+          }
+          fetch(url, {
+            method: method,
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+            credentials: "same-origin",
+            body: JSON.stringify(payload)
+          })
+            .then(function (r) {
+              if (!r.ok) {
+                return r.json().then(function (err) { throw new Error(err.detail || err.error || "Erro " + r.status); }).catch(function () { throw new Error("Erro " + r.status); });
+              }
+              return r.json();
+            })
+            .then(function () {
+              closeModal();
+              fetchList();
+            })
+            .catch(function (err) {
+              console.error("Erro ao salvar:", err);
+              alert("Não foi possível salvar o planejamento: " + (err.message || "Erro desconhecido"));
+            })
+            .finally(function () {
+              if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = "Salvar";
+              }
+            });
+        });
+      }
+
+      var fab = $("#fabNew");
+      var btnNew = $("#btnNewPlan");
+      if (fab) fab.addEventListener("click", function (e) { e.preventDefault(); openModalForNew(); });
+      if (btnNew) btnNew.addEventListener("click", function (e) { e.preventDefault(); openModalForNew(); });
+
+      setupCustomRange();
+      setupFilters();
+      fetchList();
+
+      // Sidebar: menu colapsável "Conta"
+      function initContaGroupCollapse() {
+        var STORAGE_KEY = "eduflow_sidebar_conta_expanded";
+        var group = document.getElementById("navGroupConta");
+        var btn = document.getElementById("navGroupContaBtn");
+        if (!group || !btn) {
+          console.warn("initContaGroupCollapse: elementos não encontrados");
+          return;
+        }
+        function setExpanded(expanded) {
+          if (expanded) {
+            group.classList.remove("nav-group--collapsed");
+            group.classList.add("nav-group--expanded");
+            btn.setAttribute("aria-expanded", "true");
+            try { localStorage.setItem(STORAGE_KEY, "1"); } catch (_) {}
+          } else {
+            group.classList.add("nav-group--collapsed");
+            group.classList.remove("nav-group--expanded");
+            btn.setAttribute("aria-expanded", "false");
+            try { localStorage.setItem(STORAGE_KEY, "0"); } catch (_) {}
+          }
+        }
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var isExpanded = group.classList.contains("nav-group--expanded");
+          setExpanded(!isExpanded);
+        });
+        try {
+          if (localStorage.getItem(STORAGE_KEY) === "1") setExpanded(true);
+        } catch (_) {}
+      }
+      setTimeout(initContaGroupCollapse, 100);
+
+      // Sidebar: checkAdmin e mostrar menu Usuários
+      function getCookie(name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+      function checkAdminAndShowUsersMenu() {
+        try {
+          var csrf = getCookie("csrftoken");
+          fetch("/api/auth/current-user/", {
+            method: "GET",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+            credentials: "same-origin"
+          })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+              if (data && data.is_admin) {
+                var navUsers = document.getElementById("navUsers");
+                if (navUsers) navUsers.style.display = "";
+              }
+            })
+            .catch(function () {});
+        } catch (e) {}
+      }
+      checkAdminAndShowUsersMenu();
+
+      // Sidebar: logout
+      var logoutBtn = document.getElementById("logoutBtn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", function () {
+          try {
+            var csrf = getCookie("csrftoken");
+            fetch("/api/auth/logout/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+              credentials: "same-origin"
+            })
+              .then(function () { window.location.href = "/login/"; })
+              .catch(function () { window.location.href = "/login/"; });
+          } catch (e) {
+            window.location.href = "/login/";
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

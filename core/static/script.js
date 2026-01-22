@@ -9,21 +9,22 @@ const state = {
   currentMonth: new Date(),
   financeViewMonth: new Date(), // Mês atual da visualização financeira (pode ser diferente do calendário)
   selectedDate: null,
-  notes: {},     // { 'YYYY-MM-DD': [ { id, status, title, info, studentId, studentName } ] }
+  notes: {},     // { 'YYYY-MM-DD': [ { id, status, title, info, studentId, studentName, time } ] }
   students: [],  // vindo da API
   tasks: [],     // vindo da API
-  finances: [],   // <--- NOVO: lista de cobranças do mês
+  finances: [],   // lista de cobranças do mês
   financialEntries: [], // lançamentos financeiros a receber
-  currentUser: null, // usuário atual autenticado
-  users: [], // lista de usuários (apenas para admins)
-  lessonPlans: [], // planejamentos de aulas
+  currentUser: null,
+  users: [],
+  lessonPlans: [],
+  calendarView: "month",       // 'month' | 'week'
+  currentWeekStart: null,      // Date (domingo da semana exibida); definido ao mudar para semana
 };
 
 let editingLessonId = null;
 let editingTaskId = null;
 let editingFinancialEntryId = null;
 let editingUserId = null;
-let editingPlanId = null;
 
 
 // Labels separados pra não misturar aula x tarefa
@@ -283,7 +284,7 @@ async function loadLessonsForCurrentMonth() {
 
   state.notes = {};
   lessons.forEach((lesson) => {
-    const key = lesson.date; // 'YYYY-MM-DD'
+    const key = lesson.date;
     if (!state.notes[key]) state.notes[key] = [];
     state.notes[key].push({
       id: lesson.id,
@@ -292,7 +293,48 @@ async function loadLessonsForCurrentMonth() {
       info: lesson.info,
       studentId: lesson.student,
       studentName: lesson.student_name,
-      time: lesson.time, // 👈 AGORA VAI
+      time: lesson.time,
+    });
+  });
+}
+
+function toDateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function getWeekStart(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay();
+  const diff = x.getDate() - day;
+  x.setDate(diff);
+  return x;
+}
+
+async function loadLessonsForWeek(weekStart) {
+  const sun = new Date(weekStart);
+  sun.setHours(0, 0, 0, 0);
+  const sat = new Date(sun);
+  sat.setDate(sat.getDate() + 6);
+  const startStr = toDateKey(sun);
+  const endStr = toDateKey(sat);
+  const lessons = await fetchJSON(`/lessons/?start=${startStr}&end=${endStr}`);
+
+  state.notes = {};
+  lessons.forEach((lesson) => {
+    const key = lesson.date;
+    if (!state.notes[key]) state.notes[key] = [];
+    state.notes[key].push({
+      id: lesson.id,
+      status: lesson.status,
+      title: lesson.title,
+      info: lesson.info,
+      studentId: lesson.student,
+      studentName: lesson.student_name,
+      time: lesson.time,
     });
   });
 }
@@ -412,98 +454,282 @@ async function changeMonth(delta) {
   renderFinanceTotal();
   renderFinancialEntries();
   renderFinancialStats();
+  updateCalendarNavTitle();
+}
+
+function getWeekStartForState() {
+  if (state.currentWeekStart) return new Date(state.currentWeekStart);
+  return getWeekStart(new Date());
+}
+
+async function changeWeek(delta) {
+  const start = getWeekStartForState();
+  start.setDate(start.getDate() + 7 * delta);
+  state.currentWeekStart = start;
+  await loadLessonsForWeek(state.currentWeekStart);
+  renderCalendar();
+  renderDayDetails();
+  renderStats();
+  updateCalendarNavTitle();
+}
+
+async function goToToday() {
+  const today = new Date();
+  state.currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  state.currentWeekStart = getWeekStart(today);
+  if (state.calendarView === "month") {
+    await Promise.all([
+      loadLessonsForCurrentMonth(),
+      loadFinancesForCurrentMonth(),
+      loadFinancialEntries(),
+    ]);
+  } else {
+    await loadLessonsForWeek(state.currentWeekStart);
+  }
+  state.selectedDate = toDateKey(today);
+  renderCalendar();
+  renderDayDetails();
+  renderStats();
+  renderFinance();
+  renderFinanceTotal();
+  renderFinancialEntries();
+  renderFinancialStats();
+  updateCalendarNavTitle();
+}
+
+function updateCalendarNavTitle() {
+  const el = document.getElementById("calendarNavTitle");
+  const hint = document.getElementById("calendarHint");
+  if (!el) return;
+  if (state.calendarView === "month") {
+    const label = monthName(state.currentMonth);
+    el.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    if (hint) hint.textContent = "Clique em um dia para ver e editar os agendamentos.";
+  } else {
+    const start = getWeekStartForState();
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+    el.textContent = `${fmt(start)} – ${fmt(end)} ${end.getFullYear()}`;
+    if (hint) hint.textContent = "Clique em um horário ou evento para ver detalhes.";
+  }
 }
 
 
 function renderCalendar() {
+  const monthWrap = document.getElementById("calendarMonthWrap");
+  const weekWrap = document.getElementById("calendarWeekWrap");
+  const monthTitleEl = document.getElementById("monthTitle");
+
+  if (state.calendarView === "week") {
+    if (monthWrap) monthWrap.style.display = "none";
+    if (weekWrap) weekWrap.style.display = "block";
+    updateCalendarNavTitle();
+    if (monthTitleEl) {
+      const start = getWeekStartForState();
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "numeric", month: "long" });
+      monthTitleEl.textContent = `${fmt(start)} – ${fmt(end)} ${end.getFullYear()}`;
+    }
+    renderCalendarWeek();
+    return;
+  }
+
+  if (monthWrap) monthWrap.style.display = "block";
+  if (weekWrap) weekWrap.style.display = "none";
+  updateCalendarNavTitle();
+
   const grid = document.getElementById("calendarGrid");
+  if (!grid) return;
   grid.innerHTML = "";
 
   const year = state.currentMonth.getFullYear();
   const month = state.currentMonth.getMonth();
   const label = monthName(state.currentMonth);
 
-  // título do mês
-  document.getElementById("monthTitle").textContent =
-    label.charAt(0).toUpperCase() + label.slice(1);
+  if (monthTitleEl) monthTitleEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
 
-  // ---------- CÉLULAS DO MÊS ----------
+  const today = new Date();
+  const firstOfMonth = new Date(year, month, 1);
+  const firstWeekday = firstOfMonth.getDay();
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(gridStart.getDate() - firstWeekday);
 
-  // Usando UTC pra evitar bug de fuso
-  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const firstWeekday = new Date(Date.UTC(year, month, 1)).getUTCDay(); // 0 = DOM
+  const MONTH_MAX_ROWS = 6;
+  const cellsTotal = 7 * MONTH_MAX_ROWS;
 
-  // placeholders vazios antes do dia 1 para alinhar com o dia da semana certo
-  for (let i = 0; i < firstWeekday; i++) {
-    const empty = document.createElement("div");
-    empty.className = "day empty";
-    grid.append(empty);
-  }
-
-  // dias do mês
-  for (let day = 1; day <= daysInMonth; day++) {
+  for (let i = 0; i < cellsTotal; i++) {
+    const d = new Date(gridStart);
+    d.setDate(d.getDate() + i);
+    const day = d.getDate();
     // chave de data SEM usar Date/toISOString => sem “dia anterior”
-    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(
-      day
-    ).padStart(2, "0")}`;
+    const key = toDateKey(d);
+    const isThisMonth = d.getMonth() === month && d.getFullYear() === year;
+    const isToday =
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear();
+    const isPast = d < today && !isToday;
 
     const notes = state.notes[key] || [];
-
-    // Data de hoje para comparação
-    const today = new Date();
-    const todayYear = today.getFullYear();
-    const todayMonth = today.getMonth();
-    const todayDay = today.getDate();
-
-    // Verifica se é dia passado ou dia atual
-    const isToday = year === todayYear && month === todayMonth && day === todayDay;
-    const isPast = year < todayYear || 
-                   (year === todayYear && month < todayMonth) || 
-                   (year === todayYear && month === todayMonth && day < todayDay);
-
+    const visibleNotes = notes.slice(0, 4);
+    const moreCount = notes.length > 4 ? notes.length - 4 : 0;
     const dayEl = document.createElement("button");
     dayEl.type = "button";
-    dayEl.className = "day";
+    dayEl.className = "day month-day";
+    if (!isThisMonth) dayEl.classList.add("other-month");
     if (state.selectedDate === key) dayEl.classList.add("selected");
     if (isToday) dayEl.classList.add("today");
     if (isPast) dayEl.classList.add("past");
 
-    const header = document.createElement("div");
-    header.className = "day-header";
-
+    const dateWrap = document.createElement("div");
+    dateWrap.className = "day-date-wrap";
     const dateEl = document.createElement("span");
     dateEl.className = "day-date";
-    dateEl.textContent = day.toString().padStart(2, "0");
+    dateEl.textContent = String(d.getDate());
+    dateWrap.append(dateEl);
 
-    const countEl = document.createElement("span");
-    countEl.className = "pill pending";
-    countEl.textContent = `${notes.length} notas`;
+    const eventsEl = document.createElement("div");
+    eventsEl.className = "day-events";
 
-    header.append(dateEl, countEl);
-
-    const list = document.createElement("div");
-    list.className = "day-notes";
-
-    notes.slice(0, 3).forEach((note) => {
-      const chip = document.createElement("div");
-      chip.className = "note-chip";
-      chip.innerHTML = `
-        <span class="pill ${note.status}">
-          ${lessonStatusEmoji[note.status] || "•"}
-        </span>
-        <span>${note.title}</span>
+    visibleNotes.forEach((note) => {
+      const row = document.createElement("div");
+      row.className = `day-event ${note.status}`;
+      const timeStr = note.time ? note.time.slice(0, 5) : "";
+      row.innerHTML = `
+        <span class="day-event-dot"></span>
+        <span class="day-event-time">${timeStr}</span>
+        <span class="day-event-title">${(note.title || "Aula").replace(/</g, "&lt;")}</span>
       `;
-      list.append(chip);
+      eventsEl.append(row);
     });
 
-    dayEl.append(header, list);
-    dayEl.addEventListener("click", () => selectDay(key));
+    if (moreCount > 0) {
+      const more = document.createElement("div");
+      more.className = "day-event-more";
+      more.textContent = `+${moreCount} mais`;
+      eventsEl.append(more);
+    }
+
+    dayEl.append(dateWrap, eventsEl);
+    dayEl.addEventListener("click", () => {
+      if (!isThisMonth) {
+        state.currentMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+        loadLessonsForCurrentMonth().then(() => {
+          state.selectedDate = key;
+          renderCalendar();
+          renderDayDetails();
+          updateCalendarNavTitle();
+        });
+      } else {
+        selectDay(key);
+      }
+    });
     grid.append(dayEl);
   }
 }
 
+const HOUR_START = 6;
+const HOUR_END = 23;
+const WEEKDAY_NAMES = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
+function renderCalendarWeek() {
+  const headerEl = document.getElementById("calendarWeekHeader");
+  const timesEl = document.getElementById("calendarWeekTimes");
+  const gridEl = document.getElementById("calendarWeekGrid");
+  if (!headerEl || !timesEl || !gridEl) return;
 
+  const start = getWeekStartForState();
+  headerEl.innerHTML = "";
+  timesEl.innerHTML = "";
+  gridEl.innerHTML = "";
+
+  // Cabeçalho: coluna vazia (hora) + 7 dias
+  const emptyHead = document.createElement("div");
+  emptyHead.className = "week-head-empty";
+  headerEl.append(emptyHead);
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const key = toDateKey(d);
+    const today = new Date();
+    const isToday =
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear();
+
+    const col = document.createElement("div");
+    col.className = "week-head-day";
+    if (isToday) col.classList.add("today");
+    col.innerHTML = `
+      <span class="week-head-name">${WEEKDAY_NAMES[i]}</span>
+      <span class="week-head-date">${d.getDate()}</span>
+    `;
+    col.addEventListener("click", () => {
+      state.selectedDate = key;
+      renderDayDetails();
+      document.querySelectorAll(".week-head-day").forEach((el) => el.classList.remove("selected"));
+      if (col) col.classList.add("selected");
+    });
+    if (state.selectedDate === key) col.classList.add("selected");
+    headerEl.append(col);
+  }
+
+  // Coluna de horas
+  for (let h = HOUR_START; h < HOUR_END; h++) {
+    const row = document.createElement("div");
+    row.className = "week-time-row";
+    row.textContent = `${String(h).padStart(2, "0")}:00`;
+    timesEl.append(row);
+  }
+
+  const rows = HOUR_END - HOUR_START;
+  for (let r = 0; r < rows; r++) {
+    const slotHour = HOUR_START + r;
+    for (let c = 0; c < 7; c++) {
+      const cell = document.createElement("div");
+      cell.className = "week-slot";
+      const d = new Date(start);
+      d.setDate(d.getDate() + c);
+      const key = toDateKey(d);
+      const cellNotes = (state.notes[key] || []).filter((n) => {
+        if (!n.time) return false;
+        const [hh] = n.time.split(":");
+        return parseInt(hh, 10) === slotHour;
+      });
+
+      cell.addEventListener("click", () => {
+        state.selectedDate = key;
+        renderDayDetails();
+        document.querySelectorAll(".week-head-day").forEach((el) => el.classList.remove("selected"));
+        const headDay = headerEl.children[c + 1];
+        if (headDay) headDay.classList.add("selected");
+      });
+
+      cellNotes.forEach((note) => {
+        const ev = document.createElement("div");
+        ev.className = `week-event ${note.status}`;
+        ev.innerHTML = `
+          <span class="week-event-time">${(note.time || "").slice(0, 5)}</span>
+          <span class="week-event-title">${note.title || "Aula"}</span>
+        `;
+        ev.addEventListener("click", (e) => {
+          e.stopPropagation();
+          state.selectedDate = key;
+          renderDayDetails();
+          document.querySelectorAll(".week-head-day").forEach((el) => el.classList.remove("selected"));
+          const dayCol = headerEl.querySelectorAll(".week-head-day")[c];
+          if (dayCol) dayCol.classList.add("selected");
+          startEditLesson(note);
+        });
+        cell.append(ev);
+      });
+      gridEl.append(cell);
+    }
+  }
+}
 
 function selectDay(key) {
   state.selectedDate = key;
@@ -647,6 +873,11 @@ async function deleteLesson(note, dateKey) {
       }
     }
 
+    if (state.calendarView === "week") {
+      await loadLessonsForWeek(getWeekStartForState());
+    } else {
+      await loadLessonsForCurrentMonth();
+    }
     renderStats();
     renderCalendar();
     renderDayDetails();
@@ -664,6 +895,11 @@ async function updateLessonStatus(note, newStatus) {
       body: JSON.stringify({ status: newStatus }),
     });
     note.status = newStatus;
+    if (state.calendarView === "week") {
+      await loadLessonsForWeek(getWeekStartForState());
+    } else {
+      await loadLessonsForCurrentMonth();
+    }
     renderStats();
     renderCalendar();
     renderDayDetails();
@@ -2576,17 +2812,6 @@ async function showView(viewId) {
     navBilling.style.display = isPartnerTeacher ? "none" : "flex";
   }
 
-  // Se abrir a visualização de planejamento
-  if (viewId === "view-planning") {
-    try {
-      await loadLessonPlans();
-      renderPlanning();
-      initPlanningUI();
-    } catch (error) {
-      console.error("Erro ao carregar planejamento:", error);
-    }
-  }
-  
   // Se abrir a visualização de tarefas
   if (viewId === "view-tasks") {
     try {
@@ -2747,7 +2972,11 @@ function attachForms() {
       }
 
       resetLessonFormMode();
-      await loadLessonsForCurrentMonth();
+      if (state.calendarView === "week") {
+        await loadLessonsForWeek(getWeekStartForState());
+      } else {
+        await loadLessonsForCurrentMonth();
+      }
       renderStats();
       renderCalendar();
       renderDayDetails();
@@ -2856,13 +3085,66 @@ function attachForms() {
     });
   }
 
-  // navegação entre meses
-  document.getElementById("monthBack").addEventListener("click", () => {
-    changeMonth(-1).catch((err) => console.error(err));
-  });
-  document.getElementById("monthForward").addEventListener("click", () => {
-    changeMonth(1).catch((err) => console.error(err));
-  });
+  // Calendário: Hoje, anterior, próximo
+  const calendarTodayBtn = document.getElementById("calendarToday");
+  if (calendarTodayBtn) {
+    calendarTodayBtn.addEventListener("click", () => goToToday().catch((err) => console.error(err)));
+  }
+  const calendarPrevBtn = document.getElementById("calendarPrev");
+  if (calendarPrevBtn) {
+    calendarPrevBtn.addEventListener("click", () => {
+      if (state.calendarView === "week") {
+        changeWeek(-1).catch((err) => console.error(err));
+      } else {
+        changeMonth(-1).catch((err) => console.error(err));
+      }
+    });
+  }
+  const calendarNextBtn = document.getElementById("calendarNext");
+  if (calendarNextBtn) {
+    calendarNextBtn.addEventListener("click", () => {
+      if (state.calendarView === "week") {
+        changeWeek(1).catch((err) => console.error(err));
+      } else {
+        changeMonth(1).catch((err) => console.error(err));
+      }
+    });
+  }
+
+  // Calendário: toggle Mensal / Semanal
+  const viewMonthBtn = document.getElementById("viewMonthBtn");
+  const viewWeekBtn = document.getElementById("viewWeekBtn");
+  if (viewMonthBtn) {
+    viewMonthBtn.addEventListener("click", async () => {
+      if (state.calendarView === "month") return;
+      state.calendarView = "month";
+      viewMonthBtn.classList.add("active");
+      if (viewWeekBtn) viewWeekBtn.classList.remove("active");
+      await Promise.all([
+        loadLessonsForCurrentMonth(),
+        loadFinancesForCurrentMonth(),
+        loadFinancialEntries(),
+      ]);
+      renderCalendar();
+      renderDayDetails();
+      renderStats();
+      updateCalendarNavTitle();
+    });
+  }
+  if (viewWeekBtn) {
+    viewWeekBtn.addEventListener("click", async () => {
+      if (state.calendarView === "week") return;
+      state.calendarView = "week";
+      viewWeekBtn.classList.add("active");
+      if (viewMonthBtn) viewMonthBtn.classList.remove("active");
+      if (!state.currentWeekStart) state.currentWeekStart = getWeekStart(new Date());
+      await loadLessonsForWeek(state.currentWeekStart);
+      renderCalendar();
+      renderDayDetails();
+      renderStats();
+      updateCalendarNavTitle();
+    });
+  }
 
   // botão atalho "Novo agendamento" na sidebar
   document.getElementById("createLessonBtn").addEventListener("click", () => {
@@ -3659,411 +3941,6 @@ function renderFinanceTotal() {
   });
 }
 
-
-// ==========================
-// Planejamento de Aulas
-// ==========================
-
-async function loadLessonPlans(studentId = null) {
-  try {
-    const url = studentId 
-      ? `/lesson-plans/?student=${studentId}` 
-      : "/lesson-plans/";
-    const plans = await fetchJSON(url);
-    state.lessonPlans = plans.map((p) => ({
-      id: p.id,
-      studentId: p.student,
-      studentName: p.student_name,
-      // Garante que a data está no formato YYYY-MM-DD (sem timezone)
-      // Remove qualquer coisa após a data (timezone, hora, etc)
-      date: p.date ? p.date.split('T')[0].split(' ')[0] : p.date,
-      links: p.links || "",
-      linksList: p.links_list || [],
-      goals: p.goals || "",
-      createdAt: p.created_at,
-      updatedAt: p.updated_at,
-    }));
-  } catch (error) {
-    console.error("Erro ao carregar planejamentos:", error);
-    state.lessonPlans = [];
-  }
-}
-
-// Função helper para normalizar URLs e verificar se são válidas
-function normalizeUrl(url) {
-  if (!url || typeof url !== 'string') return { url: '', isValid: false };
-  const trimmed = url.trim();
-  if (!trimmed) return { url: '', isValid: false };
-  
-  // Se já começa com http:// ou https://, retorna como está
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return { url: trimmed, isValid: true };
-  }
-  
-  // Se começa com //, adiciona https:
-  if (trimmed.startsWith('//')) {
-    return { url: 'https:' + trimmed, isValid: true };
-  }
-  
-  // Se parece ser um domínio (contém ponto e não tem espaços), adiciona https://
-  if (trimmed.includes('.') && !trimmed.includes(' ')) {
-    return { url: 'https://' + trimmed, isValid: true };
-  }
-  
-  // Se contém espaços ou não parece URL, não é válido
-  if (trimmed.includes(' ')) {
-    return { url: '', isValid: false };
-  }
-  
-  // Tenta adicionar https:// para outros casos
-  return { url: 'https://' + trimmed, isValid: true };
-}
-
-function renderPlanning() {
-  const container = document.getElementById("planningList");
-  if (!container) return;
-
-  const selectedStudentId = document.getElementById("planStudentFilter")?.value || "";
-  const filteredPlans = selectedStudentId
-    ? state.lessonPlans.filter((p) => p.studentId === parseInt(selectedStudentId))
-    : state.lessonPlans;
-
-  // Atualiza título
-  const titleEl = document.getElementById("planningListTitle");
-  const subtitleEl = document.getElementById("planningListSubtitle");
-  if (titleEl && subtitleEl) {
-    if (selectedStudentId) {
-      const student = state.students.find((s) => s.id === parseInt(selectedStudentId));
-      titleEl.textContent = student ? `Planejamentos - ${student.name}` : "Planejamentos";
-      subtitleEl.textContent = `${filteredPlans.length} planejamento(s) encontrado(s)`;
-    } else {
-      titleEl.textContent = "Todos os Planejamentos";
-      subtitleEl.textContent = `${filteredPlans.length} planejamento(s) no total`;
-    }
-  }
-
-  if (filteredPlans.length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 48px; color: var(--text-muted);">
-        <p style="font-size: 18px; margin-bottom: 8px;">Nenhum planejamento encontrado</p>
-        <p style="font-size: 14px;">Clique em "+ Novo Planejamento" para começar</p>
-      </div>
-    `;
-    return;
-  }
-
-  // Agrupa por data
-  const plansByDate = {};
-  filteredPlans.forEach((plan) => {
-    const dateKey = plan.date;
-    if (!plansByDate[dateKey]) {
-      plansByDate[dateKey] = [];
-    }
-    plansByDate[dateKey].push(plan);
-  });
-
-  // Ordena datas (mais recente primeiro) - compara strings diretamente
-  const sortedDates = Object.keys(plansByDate).sort((a, b) => b.localeCompare(a));
-
-  container.innerHTML = sortedDates
-    .map((dateKey) => {
-      const plans = plansByDate[dateKey];
-      // Formata data sem usar new Date para evitar problemas de timezone
-      // dateKey já está no formato YYYY-MM-DD
-      const [year, month, day] = dateKey.split('-').map(Number);
-      const dateObj = new Date(year, month - 1, day); // Cria Date local (sem timezone)
-      const dateFormatted = dateObj.toLocaleDateString("pt-BR", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-
-      return `
-        <div class="planning-date-group" style="margin-bottom: 32px;">
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--border);">
-            <h4 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">
-              ${dateFormatted.charAt(0).toUpperCase() + dateFormatted.slice(1)}
-            </h4>
-            <span style="color: var(--text-muted); font-size: 14px;">${plans.length} aula(s)</span>
-          </div>
-          ${plans
-            .map((plan) => {
-              const linksHtml = plan.linksList.length > 0
-                ? plan.linksList
-                    .filter((link) => link && link.trim()) // Remove links vazios
-                    .map((link) => {
-                      const { url: normalizedUrl, isValid } = normalizeUrl(link);
-                      const displayText = link.length > 60 ? link.substring(0, 60) + "..." : link;
-                      
-                      if (!isValid || !normalizedUrl) {
-                        // Se não for uma URL válida, mostra como texto simples
-                        return `
-                        <div style="margin-bottom: 8px; padding: 8px; background: #fff3cd; border-radius: 6px; border-left: 3px solid #ffc107;">
-                          <span style="color: #856404; font-size: 14px;">
-                            <span>⚠️</span>
-                            <span style="margin-left: 6px;">${displayText}</span>
-                            <span style="margin-left: 8px; font-size: 12px; font-style: italic;">(URL inválida)</span>
-                          </span>
-                        </div>
-                      `;
-                      }
-                      
-                      return `
-                      <div style="margin-bottom: 8px;">
-                        <a href="${normalizedUrl}" target="_blank" rel="noopener noreferrer" 
-                           style="color: var(--accent); text-decoration: none; word-break: break-all; display: inline-flex; align-items: center; gap: 6px;">
-                          <span>🔗</span>
-                          <span>${displayText}</span>
-                        </a>
-                      </div>
-                    `;
-                    })
-                    .join("")
-                : '<p style="color: var(--text-muted); font-size: 14px; font-style: italic;">Nenhum link adicionado</p>';
-
-              return `
-                <div class="planning-card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
-                    <div style="flex: 1;">
-                      <h5 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: var(--text-primary);">
-                        ${plan.studentName}
-                      </h5>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                      <button class="tag edit-plan-btn" data-plan-id="${plan.id}" style="background: var(--accent-light); color: var(--accent); padding: 6px 12px; font-size: 12px; border: none; border-radius: 6px; cursor: pointer;">
-                        Editar
-                      </button>
-                      <button class="tag delete-plan-btn" data-plan-id="${plan.id}" style="background: #fee; color: #c33; padding: 6px 12px; font-size: 12px; border: none; border-radius: 6px; cursor: pointer;">
-                        Excluir
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div style="margin-bottom: 16px;">
-                    <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
-                      Links e Materiais
-                    </p>
-                    <div style="background: #f9fbff; border-radius: 8px; padding: 12px;">
-                      ${linksHtml}
-                    </div>
-                  </div>
-                  
-                  ${plan.goals
-                    ? `
-                    <div>
-                      <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
-                        Objetivos (GOALS)
-                      </p>
-                      <p style="margin: 0; color: var(--text-primary); line-height: 1.6;">
-                        ${plan.goals}
-                      </p>
-                    </div>
-                  `
-                    : '<p style="color: var(--text-muted); font-size: 14px; font-style: italic;">Nenhum objetivo definido</p>'}
-                </div>
-              `;
-            })
-            .join("")}
-        </div>
-      `;
-    })
-    .join("");
-
-  // Anexa event listeners aos botões de editar e excluir
-  container.querySelectorAll(".edit-plan-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const planId = parseInt(btn.dataset.planId);
-      openPlanForm(planId);
-    });
-  });
-
-  container.querySelectorAll(".delete-plan-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const planId = parseInt(btn.dataset.planId);
-      deletePlan(planId);
-    });
-  });
-}
-
-let planningUIInitialized = false;
-
-function initPlanningUI() {
-  // Evita inicializar múltiplas vezes
-  if (planningUIInitialized) return;
-  planningUIInitialized = true;
-
-  // Popula filtro de alunos
-  const studentFilter = document.getElementById("planStudentFilter");
-  if (studentFilter) {
-    studentFilter.innerHTML = '<option value="">Todos os alunos</option>';
-    if (state.students && state.students.length > 0) {
-      state.students
-        .filter((s) => s.active !== false)
-        .forEach((student) => {
-          const option = document.createElement("option");
-          option.value = student.id;
-          option.textContent = student.name;
-          studentFilter.appendChild(option);
-        });
-    }
-
-    studentFilter.addEventListener("change", async (e) => {
-      const studentId = e.target.value;
-      if (studentId) {
-        await loadLessonPlans(studentId);
-      } else {
-        await loadLessonPlans();
-      }
-      renderPlanning();
-    });
-  }
-
-  // Popula select do formulário
-  const planStudentSelect = document.getElementById("planStudent");
-  if (planStudentSelect) {
-    planStudentSelect.innerHTML = '<option value="">Selecione um aluno</option>';
-    if (state.students && state.students.length > 0) {
-      state.students
-        .filter((s) => s.active !== false)
-        .forEach((student) => {
-          const option = document.createElement("option");
-          option.value = student.id;
-          option.textContent = student.name;
-          planStudentSelect.appendChild(option);
-        });
-    }
-  }
-
-  // Botão novo planejamento
-  const newPlanBtn = document.getElementById("newPlanBtn");
-  if (newPlanBtn) {
-    newPlanBtn.addEventListener("click", () => openPlanForm(null));
-  }
-
-  // Botão cancelar formulário
-  const cancelPlanBtn = document.getElementById("cancelPlanForm");
-  if (cancelPlanBtn) {
-    cancelPlanBtn.addEventListener("click", closePlanForm);
-  }
-
-  // Submit do formulário
-  const planForm = document.getElementById("planForm");
-  if (planForm) {
-    planForm.addEventListener("submit", onPlanFormSubmit);
-  }
-}
-
-function openPlanForm(planId = null) {
-  editingPlanId = planId;
-  const formCard = document.getElementById("planFormCard");
-  const titleEl = document.getElementById("planFormTitle");
-  const form = document.getElementById("planForm");
-
-  if (!formCard || !form || !titleEl) return;
-
-  if (planId) {
-    const plan = state.lessonPlans.find((p) => p.id === planId);
-    if (plan) {
-      titleEl.textContent = "Editar Planejamento";
-      form.planStudent.value = plan.studentId;
-      // Garante que a data está no formato YYYY-MM-DD (extrai apenas a data se vier como ISO string)
-      // Remove qualquer coisa após a data (timezone, hora, etc)
-      let dateValue = plan.date || '';
-      if (dateValue) {
-        dateValue = dateValue.split('T')[0].split(' ')[0]; // Pega apenas YYYY-MM-DD
-      }
-      form.planDate.value = dateValue;
-      form.planLinks.value = plan.links;
-      form.planGoals.value = plan.goals;
-    }
-  } else {
-    titleEl.textContent = "Novo Planejamento";
-    form.reset();
-  }
-
-  formCard.style.display = "flex";
-  window.scrollTo({ top: formCard.offsetTop - 80, behavior: "smooth" });
-}
-
-function closePlanForm() {
-  const formCard = document.getElementById("planFormCard");
-  if (formCard) {
-    formCard.style.display = "none";
-  }
-  editingPlanId = null;
-}
-
-async function onPlanFormSubmit(event) {
-  event.preventDefault();
-  const form = event.target;
-
-  // Garante que a data está no formato YYYY-MM-DD (sem timezone)
-  const dateValue = form.planDate.value;
-  if (dateValue) {
-    // Extrai apenas YYYY-MM-DD - remove qualquer coisa após (timezone, hora, etc)
-    const dateOnly = dateValue.split('T')[0].split(' ')[0];
-    
-    const payload = {
-      student: parseInt(form.planStudent.value),
-      date: dateOnly,
-      links: form.planLinks.value.trim(),
-      goals: form.planGoals.value.trim(),
-    };
-
-    if (!payload.student || !payload.date) {
-      alert("Preencha o aluno e a data da aula.");
-      return;
-    }
-
-    try {
-      if (editingPlanId) {
-        await fetchJSON(`/lesson-plans/${editingPlanId}/`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetchJSON("/lesson-plans/", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-      }
-
-      await loadLessonPlans();
-      renderPlanning();
-      closePlanForm();
-    } catch (error) {
-      console.error(error);
-      alert(error.message || "Não foi possível salvar o planejamento.");
-    }
-  } else {
-    alert("Preencha a data da aula.");
-  }
-}
-
-async function deletePlan(planId) {
-  const plan = state.lessonPlans.find((p) => p.id === planId);
-  if (!plan) return;
-
-  // Formata data sem usar new Date (evita problemas de timezone)
-  const dateFormatted = plan.date ? formatDateBR(plan.date) : plan.date;
-  const ok = confirm(
-    `Tem certeza que deseja excluir o planejamento de ${plan.studentName} para ${dateFormatted}?`
-  );
-  if (!ok) return;
-
-  try {
-    await fetchJSON(`/lesson-plans/${planId}/`, {
-      method: "DELETE",
-    });
-
-    await loadLessonPlans();
-    renderPlanning();
-  } catch (error) {
-    console.error(error);
-    alert("Não foi possível excluir o planejamento.");
-  }
-}
 
 function initStudentFilter() {
   const filterInput = document.getElementById("studentFilter");

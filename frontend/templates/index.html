@@ -49,13 +49,13 @@
               <p class="nav-subtitle">Cadastro e planos</p>
             </div>
           </button>
-          <button class="nav-item" data-view="view-planning">
+          <a href="/planejamento/" class="nav-item">
             <span class="nav-emoji">📚</span>
             <div>
               <p class="nav-title">Planejamento</p>
               <p class="nav-subtitle">Planejar aulas por aluno</p>
             </div>
-          </button>
+          </a>
           <button class="nav-item" data-view="view-tasks">
             <span class="nav-emoji">✅</span>
             <div>
@@ -142,12 +142,20 @@
             <div>
               <h1>Calendário do Professor</h1>
               <p class="muted">
-                Organize sua agenda do mês, confirme/cancele aulas e registre observações por dia.
+                Organize sua agenda, confirme/cancele aulas e registre observações por dia.
               </p>
             </div>
-            <div class="top-actions">
-              <button class="primary ghost" id="monthBack">Mês anterior</button>
-              <button class="primary" id="monthForward">Próximo mês</button>
+            <div class="top-actions calendar-toolbar">
+              <button type="button" class="primary ghost" id="calendarToday" title="Ir para hoje">Hoje</button>
+              <div class="calendar-nav">
+                <button type="button" class="icon-btn" id="calendarPrev" title="Anterior" aria-label="Anterior">‹</button>
+                <span class="calendar-nav-title" id="calendarNavTitle">Mês</span>
+                <button type="button" class="icon-btn" id="calendarNext" title="Próximo" aria-label="Próximo">›</button>
+              </div>
+              <div class="calendar-view-toggle">
+                <button type="button" class="toggle-btn active" id="viewMonthBtn" data-view="month">Mensal</button>
+                <button type="button" class="toggle-btn" id="viewWeekBtn" data-view="week">Semanal</button>
+              </div>
             </div>
           </header>
 
@@ -183,11 +191,11 @@
           </section>
 
           <section class="card calendar-card">
-            <div class="section-header">
+            <div class="section-header calendar-legend-row">
               <div>
                 <p class="eyebrow">Calendário</p>
                 <h2 id="monthTitle">Mês</h2>
-                <p class="muted">Clique em um dia para ver e editar os agendamentos.</p>
+                <p class="muted calendar-hint" id="calendarHint">Clique em um dia para ver e editar os agendamentos.</p>
               </div>
               <div class="legend">
                 <span class="badge confirmed">Confirmado</span>
@@ -196,18 +204,28 @@
               </div>
             </div>
 
-            <!-- NOVO: cabeçalho dos dias da semana -->
-            <div class="calendar-weekdays">
-              <span class="weekday-pill">DOM</span>
-              <span class="weekday-pill">SEG</span>
-              <span class="weekday-pill">TER</span>
-              <span class="weekday-pill">QUA</span>
-              <span class="weekday-pill">QUI</span>
-              <span class="weekday-pill">SEX</span>
-              <span class="weekday-pill">SÁB</span>
+            <!-- Visualização mensal -->
+            <div id="calendarMonthWrap" class="calendar-month-wrap">
+              <div class="calendar-weekdays">
+                <span class="weekday-pill">DOM</span>
+                <span class="weekday-pill">SEG</span>
+                <span class="weekday-pill">TER</span>
+                <span class="weekday-pill">QUA</span>
+                <span class="weekday-pill">QUI</span>
+                <span class="weekday-pill">SEX</span>
+                <span class="weekday-pill">SÁB</span>
+              </div>
+              <div class="calendar-grid" id="calendarGrid"></div>
             </div>
 
-            <div class="calendar-grid" id="calendarGrid"></div>
+            <!-- Visualização semanal (estilo Google Calendar) -->
+            <div id="calendarWeekWrap" class="calendar-week-wrap" style="display: none;">
+              <div class="calendar-week-header" id="calendarWeekHeader"></div>
+              <div class="calendar-week-body">
+                <div class="calendar-week-times" id="calendarWeekTimes"></div>
+                <div class="calendar-week-grid" id="calendarWeekGrid"></div>
+              </div>
+            </div>
           </section>
 
 
@@ -1302,91 +1320,6 @@
     <div class="finance-table" id="financialEntriesList"></div>
   </section>
 </section>
-
-        <section class="view" id="view-planning">
-          <header class="topbar">
-            <div>
-              <h1>Planejar Aulas por Aluno</h1>
-              <p class="muted">Organize os materiais e objetivos de cada aula para seus alunos.</p>
-            </div>
-            <button class="primary" id="newPlanBtn">+ Novo Planejamento</button>
-          </header>
-
-          <!-- Filtro por Aluno -->
-          <section class="card detail-card">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Filtros</p>
-                <h3>Selecione o Aluno</h3>
-              </div>
-            </div>
-            <div class="form-row">
-              <label for="planStudentFilter">Aluno</label>
-              <select id="planStudentFilter" style="width: 100%; max-width: 400px;">
-                <option value="">Todos os alunos</option>
-              </select>
-            </div>
-          </section>
-
-          <!-- Lista de Planejamentos -->
-          <section class="card detail-card">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Planejamentos</p>
-                <h3 id="planningListTitle">Todos os Planejamentos</h3>
-                <p class="muted" id="planningListSubtitle">Visualize e gerencie os planejamentos de aulas.</p>
-              </div>
-            </div>
-            <div id="planningList" class="planning-list"></div>
-          </section>
-
-          <!-- Formulário de Planejamento (oculto por padrão) -->
-          <section class="card detail-card" id="planFormCard" style="display: none;">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Planejamento</p>
-                <h3 id="planFormTitle">Novo Planejamento</h3>
-                <p class="muted">Preencha os dados do planejamento da aula.</p>
-              </div>
-            </div>
-            <form id="planForm" class="form">
-              <div class="form-row">
-                <label for="planStudent">Aluno *</label>
-                <select id="planStudent" name="planStudent" required>
-                  <option value="">Selecione um aluno</option>
-                </select>
-              </div>
-              <div class="form-row">
-                <label for="planDate">Data da Aula *</label>
-                <input type="date" id="planDate" name="planDate" required />
-              </div>
-              <div class="form-row">
-                <label for="planLinks">Links (Google Slides, YouTube, etc.)</label>
-                <textarea 
-                  id="planLinks" 
-                  name="planLinks" 
-                  rows="6" 
-                  placeholder="Cole um link por linha&#10;Exemplo:&#10;https://docs.google.com/presentation/d/...&#10;https://www.youtube.com/watch?v=..."
-                ></textarea>
-                <small class="muted">Cole um link por linha. Links para apresentações, vídeos, documentos, etc.</small>
-              </div>
-              <div class="form-row">
-                <label for="planGoals">Objetivos / Metas (GOALS)</label>
-                <textarea 
-                  id="planGoals" 
-                  name="planGoals" 
-                  rows="4" 
-                  placeholder="Exemplo: Advice - SHOULD, Present Perfect, etc."
-                ></textarea>
-                <small class="muted">Descreva os objetivos e metas desta aula.</small>
-              </div>
-              <div class="form-row" style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button type="submit" class="primary">Salvar Planejamento</button>
-                <button type="button" class="primary ghost" id="cancelPlanForm">Cancelar</button>
-              </div>
-            </form>
-          </section>
-        </section>
 
         <section class="view" id="view-users">
           <header class="topbar">

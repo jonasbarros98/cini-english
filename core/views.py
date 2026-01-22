@@ -94,19 +94,26 @@ class LessonViewSet(viewsets.ModelViewSet):
         # Filtros opcionais via query string:
         # /api/lessons/?date=2026-01-19
         # /api/lessons/?month=2026-01
+        # /api/lessons/?start=2026-01-01&end=2026-01-07  (intervalo, ex.: semana)
         date_str = self.request.query_params.get("date")
         month_str = self.request.query_params.get("month")
+        start_str = self.request.query_params.get("start")
+        end_str = self.request.query_params.get("end")
 
-        if date_str:
-            # espera formato YYYY-MM-DD
+        if start_str and end_str:
+            try:
+                start_dt = datetime.strptime(start_str, "%Y-%m-%d").date()
+                end_dt = datetime.strptime(end_str, "%Y-%m-%d").date()
+                qs = qs.filter(date__gte=start_dt, date__lte=end_dt)
+            except ValueError:
+                pass
+        elif date_str:
             try:
                 date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
                 qs = qs.filter(date=date_obj)
             except ValueError:
                 pass
-
-        if month_str:
-            # espera formato YYYY-MM
+        elif month_str:
             try:
                 dt = datetime.strptime(month_str, "%Y-%m")
                 qs = qs.filter(date__year=dt.year, date__month=dt.month)
@@ -202,6 +209,34 @@ class TutorialView(TemplateView):
             from django.shortcuts import redirect
             return redirect("login")
         return super().dispatch(request, *args, **kwargs)
+
+
+class PlanningListView(TemplateView):
+    template_name = "planning_list.html"
+    login_required = True
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect("login")
+        return super().dispatch(request, *args, **kwargs)
+
+
+def planning_edit_redirect(request):
+    from django.shortcuts import redirect
+    from urllib.parse import urlencode
+    if not request.user.is_authenticated:
+        return redirect("login")
+    plan_id = request.GET.get("id", "").strip()
+    qs = urlencode({"view": "view-planning", "id": plan_id} if plan_id else {"view": "view-planning"})
+    return redirect("/?" + qs)
+
+
+def planning_new_redirect(request):
+    from django.shortcuts import redirect
+    if not request.user.is_authenticated:
+        return redirect("login")
+    return redirect("/?view=view-planning")
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
@@ -556,6 +591,227 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Preenche automaticamente o usuário logado ao criar um lesson plan
         serializer.save(user=self.request.user)
+
+
+def _planning_user_ids(request):
+    """IDs de usuários cujos planejamentos o request.user pode ver (igual LessonPlanViewSet)."""
+    try:
+        is_admin = request.user.profile.is_admin
+    except UserProfile.DoesNotExist:
+        is_admin = False
+    if is_admin:
+        return None  # vê todos
+    try:
+        profile = request.user.profile.user_profile
+        if profile == UserProfile.PROFILE_TEACHER:
+            partner_ids = list(request.user.profile.partner_teachers.values_list("user_id", flat=True))
+            partner_ids.append(request.user.id)
+            return partner_ids
+        return [request.user.id]
+    except UserProfile.DoesNotExist:
+        return [request.user.id]
+
+
+def _planning_date_range(period, start_date_str, end_date_str, tz_date):
+    """Retorna (start_date, end_date) para o período. tz_date = date em timezone do usuário."""
+    today = tz_date
+
+    if period == "today":
+        return today, today
+
+    if period == "next7":
+        end = today + timedelta(days=6)
+        return today, end
+
+    if period == "week":
+        # semana atual: domingo a sábado
+        wd = today.weekday()
+        sunday = today - timedelta(days=(wd + 1) % 7)
+        if wd == 6:
+            sunday = today
+        saturday = sunday + timedelta(days=6)
+        return sunday, saturday
+
+    if period == "nextweek":
+        wd = today.weekday()
+        sunday = today - timedelta(days=(wd + 1) % 7)
+        if wd == 6:
+            next_sun = today + timedelta(days=7)
+        else:
+            next_sun = sunday + timedelta(days=7)
+        return next_sun, next_sun + timedelta(days=6)
+
+    if period == "month":
+        start = today.replace(day=1)
+        if today.month == 12:
+            end = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            end = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+        return start, end
+
+    if period == "custom" and start_date_str and end_date_str:
+        try:
+            start = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            end = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            if start <= end:
+                return start, end
+        except ValueError:
+            pass
+    return today, today + timedelta(days=6)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def planning_list_api(request):
+    """
+    GET /api/planning/list/
+    Params: period (today|next7|week|nextweek|month|custom),
+            start_date, end_date (quando custom),
+            student_id, status (all|incomplete|no_goals|no_materials|ok), q (busca).
+    Retorna JSON: period_label, total, days[], students[].
+    """
+    from collections import defaultdict
+    now = timezone.now()
+    try:
+        tz = timezone.get_current_timezone()
+    except Exception:
+        tz = timezone.get_default_timezone()
+    tz_date = now.astimezone(tz).date()
+
+    period = (request.GET.get("period") or "next7").strip().lower()
+    start_date_str = request.GET.get("start_date", "").strip()
+    end_date_str = request.GET.get("end_date", "").strip()
+    student_id = request.GET.get("student_id", "").strip()
+    status_filter = (request.GET.get("status") or "all").strip().lower()
+    q_search = (request.GET.get("q") or "").strip()
+
+    start_date, end_date = _planning_date_range(period, start_date_str, end_date_str, tz_date)
+
+    period_labels = {
+        "today": "Hoje",
+        "next7": "Próximos 7 dias",
+        "week": "Esta semana",
+        "nextweek": "Próxima semana",
+        "month": "Este mês",
+        "custom": "Custom",
+    }
+    period_label = period_labels.get(period, "Próximos 7 dias")
+
+    qs = LessonPlan.objects.select_related("student", "user").order_by("date", "student__name")
+    user_ids = _planning_user_ids(request)
+    if user_ids is not None:
+        qs = qs.filter(user_id__in=user_ids)
+    qs = qs.filter(date__gte=start_date, date__lte=end_date)
+
+    if student_id and student_id != "all":
+        try:
+            qs = qs.filter(student_id=int(student_id))
+        except ValueError:
+            pass
+
+    if q_search:
+        qs = qs.filter(
+            Q(student__name__icontains=q_search) | Q(goals__icontains=q_search)
+        )
+
+    if status_filter and status_filter != "all":
+        if status_filter == "no_goals":
+            qs = qs.filter(Q(goals__isnull=True) | Q(goals=""))
+        elif status_filter == "no_materials":
+            qs = qs.filter(Q(links__isnull=True) | Q(links=""))
+        elif status_filter == "incomplete":
+            qs = qs.filter(
+                Q(Q(goals__isnull=True) | Q(goals="")) |
+                Q(Q(links__isnull=True) | Q(links=""))
+            )
+        elif status_filter == "ok":
+            qs = qs.exclude(Q(goals__isnull=True) | Q(goals=""))
+            qs = qs.exclude(Q(links__isnull=True) | Q(links=""))
+
+    plans = list(qs)
+
+    students_qs = Student.objects.order_by("name")
+    if user_ids is not None:
+        students_qs = students_qs.filter(user_id__in=user_ids)
+    students = [{"id": s.id, "name": s.name} for s in students_qs]
+
+    def goals_preview(txt, max_len=80):
+        if not txt or not txt.strip():
+            return ""
+        t = txt.strip().replace("\n", " ")[:max_len]
+        return t + "…" if len(txt.strip()) > max_len else t
+
+    def links_to_materials(links_str):
+        out = []
+        if not links_str or not links_str.strip():
+            return out
+        for raw in links_str.strip().split("\n"):
+            url = raw.strip()
+            if not url:
+                continue
+            title = "Link"
+            if "docs.google.com" in url or "slides" in url.lower():
+                title = "Google Slides"
+            elif "docs.google.com" in url or "document" in url.lower():
+                title = "Google Doc"
+            elif "youtube.com" in url or "youtu.be" in url:
+                title = "YouTube"
+            out.append({"title": title, "url": url})
+        return out
+
+    by_date = defaultdict(list)
+    for p in plans:
+        has_goals = bool(p.goals and p.goals.strip())
+        has_materials = bool(p.links and p.links.strip())
+        materials = links_to_materials(p.links or "")
+        by_date[p.date].append({
+            "id": p.id,
+            "student": {"id": p.student_id, "name": p.student.name},
+            "date": p.date.strftime("%Y-%m-%d"),
+            "time": None,
+            "duration_min": None,
+            "goals": goals_preview(p.goals or ""),
+            "goals_raw": (p.goals or "").strip(),
+            "materials": materials,
+            "status": {"has_goals": has_goals, "has_materials": has_materials},
+        })
+
+    _WEEKDAYS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+    _MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+    def _date_label(dt):
+        wd = _WEEKDAYS[dt.weekday()]
+        m = _MONTHS[dt.month - 1]
+        return f"{wd}, {dt.day} de {m} de {dt.year}"
+
+    today_plus_6 = tz_date + timedelta(days=6)
+    days = []
+    d = start_date
+    while d <= end_date:
+        items = by_date.get(d, [])
+        if not items:
+            d += timedelta(days=1)
+            continue
+        weekday_label = _WEEKDAYS[d.weekday()]
+        label = _date_label(d)
+        is_open = (d >= tz_date) and (d <= today_plus_6)
+        days.append({
+            "date": d.strftime("%Y-%m-%d"),
+            "weekday_label": weekday_label,
+            "label": label,
+            "count": len(items),
+            "is_open": is_open,
+            "items": items,
+        })
+        d += timedelta(days=1)
+
+    total = sum(g["count"] for g in days)
+    return Response({
+        "period_label": period_label,
+        "total": total,
+        "days": days,
+        "students": students,
+    })
 
 
 class BillingLogViewSet(viewsets.ModelViewSet):
