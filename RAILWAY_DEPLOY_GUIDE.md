@@ -8,11 +8,11 @@ Este guia mostra **exatamente** como configurar todas as variáveis de ambiente 
 
 Você já coletou todos os dados necessários:
 
-- ✅ **STRIPE_SECRET_KEY**: `sk_live_51Psmwh07a2dTSXAi...` (Produção)
-- ✅ **STRIPE_PRICE_ID_MONTHLY**: `price_1SsS5y07a2dTSXAiwRUOeJKg`
-- ✅ **STRIPE_PRICE_ID_SEMESTRAL**: `price_1SsS6307a2dTSXAi18ymSjQf`
-- ✅ **STRIPE_PRICE_ID_ANNUAL**: `price_1SsS6707a2dTSXAixIzBjfXF`
-- ✅ **STRIPE_WEBHOOK_SECRET**: `whsec_6EDpTlc21QpBRg397D96g0Rfkv4pbiYk`
+- ✅ **STRIPE_SECRET_KEY**: `sk_live_...` (sua chave de produção)
+- ✅ **STRIPE_PRICE_ID_MONTHLY**: `price_XXXXX` (seu Price ID mensal)
+- ✅ **STRIPE_PRICE_ID_SEMESTRAL**: `price_XXXXX` (seu Price ID semestral)
+- ✅ **STRIPE_PRICE_ID_ANNUAL**: `price_XXXXX` (seu Price ID anual)
+- ✅ **STRIPE_WEBHOOK_SECRET**: `whsec_XXXXX` (seu Webhook Secret)
 
 **Nota sobre o link de billing**: O link `https://billing.stripe.com/p/login/...` é apenas para você acessar o painel de billing do Stripe. O sistema cria o portal dinamicamente via API, então não precisa ser configurado.
 
@@ -38,27 +38,27 @@ Adicione as seguintes variáveis **uma por uma**:
 
 #### Variável 1: STRIPE_SECRET_KEY
 - **Name**: `STRIPE_SECRET_KEY`
-- **Value**: `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`
+- **Value**: `sk_live_SUA_CHAVE_AQUI` (substitua pela sua chave de produção)
 - Clique em **"Add"**
 
 #### Variável 2: STRIPE_PRICE_ID_MONTHLY
 - **Name**: `STRIPE_PRICE_ID_MONTHLY`
-- **Value**: `price_1SsS5y07a2dTSXAiwRUOeJKg`
+- **Value**: `price_XXXXX` (substitua pelo seu Price ID mensal de produção)
 - Clique em **"Add"**
 
 #### Variável 3: STRIPE_PRICE_ID_SEMESTRAL
 - **Name**: `STRIPE_PRICE_ID_SEMESTRAL`
-- **Value**: `price_1SsS6307a2dTSXAi18ymSjQf`
+- **Value**: `price_XXXXX` (substitua pelo seu Price ID semestral de produção)
 - Clique em **"Add"**
 
 #### Variável 4: STRIPE_PRICE_ID_ANNUAL
 - **Name**: `STRIPE_PRICE_ID_ANNUAL`
-- **Value**: `price_1SsS6707a2dTSXAixIzBjfXF`
+- **Value**: `price_XXXXX` (substitua pelo seu Price ID anual de produção)
 - Clique em **"Add"**
 
 #### Variável 5: STRIPE_WEBHOOK_SECRET
 - **Name**: `STRIPE_WEBHOOK_SECRET`
-- **Value**: `whsec_6EDpTlc21QpBRg397D96g0Rfkv4pbiYk`
+- **Value**: `whsec_XXXXX` (substitua pelo seu Webhook Secret de produção)
 - Clique em **"Add"**
 
 ### 1.4 Verificar Variáveis
@@ -226,11 +226,11 @@ Antes de considerar o deploy completo, verifique:
 ## 📝 Resumo das Variáveis no Railway
 
 ```bash
-STRIPE_SECRET_KEY=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
-STRIPE_PRICE_ID_MONTHLY=price_1SsS5y07a2dTSXAiwRUOeJKg
-STRIPE_PRICE_ID_SEMESTRAL=price_1SsS6307a2dTSXAi18ymSjQf
-STRIPE_PRICE_ID_ANNUAL=price_1SsS6707a2dTSXAixIzBjfXF
-STRIPE_WEBHOOK_SECRET=whsec_6EDpTlc21QpBRg397D96g0Rfkv4pbiYk
+STRIPE_SECRET_KEY=sk_live_SUA_CHAVE_AQUI
+STRIPE_PRICE_ID_MONTHLY=price_XXXXX
+STRIPE_PRICE_ID_SEMESTRAL=price_XXXXX
+STRIPE_PRICE_ID_ANNUAL=price_XXXXX
+STRIPE_WEBHOOK_SECRET=whsec_XXXXX
 ```
 
 ---

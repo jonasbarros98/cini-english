@@ -8,11 +8,11 @@ Use este checklist para garantir que **TUDO** está pronto antes do deploy.
 
 Verifique se estas **5 variáveis Stripe** estão configuradas:
 
-- [ ] `STRIPE_SECRET_KEY` = `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`
-- [ ] `STRIPE_PRICE_ID_MONTHLY` = `price_1SsS5y07a2dTSXAiwRUOeJKg`
-- [ ] `STRIPE_PRICE_ID_SEMESTRAL` = `price_1SsS6307a2dTSXAi18ymSjQf`
-- [ ] `STRIPE_PRICE_ID_ANNUAL` = `price_1SsS6707a2dTSXAixIzBjfXF`
-- [ ] `STRIPE_WEBHOOK_SECRET` = `whsec_6EDpTlc21QpBRg397D96g0Rfkv4pbiYk`
+- [ ] `STRIPE_SECRET_KEY` = `sk_live_...` (sua chave de produção)
+- [ ] `STRIPE_PRICE_ID_MONTHLY` = `price_XXXXX` (seu Price ID mensal de produção)
+- [ ] `STRIPE_PRICE_ID_SEMESTRAL` = `price_XXXXX` (seu Price ID semestral de produção)
+- [ ] `STRIPE_PRICE_ID_ANNUAL` = `price_XXXXX` (seu Price ID anual de produção)
+- [ ] `STRIPE_WEBHOOK_SECRET` = `whsec_XXXXX` (seu Webhook Secret de produção)
 
 ### ⚠️ Outras Variáveis Importantes (Verificar se já existem)
 
