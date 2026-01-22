@@ -1,0 +1,482 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EDUflow | Cadastro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{% static 'styles.css' %}" />
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      
+      .signup-container {
+        background: white;
+        border-radius: 24px;
+        padding: 24px 28px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 480px;
+        max-height: 95vh;
+        overflow-y: auto;
+      }
+      
+      .signup-header {
+        text-align: center;
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .signup-icon {
+        width: auto;
+        max-width: 240px;
+        height: auto;
+        max-height: 140px;
+        margin: 0 auto 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .signup-icon img {
+        width: 100%;
+        height: auto;
+        max-height: 140px;
+        object-fit: contain;
+      }
+      
+      .signup-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin: 0 0 4px 0;
+      }
+      
+      .signup-subtitle {
+        font-size: 13px;
+        color: #666;
+        margin: 0;
+      }
+      
+      .plan-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-top: 6px;
+        text-transform: uppercase;
+      }
+      
+      .signup-form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      
+      .form-group label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #333;
+      }
+      
+      .form-group input {
+        padding: 9px 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: all 0.2s;
+      }
+      
+      .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+      
+      .form-group small {
+        display: block;
+        margin-top: 3px;
+        font-size: 12px;
+      }
+      
+      .form-group input:valid:not(:placeholder-shown) {
+        border-color: #10b981;
+      }
+      
+      .signup-button {
+        padding: 11px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 2px;
+      }
+      
+      .signup-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      }
+      
+      .signup-button:active {
+        transform: translateY(0);
+      }
+      
+      .signup-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 16px;
+        display: none;
+      }
+      
+      .error-message.show {
+        display: block;
+      }
+      
+      .login-link {
+        text-align: center;
+        margin-top: 24px;
+        font-size: 14px;
+        color: #666;
+      }
+      
+      .login-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      
+      .login-link a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="signup-container">
+      <div class="signup-header">
+        <div class="signup-icon"><img src="{% static 'img/eduflow-8.png' %}" alt="EDUflow Logo"></div>
+        <h1 class="signup-title">Criar Conta</h1>
+        <p class="signup-subtitle">Comece sua jornada no EDUflow</p>
+        <div id="planBadge" class="plan-badge" style="display: none;"></div>
+      </div>
+      
+      <div id="errorMessage" class="error-message"></div>
+      
+      <form id="signupForm" class="signup-form">
+        <div class="form-group">
+          <label for="username">Usuário *</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            required
+            autocomplete="username"
+            placeholder="Escolha um nome de usuário"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label for="email">E-mail *</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            autocomplete="email"
+            placeholder="seu@email.com"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Senha *</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            autocomplete="new-password"
+            placeholder="Mínimo 8 caracteres"
+            minlength="8"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label for="passwordConfirm">Confirmar Senha *</label>
+          <input
+            type="password"
+            id="passwordConfirm"
+            name="passwordConfirm"
+            required
+            autocomplete="new-password"
+            placeholder="Digite a senha novamente"
+            minlength="8"
+          />
+          <small id="passwordMatchError" style="color: #dc2626; display: none; font-size: 13px; margin-top: 4px;">
+            As senhas não coincidem
+          </small>
+        </div>
+        
+        <div class="form-group">
+          <label for="firstName">Nome</label>
+          <input
+            type="text"
+            id="firstName"
+            name="firstName"
+            autocomplete="given-name"
+            placeholder="Seu primeiro nome"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label for="lastName">Sobrenome</label>
+          <input
+            type="text"
+            id="lastName"
+            name="lastName"
+            autocomplete="family-name"
+            placeholder="Seu sobrenome"
+          />
+        </div>
+        
+        <button type="submit" class="signup-button" id="signupButton">
+          Criar Conta e Continuar
+        </button>
+      </form>
+      
+      <div class="login-link">
+        Já tem uma conta? <a href="/login/">Faça login</a>
+      </div>
+    </div>
+
+    <script>
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+
+      // Função para obter o CSRF token do Django
+      async function getCSRFToken() {
+        // Primeiro tenta obter do cookie
+        let token = getCookie("csrftoken");
+        
+        // Se não tiver, tenta obter novamente após um pequeno delay
+        // (o cookie pode ter sido definido após o login)
+        if (!token) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          token = getCookie("csrftoken");
+        }
+        
+        return token;
+      }
+
+      // Obter plano da querystring
+      const urlParams = new URLSearchParams(window.location.search);
+      const plan = urlParams.get('plan');
+      
+      const planNames = {
+        'monthly': 'Plano Mensal',
+        'semestral': 'Plano Semestral',
+        'annual': 'Plano Anual'
+      };
+      
+      if (plan && planNames[plan]) {
+        const planBadge = document.getElementById('planBadge');
+        planBadge.textContent = planNames[plan];
+        planBadge.style.display = 'inline-block';
+      }
+
+      const form = document.getElementById("signupForm");
+      const errorMessage = document.getElementById("errorMessage");
+      const signupButton = document.getElementById("signupButton");
+
+      // Validação em tempo real da confirmação de senha
+      const passwordInput = document.getElementById("password");
+      const passwordConfirmInput = document.getElementById("passwordConfirm");
+      const passwordMatchError = document.getElementById("passwordMatchError");
+      
+      function validatePasswordMatch() {
+        const password = passwordInput.value;
+        const passwordConfirm = passwordConfirmInput.value;
+        
+        if (passwordConfirm && password !== passwordConfirm) {
+          passwordMatchError.style.display = "block";
+          passwordConfirmInput.style.borderColor = "#dc2626";
+          return false;
+        } else {
+          passwordMatchError.style.display = "none";
+          passwordConfirmInput.style.borderColor = passwordConfirm ? "#10b981" : "#e0e0e0";
+          return true;
+        }
+      }
+      
+      passwordInput.addEventListener("input", validatePasswordMatch);
+      passwordConfirmInput.addEventListener("input", validatePasswordMatch);
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const username = document.getElementById("username").value;
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        const passwordConfirm = document.getElementById("passwordConfirm").value;
+        const firstName = document.getElementById("firstName").value;
+        const lastName = document.getElementById("lastName").value;
+        
+        // Validar se as senhas coincidem
+        if (password !== passwordConfirm) {
+          errorMessage.classList.add("show");
+          errorMessage.textContent = "As senhas não coincidem. Por favor, verifique e tente novamente.";
+          passwordMatchError.style.display = "block";
+          passwordConfirmInput.style.borderColor = "#dc2626";
+          return;
+        }
+        
+        errorMessage.classList.remove("show");
+        errorMessage.textContent = "";
+        passwordMatchError.style.display = "none";
+        signupButton.disabled = true;
+        signupButton.textContent = "Criando conta...";
+
+        try {
+          const csrf = getCookie("csrftoken");
+          
+          // Primeiro, criar o usuário
+          const signupResponse = await fetch("/api/auth/signup/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf || "",
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+              username,
+              email,
+              password,
+              password_confirm: passwordConfirm,
+              first_name: firstName,
+              last_name: lastName,
+            }),
+          });
+
+          const signupData = await signupResponse.json();
+
+          if (!signupResponse.ok) {
+            throw new Error(signupData.error || signupData.username?.[0] || signupData.email?.[0] || "Erro ao criar conta");
+          }
+
+          // Fazer login automaticamente
+          const loginResponse = await fetch("/api/auth/login/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf || "",
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ username, password }),
+          });
+
+          const loginData = await loginResponse.json();
+
+          if (!loginResponse.ok || !loginData.success) {
+            throw new Error("Conta criada, mas erro ao fazer login. Tente fazer login manualmente.");
+          }
+
+          // Aguardar um pouco para garantir que a sessão foi estabelecida
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          // Se há um plano selecionado, criar checkout session
+          if (plan && ['monthly', 'semestral', 'annual'].includes(plan)) {
+            signupButton.textContent = "Redirecionando para pagamento...";
+            
+            console.log("Criando checkout session para plano:", plan);
+            
+            // Obter novo CSRF token após login (pode ter mudado)
+            const newCsrf = await getCSRFToken();
+            console.log("CSRF token obtido:", newCsrf ? "Sim" : "Não");
+            
+            if (!newCsrf) {
+              throw new Error("Erro ao obter token de segurança. Recarregue a página e tente novamente.");
+            }
+            
+            const checkoutResponse = await fetch("/api/subscription/create-checkout/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": newCsrf,
+              },
+              credentials: "same-origin",
+              body: JSON.stringify({ plan }),
+            });
+
+            console.log("Resposta do checkout:", checkoutResponse.status, checkoutResponse.statusText);
+            const checkoutData = await checkoutResponse.json();
+            console.log("Dados do checkout:", checkoutData);
+
+            if (checkoutResponse.ok && checkoutData.checkout_url) {
+              // Redireciona para o Stripe Checkout
+              console.log("Redirecionando para Stripe Checkout:", checkoutData.checkout_url);
+              window.location.href = checkoutData.checkout_url;
+              return; // Importante: não continua o código após redirecionar
+            } else {
+              // Se falhar o checkout, mostra erro ao usuário
+              const errorMsg = checkoutData.error || "Erro ao criar sessão de pagamento. Tente novamente.";
+              console.error("Erro ao criar checkout:", checkoutData);
+              throw new Error(errorMsg);
+            }
+          } else {
+            // Sem plano, redireciona para dashboard
+            console.log("Nenhum plano selecionado, redirecionando para dashboard");
+            window.location.replace("/");
+          }
+        } catch (error) {
+          errorMessage.textContent = error.message || "Erro ao criar conta. Tente novamente.";
+          errorMessage.classList.add("show");
+          signupButton.disabled = false;
+          signupButton.textContent = "Criar Conta e Continuar";
+        }
+      });
+
+      // Foca no campo de usuário ao carregar
+      document.getElementById("username").focus();
+    </script>
+  </body>
+</html>

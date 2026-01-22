@@ -5,7 +5,7 @@
     {% load static %}
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cini English | Dashboard</title>
+    <title>EDUflow | Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -21,14 +21,21 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-icon">🌱</div>
+          <div class="brand-icon"><img src="{% static 'img/eduflow-8.png' %}" alt="EDUflow Logo"></div>
           <div>
             <p class="brand-kicker">Dashboard</p>
-            <p class="brand-name">Cini English</p>
+            <p class="brand-name">EDUflow</p>
           </div>
         </div>
         <nav class="nav">
-          <button class="nav-item active" data-view="view-calendar">
+          <a href="/dashboard/" class="nav-item active">
+            <span class="nav-emoji">🏠</span>
+            <div>
+              <p class="nav-title">Dashboard</p>
+              <p class="nav-subtitle">Visão geral</p>
+            </div>
+          </a>
+          <button class="nav-item" data-view="view-calendar">
             <span class="nav-emoji">📅</span>
             <div>
               <p class="nav-title">Calendário</p>
@@ -36,17 +43,17 @@
             </div>
           </button>
           <button class="nav-item" data-view="view-students">
-            <span class="nav-emoji">🧑‍🎓</span>
+            <span class="nav-emoji">👩‍🎓</span>
             <div>
               <p class="nav-title">Alunos</p>
               <p class="nav-subtitle">Cadastro e planos</p>
             </div>
           </button>
-          <button class="nav-item" data-view="view-billing">
-            <span class="nav-emoji">💬</span>
+          <button class="nav-item" data-view="view-planning">
+            <span class="nav-emoji">📚</span>
             <div>
-              <p class="nav-title">Cobrança</p>
-              <p class="nav-subtitle">WhatsApp + Pix</p>
+              <p class="nav-title">Planejamento</p>
+              <p class="nav-subtitle">Planejar aulas por aluno</p>
             </div>
           </button>
           <button class="nav-item" data-view="view-tasks">
@@ -57,26 +64,54 @@
             </div>
           </button>
           <button class="nav-item" data-view="view-finance">
-            <span class="nav-emoji">💰</span>
+            <span class="nav-emoji">💵</span>
             <div>
               <p class="nav-title">Financeiro</p>
               <p class="nav-subtitle">Recebimentos do mês</p>
             </div>
           </button>
-          <button class="nav-item" data-view="view-planning">
-            <span class="nav-emoji">📚</span>
+          
+          <div class="nav-divider"></div>
+          
+          <button class="nav-item" data-view="view-billing">
+            <span class="nav-emoji">💬</span>
             <div>
-              <p class="nav-title">Planejamento</p>
-              <p class="nav-subtitle">Planejar aulas por aluno</p>
+              <p class="nav-title">Cobrança</p>
+              <p class="nav-subtitle">WhatsApp + Pix</p>
             </div>
           </button>
-          <button class="nav-item" data-view="view-users" id="navUsers" style="display: none;">
-            <span class="nav-emoji">👥</span>
-            <div>
-              <p class="nav-title">Usuários</p>
-              <p class="nav-subtitle">Gerenciar usuários</p>
+          
+          <div class="nav-divider"></div>
+          
+          <div class="nav-group">
+            <div class="nav-group-header">
+              <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+              <span class="nav-group-title">Conta</span>
             </div>
-          </button>
+            <button class="nav-item nav-item-nested" data-view="view-users" id="navUsers" style="display: none;">
+              <span class="nav-emoji">👥</span>
+              <div>
+                <p class="nav-title">Usuários</p>
+                <p class="nav-subtitle">Gerenciar usuários</p>
+              </div>
+            </button>
+            <a href="/perfil/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">👤</span>
+              <div>
+                <p class="nav-title">Perfil</p>
+                <p class="nav-subtitle">Dados da conta</p>
+              </div>
+            </a>
+            <a href="/planos/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">💳</span>
+              <div>
+                <p class="nav-title">Plano e Faturamento</p>
+                <p class="nav-subtitle">Gerenciar assinatura</p>
+              </div>
+            </a>
+          </div>
+          
+          <div class="nav-divider"></div>
 
         </nav>
         <div class="sidebar-card">
@@ -86,8 +121,8 @@
             <li><strong id="sidebarPending">0</strong> pendências</li>
             <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
           </ul>
-          <button class="primary ghost" id="createLessonBtn">+ Novo agendamento</button>
-          <button class="primary ghost" id="logoutBtn" style="margin-top: 12px; width: 100%;">Sair</button>
+          <button class="primary ghost" id="createLessonBtn" style="font-size: 13px; padding: 8px 12px;">+ Novo agendamento</button>
+          <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
         </div>
       </aside>
 
@@ -95,8 +130,7 @@
         <section class="view active" id="view-calendar">
           <header class="topbar">
             <div>
-              <p class="eyebrow">Calendário</p>
-              <h1>Central da professora</h1>
+              <h1>Calendário do Professor</h1>
               <p class="muted">
                 Organize sua agenda do mês, confirme/cancele aulas e registre observações por dia.
               </p>
@@ -232,8 +266,7 @@
         <section class="view" id="view-students">
           <header class="topbar">
             <div>
-              <p class="eyebrow">Alunos</p>
-              <h1>Planos e progresso</h1>
+              <h1>Cadastro de Alunos</h1>
               <p class="muted">Visualize contatos, responsáveis, planos e aulas restantes.</p>
             </div>
             <button class="primary" id="addStudent">+ Novo aluno</button>
@@ -313,20 +346,11 @@
             margin-bottom: 18px;
           }
 
-          #view-billing .eyebrow{
-            letter-spacing: .12em;
-            text-transform: uppercase;
-            font-weight: 700;
-            font-size: 12px;
-            color: var(--muted);
-            margin: 0 0 6px;
-          }
-
           #view-billing h1{
             margin: 0;
-            font-size: 34px;
-            line-height: 1.12;
-            font-weight: 800;
+            font-size: 24px;
+            line-height: 1.2;
+            font-weight: 700;
             color: var(--text);
             letter-spacing: -0.02em;
           }
@@ -796,7 +820,6 @@
           <!-- Cabeçalho contextual -->
           <header class="topbar">
             <div>
-              <p class="eyebrow">Cobrança</p>
               <h1 id="billingStudentName">Selecione um lançamento</h1>
               <p class="muted" id="billingContextInfo">Escolha um lançamento financeiro para cobrar</p>
             </div>
@@ -997,7 +1020,6 @@
         <section class="view" id="view-tasks">
           <header class="topbar">
             <div>
-              <p class="eyebrow">Tarefas</p>
               <h1>Gerenciamento de Tarefas</h1>
               <p class="muted">
                 Organize suas tarefas, lembretes e pendências de forma eficiente.
@@ -1129,7 +1151,6 @@
         <section class="view" id="view-finance">
   <header class="topbar">
     <div>
-      <p class="eyebrow">Financeiro</p>
       <h1>Lançamentos a Receber</h1>
       <p class="muted">
         Controle os recebimentos dos alunos, parcelas, vencimentos e status de pagamento.
@@ -1275,7 +1296,6 @@
         <section class="view" id="view-planning">
           <header class="topbar">
             <div>
-              <p class="eyebrow">Planejamento</p>
               <h1>Planejar Aulas por Aluno</h1>
               <p class="muted">Organize os materiais e objetivos de cada aula para seus alunos.</p>
             </div>
@@ -1361,7 +1381,6 @@
         <section class="view" id="view-users">
           <header class="topbar">
             <div>
-              <p class="eyebrow">Usuários</p>
               <h1>Gerenciamento de Usuários</h1>
               <p class="muted">Cadastre e gerencie usuários do sistema. Apenas administradores têm acesso a esta tela.</p>
             </div>
@@ -1378,6 +1397,11 @@
               </div>
             </div>
             <form id="userForm" class="form">
+              <div class="form-row" id="userIdRow" style="display: none;">
+                <label for="uUserId">Código do Professor (ID)</label>
+                <input type="text" id="uUserId" name="uUserId" readonly style="background-color: #f5f5f5; cursor: not-allowed;" />
+                <small class="muted">ID único do professor no banco de dados</small>
+              </div>
               <div class="form-row grid-two">
                 <div>
                   <label for="uUsername">Username *</label>
@@ -1402,6 +1426,13 @@
                 <label for="uPassword">Senha <span id="passwordRequired">*</span></label>
                 <input type="password" id="uPassword" name="uPassword" required />
                 <small class="muted">Deixe em branco para manter a senha atual (ao editar)</small>
+              </div>
+              <div class="form-row" id="passwordConfirmRow" style="display: none;">
+                <label for="uPasswordConfirm">Confirmar Senha <span id="passwordConfirmRequired">*</span></label>
+                <input type="password" id="uPasswordConfirm" name="uPasswordConfirm" />
+                <small id="passwordMatchError" style="color: #dc2626; display: none; font-size: 13px; margin-top: 4px;">
+                  As senhas não coincidem
+                </small>
               </div>
               <div class="form-row">
                 <label for="uUserProfile">Perfil de Usuário *</label>

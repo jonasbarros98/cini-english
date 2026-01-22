@@ -1,0 +1,731 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Plano e Faturamento</title>
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+  <style>
+    :root{
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: rgba(15, 23, 42, 0.10);
+      --shadow: 0 16px 40px rgba(15, 23, 42, 0.10);
+      --shadow-soft: 0 10px 22px rgba(15, 23, 42, 0.08);
+      --primary: #6366f1;
+      --primary-2: #4f46e5;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --ring: 0 0 0 4px rgba(99, 102, 241, 0.18);
+      --radius: 18px;
+      --radius-sm: 12px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin:0;
+      font-family: var(--font);
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(99,102,241,.18), transparent 55%),
+                  radial-gradient(900px 500px at 95% 10%, rgba(16,185,129,.10), transparent 45%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+      padding: 24px;
+    }
+
+    .page{
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Header */
+    .header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      margin-bottom: 12px;
+      gap:16px;
+      margin-bottom: 12px;
+    }
+
+    .titleBlock h1{
+      font-size: 24px;
+      line-height: 1.2;
+      margin:0 0 6px;
+    }
+    .titleBlock p{
+      margin:0;
+      color: var(--muted);
+      max-width: 62ch;
+    }
+
+    .headerActions{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+    }
+
+    /* Buttons */
+    .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:#fff;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor:pointer;
+      box-shadow: 0 8px 16px rgba(15,23,42,0.06);
+      transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      text-decoration:none;
+      user-select:none;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 12px 22px rgba(15,23,42,0.10);
+      border-color: rgba(99,102,241,0.35);
+    }
+    .btn:active{ transform: translateY(0px); }
+    .btn:focus{ outline:none; box-shadow: var(--ring), 0 12px 22px rgba(15,23,42,0.10); }
+
+    .btnPrimary{
+      border: none;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    }
+    .btnPrimary:hover{
+      box-shadow: 0 14px 26px rgba(79,70,229,0.28);
+    }
+
+    /* Layout grid */
+    .grid{
+      display:grid;
+      grid-template-columns: 1.35fr .9fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 980px){
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        display: none;
+      }
+      .grid{ grid-template-columns: 1fr; }
+      .header{ flex-direction: column; align-items: flex-start; }
+      .headerActions{ justify-content:flex-start; }
+    }
+    
+    @media (max-width: 560px){
+      .stats{ grid-template-columns: 1fr; }
+      .planPrice{ text-align:left; }
+    }
+
+    /* Cards */
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      overflow:hidden;
+    }
+    .cardHeader{
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      background: linear-gradient(180deg, rgba(99,102,241,0.06), transparent);
+    }
+    .cardHeader h2{
+      font-size: 16px;
+      margin:0;
+      letter-spacing: .01em;
+    }
+    .cardBody{ padding: 16px; }
+
+    /* Status badge */
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.65);
+      backdrop-filter: blur(8px);
+    }
+    .dot{
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--muted);
+      box-shadow: 0 0 0 3px rgba(100,116,139,0.15);
+    }
+    .badge.success{ color: var(--success); border-color: rgba(22,163,74,0.25); }
+    .badge.success .dot{ background: var(--success); box-shadow: 0 0 0 3px rgba(22,163,74,0.18); }
+
+    .badge.warning{ color: var(--warning); border-color: rgba(245,158,11,0.30); }
+    .badge.warning .dot{ background: var(--warning); box-shadow: 0 0 0 3px rgba(245,158,11,0.18); }
+
+    .badge.danger{ color: var(--danger); border-color: rgba(239,68,68,0.30); }
+    .badge.danger .dot{ background: var(--danger); box-shadow: 0 0 0 3px rgba(239,68,68,0.18); }
+
+    /* Plan overview */
+    .planTop{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .planName{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 260px;
+    }
+    .planName .big{
+      font-size: 22px;
+      font-weight: 800;
+      margin:0;
+      letter-spacing: -0.01em;
+    }
+    .planName .sub{
+      margin:0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .planPrice{
+      text-align:right;
+      min-width: 160px;
+    }
+    .planPrice .value{
+      font-size: 26px;
+      font-weight: 900;
+      margin:0;
+      letter-spacing: -0.02em;
+    }
+    .planPrice .period{
+      margin:2px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @media (max-width: 560px){
+      .stats{ grid-template-columns: 1fr; }
+      .planPrice{ text-align:left; }
+    }
+
+    .stat{
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.7);
+    }
+    .stat .label{
+      color: var(--muted);
+      font-size: 12px;
+      margin:0 0 6px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .stat .data{
+      margin:0;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .stat .hint{
+      margin: 6px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    /* Divider */
+    .divider{
+      height:1px;
+      background: var(--border);
+      margin: 12px 0;
+    }
+
+    /* Table */
+    .table{
+      width:100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow:hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.75);
+    }
+    .table th, .table td{
+      padding: 12px 12px;
+      text-align:left;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .table th{
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      background: rgba(99,102,241,0.06);
+    }
+    .table tr:last-child td{ border-bottom: none; }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 12px;
+      border: 1px solid var(--border);
+    }
+    .pill.paid{ color: var(--success); border-color: rgba(22,163,74,0.25); background: rgba(22,163,74,0.06); }
+    .pill.pending{ color: var(--warning); border-color: rgba(245,158,11,0.28); background: rgba(245,158,11,0.07); }
+    .pill.failed{ color: var(--danger); border-color: rgba(239,68,68,0.28); background: rgba(239,68,68,0.07); }
+
+    .link{
+      color: var(--primary-2);
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .link:hover{ text-decoration: underline; }
+
+    /* Right column cards */
+    .miniList{
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .note{
+      border: 1px dashed rgba(99,102,241,0.38);
+      background: rgba(99,102,241,0.08);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      color: rgba(15,23,42,0.90);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .note strong{ font-weight: 900; }
+
+    .supportBox{
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mutedSmall{
+      color: var(--muted);
+      font-size: 13px;
+      margin:0;
+      line-height: 1.45;
+    }
+
+    .icon{
+      width: 18px;
+      height: 18px;
+      display:inline-block;
+    }
+
+    /* Simple icons (inline SVG via background) */
+    .ic-gear{
+      background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M11.983 2.25a2.25 2.25 0 0 1 2.171 1.657l.18.636a7.95 7.95 0 0 1 1.793 1.037l.63-.226a2.25 2.25 0 0 1 2.84 1.317l.072.192a2.25 2.25 0 0 1-.74 2.66l-.51.39a8.07 8.07 0 0 1 0 2.078l.51.39a2.25 2.25 0 0 1 .74 2.66l-.072.192a2.25 2.25 0 0 1-2.84 1.317l-.63-.226a7.95 7.95 0 0 1-1.793 1.037l-.18.636a2.25 2.25 0 0 1-2.171 1.657h-.24a2.25 2.25 0 0 1-2.171-1.657l-.18-.636a7.95 7.95 0 0 1-1.793-1.037l-.63.226a2.25 2.25 0 0 1-2.84-1.317l-.072-.192a2.25 2.25 0 0 1 .74-2.66l.51-.39a8.07 8.07 0 0 1 0-2.078l-.51-.39a2.25 2.25 0 0 1-.74-2.66l.072-.192A2.25 2.25 0 0 1 6.63 6.384l.63.226A7.95 7.95 0 0 1 9.053 5.573l.18-.636A2.25 2.25 0 0 1 11.224 2.25h.759Z'/%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'/%3E%3C/svg%3E");
+    }
+    .ic-receipt{
+      background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M7 3h10a2 2 0 0 1 2 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 0 1 2-2Z'/%3E%3Cpath stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M9 7h6M9 11h6M9 15h4'/%3E%3C/svg%3E");
+    }
+    .ic-shield{
+      background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4Z'/%3E%3Cpath stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M9 12l2 2 4-5'/%3E%3C/svg%3E");
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/eduflow-8.png' %}" alt="EDUflow Logo"></div>
+        <div>
+          <p class="brand-kicker">Conta</p>
+          <p class="brand-name">EDUflow</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">👩‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">✅</span>
+          <div>
+            <p class="nav-title">Tarefas</p>
+            <p class="nav-subtitle">Planejamento rápido</p>
+          </div>
+        </a>
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-group">
+          <div class="nav-group-header">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+          </div>
+          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+            <span class="nav-emoji">👥</span>
+            <div>
+              <p class="nav-title">Usuários</p>
+              <p class="nav-subtitle">Gerenciar usuários</p>
+            </div>
+          </a>
+          <a href="/perfil/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">👤</span>
+            <div>
+              <p class="nav-title">Perfil</p>
+              <p class="nav-subtitle">Dados da conta</p>
+            </div>
+          </a>
+          <a href="/planos/" class="nav-item nav-item-nested active">
+            <span class="nav-emoji">💳</span>
+            <div>
+              <p class="nav-title">Plano e Faturamento</p>
+              <p class="nav-subtitle">Gerenciar assinatura</p>
+            </div>
+          </a>
+        </div>
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <a href="/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Voltar ao Dashboard</a>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      </div>
+    </aside>
+    
+    <main class="page">
+    <div class="header">
+      <div class="titleBlock">
+        <h1>Plano e Faturamento</h1>
+        <p>Veja seu plano atual, status de pagamento e histórico de cobranças. Pagamentos são gerenciados com segurança pelo Stripe.</p>
+      </div>
+
+      <div class="headerActions">
+        <button class="btn btnPrimary" id="manageStripeBtn">
+          <span class="icon ic-gear" aria-hidden="true"></span>
+          Gerenciar no Stripe
+        </button>
+      </div>
+    </div>
+
+    <section class="grid">
+      <!-- LEFT: Plano + Faturas -->
+      <div class="card">
+        <div class="cardHeader">
+          <h2>Seu plano</h2>
+
+          <!-- Status dinâmico baseado na assinatura -->
+          {% if has_subscription and is_active %}
+          <span class="badge success" title="Status do plano">
+            <span class="dot"></span>
+            Ativo
+          </span>
+          {% elif has_subscription %}
+          <span class="badge warning" title="Status do plano">
+            <span class="dot"></span>
+            {{ subscription.get_status_display }}
+          </span>
+          {% else %}
+          <span class="badge" title="Status do plano">
+            <span class="dot"></span>
+            Sem assinatura
+          </span>
+          {% endif %}
+        </div>
+
+        <div class="cardBody">
+          <div class="planTop">
+            <div class="planName">
+              <p class="big">{{ plan_name }}</p>
+              <p class="sub">{% if has_subscription %}Renovação automática. Você pode cancelar quando quiser.{% else %}Nenhum plano ativo no momento.{% endif %}</p>
+            </div>
+
+            <div class="planPrice">
+              <p class="value">{{ plan_price }}</p>
+              <p class="period">{% if subscription.plan == 'monthly' %}por mês{% elif subscription.plan == 'semestral' %}a cada 6 meses{% elif subscription.plan == 'annual' %}por ano{% else %}—{% endif %}</p>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <p class="label">Próxima cobrança</p>
+              <p class="data">{{ next_billing }}</p>
+              <p class="hint">{% if has_subscription %}O acesso permanece ativo até a confirmação da próxima fatura.{% else %}Nenhuma cobrança programada.{% endif %}</p>
+            </div>
+
+            <div class="stat">
+              <p class="label">Método de pagamento</p>
+              <p class="data">{% if has_subscription %}Gerenciar no Stripe{% else %}—{% endif %}</p>
+              <p class="hint">{% if has_subscription %}Você pode atualizar o cartão no portal do Stripe.{% else %}Configure um método de pagamento ao assinar um plano.{% endif %}</p>
+            </div>
+
+            <div class="stat">
+              <p class="label">Status do acesso</p>
+              <p class="data">{% if is_active %}Liberado{% elif has_subscription %}{{ subscription.get_status_display }}{% else %}Sem acesso{% endif %}</p>
+              <p class="hint">{% if is_active %}Seu acesso está ativo e completo.{% elif has_subscription %}Seu acesso está {{ subscription.get_status_display|lower }}.{% else %}Assine um plano para ter acesso completo.{% endif %}</p>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="cardHeader" style="padding: 0; border: none; background: transparent; margin-bottom: 10px;">
+            <h2 style="margin:0; font-size: 15px;">Histórico de cobranças</h2>
+            <span class="icon ic-receipt" aria-hidden="true"></span>
+          </div>
+
+          <table class="table" aria-label="Histórico de cobranças">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Status</th>
+                <th style="text-align:right;">Valor</th>
+                <th style="text-align:right;">Recibo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>05/01/2026</td>
+                <td>Plano Mensal</td>
+                <td><span class="pill paid">Pago</span></td>
+                <td style="text-align:right;">R$ 49,90</td>
+                <td style="text-align:right;"><a class="link" href="#" target="_blank" rel="noreferrer">Ver</a></td>
+              </tr>
+              <tr>
+                <td>05/12/2025</td>
+                <td>Plano Mensal</td>
+                <td><span class="pill paid">Pago</span></td>
+                <td style="text-align:right;">R$ 49,90</td>
+                <td style="text-align:right;"><a class="link" href="#" target="_blank" rel="noreferrer">Ver</a></td>
+              </tr>
+              <tr>
+                <td>05/11/2025</td>
+                <td>Plano Mensal</td>
+                <td><span class="pill pending">Processando</span></td>
+                <td style="text-align:right;">R$ 49,90</td>
+                <td style="text-align:right;"><a class="link" href="#" target="_blank" rel="noreferrer">Ver</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT: Ajuda + Segurança -->
+      <div class="miniList">
+        <div class="card">
+          <div class="cardHeader">
+            <h2>Ajuda rápida</h2>
+          </div>
+          <div class="cardBody supportBox">
+            <p class="mutedSmall">
+              Precisa trocar cartão, cancelar ou baixar faturas? Clique em <strong>Gerenciar no Stripe</strong>.
+            </p>
+            <div class="note">
+              <strong>Importante:</strong> cobranças e dados do cartão são tratados diretamente pelo Stripe. Seu sistema não armazena dados sensíveis de pagamento.
+            </div>
+            <button class="btn" id="manageStripeBtn2">
+              Gerenciar no Stripe
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cardHeader">
+            <h2>Segurança</h2>
+            <span class="icon ic-shield" aria-hidden="true"></span>
+          </div>
+          <div class="cardBody">
+            <p class="mutedSmall">
+              Seus pagamentos são processados com segurança pelo Stripe, com padrões avançados de proteção e conformidade.
+            </p>
+            <div class="divider"></div>
+            <p class="mutedSmall">
+              Se seu pagamento falhar, seu acesso pode ficar <strong>temporariamente limitado</strong> até a regularização.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    </main>
+  </div>
+
+  <script>
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function createPortalSession(event) {
+      const btn = event.target;
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="icon ic-gear" aria-hidden="true"></span> Carregando...';
+
+      try {
+        const csrf = getCookie("csrftoken");
+        const response = await fetch("/api/subscription/create-portal/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrf || "",
+          },
+          credentials: "same-origin",
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.url) {
+          window.location.href = data.url;
+        } else {
+          alert(data.error || "Erro ao criar sessão do portal. Tente novamente.");
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      } catch (error) {
+        console.error("Erro ao criar portal session:", error);
+        alert("Erro de conexão. Tente novamente.");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    // Função para verificar se é admin e mostrar menu Usuários
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function checkAdminAndShowUsersMenu() {
+      try {
+        const csrf = getCookie("csrftoken");
+        const response = await fetch("/api/auth/current-user/", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrf || "",
+          },
+          credentials: "same-origin",
+        });
+
+        if (response.ok) {
+          const user = await response.json();
+          const navUsers = document.getElementById("navUsers");
+          if (navUsers && user && user.is_admin) {
+            navUsers.style.display = "flex";
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao verificar permissões de admin:", error);
+      }
+    }
+
+    // Adicionar event listeners aos botões
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn1 = document.getElementById("manageStripeBtn");
+      const btn2 = document.getElementById("manageStripeBtn2");
+      
+      if (btn1) {
+        btn1.addEventListener("click", createPortalSession);
+      }
+      if (btn2) {
+        btn2.addEventListener("click", createPortalSession);
+      }
+
+      // Verificar se é admin e mostrar menu Usuários
+      checkAdminAndShowUsersMenu();
+    });
+  </script>
+</body>
+</html>

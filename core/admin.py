@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog, BillingLog
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog, Subscription, StripeEvent
 
 
 @admin.register(Student)
@@ -56,3 +56,21 @@ class BillingLogAdmin(admin.ModelAdmin):
     def student_name(self, obj):
         return obj.financial_entry.student.name
     student_name.short_description = "Aluno"
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("user", "plan", "status", "is_active", "current_period_end", "created_at")
+    list_filter = ("plan", "status", "created_at")
+    search_fields = ("user__username", "user__email", "stripe_customer_id", "stripe_subscription_id")
+    readonly_fields = ("stripe_customer_id", "stripe_subscription_id", "created_at", "updated_at")
+    date_hierarchy = "created_at"
+
+
+@admin.register(StripeEvent)
+class StripeEventAdmin(admin.ModelAdmin):
+    list_display = ("event_id", "event_type", "processed", "processed_at", "created_at")
+    list_filter = ("event_type", "processed", "created_at")
+    search_fields = ("event_id", "event_type")
+    readonly_fields = ("event_id", "event_type", "event_data", "created_at", "processed_at")
+    date_hierarchy = "created_at"

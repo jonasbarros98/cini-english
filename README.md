@@ -1,5 +1,5 @@
 "# aula0305" 
-# Cini English – Dashboard inicial
+# EDUflow – Dashboard inicial
 
 Protótipo estático (HTML/CSS/JS puro) para o painel da professora de inglês. Ele oferece o esqueleto de navegação, calendário, cadastro de alunos, pré-visualização de cobranças e cards de tarefas – pronto para receber um back-end futuro.
 

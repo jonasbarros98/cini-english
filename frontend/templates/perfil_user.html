@@ -1,0 +1,1072 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EduFlow • Perfil</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+
+  <style>
+    html,body{height:100%;}
+    .page{max-width:100%;margin:0;padding:0;}
+
+    @media (max-width: 980px){
+      .app-shell{grid-template-columns:1fr;}
+      .sidebar{display:none;}
+    }
+
+    .topbar .title{
+      display:flex;flex-direction:column;gap:4px;min-width:280px;
+    }
+    
+    .topbar h1{
+      font-size: 24px;
+      line-height: 1.2;
+      margin: 0;
+    }
+    
+    .topbar .subtitle{
+      font-size: 13px;
+      line-height: 1.3;
+    }
+    .subtitle{margin:0;color:var(--muted);font-size:14px;line-height:1.4;}
+
+    .profile-grid{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap:16px;
+      align-items:start;
+      margin-top: 16px;
+    }
+    @media (max-width: 980px){
+      .profile-grid{grid-template-columns:1fr;}
+    }
+
+    .panel{padding:16px;}
+    .panel-header{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;
+    }
+    .panel-title{display:flex;flex-direction:column;gap:3px;}
+    .panel-title h2{margin:0;font-size:16px;letter-spacing:-.01em;}
+    .panel-title p{margin:0;font-size:12px;color:var(--muted);font-weight:600;}
+
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;
+      border:1px solid var(--border);background:rgba(255,255,255,.7);
+      font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;
+    }
+    .pill .dot{width:8px;height:8px;border-radius:999px;background:var(--good);box-shadow:0 0 0 4px rgba(31,157,85,.12);}
+    .pill.warn .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(180,83,9,.12);}
+
+    .form{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width: 560px){ .form{grid-template-columns:1fr;} }
+
+    .field{display:flex;flex-direction:column;gap:8px;}
+    .field label{font-size:12px;color:var(--muted);font-weight:700;}
+    .field input, .field select{
+      width:100%;
+      padding:11px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.75);
+      box-shadow: var(--shadow-soft);
+      outline:none;
+      font-weight:700;
+      color: var(--text);
+    }
+    .field input:focus, .field select:focus{
+      border-color: rgba(30,136,255,.25);
+      box-shadow: var(--shadow);
+    }
+    .hint{font-size:11px;color:var(--muted2);font-weight:600;margin-top:-2px;line-height:1.35;}
+
+    .divider{height:1px;background: rgba(15,23,42,.06);margin: 12px 0;border-radius:999px;}
+
+    .btn{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.75);
+      backdrop-filter: blur(10px);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--text);
+      box-shadow: var(--shadow-soft);
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      user-select:none;
+      text-decoration:none;
+    }
+    .btn:hover{transform: translateY(-1px);box-shadow: var(--shadow);border-color: rgba(30,136,255,.25);}
+    .btn.primary{
+      border:none;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color:#fff;
+      box-shadow: 0 10px 26px rgba(30,136,255,.22);
+    }
+    .btn.primary:hover{box-shadow: 0 14px 34px rgba(30,136,255,.28);}
+    .btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+
+    .row-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+
+    /* Card do avatar */
+    .avatar-card{
+      display:flex;
+      gap:14px;
+      align-items:center;
+      padding:12px;
+      border-radius: var(--radius);
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.72);
+      box-shadow: 0 10px 22px rgba(2,6,23,.06);
+    }
+    .avatar-big{
+      width:56px;height:56px;border-radius:999px;
+      display:grid;place-items:center;
+      font-weight:900;color:#fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      box-shadow: 0 10px 22px rgba(30,136,255,.22);
+      overflow:hidden;
+    }
+    .avatar-big img{width:100%;height:100%;object-fit:cover;display:none;}
+    .avatar-meta{display:flex;flex-direction:column;gap:4px;min-width:0;}
+    .avatar-meta strong{font-size:14px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .avatar-meta span{font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+    .kv{
+      display:flex;flex-direction:column;gap:10px;
+    }
+    .kv .item{
+      padding:12px;
+      border-radius: var(--radius-sm);
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.72);
+    }
+    .kv .item .k{color:var(--muted);font-size:12px;font-weight:800;}
+    .kv .item .v{margin-top:6px;font-size:13px;font-weight:900;}
+    .danger-note{
+      padding:12px;
+      border-radius: var(--radius-sm);
+      border:1px solid rgba(225,29,72,.16);
+      background: rgba(225,29,72,.06);
+      color: var(--text);
+      font-size: 12px;
+      font-weight:700;
+      line-height:1.45;
+    }
+    .danger-note strong{color: var(--bad);}
+
+    .toast{
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.86);
+      box-shadow: var(--shadow);
+      font-weight: 800;
+      font-size: 13px;
+      display:none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+    <!-- SIDEBAR (copie/cole a sua; aqui deixo só o essencial com Perfil ativo) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/eduflow-8.png' %}" alt="EDUflow Logo"></div>
+        <div>
+          <p class="brand-kicker">Conta</p>
+          <p class="brand-name">EDUflow</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="/dashboard/" class="nav-item">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        <a href="/?view=view-calendar" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/?view=view-students" class="nav-item">
+          <span class="nav-emoji">👩‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/?view=view-planning" class="nav-item">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        <a href="/?view=view-tasks" class="nav-item">
+          <span class="nav-emoji">✅</span>
+          <div>
+            <p class="nav-title">Tarefas</p>
+            <p class="nav-subtitle">Planejamento rápido</p>
+          </div>
+        </a>
+        <a href="/?view=view-finance" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+
+        <div class="nav-group">
+          <div class="nav-group-header">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+          </div>
+
+          <!-- Admin-only: Usuários -->
+          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+            <span class="nav-emoji">👥</span>
+            <div>
+              <p class="nav-title">Usuários</p>
+              <p class="nav-subtitle">Gerenciar usuários</p>
+            </div>
+          </a>
+
+          <!-- PERFIL -->
+          <a href="/perfil/" class="nav-item nav-item-nested active">
+            <span class="nav-emoji">👤</span>
+            <div>
+              <p class="nav-title">Perfil</p>
+              <p class="nav-subtitle">Dados da conta</p>
+            </div>
+          </a>
+
+          <a href="/planos/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">💳</span>
+            <div>
+              <p class="nav-title">Plano e Faturamento</p>
+              <p class="nav-subtitle">Gerenciar assinatura</p>
+            </div>
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <a href="/?view=view-calendar" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Calendário</a>
+        <button class="primary ghost" id="logoutBtn" style="margin-top:8px;width:100%;font-size:13px;padding:8px 12px;">Sair</button>
+      </div>
+    </aside>
+
+    <main class="page">
+      <header class="topbar">
+        <div class="title">
+          <h1>Perfil</h1>
+          <p class="subtitle">Ajuste seus dados. Senha só muda se você preencher.</p>
+        </div>
+
+        <div class="top-actions">
+          <button class="btn" type="button" id="btnBack">← Voltar</button>
+          <button class="btn primary" type="button" id="btnSave" disabled>Salvar alterações</button>
+        </div>
+      </header>
+
+      <section class="profile-grid">
+        <!-- ESQUERDA: Form -->
+        <section class="card panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>Dados básicos</h2>
+              <p>O essencial pra login e identificação.</p>
+            </div>
+            <div class="pill" id="statusPill" title="Status do formulário">
+              <span class="dot"></span>
+              <span id="statusText">Sem alterações</span>
+            </div>
+          </div>
+
+          <div class="avatar-card">
+            <div class="avatar-big" id="avatarBig">
+              <img id="avatarImg" alt="Foto do perfil" />
+              <span id="avatarInitials">P</span>
+            </div>
+            <div class="avatar-meta">
+              <strong id="displayName">—</strong>
+              <span id="displayEmail">—</span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <form id="profileForm" autocomplete="off">
+            <div class="form">
+              <div class="field">
+                <label for="username">Nome de usuário</label>
+                <input id="username" name="username" type="text" placeholder="ex: profbianca" />
+                <div class="hint">Usado pra login e URLs internas (se você quiser no futuro).</div>
+              </div>
+
+              <div class="field">
+                <label for="email">E-mail</label>
+                <input id="email" name="email" type="email" placeholder="ex: bianca@email.com" />
+                <div class="hint">Se mudar, você decide depois se exige revalidação.</div>
+              </div>
+
+              <div class="field">
+                <label for="first_name">Primeiro nome</label>
+                <input id="first_name" name="first_name" type="text" placeholder="Bianca" />
+              </div>
+
+              <div class="field">
+                <label for="last_name">Sobrenome</label>
+                <input id="last_name" name="last_name" type="text" placeholder="Cini" />
+              </div>
+
+              <div class="field">
+                <label for="password">Nova senha</label>
+                <input id="password" name="password" type="password" placeholder="deixe em branco para manter" />
+                <div class="hint">Não mostramos a senha atual. Se preencher, troca.</div>
+              </div>
+
+              <div class="field">
+                <label for="password2">Confirmar nova senha</label>
+                <input id="password2" name="password2" type="password" placeholder="repita a nova senha" />
+              </div>
+
+              <div class="field">
+                <label for="photo">Foto (opcional)</label>
+                <input id="photo" name="photo" type="file" accept="image/*" />
+                <div class="hint">Preview local. Upload você liga depois no backend.</div>
+              </div>
+
+              <div class="field">
+                <label for="role">Permissão</label>
+                <input id="role" name="role" type="text" value="ADMIN" disabled />
+                <div class="hint">Somente leitura.</div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="panel-header" style="margin:0 0 10px;">
+              <div class="panel-title">
+                <h2>Dados opcionais</h2>
+                <p>Deixe completo (e pronto pra emissão/financeiro no futuro).</p>
+              </div>
+              <span class="pill warn" title="Opcional">
+                <span class="dot"></span>
+                <span>Opcional</span>
+              </span>
+            </div>
+
+            <div class="form">
+              <div class="field">
+                <label for="cpf_cnpj">CPF/CNPJ</label>
+                <input id="cpf_cnpj" name="cpf_cnpj" type="text" placeholder="000.000.000-00 / 00.000.000/0001-00" />
+              </div>
+
+              <div class="field">
+                <label for="phone">Telefone/WhatsApp</label>
+                <input id="phone" name="phone" type="tel" placeholder="(41) 99999-9999" />
+              </div>
+
+              <div class="field">
+                <label for="cep">CEP</label>
+                <input id="cep" name="cep" type="text" placeholder="00000-000" />
+              </div>
+
+              <div class="field">
+                <label for="address">Endereço</label>
+                <input id="address" name="address" type="text" placeholder="Rua, número, complemento" />
+              </div>
+
+              <div class="field">
+                <label for="city">Cidade</label>
+                <input id="city" name="city" type="text" placeholder="Curitiba" />
+              </div>
+
+              <div class="field">
+                <label for="state">UF</label>
+                <input id="state" name="state" type="text" placeholder="PR" />
+              </div>
+
+              <div class="field">
+                <label for="timezone">Timezone</label>
+                <select id="timezone" name="timezone">
+                  <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+                  <option value="UTC">UTC</option>
+                </select>
+                <div class="hint">Pra evitar bug de “dia anterior” no calendário.</div>
+              </div>
+
+              <div class="field">
+                <label for="language">Idioma</label>
+                <select id="language" name="language">
+                  <option value="pt-BR">pt-BR</option>
+                  <option value="en">en</option>
+                </select>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- DIREITA: Resumo/Segurança -->
+        <aside class="card panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>Resumo</h2>
+              <p>O que vai ser salvo.</p>
+            </div>
+            <span class="pill" title="Checklist">
+              <span class="dot"></span>
+              <span id="summaryOk">OK</span>
+            </span>
+          </div>
+
+          <div class="kv" id="summaryBox">
+            <div class="item">
+              <div class="k">Nome exibido</div>
+              <div class="v" id="sumName">—</div>
+            </div>
+            <div class="item">
+              <div class="k">Login</div>
+              <div class="v" id="sumLogin">—</div>
+            </div>
+            <div class="item">
+              <div class="k">Timezone</div>
+              <div class="v" id="sumTZ">—</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="danger-note" id="securityNote">
+            <strong>Senha:</strong> se você preencher, ela será atualizada. Se deixar em branco, fica como está.
+          </div>
+
+          <div class="row-actions">
+            <button class="btn" type="button" id="btnReset" disabled>Desfazer</button>
+            <button class="btn primary" type="button" id="btnSave2" disabled>Salvar</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="kv">
+            <div class="item">
+              <div class="k">Assinatura</div>
+              <div class="v" id="subLabel">—</div>
+            </div>
+            <div class="item">
+              <div class="k">Customer (Stripe)</div>
+              <div class="v" id="stripeCustomer">—</div>
+            </div>
+          </div>
+
+          <div class="row-actions" style="margin-top:12px;">
+            <a class="btn" href="/planos/">💳 Plano e Faturamento</a>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">Salvo</div>
+
+  <script>
+    (function(){
+      const $ = (id) => document.getElementById(id);
+
+      const form = $('profileForm');
+      const btnSave = $('btnSave');
+      const btnSave2 = $('btnSave2');
+      const btnReset = $('btnReset');
+      const btnBack = $('btnBack');
+
+      const statusText = $('statusText');
+      const statusPill = $('statusPill');
+
+      const avatarImg = $('avatarImg');
+      const avatarInitials = $('avatarInitials');
+      const displayName = $('displayName');
+      const displayEmail = $('displayEmail');
+
+      const sumName = $('sumName');
+      const sumLogin = $('sumLogin');
+      const sumTZ = $('sumTZ');
+
+      const toast = $('toast');
+
+      if(!form) return;
+
+      const fields = [
+        'username','email','first_name','last_name',
+        'password','password2','cpf_cnpj','phone',
+        'cep','address','city','state','timezone','language'
+      ].map($).filter(Boolean);
+      
+      // Campo de foto separado (não é texto)
+      const photoField = $('photo');
+      
+      // Log dos campos encontrados
+      console.log("Campos do formulário encontrados:", fields.map(f => f.id));
+
+      let initialState = null;
+
+      function getState(){
+        const data = {};
+        for(const el of fields){
+          data[el.id] = (el.value ?? '').trim();
+        }
+        return data;
+      }
+
+      function setInitialState(){
+        initialState = getState();
+        setDirty(false);
+      }
+
+      function isDirty(){
+        if(!initialState) return false;
+        const cur = getState();
+        for(const k in cur){
+          const currentVal = (cur[k] ?? '').trim();
+          const initialVal = (initialState[k] ?? '').trim();
+          if(currentVal !== initialVal) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function setDirty(dirty){
+        // Se há alterações, verificar se pode salvar (validação)
+        // Se não há alterações, botão deve estar desabilitado
+        const canSave = dirty && validate(false);
+        
+        if(btnSave) {
+          btnSave.disabled = !canSave;
+          // Adicionar feedback visual
+          if(canSave) {
+            btnSave.style.opacity = '1';
+            btnSave.style.cursor = 'pointer';
+          } else {
+            btnSave.style.opacity = dirty ? '0.6' : '0.6';
+            btnSave.style.cursor = 'not-allowed';
+          }
+        }
+        
+        if(btnSave2) {
+          btnSave2.disabled = !canSave;
+          if(canSave) {
+            btnSave2.style.opacity = '1';
+            btnSave2.style.cursor = 'pointer';
+          } else {
+            btnSave2.style.opacity = dirty ? '0.6' : '0.6';
+            btnSave2.style.cursor = 'not-allowed';
+          }
+        }
+        
+        if(btnReset) btnReset.disabled = !dirty;
+
+        if(statusText){
+          if(dirty && !canSave){
+            statusText.textContent = 'Corrija os erros antes de salvar';
+          } else {
+            statusText.textContent = dirty ? 'Alterações pendentes' : 'Sem alterações';
+          }
+        }
+        if(statusPill){
+          statusPill.classList.toggle('warn', dirty);
+          statusPill.classList.toggle('bad', dirty && !canSave);
+        }
+      }
+
+      function initialsFromName(first, last){
+        const a = (first || '').trim().charAt(0).toUpperCase();
+        const b = (last || '').trim().charAt(0).toUpperCase();
+        const out = (a + b).trim();
+        return out || 'P';
+      }
+
+      function updateHeader(){
+        const first = $('first_name')?.value || '';
+        const last  = $('last_name')?.value || '';
+        const email = $('email')?.value || '';
+        const username = $('username')?.value || '';
+
+        const full = `${first} ${last}`.trim() || '—';
+
+        if(displayName) displayName.textContent = full;
+        if(displayEmail) displayEmail.textContent = email || '—';
+
+        if(avatarInitials) avatarInitials.textContent = initialsFromName(first, last);
+
+        if(sumName) sumName.textContent = full;
+        if(sumLogin) sumLogin.textContent = username ? `${username} • ${email || '—'}` : (email || '—');
+        if(sumTZ) sumTZ.textContent = $('timezone')?.value || '—';
+      }
+
+      function validate(showAlert){
+        const p1 = $('password')?.value || '';
+        const p2 = $('password2')?.value || '';
+        
+        // Se ambos os campos estão vazios, não precisa validar senha
+        if(!p1 && !p2) return true;
+        
+        // Se apenas um está preenchido, ainda está digitando (não é erro ainda)
+        if((p1 && !p2) || (!p1 && p2)) return true;
+        
+        // Se ambos estão preenchidos, validar
+        if(p1 && p2){
+          if(p1 !== p2){
+            if(showAlert) alert('As senhas não conferem.');
+            return false;
+          }
+          if(p1.length < 8){
+            if(showAlert) alert('Senha muito curta. Use pelo menos 8 caracteres.');
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function showToast(msg){
+        if(!toast) return;
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(()=>{ toast.style.display = 'none'; }, 1600);
+      }
+
+      function onPhotoChange(file){
+        if(!file || !avatarImg) return;
+        const url = URL.createObjectURL(file);
+        avatarImg.src = url;
+        avatarImg.style.display = 'block';
+        if(avatarInitials) avatarInitials.style.display = 'none';
+      }
+
+      // ===== Verificar se é admin e mostrar menu Usuários =====
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+
+      async function checkAdminAndShowUsersMenu(){
+        try{
+          const csrf = getCookie("csrftoken");
+          const res = await fetch("/api/auth/current-user/", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf || "",
+            },
+            credentials: "same-origin"
+          });
+          
+          if(res.ok){
+            const u = await res.json();
+            if($('navUsers') && u && u.is_admin) {
+              $('navUsers').style.display = "flex";
+            }
+            if($('role')) {
+              $('role').value = u && u.is_admin ? "ADMIN" : "USER";
+            }
+            if($('sidebarRole')) {
+              $('sidebarRole').textContent = u && u.is_admin ? "ADMIN" : "USER";
+            }
+            
+            // Atualizar sidebar card com dados do usuário
+            if($('sidebarPlan')) {
+              // Tentar buscar status da assinatura
+              fetch("/api/subscription/status/", {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": csrf || "",
+                },
+                credentials: "same-origin"
+              }).then(res => res.json()).then(subData => {
+                if (subData && subData.is_active) {
+                  $('sidebarPlan').textContent = "ATIVO";
+                } else {
+                  $('sidebarPlan').textContent = "INATIVO";
+                }
+              }).catch(() => {
+                $('sidebarPlan').textContent = "—";
+              });
+            }
+          }
+        }catch(e){
+          console.error("Erro ao verificar permissões de admin:", e);
+        }
+      }
+
+      // ===== Load profile =====
+      async function loadProfile(){
+        try {
+          const csrf = getCookie("csrftoken");
+          const res = await fetch("/api/profile/me/", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf || "",
+            },
+            credentials: "same-origin"
+          });
+
+          if (!res.ok) {
+            throw new Error("Erro ao carregar perfil");
+          }
+
+          const data = await res.json();
+          
+          // Preencher campos do formulário
+          if ($('username')) $('username').value = data.username || '';
+          if ($('email')) $('email').value = data.email || '';
+          if ($('first_name')) $('first_name').value = data.first_name || '';
+          if ($('last_name')) $('last_name').value = data.last_name || '';
+          if ($('cpf_cnpj')) $('cpf_cnpj').value = data.cpf_cnpj || '';
+          if ($('phone')) $('phone').value = data.phone || '';
+          if ($('cep')) $('cep').value = data.cep || '';
+          if ($('address')) $('address').value = data.address || '';
+          if ($('city')) $('city').value = data.city || '';
+          if ($('state')) $('state').value = data.state || '';
+          if ($('timezone')) $('timezone').value = data.timezone || 'America/Sao_Paulo';
+          if ($('language')) $('language').value = data.language || 'pt-BR';
+          if ($('role')) $('role').value = data.role || 'USER';
+          
+          // Atualizar informações de assinatura
+          if (data.subscription_status) {
+            const sub = data.subscription_status;
+            if ($('subLabel')) {
+              if (sub.is_active && sub.plan) {
+                const planNames = {
+                  'monthly': 'Plano Mensal',
+                  'semestral': 'Plano Semestral',
+                  'annual': 'Plano Anual'
+                };
+                $('subLabel').textContent = planNames[sub.plan] || 'Plano ativo';
+              } else {
+                $('subLabel').textContent = 'Sem assinatura';
+              }
+            }
+          }
+          
+          if ($('stripeCustomer')) {
+            $('stripeCustomer').textContent = data.stripe_customer_id || '—';
+          }
+          
+          // Atualizar foto do perfil se existir
+          if (data.photo && avatarImg) {
+            // Construir URL completa da foto
+            let photoUrl = data.photo;
+            // Se a URL não começar com http, adicionar o domínio base
+            if (!photoUrl.startsWith('http') && !photoUrl.startsWith('/')) {
+              photoUrl = '/' + photoUrl;
+            }
+            // Adicionar timestamp para evitar cache
+            photoUrl = photoUrl + (photoUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+            
+            // Criar uma nova imagem para testar se carrega
+            const testImg = new Image();
+            testImg.onload = function() {
+              avatarImg.src = photoUrl;
+              avatarImg.style.display = 'block';
+              if (avatarInitials) avatarInitials.style.display = 'none';
+              console.log("Foto do perfil carregada com sucesso:", photoUrl);
+            };
+            testImg.onerror = function() {
+              console.warn("Erro ao carregar foto:", photoUrl);
+              // Se falhar, mostrar iniciais
+              if (avatarImg && avatarInitials) {
+                avatarImg.style.display = 'none';
+                avatarImg.src = '';
+                avatarInitials.style.display = 'inline';
+              }
+            };
+            testImg.src = photoUrl;
+          } else if (avatarImg && avatarInitials) {
+            // Se não houver foto, mostrar iniciais
+            avatarImg.style.display = 'none';
+            avatarImg.src = '';
+            avatarInitials.style.display = 'inline';
+            console.log("Nenhuma foto encontrada, mostrando iniciais");
+          }
+
+          updateHeader();
+          // Aguardar um pouco para garantir que todos os campos foram preenchidos
+          setTimeout(() => {
+            setInitialState();
+            // Forçar verificação inicial
+            setDirty(isDirty());
+          }, 100);
+        } catch (error) {
+          console.error("Erro ao carregar perfil:", error);
+          // Fallback com dados básicos do usuário
+          if ($('username')) $('username').value = '';
+          if ($('email')) $('email').value = '';
+          if ($('first_name')) $('first_name').value = '';
+          if ($('last_name')) $('last_name').value = '';
+          if ($('timezone')) $('timezone').value = 'America/Sao_Paulo';
+          if ($('language')) $('language').value = 'pt-BR';
+          updateHeader();
+          setTimeout(() => {
+            setInitialState();
+            setDirty(isDirty());
+          }, 100);
+        }
+      }
+
+      // ===== Save profile =====
+      async function saveProfile(){
+        if(!validate(true)) return;
+
+        const payload = getState();
+        
+        // Log do payload antes de processar
+        console.log("Payload original:", payload);
+
+        // regra: senha vazia => não manda
+        if(!payload.password || payload.password.trim() === '') {
+          delete payload.password;
+          delete payload.password2;
+        } else {
+          // Renomear password2 para password_confirm
+          payload.password_confirm = payload.password2;
+          delete payload.password2;
+        }
+        
+        // Remover campos que não devem ser enviados
+        delete payload.role; // Campo readonly
+        delete payload.username; // Campo readonly
+        
+        // Verificar se há foto para enviar
+        const photoFile = photoField?.files?.[0];
+        const hasPhoto = photoFile && photoFile.size > 0;
+        
+        // Se houver foto, usar FormData; caso contrário, usar JSON
+        const csrf = getCookie("csrftoken");
+        console.log("CSRF Token:", csrf ? "Presente" : "Ausente");
+        console.log("Foto selecionada:", hasPhoto ? photoFile.name : "Nenhuma");
+        
+        let requestBody;
+        let headers = {
+          "X-CSRFToken": csrf || "",
+        };
+        
+        if (hasPhoto) {
+          // Usar FormData para enviar arquivo
+          const formData = new FormData();
+          
+          // Adicionar todos os campos do payload ao FormData
+          for (const key in payload) {
+            if (payload[key] !== undefined && payload[key] !== null) {
+              formData.append(key, payload[key]);
+            }
+          }
+          
+          // Adicionar a foto
+          formData.append('photo', photoFile);
+          
+          requestBody = formData;
+          // Não definir Content-Type para FormData - o browser define automaticamente com boundary
+        } else {
+          // Usar JSON normal
+          headers["Content-Type"] = "application/json";
+          requestBody = JSON.stringify(payload);
+        }
+        
+        console.log("Payload final enviado:", hasPhoto ? "FormData com foto" : payload);
+
+        try {
+          const res = await fetch("/api/profile/update/", {
+            method: "POST",
+            headers: headers,
+            credentials: "same-origin",
+            body: requestBody
+          });
+
+          console.log("Response status:", res.status);
+          const data = await res.json();
+          console.log("Response data:", data);
+
+          if (!res.ok) {
+            // Log detalhado do erro para debug
+            console.error("Erro ao salvar perfil:", data);
+            console.error("Payload enviado:", payload);
+            
+            // Construir mensagem de erro mais detalhada
+            let errorMsg = "Erro ao salvar perfil";
+            if (data.error) {
+              errorMsg = data.error;
+            } else if (typeof data === 'object') {
+              // Se for um objeto com múltiplos erros
+              const errorKeys = Object.keys(data);
+              if (errorKeys.length > 0) {
+                const firstError = data[errorKeys[0]];
+                if (Array.isArray(firstError)) {
+                  errorMsg = `${errorKeys[0]}: ${firstError[0]}`;
+                } else {
+                  errorMsg = `${errorKeys[0]}: ${firstError}`;
+                }
+              }
+            }
+            alert(errorMsg);
+            return;
+          }
+
+          // Mostrar popup de confirmação de sucesso
+          showToast("✓ Perfil atualizado com sucesso!");
+          
+          // Atualizar foto imediatamente se foi enviada ou se veio na resposta
+          if (data.data && data.data.photo) {
+            const photoUrl = data.data.photo + (data.data.photo.includes('?') ? '&' : '?') + 't=' + Date.now();
+            if (avatarImg) {
+              avatarImg.src = photoUrl;
+              avatarImg.style.display = 'block';
+              if (avatarInitials) avatarInitials.style.display = 'none';
+              console.log("Foto atualizada:", photoUrl);
+            }
+          } else if (hasPhoto) {
+            // Se enviou foto mas não veio na resposta, recarregar do servidor
+            console.log("Foto enviada, recarregando do servidor...");
+          }
+          
+          // Recarregar dados atualizados antes de resetar estado
+          await loadProfile();
+          
+          // Resetar estado após recarregar
+          setInitialState();
+          
+          // Mostrar alert de confirmação após um pequeno delay
+          setTimeout(() => {
+            alert("✓ Perfil atualizado com sucesso!\n\nTodas as alterações foram salvas.");
+          }, 300);
+        } catch (error) {
+          console.error("Erro ao salvar perfil:", error);
+          alert("Erro ao salvar perfil. Tente novamente.");
+        }
+      }
+
+      // ===== Events =====
+      document.addEventListener('DOMContentLoaded', async ()=>{
+        await checkAdminAndShowUsersMenu();
+        await loadProfile();
+
+        for(const el of fields){
+          el.addEventListener('input', ()=>{
+            updateHeader();
+            const dirty = isDirty();
+            setDirty(dirty);
+            // Debug: log para verificar se está detectando mudanças
+            // console.log('Input event:', el.id, 'dirty:', dirty, 'value:', el.value);
+          });
+          el.addEventListener('change', ()=>{
+            updateHeader();
+            const dirty = isDirty();
+            setDirty(dirty);
+          });
+        }
+        
+        // Verificar mudanças após um pequeno delay para garantir que tudo foi inicializado
+        setTimeout(() => {
+          if(initialState) {
+            setDirty(isDirty());
+          }
+        }, 200);
+
+        const photo = $('photo');
+        if(photo){
+          photo.addEventListener('change', (e)=>{
+            const file = e.target.files?.[0];
+            onPhotoChange(file);
+            setDirty(true);
+          });
+        }
+
+        btnSave?.addEventListener('click', saveProfile);
+        btnSave2?.addEventListener('click', saveProfile);
+
+        btnReset?.addEventListener('click', ()=>{
+          if(!initialState) return;
+          for(const el of fields){
+            if(initialState[el.id] !== undefined) el.value = initialState[el.id];
+          }
+          if(avatarImg){ avatarImg.style.display = 'none'; avatarImg.src = ''; }
+          if(avatarInitials){ avatarInitials.style.display = 'inline'; }
+          updateHeader();
+          setDirty(false);
+        });
+
+        btnBack?.addEventListener('click', ()=>{ window.location.href = "/dashboard/"; });
+        
+        // Logout button
+        const logoutBtn = $('logoutBtn');
+        if (logoutBtn) {
+          logoutBtn.addEventListener('click', async () => {
+            try {
+              const csrf = getCookie("csrftoken");
+              await fetch("/api/auth/logout/", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": csrf || "",
+                },
+                credentials: "same-origin"
+              });
+              window.location.href = "/login/";
+            } catch (error) {
+              console.error("Erro ao fazer logout:", error);
+              window.location.href = "/login/";
+            }
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

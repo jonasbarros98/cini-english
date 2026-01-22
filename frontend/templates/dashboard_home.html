@@ -1,0 +1,1390 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EduFlow • Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+
+  <style>
+    /* Estilos específicos do dashboard que não estão no styles.css principal */
+    html,body{ height:100%; }
+    
+    .page{
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    
+    @media (max-width: 980px){
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        display: none;
+      }
+    }
+
+    .topbar .title{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width: 280px;
+    }
+    
+    .topbar .eyebrow{
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+    
+    .topbar h1{
+      font-size: 24px;
+      line-height: 1.2;
+      margin: 0;
+    }
+    
+    .subtitle{
+      margin:0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    /* Welcome pill */
+    .welcome{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.7);
+      box-shadow: var(--shadow-soft);
+      width: fit-content;
+      margin-top: 4px;
+    }
+    .avatar{
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color:#fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      box-shadow: 0 8px 18px rgba(30,136,255,.22);
+      flex: 0 0 auto;
+      position: relative;
+      overflow: hidden;
+      font-size: 12px;
+    }
+    .avatar #userAvatarImg {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+      border-radius: 999px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2;
+    }
+    .avatar #userAvatarText {
+      position: relative;
+      z-index: 1;
+    }
+    .avatar.has-photo {
+      background: transparent !important;
+      box-shadow: none !important;
+      display: block !important;
+    }
+    .avatar.has-photo #userAvatarImg {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 999px !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      z-index: 2 !important;
+    }
+    .avatar.has-photo #userAvatarText {
+      display: none !important;
+    }
+    .welcome .wtext{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 0;
+    }
+    .welcome .wtext strong{
+      font-size: 12px;
+      letter-spacing:-.01em;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 280px;
+    }
+    .welcome .wtext span{
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 280px;
+    }
+
+    .top-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+    }
+
+    .btn{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.75);
+      backdrop-filter: blur(10px);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+      box-shadow: var(--shadow-soft);
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+      text-decoration: none;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+      border-color: rgba(30,136,255,.25);
+    }
+    .btn.primary{
+      border:none;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color: #fff;
+      box-shadow: 0 10px 26px rgba(30,136,255,.22);
+    }
+    .btn.primary:hover{
+      box-shadow: 0 14px 34px rgba(30,136,255,.28);
+    }
+    .btn .kbd{
+      font-size:11px;
+      font-weight:800;
+      color: rgba(255,255,255,.85);
+      background: rgba(255,255,255,.18);
+      padding: 4px 8px;
+      border-radius: 10px;
+    }
+    .btn:not(.primary) .kbd{
+      color: var(--muted);
+      background: rgba(15,23,42,.06);
+    }
+
+    .kpis{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+      margin: 16px 0 18px;
+    }
+    .kpi{
+      padding: 14px 14px;
+      border-radius: var(--radius);
+      display:flex;
+      gap:12px;
+      align-items:center;
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.75));
+      border:1px solid var(--border);
+      box-shadow: 0 10px 22px rgba(2,6,23,.06);
+      min-height: 76px;
+    }
+    .kpi:hover{
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      border-color: rgba(30,136,255,.22);
+    }
+    .kpi .icon{
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display:grid;
+      place-items:center;
+      font-size: 18px;
+      font-weight: 900;
+      border: 1px solid rgba(15,23,42,.06);
+      box-shadow: 0 10px 18px rgba(2,6,23,.06);
+    }
+    .kpi .meta{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 0;
+    }
+    .kpi .label{
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing:.02em;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 220px;
+    }
+    .kpi .value{
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing:-.02em;
+      line-height: 1.1;
+    }
+    .kpi .hint{
+      color: var(--muted2);
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 1px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 220px;
+    }
+
+    .span-3{ grid-column: span 3; }
+    .span-4{ grid-column: span 4; }
+    .span-6{ grid-column: span 6; }
+
+    .icon.good{ background: var(--good-bg); color: var(--good); }
+    .icon.warn{ background: var(--warn-bg); color: var(--warn); }
+    .icon.bad{ background: var(--bad-bg); color: var(--bad); }
+    .icon.info{ background: var(--info-bg); color: var(--info); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 16px;
+      align-items:start;
+    }
+
+    .panel{ padding: 16px; }
+    .panel-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .panel-title{
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+    }
+    .panel-title h2{
+      margin:0;
+      font-size: 16px;
+      letter-spacing:-.01em;
+    }
+    .panel-title p{
+      margin:0;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.7);
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill .dot{
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--good);
+      box-shadow: 0 0 0 4px rgba(31,157,85,.12);
+    }
+
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .item{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.72);
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    .item:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 10px 18px rgba(2,6,23,.08);
+      border-color: rgba(30,136,255,.18);
+    }
+    .time{
+      min-width: 54px;
+      font-weight: 900;
+      color: var(--text);
+      font-size: 13px;
+      letter-spacing:.02em;
+    }
+    .content{ flex:1; min-width:0; }
+    .content .title{
+      margin:0;
+      font-weight: 900;
+      font-size: 13px;
+      line-height: 1.2;
+      letter-spacing:-.01em;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .content .sub{
+      margin:6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+      white-space:nowrap;
+    }
+    .badge.good{ background: var(--good-bg); color: var(--good); border-color: rgba(31,157,85,.20); }
+    .badge.warn{ background: var(--warn-bg); color: var(--warn); border-color: rgba(180,83,9,.20); }
+    .badge.bad{  background: var(--bad-bg);  color: var(--bad);  border-color: rgba(225,29,72,.20); }
+    .badge.info{ background: var(--info-bg); color: var(--info); border-color: rgba(79,70,229,.20); }
+
+    /* Alerts */
+    .alerts{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top: 10px;
+    }
+    .alert{
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.72);
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+    }
+    .alert .aicon{
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      display:grid;
+      place-items:center;
+      font-weight: 900;
+      border: 1px solid rgba(15,23,42,.06);
+      flex: 0 0 auto;
+    }
+    .alert .atext{
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+      min-width:0;
+    }
+    .alert .atext strong{
+      font-size: 13px;
+      letter-spacing:-.01em;
+    }
+    .alert .atext span{
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      line-height:1.35;
+    }
+    .aicon.warn{ background: var(--warn-bg); color: var(--warn); }
+    .aicon.bad{ background: var(--bad-bg); color: var(--bad); }
+
+    .quick{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .qbtn{
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.75);
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(2,6,23,.06);
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      min-height: 52px;
+    }
+    .qbtn:hover{
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      border-color: rgba(30,136,255,.22);
+    }
+    .qbtn .left{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+    }
+    .qbtn .qicon{
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      display:grid;
+      place-items:center;
+      font-weight: 900;
+      border: 1px solid rgba(15,23,42,.06);
+      background: rgba(30,136,255,.10);
+      color: var(--primary);
+    }
+    .qbtn .qtext{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+    .qbtn .qtext strong{
+      font-size: 13px;
+      letter-spacing:-.01em;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .qbtn .qtext span{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .qbtn .arrow{
+      color: var(--muted2);
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+
+    .divider{
+      height:1px;
+      background: rgba(15,23,42,.06);
+      margin: 12px 0;
+      border-radius: 999px;
+    }
+
+    .footnote{
+      margin-top: 16px;
+      color: var(--muted2);
+      font-size: 12px;
+      font-weight: 600;
+      text-align:center;
+    }
+
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+      .span-3{ grid-column: span 6; }
+      .span-4{ grid-column: span 6; }
+      .span-6{ grid-column: span 12; }
+    }
+    @media (max-width: 560px){
+      .page{ padding: 20px 14px 28px; }
+      .topbar{ flex-direction:column; align-items:stretch; }
+      .top-actions{ justify-content:flex-start; }
+      .span-3,.span-4{ grid-column: span 12; }
+      .quick{ grid-template-columns: 1fr; }
+      .welcome .wtext strong, .welcome .wtext span{ max-width: 240px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/eduflow-8.png' %}" alt="EDUflow Logo"></div>
+        <div>
+          <p class="brand-kicker">Dashboard</p>
+          <p class="brand-name">EDUflow</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/dashboard/" class="nav-item active">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        <a href="/?view=view-calendar" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/?view=view-students" class="nav-item">
+          <span class="nav-emoji">👩‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/?view=view-planning" class="nav-item">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        <a href="/?view=view-tasks" class="nav-item">
+          <span class="nav-emoji">✅</span>
+          <div>
+            <p class="nav-title">Tarefas</p>
+            <p class="nav-subtitle">Planejamento rápido</p>
+          </div>
+        </a>
+        <a href="/?view=view-finance" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-group">
+          <div class="nav-group-header">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+          </div>
+          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+            <span class="nav-emoji">👥</span>
+            <div>
+              <p class="nav-title">Usuários</p>
+              <p class="nav-subtitle">Gerenciar usuários</p>
+            </div>
+          </a>
+          <a href="/perfil/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">👤</span>
+            <div>
+              <p class="nav-title">Perfil</p>
+              <p class="nav-subtitle">Dados da conta</p>
+            </div>
+          </a>
+          <a href="/planos/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">💳</span>
+            <div>
+              <p class="nav-title">Plano e Faturamento</p>
+              <p class="nav-subtitle">Gerenciar assinatura</p>
+            </div>
+          </a>
+        </div>
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <a href="/?view=view-calendar" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Calendário</a>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      </div>
+    </aside>
+    
+    <main class="page">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="title">
+        <!-- <div class="eyebrow">Dashboard</div> -->
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <h1>Central do Professor</h1>
+          <!-- Boas-vindas + nome -->
+          <div class="welcome" title="Usuário logado">
+            <div class="avatar" id="userAvatar">
+              <img id="userAvatarImg" alt="Foto do perfil" style="display: none;" />
+              <span id="userAvatarText">P</span>
+            </div>
+            <div class="wtext">
+              <strong id="userWelcome">Bem-vinda, Professor!</strong>
+              <span id="userEmail">Você está no controle.</span>
+            </div>
+          </div>
+        </div>
+        <p class="subtitle" id="subtitle">Hoje é <strong id="todayLabel">—</strong>. Bora deixar tudo sob controle.</p>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn" type="button" id="btnCalendar">
+          📅 Ver calendário <span class="kbd">C</span>
+        </button>
+        <button class="btn" type="button" id="btnFinance">
+          💰 Financeiro <span class="kbd">F</span>
+        </button>
+        <button class="btn primary" type="button" id="btnNewClass">
+          ➕ Novo agendamento <span class="kbd">N</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <section class="kpis" aria-label="Indicadores">
+      <div class="kpi span-3" data-go="calendar" role="button" tabindex="0">
+        <div class="icon info">📅</div>
+        <div class="meta">
+          <div class="label">Aulas hoje</div>
+          <div class="value" id="kpiTodayClasses">2</div>
+          <div class="hint">clique para ver o dia</div>
+        </div>
+      </div>
+
+      <div class="kpi span-3" data-go="calendar" role="button" tabindex="0">
+        <div class="icon warn">⏳</div>
+        <div class="meta">
+          <div class="label">Pendentes hoje</div>
+          <div class="value" id="kpiTodayPending">1</div>
+          <div class="hint">confirmações faltando</div>
+        </div>
+      </div>
+
+      <div class="kpi span-3" data-go="calendar" role="button" tabindex="0">
+        <div class="icon bad">✖</div>
+        <div class="meta">
+          <div class="label">Canceladas no mês</div>
+          <div class="value" id="kpiMonthCanceled">0</div>
+          <div class="hint">impacto na agenda</div>
+        </div>
+      </div>
+
+      <div class="kpi span-3" data-go="students" role="button" tabindex="0">
+        <div class="icon info">🧑‍🎓</div>
+        <div class="meta">
+          <div class="label">Alunos ativos</div>
+          <div class="value" id="kpiActiveStudents">11</div>
+          <div class="hint">em andamento</div>
+        </div>
+      </div>
+
+      <div class="kpi span-4" data-go="finance" role="button" tabindex="0">
+        <div class="icon warn">💰</div>
+        <div class="meta">
+          <div class="label">A receber hoje</div>
+          <div class="value" id="kpiDueToday">R$ 500</div>
+          <div class="hint">vencimentos do dia</div>
+        </div>
+      </div>
+
+      <div class="kpi span-4" data-go="billing" role="button" tabindex="0">
+        <div class="icon bad">⚠</div>
+        <div class="meta">
+          <div class="label">Em atraso</div>
+          <div class="value" id="kpiOverdue">R$ 777</div>
+          <div class="hint">cobranças pendentes</div>
+        </div>
+      </div>
+
+      <div class="kpi span-4" data-go="finance" role="button" tabindex="0">
+        <div class="icon good">✅</div>
+        <div class="meta">
+          <div class="label">Recebido no mês</div>
+          <div class="value" id="kpiPaidMonth">R$ 1.200</div>
+          <div class="hint">saúde do caixa</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main grid -->
+    <section class="grid" aria-label="Conteúdo principal">
+      <!-- Left: Today -->
+      <section class="card panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>Hoje</h2>
+            <p>Agenda do dia + pendências que importam.</p>
+          </div>
+          <div class="pill" title="Status geral do dia">
+            <span class="dot"></span>
+            <span id="dayStatusText">Tudo sob controle</span>
+          </div>
+        </div>
+
+        <div class="list" id="todayList">
+          <div class="item">
+            <div class="time">09:00</div>
+            <div class="content">
+              <p class="title">Aula • Lucia Frances</p>
+              <p class="sub">
+                <span class="badge good">Confirmado</span>
+                <span>📍 Online</span>
+                <span>📘 Conversação</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="time">14:00</div>
+            <div class="content">
+              <p class="title">Aula • João Pedro</p>
+              <p class="sub">
+                <span class="badge warn">Pendente</span>
+                <span>📍 Presencial</span>
+                <span>🧠 Revisão</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="time">—</div>
+            <div class="content">
+              <p class="title">Cobrança • Luana Piovani</p>
+              <p class="sub">
+                <span class="badge warn">Vence hoje</span>
+                <span>💳 R$ 777</span>
+                <span>📲 WhatsApp</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="panel-header" style="margin:0 0 10px;">
+          <div class="panel-title">
+            <h2>Atalhos rápidos</h2>
+            <p>Um clique. Sem drama.</p>
+          </div>
+        </div>
+
+        <div class="quick">
+          <button class="qbtn" type="button" data-go="calendar">
+            <div class="left">
+              <div class="qicon">📅</div>
+              <div class="qtext">
+                <strong>Agendar aula</strong>
+                <span>criar compromisso rápido</span>
+              </div>
+            </div>
+            <div class="arrow">›</div>
+          </button>
+
+          <button class="qbtn" type="button" data-go="billing">
+            <div class="left">
+              <div class="qicon" style="background: rgba(225,29,72,.10); color: var(--bad);">💬</div>
+              <div class="qtext">
+                <strong>Cobrar no WhatsApp</strong>
+                <span>modelo + envio</span>
+              </div>
+            </div>
+            <div class="arrow">›</div>
+          </button>
+
+          <button class="qbtn" type="button" data-go="students">
+            <div class="left">
+              <div class="qicon" style="background: rgba(79,70,229,.10); color: var(--info);">🧑‍🎓</div>
+              <div class="qtext">
+                <strong>Novo aluno</strong>
+                <span>cadastro em 30s</span>
+              </div>
+            </div>
+            <div class="arrow">›</div>
+          </button>
+
+          <button class="qbtn" type="button" data-go="tasks">
+            <div class="left">
+              <div class="qicon" style="background: rgba(180,83,9,.10); color: var(--warn);">✅</div>
+              <div class="qtext">
+                <strong>Nova tarefa</strong>
+                <span>pra não esquecer nada</span>
+              </div>
+            </div>
+            <div class="arrow">›</div>
+          </button>
+        </div>
+
+        <p class="footnote">Dica: use as teclas <strong>N</strong>, <strong>C</strong> e <strong>F</strong> para navegar mais rápido.</p>
+      </section>
+
+      <!-- Right: Alerts / Insights -->
+      <aside class="card panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>Alertas inteligentes</h2>
+           <!-- <p>2 alertas. Direto ao ponto.</p> -->
+          </div>
+          <span class="badge info" title="Sugestão automática">Sugestões</span>
+        </div>
+
+        <!-- Só 2 alertas -->
+        <div class="alerts" id="alertsList">
+          <div class="alert">
+            <div class="aicon bad">🔴</div>
+            <div class="atext">
+              <strong>1 cobrança em atraso</strong>
+              <span>Enviar agora aumenta muito a chance de pagamento hoje.</span>
+            </div>
+          </div>
+
+          <div class="alert">
+            <div class="aicon warn">🟡</div>
+            <div class="atext">
+              <strong>Vencimentos próximos (3 dias)</strong>
+              <span>Prepare as cobranças antes do prazo e evite “correria de última hora”.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Mantém o Resumo do mês -->
+        <div class="panel-header" style="margin:0 0 10px;">
+          <div class="panel-title">
+            <h2>Resumo do mês</h2>
+            <p>Visão rápida (sem planilha, graças a Deus).</p>
+          </div>
+        </div>
+
+        <div class="list">
+          <div class="item">
+            <div class="time">📌</div>
+            <div class="content">
+              <p class="title">Taxa de confirmação</p>
+              <p class="sub">
+                <span class="badge good" id="monthConfirmationRate">0%</span>
+                <span>meta: <span id="monthConfirmationTarget">90%</span></span>
+              </p>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="time">💸</div>
+            <div class="content">
+              <p class="title">Recebimentos</p>
+              <p class="sub">
+                <span class="badge good" id="monthPaidAmount">R$ 0,00</span>
+                <span class="badge warn" id="monthPendingAmount">R$ 0,00 pendente</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="item">
+            <div class="time">🧠</div>
+            <div class="content">
+              <p class="title">Pendências</p>
+              <p class="sub">
+                <span class="badge warn" id="monthTasksOpen">0 tarefas</span>
+                <span id="monthReschedules">0 aulas para reagendar</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
+    </main>
+  </div>
+
+  <script>
+    (function(){
+      // ====== Funções utilitárias ======
+      function formatBRL(value) {
+        if (value === null || value === undefined || isNaN(value)) return 'R$ 0,00';
+        return new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        }).format(value);
+      }
+
+      function formatPercent(value, decimals = 1) {
+        if (value === null || value === undefined || isNaN(value)) return '0%';
+        return `${value.toFixed(decimals)}%`;
+      }
+
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+
+      // ====== Formatação de data ======
+      const dt = new Date();
+      const weekdays = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+      const months = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+      const label = `${weekdays[dt.getDay()]}, ${String(dt.getDate()).padStart(2,"0")} de ${months[dt.getMonth()]}`;
+      const todayLabelEl = document.getElementById("todayLabel");
+      if (todayLabelEl) {
+        todayLabelEl.textContent = label;
+      }
+
+      // ====== Carregar dados do dashboard ======
+      async function loadDashboardData() {
+        try {
+          const csrf = getCookie("csrftoken");
+          const response = await fetch("/api/dashboard/summary/", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf || "",
+            },
+            credentials: "same-origin",
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          renderDashboard(data);
+        } catch (error) {
+          console.error("Erro ao carregar dados do dashboard:", error);
+          renderFallback();
+        }
+      }
+
+      // ====== Renderizar dados ======
+      function renderDashboard(data) {
+        // User info
+        const user = data.user || {};
+        const firstLetter = (user.name || "U").trim().charAt(0).toUpperCase();
+        const avatarEl = document.getElementById("userAvatar");
+        const welcomeEl = document.getElementById("userWelcome");
+        const emailEl = document.getElementById("userEmail");
+        
+        // Atualizar avatar com foto se existir
+        if (avatarEl) {
+          const avatarImg = document.getElementById('userAvatarImg');
+          const avatarText = document.getElementById('userAvatarText');
+          
+          console.log("Avatar element encontrado, user.photo:", user.photo);
+          if (user.photo && avatarImg) {
+            // Construir URL completa da foto
+            let photoUrl = user.photo;
+            // Se a URL não começar com http, garantir que comece com /
+            if (!photoUrl.startsWith('http') && !photoUrl.startsWith('/')) {
+              photoUrl = '/' + photoUrl;
+            }
+            // Adicionar timestamp para evitar cache
+            photoUrl = photoUrl + (photoUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+            
+            console.log("Tentando carregar foto:", photoUrl);
+            
+            // Configurar estilos inline na imagem para garantir visibilidade
+            avatarImg.style.width = '100%';
+            avatarImg.style.height = '100%';
+            avatarImg.style.objectFit = 'cover';
+            avatarImg.style.borderRadius = '999px';
+            avatarImg.style.position = 'absolute';
+            avatarImg.style.top = '0';
+            avatarImg.style.left = '0';
+            avatarImg.style.zIndex = '2';
+            avatarImg.style.display = 'none'; // Inicialmente oculta
+            
+            // Configurar event handlers antes de definir src
+            avatarImg.onload = function() {
+              console.log("Foto carregada com sucesso:", photoUrl);
+              // Adicionar classe e mostrar imagem
+              avatarEl.classList.add('has-photo');
+              avatarEl.style.display = 'block'; // Mudar para block quando tem foto
+              avatarImg.style.display = 'block';
+              avatarImg.style.visibility = 'visible';
+              avatarImg.style.opacity = '1';
+              // Esconder texto
+              if (avatarText) avatarText.style.display = 'none';
+              // Remover background do avatar quando há foto
+              avatarEl.style.background = 'transparent';
+              avatarEl.style.boxShadow = 'none';
+              console.log("Imagem deve estar visível agora. Display:", avatarImg.style.display, "Classe has-photo:", avatarEl.classList.contains('has-photo'));
+            };
+            avatarImg.onerror = function() {
+              console.warn("Erro ao carregar foto:", photoUrl, "Tentando novamente sem timestamp...");
+              // Tentar sem timestamp
+              const photoUrlNoCache = user.photo.startsWith('/') ? user.photo : '/' + user.photo;
+              avatarImg.onerror = function() {
+                console.error("Erro definitivo ao carregar foto");
+                // Se falhar, mostrar iniciais
+                avatarEl.classList.remove('has-photo');
+                avatarImg.style.display = 'none';
+                if (avatarText) {
+                  avatarText.style.display = 'inline';
+                  avatarText.textContent = firstLetter;
+                }
+                avatarEl.style.background = '';
+                avatarEl.style.boxShadow = '';
+              };
+              avatarImg.src = photoUrlNoCache;
+            };
+            
+            // Definir src após configurar os event handlers
+            avatarImg.src = photoUrl;
+          } else {
+            console.log("Nenhuma foto encontrada, mostrando iniciais");
+            // Se não houver foto, mostrar iniciais
+            avatarEl.classList.remove('has-photo');
+            if (avatarImg) avatarImg.style.display = 'none';
+            if (avatarText) {
+              avatarText.style.display = 'inline';
+              avatarText.textContent = firstLetter;
+            }
+            avatarEl.style.background = '';
+            avatarEl.style.boxShadow = '';
+          }
+        }
+        
+        if (welcomeEl) welcomeEl.textContent = `Bem-vindo, ${user.name || 'Professor'}!`;
+        if (emailEl) emailEl.textContent = user.email || "Vamos organizar o dia.";
+
+        // KPIs
+        const kpis = data.kpis || {};
+        const kpiTodayClasses = document.getElementById("kpiTodayClasses");
+        const kpiTodayPending = document.getElementById("kpiTodayPending");
+        const kpiMonthCanceled = document.getElementById("kpiMonthCanceled");
+        const kpiActiveStudents = document.getElementById("kpiActiveStudents");
+        const kpiDueToday = document.getElementById("kpiDueToday");
+        const kpiOverdue = document.getElementById("kpiOverdue");
+        const kpiPaidMonth = document.getElementById("kpiPaidMonth");
+
+        if (kpiTodayClasses) kpiTodayClasses.textContent = kpis.today_classes || 0;
+        if (kpiTodayPending) kpiTodayPending.textContent = kpis.today_pending || 0;
+        if (kpiMonthCanceled) kpiMonthCanceled.textContent = kpis.month_canceled || 0;
+        if (kpiActiveStudents) kpiActiveStudents.textContent = kpis.active_students || 0;
+        if (kpiDueToday) kpiDueToday.textContent = formatBRL(kpis.due_today_amount || 0);
+        if (kpiOverdue) kpiOverdue.textContent = formatBRL(kpis.overdue_amount || 0);
+        if (kpiPaidMonth) kpiPaidMonth.textContent = formatBRL(kpis.paid_month_amount || 0);
+
+        // Atualizar sidebar card
+        const sidebarConfirmed = document.getElementById("sidebarConfirmed");
+        const sidebarPending = document.getElementById("sidebarPending");
+        const sidebarStudents = document.getElementById("sidebarStudents");
+        if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.today_classes || 0;
+        if (sidebarPending) sidebarPending.textContent = kpis.today_pending || 0;
+        if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
+
+        // Lista "Hoje"
+        const todayList = document.getElementById("todayList");
+        if (todayList) {
+          const items = data.today?.items || [];
+          if (items.length === 0) {
+            todayList.innerHTML = '<div class="item"><div class="time">—</div><div class="content"><p class="title">Nenhum item para hoje</p><p class="sub">Aproveite para organizar a semana!</p></div></div>';
+          } else {
+            todayList.innerHTML = items.map(item => {
+              const badges = (item.badges || []).map(badge => 
+                `<span class="badge ${badge.type}">${badge.label}</span>`
+              ).join('');
+              const meta = (item.meta || []).map(m => `<span>${m}</span>`).join('');
+              return `
+                <div class="item">
+                  <div class="time">${item.time || '—'}</div>
+                  <div class="content">
+                    <p class="title">${item.title || 'Item'}</p>
+                    <p class="sub">${badges}${meta ? ' ' + meta : ''}</p>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+        // Status do dia
+        const dayStatusText = document.getElementById("dayStatusText");
+        if (dayStatusText) {
+          const pending = kpis.today_pending || 0;
+          if (pending === 0) {
+            dayStatusText.textContent = "Tudo sob controle";
+          } else if (pending === 1) {
+            dayStatusText.textContent = "1 pendência";
+          } else {
+            dayStatusText.textContent = `${pending} pendências`;
+          }
+        }
+
+        // Alertas
+        const alertsList = document.getElementById("alertsList");
+        if (alertsList) {
+          const alerts = data.alerts || [];
+          if (alerts.length === 0) {
+            alertsList.innerHTML = '<div class="alert"><div class="aicon good">✅</div><div class="atext"><strong>Tudo certo!</strong><span>Nenhum alerta no momento.</span></div></div>';
+          } else {
+            alertsList.innerHTML = alerts.map(alert => {
+              const icon = alert.type === 'bad' ? '🔴' : '🟡';
+              return `
+                <div class="alert">
+                  <div class="aicon ${alert.type}">${icon}</div>
+                  <div class="atext">
+                    <strong>${alert.title}</strong>
+                    <span>${alert.description}</span>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+
+        // Resumo do mês
+        const monthSummary = data.month_summary || {};
+        
+        // Atualizar Recebimentos
+        const monthPaidAmountEl = document.getElementById("monthPaidAmount");
+        const monthPendingAmountEl = document.getElementById("monthPendingAmount");
+        if (monthPaidAmountEl) {
+          monthPaidAmountEl.textContent = formatBRL(monthSummary.paid_amount || 0);
+        }
+        if (monthPendingAmountEl) {
+          const pendingAmount = monthSummary.pending_amount || 0;
+          monthPendingAmountEl.textContent = pendingAmount > 0 ? `${formatBRL(pendingAmount)} pendente` : "R$ 0,00 pendente";
+        }
+        
+        // Atualizar Pendências
+        const monthTasksOpenEl = document.getElementById("monthTasksOpen");
+        const monthReschedulesEl = document.getElementById("monthReschedules");
+        if (monthTasksOpenEl) {
+          const tasksOpen = monthSummary.tasks_open || 0;
+          monthTasksOpenEl.textContent = `${tasksOpen} tarefa${tasksOpen !== 1 ? 's' : ''}`;
+        }
+        if (monthReschedulesEl) {
+          const reschedules = monthSummary.reschedules || 0;
+          monthReschedulesEl.textContent = reschedules > 0 ? `${reschedules} aula${reschedules !== 1 ? 's' : ''} para reagendar` : "0 aulas para reagendar";
+        }
+        
+        // Atualizar Taxa de confirmação
+        const monthConfirmationRateEl = document.getElementById("monthConfirmationRate");
+        const monthConfirmationTargetEl = document.getElementById("monthConfirmationTarget");
+        if (monthConfirmationRateEl) {
+          const rate = monthSummary.confirmation_rate || 0;
+          monthConfirmationRateEl.textContent = `${rate.toFixed(1)}%`;
+          // Mudar cor do badge baseado na meta
+          const target = monthSummary.confirmation_rate_target || 90;
+          if (rate >= target) {
+            monthConfirmationRateEl.className = "badge good";
+          } else {
+            monthConfirmationRateEl.className = "badge warn";
+          }
+        }
+        if (monthConfirmationTargetEl) {
+          monthConfirmationTargetEl.textContent = `${monthSummary.confirmation_rate_target || 90}%`;
+        }
+      }
+
+      function renderFallback() {
+        const user = { name: "Professor", email: "" };
+        const firstLetter = "P";
+        const avatarEl = document.getElementById("userAvatar");
+        const welcomeEl = document.getElementById("userWelcome");
+        const emailEl = document.getElementById("userEmail");
+        
+        // Atualizar avatar com foto se existir (fallback)
+        if (avatarEl) {
+          const avatarImg = document.getElementById('userAvatarImg');
+          const avatarText = document.getElementById('userAvatarText');
+          
+          if (user.photo && avatarImg) {
+            const photoUrl = user.photo + (user.photo.includes('?') ? '&' : '?') + 't=' + Date.now();
+            avatarImg.src = photoUrl;
+            avatarEl.classList.add('has-photo');
+            avatarEl.style.display = 'block';
+            avatarImg.style.display = 'block';
+            if (avatarText) avatarText.style.display = 'none';
+          } else {
+            avatarEl.classList.remove('has-photo');
+            if (avatarImg) avatarImg.style.display = 'none';
+            if (avatarText) {
+              avatarText.style.display = 'inline';
+              avatarText.textContent = firstLetter;
+            }
+          }
+        }
+        
+        if (welcomeEl) welcomeEl.textContent = `Bem-vinda, ${user.name}!`;
+        if (emailEl) emailEl.textContent = "Sem dados por enquanto.";
+        
+        // Zerar resumo do mês no fallback
+        const monthPaidAmountEl = document.getElementById("monthPaidAmount");
+        const monthPendingAmountEl = document.getElementById("monthPendingAmount");
+        const monthTasksOpenEl = document.getElementById("monthTasksOpen");
+        const monthReschedulesEl = document.getElementById("monthReschedules");
+        const monthConfirmationRateEl = document.getElementById("monthConfirmationRate");
+        
+        if (monthPaidAmountEl) monthPaidAmountEl.textContent = "R$ 0,00";
+        if (monthPendingAmountEl) monthPendingAmountEl.textContent = "R$ 0,00 pendente";
+        if (monthTasksOpenEl) monthTasksOpenEl.textContent = "0 tarefas";
+        if (monthReschedulesEl) monthReschedulesEl.textContent = "0 aulas para reagendar";
+        if (monthConfirmationRateEl) monthConfirmationRateEl.textContent = "0%";
+
+        // Zerar KPIs
+        const kpiEls = ["kpiTodayClasses", "kpiTodayPending", "kpiMonthCanceled", "kpiActiveStudents", "kpiDueToday", "kpiOverdue", "kpiPaidMonth"];
+        kpiEls.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = id.includes("kpiDueToday") || id.includes("kpiOverdue") || id.includes("kpiPaidMonth") ? "R$ 0,00" : "0";
+        });
+
+        const todayList = document.getElementById("todayList");
+        if (todayList) {
+          todayList.innerHTML = '<div class="item"><div class="time">—</div><div class="content"><p class="title">Sem dados por enquanto</p><p class="sub">Os dados serão carregados em breve.</p></div></div>';
+        }
+
+        const alertsList = document.getElementById("alertsList");
+        if (alertsList) {
+          alertsList.innerHTML = '<div class="alert"><div class="aicon info">ℹ️</div><div class="atext"><strong>Carregando dados</strong><span>Aguarde enquanto buscamos as informações.</span></div></div>';
+        }
+      }
+
+      // ====== Navegação ======
+      function go(where) {
+        // Mapear para views do sistema
+        const viewMap = {
+          'calendar': 'view-calendar',
+          'finance': 'view-finance',
+          'billing': 'view-billing',
+          'students': 'view-students',
+          'tasks': 'view-tasks'
+        };
+
+        const viewId = viewMap[where] || 'view-calendar';
+        
+        // Se estiver no index.html (sistema principal), usar showView
+        if (typeof showView === 'function') {
+          showView(viewId);
+        } else {
+          // Redirecionar para a página principal com parâmetro de view
+          window.location.href = `/?view=${viewId}`;
+        }
+      }
+
+      // ====== Event listeners ======
+      const btnCalendar = document.getElementById("btnCalendar");
+      const btnFinance = document.getElementById("btnFinance");
+      const btnNewClass = document.getElementById("btnNewClass");
+
+      if (btnCalendar) btnCalendar.addEventListener("click", () => go("calendar"));
+      if (btnFinance) btnFinance.addEventListener("click", () => go("finance"));
+      if (btnNewClass) btnNewClass.addEventListener("click", () => go("calendar"));
+
+      document.querySelectorAll("[data-go]").forEach(el => {
+        el.addEventListener("click", () => go(el.getAttribute("data-go")));
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            go(el.getAttribute("data-go"));
+          }
+        });
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.target && ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
+        const k = (e.key || "").toLowerCase();
+        if (k === "c") go("calendar");
+        if (k === "f") go("finance");
+        if (k === "n") go("calendar");
+      });
+
+      // ====== Verificar se é admin e mostrar menu Usuários ======
+      async function checkAdminAndShowUsersMenu() {
+        try {
+          const csrf = getCookie("csrftoken");
+          const response = await fetch("/api/auth/current-user/", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf || "",
+            },
+            credentials: "same-origin",
+          });
+
+          if (response.ok) {
+            const user = await response.json();
+            const navUsers = document.getElementById("navUsers");
+            if (navUsers && user && user.is_admin) {
+              navUsers.style.display = "flex";
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao verificar permissões de admin:", error);
+        }
+      }
+
+      // ====== Logout ======
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+          try {
+            const csrf = getCookie("csrftoken");
+            const response = await fetch("/api/auth/logout/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrf || "",
+              },
+              credentials: "same-origin",
+            });
+
+            if (response.ok) {
+              // Redirecionar para login após logout
+              window.location.href = "/login/";
+            } else {
+              console.error("Erro ao fazer logout");
+              // Mesmo com erro, redireciona para login
+              window.location.href = "/login/";
+            }
+          } catch (error) {
+            console.error("Erro ao fazer logout:", error);
+            // Mesmo com erro, redireciona para login
+            window.location.href = "/login/";
+          }
+        });
+      }
+
+      // ====== Inicializar ======
+      loadDashboardData();
+      checkAdminAndShowUsersMenu();
+    })();
+  </script>
+</body>
+</html>

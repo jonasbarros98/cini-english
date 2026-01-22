@@ -3,9 +3,12 @@ from rest_framework.routers import DefaultRouter
 from django.views.generic import TemplateView
 
 from .views import (
-    StudentViewSet, LessonViewSet, TaskViewSet, DashboardView, 
+    StudentViewSet, LessonViewSet, TaskViewSet, DashboardView, DashboardHomeView,
     InvoiceViewSet, FinancialEntryViewSet, UserViewSet, LessonPlanViewSet, BillingLogViewSet,
-    login_view, logout_view, current_user_view
+    login_view, logout_view, current_user_view,
+    create_checkout_session, stripe_webhook, subscription_status, signup_view,
+    create_portal_session, PlanosView, dashboard_summary_view, PerfilView,
+    profile_get_view, profile_update_view
 )
 
 router = DefaultRouter()
@@ -20,10 +23,23 @@ router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
     path("landing/", TemplateView.as_view(template_name="landing.html"), name="landing"),
+    path("dashboard/", DashboardHomeView.as_view(), name="dashboard-home"),
+    path("perfil/", PerfilView.as_view(), name="perfil"),
     path("", DashboardView.as_view(), name="dashboard"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
+    path("signup/", TemplateView.as_view(template_name="signup.html"), name="signup"),
+    path("payment-processing/", TemplateView.as_view(template_name="payment_processing.html"), name="payment-processing"),
     path("api/", include(router.urls)),
     path("api/auth/login/", login_view, name="api-login"),
     path("api/auth/logout/", logout_view, name="api-logout"),
+    path("api/auth/signup/", signup_view, name="api-signup"),
     path("api/auth/current-user/", current_user_view, name="api-current-user"),
+    path("api/profile/me/", profile_get_view, name="profile-get"),
+    path("api/profile/update/", profile_update_view, name="profile-update"),
+    path("api/dashboard/summary/", dashboard_summary_view, name="dashboard-summary"),
+    path("api/subscription/create-checkout/", create_checkout_session, name="create-checkout"),
+    path("api/subscription/status/", subscription_status, name="subscription-status"),
+    path("api/subscription/create-portal/", create_portal_session, name="create-portal"),
+    path("api/webhooks/stripe/", stripe_webhook, name="stripe-webhook"),
+    path("planos/", PlanosView.as_view(), name="planos"),
 ]

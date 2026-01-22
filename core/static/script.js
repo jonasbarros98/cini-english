@@ -3073,7 +3073,23 @@ async function init() {
   state.selectedDate = toISO(state.today);
   renderDayDetails();
 
-  showView("view-calendar");
+  // Verificar se estamos na rota do dashboard
+  if (window.location.pathname === '/dashboard/') {
+    // Não fazer nada, deixar o dashboard_home.html gerenciar
+    return;
+  }
+
+  // Verificar se há parâmetro de view na URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const viewParam = urlParams.get('view');
+  
+  if (viewParam) {
+    // Se houver parâmetro, mostrar a view especificada
+    showView(viewParam);
+  } else {
+    // Caso contrário, mostrar calendário por padrão
+    showView("view-calendar");
+  }
 }
 
 // ==========================
@@ -3202,9 +3218,10 @@ function renderUsers() {
           <strong>${user.username}</strong>
           ${user.is_admin ? '<span class="tag" style="margin-left: 8px;">Admin</span>' : ''}
           <span class="tag" style="margin-left: 8px; background: #e0e7ff; color: #4338ca;">${profileLabel}</span>
+          <span class="tag" style="margin-left: 8px; background: #f3f4f6; color: #6b7280; font-size: 11px;">ID: ${user.id}</span>
         </div>
         <div class="student-info">
-          ${user.email || "Sem email"} • ${user.is_active ? "Ativo" : "Inativo"}
+          <div style="margin-bottom: 4px;"><strong>Código:</strong> ${user.id}</div>${user.email || "Sem email"} • ${user.is_active ? "Ativo" : "Inativo"}
           ${user.partner_teachers && user.partner_teachers.length > 0 ? 
             ` • ${user.partner_teachers.length} parceiro(s)` : ''}
         </div>
@@ -3273,6 +3290,14 @@ async function openUserForm(userId = null) {
     editingUserId = userId;
     titleEl.textContent = "Editar Usuário";
 
+    // Mostrar e preencher campo de ID
+    const userIdRow = document.getElementById("userIdRow");
+    const userIdInput = document.getElementById("uUserId");
+    if (userIdRow && userIdInput) {
+      userIdRow.style.display = "block";
+      userIdInput.value = user.id || "";
+    }
+
     document.getElementById("uUsername").value = user.username || "";
     document.getElementById("uEmail").value = user.email || "";
     document.getElementById("uFirstName").value = user.first_name || "";
@@ -3282,6 +3307,13 @@ async function openUserForm(userId = null) {
     document.getElementById("uIsActive").checked = user.is_active !== false;
     document.getElementById("uPassword").value = "";
     document.getElementById("uPassword").required = false;
+    // Oculta campo de confirmação de senha ao editar
+    const passwordConfirmRow = document.getElementById("passwordConfirmRow");
+    if (passwordConfirmRow) {
+      passwordConfirmRow.style.display = "none";
+      document.getElementById("uPasswordConfirm").value = "";
+      document.getElementById("uPasswordConfirm").required = false;
+    }
 
     // Atualiza select de professores parceiros
     await updatePartnerTeachersSelect();
@@ -3303,8 +3335,21 @@ async function openUserForm(userId = null) {
     editingUserId = null;
     titleEl.textContent = "Novo Usuário";
     form.reset();
+    
+    // Ocultar campo de ID para novo usuário
+    const userIdRow = document.getElementById("userIdRow");
+    if (userIdRow) {
+      userIdRow.style.display = "none";
+    }
+    
     document.getElementById("uPassword").required = true;
     document.getElementById("uUserProfile").value = "professor";
+    // Mostra campo de confirmação de senha para novos usuários
+    const passwordConfirmRow = document.getElementById("passwordConfirmRow");
+    if (passwordConfirmRow) {
+      passwordConfirmRow.style.display = "flex";
+      document.getElementById("uPasswordConfirm").required = true;
+    }
     await updatePartnerTeachersSelect();
   }
 
@@ -3320,10 +3365,31 @@ function closeUserForm() {
   const form = document.getElementById("userForm");
   if (form) form.reset();
   
+  // Oculta campo de ID ao fechar
+  const userIdRow = document.getElementById("userIdRow");
+  if (userIdRow) {
+    userIdRow.style.display = "none";
+  }
+  
   // Oculta o campo de professores parceiros ao fechar
   const partnerTeachersRow = document.getElementById("partnerTeachersRow");
   if (partnerTeachersRow) {
     partnerTeachersRow.style.display = "none";
+  }
+  
+  // Oculta campo de confirmação de senha e limpa erros
+  const passwordConfirmRow = document.getElementById("passwordConfirmRow");
+  if (passwordConfirmRow) {
+    passwordConfirmRow.style.display = "none";
+  }
+  const passwordMatchError = document.getElementById("passwordMatchError");
+  if (passwordMatchError) {
+    passwordMatchError.style.display = "none";
+  }
+  const passwordConfirmInput = document.getElementById("uPasswordConfirm");
+  if (passwordConfirmInput) {
+    passwordConfirmInput.value = "";
+    passwordConfirmInput.style.borderColor = "";
   }
 }
 
@@ -3335,6 +3401,7 @@ async function onUserFormSubmit(event) {
   const firstName = document.getElementById("uFirstName")?.value.trim();
   const lastName = document.getElementById("uLastName")?.value.trim();
   const password = document.getElementById("uPassword")?.value;
+  const passwordConfirm = document.getElementById("uPasswordConfirm")?.value;
   const userProfile = document.getElementById("uUserProfile")?.value;
   const isAdmin = document.getElementById("uIsAdmin")?.checked || false;
   const isActive = document.getElementById("uIsActive")?.checked !== false;
@@ -3351,6 +3418,20 @@ async function onUserFormSubmit(event) {
 
   if (!editingUserId && !password) {
     alert("Senha é obrigatória para novos usuários.");
+    return;
+  }
+
+  // Validar confirmação de senha para novos usuários
+  if (!editingUserId && password && password !== passwordConfirm) {
+    const passwordMatchError = document.getElementById("passwordMatchError");
+    const passwordConfirmInput = document.getElementById("uPasswordConfirm");
+    if (passwordMatchError) {
+      passwordMatchError.style.display = "block";
+    }
+    if (passwordConfirmInput) {
+      passwordConfirmInput.style.borderColor = "#dc2626";
+    }
+    alert("As senhas não coincidem. Por favor, verifique e tente novamente.");
     return;
   }
 
@@ -3377,6 +3458,10 @@ async function onUserFormSubmit(event) {
 
   if (password) {
     payload.password = password;
+    // Para novos usuários, enviar também a confirmação de senha
+    if (!editingUserId && passwordConfirm) {
+      payload.password_confirm = passwordConfirm;
+    }
   }
 
   // Adiciona professores parceiros apenas se for perfil Professor
@@ -3449,6 +3534,40 @@ function initUsersUI() {
   const userProfileSelect = document.getElementById("uUserProfile");
   if (userProfileSelect) {
     userProfileSelect.addEventListener("change", updatePartnerTeachersSelect);
+  }
+
+  // Validação em tempo real da confirmação de senha
+  const passwordInput = document.getElementById("uPassword");
+  const passwordConfirmInput = document.getElementById("uPasswordConfirm");
+  const passwordMatchError = document.getElementById("passwordMatchError");
+  
+  function validatePasswordMatch() {
+    if (!passwordInput || !passwordConfirmInput || !passwordMatchError) return;
+    
+    const password = passwordInput.value;
+    const passwordConfirm = passwordConfirmInput.value;
+    
+    // Só valida se ambos os campos tiverem valor e não estiver editando
+    if (!editingUserId && password && passwordConfirm) {
+      if (password !== passwordConfirm) {
+        passwordMatchError.style.display = "block";
+        passwordConfirmInput.style.borderColor = "#dc2626";
+        return false;
+      } else {
+        passwordMatchError.style.display = "none";
+        passwordConfirmInput.style.borderColor = "#10b981";
+        return true;
+      }
+    } else {
+      passwordMatchError.style.display = "none";
+      passwordConfirmInput.style.borderColor = "";
+      return true;
+    }
+  }
+  
+  if (passwordInput && passwordConfirmInput) {
+    passwordInput.addEventListener("input", validatePasswordMatch);
+    passwordConfirmInput.addEventListener("input", validatePasswordMatch);
   }
 
 }

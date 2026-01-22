@@ -1,0 +1,217 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EDUflow | Processando Pagamento</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      
+      .processing-container {
+        background: white;
+        border-radius: 24px;
+        padding: 64px 48px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 500px;
+        text-align: center;
+      }
+      
+      .processing-icon {
+        font-size: 80px;
+        margin-bottom: 24px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      
+      @keyframes pulse {
+        0%, 100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.1);
+          opacity: 0.8;
+        }
+      }
+      
+      .spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid #e0e0e0;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        margin: 0 auto 24px;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      
+      .processing-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 12px;
+      }
+      
+      .processing-message {
+        font-size: 16px;
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 32px;
+      }
+      
+      .processing-info {
+        background: #f5f5f5;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 24px;
+        font-size: 14px;
+        color: #666;
+        line-height: 1.6;
+      }
+      
+      .processing-info strong {
+        color: #333;
+      }
+      
+      .back-link {
+        margin-top: 32px;
+        font-size: 14px;
+        color: #666;
+      }
+      
+      .back-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      
+      .back-link a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="processing-container">
+      <div class="spinner"></div>
+      <h1 class="processing-title">Processando seu pagamento</h1>
+      <p class="processing-message">
+        Estamos confirmando seu pagamento com o Stripe. Isso pode levar alguns segundos.
+      </p>
+      
+      <div class="processing-info">
+        <strong>O que acontece agora?</strong><br>
+        • Seu pagamento está sendo processado<br>
+        • Você receberá um e-mail de confirmação<br>
+        • Seu acesso será ativado automaticamente após a confirmação<br>
+        • Você será redirecionado para o dashboard em breve
+      </div>
+      
+      <div class="back-link">
+        <a href="/">Voltar para o dashboard</a>
+      </div>
+    </div>
+
+    <script>
+      // Verificar status da assinatura periodicamente
+      let checkCount = 0;
+      const maxChecks = 30; // 30 tentativas (5 minutos)
+      
+      // Obter session_id da URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      console.log("Session ID:", sessionId);
+      
+      async function checkSubscriptionStatus() {
+        try {
+          console.log(`Verificando status da assinatura (tentativa ${checkCount + 1}/${maxChecks})...`);
+          
+          const response = await fetch("/api/subscription/status/", {
+            credentials: "same-origin",
+          });
+          
+          console.log("Resposta do status:", response.status, response.statusText);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log("Dados da assinatura:", data);
+            
+            if (data.has_subscription && data.is_active) {
+              // Assinatura ativa, redirecionar
+              console.log("✅ Assinatura ativa! Redirecionando para o dashboard...");
+              window.location.replace("/");
+              return;
+            } else if (data.has_subscription) {
+              console.log(`Assinatura encontrada, mas status: ${data.status}, ativa: ${data.is_active}`);
+            } else {
+              console.log("Ainda não há assinatura criada. Aguardando webhook...");
+            }
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.error("Erro ao verificar status:", response.status, errorData);
+            
+            // Se for erro 401 (não autenticado), pode ser que a sessão expirou
+            if (response.status === 401) {
+              console.error("Usuário não autenticado. Redirecionando para login...");
+              window.location.replace("/login/");
+              return;
+            }
+          }
+          
+          checkCount++;
+          
+          if (checkCount < maxChecks) {
+            // Verificar novamente em 10 segundos
+            console.log(`Aguardando 10 segundos antes da próxima verificação...`);
+            setTimeout(checkSubscriptionStatus, 10000);
+          } else {
+            // Timeout - redirecionar mesmo assim
+            console.warn("⏱️ Timeout ao verificar status após 5 minutos. Redirecionando...");
+            alert("O processamento está demorando mais que o esperado. Você será redirecionado para o dashboard. Se sua assinatura não foi ativada, entre em contato com o suporte.");
+            window.location.replace("/");
+          }
+        } catch (error) {
+          console.error("Erro ao verificar status:", error);
+          checkCount++;
+          
+          if (checkCount < maxChecks) {
+            setTimeout(checkSubscriptionStatus, 10000);
+          } else {
+            console.error("Muitos erros. Redirecionando...");
+            window.location.replace("/");
+          }
+        }
+      }
+      
+      // Começar a verificar após 5 segundos
+      console.log("Iniciando verificação de status em 5 segundos...");
+      setTimeout(checkSubscriptionStatus, 5000);
+    </script>
+  </body>
+</html>

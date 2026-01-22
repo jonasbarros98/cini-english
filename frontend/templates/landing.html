@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cini English | Gestão completa para professores particulares</title>
+  <title>EDUflow | Gestão completa para professores particulares</title>
 
-  <meta name="description" content="Cini English é um sistema para professores particulares controlarem agenda, alunos, planejamento, tarefas e financeiro em um só lugar — com cobrança via WhatsApp e mais tempo livre." />
+  <meta name="description" content="EDUflow é um sistema para professores particulares controlarem agenda, alunos, planejamento, tarefas e financeiro em um só lugar — com cobrança via WhatsApp e mais tempo livre." />
   <meta name="theme-color" content="#6366f1" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -98,14 +98,18 @@
     }
     .logo .mark {
       width: 36px; height: 36px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 0;
+      background: transparent;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 10px 25px -14px rgba(0,0,0,0.35);
+      box-shadow: none;
     }
-    .logo .mark i { color: white; width: 18px; height: 18px; }
+    .logo .mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
     .nav-actions {
       display: flex;
       align-items: center;
@@ -648,8 +652,8 @@
   <header>
     <div class="nav-container">
       <a class="logo" href="#top" aria-label="Ir para o topo">
-        <span class="mark"><i data-lucide="sparkles"></i></span>
-        <span>Cini English</span>
+        <span class="mark"><img src="/static/img/eduflow-8.png" alt="EDUflow Logo"></span>
+        <span>EDUflow</span>
       </a>
 
       <nav class="nav-actions" aria-label="Navegação principal">
@@ -657,6 +661,7 @@
         <a class="nav-link" href="#how">Como funciona</a>
         <a class="nav-link" href="#pricing">Planos</a>
         <a class="nav-link" href="#faq">FAQ</a>
+        <a class="nav-link" href="/login/">Login</a>
         <a class="btn-nav" href="#pricing">Testar 7 dias grátis</a>
       </nav>
     </div>
@@ -668,7 +673,7 @@
       <div class="container hero-grid">
         <div>
           <h1>
-            Gestão completa pra professor particular
+            Gestão completa para professores particulares
             <span class="highlight">sem planilha zumbi</span>.
           </h1>
 
@@ -694,7 +699,7 @@
           </div>
 
           <p class="micro">
-            <strong>Sem cartão pra testar</strong> • Cancele quando quiser • Comece em menos de 2 minutos
+            Cancele quando quiser • Comece em menos de 2 minutos
           </p>
         </div>
 
@@ -702,7 +707,7 @@
         <aside class="mock" aria-label="Prévia do sistema">
           <div class="mock-top">
             <div class="mock-title">
-              <strong>Seu dia, numa tela</strong>
+              <strong>Seu dia em uma tela</strong>
               <span>Agenda • Tarefas • Financeiro</span>
             </div>
             <div class="mock-chip">Hoje</div>
@@ -751,15 +756,15 @@
     <section class="section" id="modules">
       <div class="container">
         <div class="section-header">
-          <h2>Módulos que atacam o caos pelo pescoço</h2>
-          <p>Não é “mais um app”. É o seu painel de controle como professora — do agendamento ao caixa.</p>
+          <h2>Módulos que facilitam sua vida</h2>
+          <p>Não é “mais um app”. É o seu painel de controle como professora — do agendamento ao financeiro.</p>
         </div>
 
         <div class="grid-3">
           <div class="card">
             <div class="icon-box"><i data-lucide="calendar"></i></div>
             <h3>Calendário & Reagendamentos</h3>
-            <p>Visão semanal limpa, conflitos evitados e controle de faltas/reagendamentos sem drama.</p>
+            <p>Visão semanal limpa, conflitos evitados e controle de faltas e reagendamentos.</p>
           </div>
 
           <div class="card">
@@ -771,7 +776,7 @@
           <div class="card">
             <div class="icon-box green"><i data-lucide="notebook-pen"></i></div>
             <h3>Planejamento de Aulas</h3>
-            <p>Templates, planos por nível, checklists e o que foi dado em cada encontro (pra nunca se perder).</p>
+            <p>Templates, planos por nível, checklists e o que foi ensinado em cada encontro.</p>
           </div>
 
           <div class="card">
@@ -799,34 +804,33 @@
     <section class="section" id="how">
       <div class="container">
         <div class="section-header">
-          <h2>Como funciona (sem enrolação)</h2>
-          <p>Você cria, organiza e cobra. O sistema segura a bronca do resto.</p>
+          <h2>Como funciona</h2>
+          <p>Você cria, organiza e cobra. Tudo em um só lugar.</p>
         </div>
 
         <div class="steps">
           <div class="step">
             <div class="n">1</div>
             <h4>Cadastre alunos e pacotes</h4>
-            <p>Nome, horários, valores e observações. Deixa o perfil do aluno redondo.</p>
+            <p>Nome, horários, valores e observações.</p>
           </div>
 
           <div class="step">
             <div class="n">2</div>
             <h4>Planeje e execute a semana</h4>
-            <p>Agenda + tarefas + materiais. Você vê o mapa do território antes de entrar na selva.</p>
+            <p>Agenda + tarefas + materiais.</p>
           </div>
 
           <div class="step">
             <div class="n">3</div>
             <h4>Controle pagamentos e lembretes</h4>
-            <p>Quando atrasar, a mensagem já sai pronta. Você cobra sem parecer o Serasa.</p>
+            <p>Quando atrasar, a mensagem já sai pronta.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- TESTIMONIALS -->
-    <section class="section testimonials" id="testimonials">
+    <!-- PRICING -->
       <div class="container">
         <div class="section-header">
           <h2>O que muda na prática</h2>
@@ -868,7 +872,6 @@
           </div>
         </div>
 
-        <p class="fineprint">* Depoimentos ilustrativos (coloque os reais assim que tiver — conversão sobe bonito).</p>
       </div>
     </section>
 
@@ -878,7 +881,7 @@
 
       <div class="container">
         <div class="section-header">
-          <h2>Planos simples. Zero pegadinha.</h2>
+          <h2>Planos simples</h2>
           <p>Teste grátis por 7 dias. Depois você escolhe o ritmo.</p>
         </div>
 
@@ -893,7 +896,7 @@
               <li><i data-lucide="check"></i> Financeiro básico</li>
               <li><i data-lucide="check"></i> Mensagens prontas</li>
             </ul>
-            <a href="https://buy.stripe.com/test_3cI5kv8aF95IbZIbmP5J605" target="_blank" class="btn-price btn-price-outline" style="text-decoration: none; display: block; text-align: center;">Assinar Mensal</a>
+            <a href="/signup/?plan=monthly" class="btn-price btn-price-outline" style="text-decoration: none; display: block; text-align: center;">Assinar Mensal</a>
           </div>
 
           <div class="price-card popular">
@@ -907,7 +910,7 @@
               <li><i data-lucide="check"></i> Suporte prioritário</li>
               <li><i data-lucide="check"></i> Relatórios melhorados</li>
             </ul>
-            <a href="https://buy.stripe.com/test_5kQbITez31Dg1l4duX5J606" target="_blank" class="btn-price btn-price-primary" style="background: var(--accent); text-decoration: none; display: block; text-align: center;">
+            <a href="/signup/?plan=semestral" class="btn-price btn-price-primary" style="background: var(--accent); text-decoration: none; display: block; text-align: center;">
               Quero o Semestral
             </a>
           </div>
@@ -922,12 +925,12 @@
               <li><i data-lucide="check"></i> Acesso antecipado a novidades</li>
               <li><i data-lucide="check"></i> Suporte VIP</li>
             </ul>
-            <a href="https://buy.stripe.com/test_9B6cMX8aF1Dge7QcqT5J607" target="_blank" class="btn-price btn-price-outline" style="text-decoration: none; display: block; text-align: center;">Assinar Anual</a>
+            <a href="/signup/?plan=annual" class="btn-price btn-price-outline" style="text-decoration: none; display: block; text-align: center;">Assinar Anual</a>
           </div>
         </div>
 
         <p class="fineprint">
-          Precisa de nota fiscal, turma maior ou multi-professores? Faz um plano custom.
+          Precisa de nota fiscal, turma maior ou multi-professores? <a href="mailto:contato@eduflow.com" style="color: var(--primary); text-decoration: underline;">Entre em contato conosco</a>.
         </p>
       </div>
     </section>
@@ -936,8 +939,8 @@
     <section class="section" id="faq">
       <div class="container">
         <div class="section-header">
-          <h2>FAQ (objeções assassinadas com carinho)</h2>
-          <p>Se ainda sobrar dúvida, é porque você é detalhista — respeito isso.</p>
+          <h2>Perguntas Frequentes</h2>
+          <p>Se ainda tiver dúvidas, <a href="mailto:contato@eduflow.com" style="color: var(--primary); text-decoration: underline;">entre em contato conosco</a>.</p>
         </div>
 
         <div class="faq-grid">
@@ -1001,10 +1004,10 @@
   <footer>
     <div class="container">
       <a class="logo" href="#top" style="justify-content: center; gap: 10px; opacity: 0.9;">
-        <span class="mark"><i data-lucide="sparkles"></i></span>
-        <span>Cini English</span>
+        <span class="mark"><img src="/static/img/eduflow-8.png" alt="EDUflow Logo"></span>
+        <span>EDUflow</span>
       </a>
-      <div class="mini">Feito para professoras incríveis. &copy; 2026</div>
+      <div class="mini">Feito para professores incríveis. &copy; 2026</div>
     </div>
   </footer>
 

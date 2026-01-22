@@ -1,4 +1,4 @@
-# Copilot / AI agent instructions — Cini English
+# Copilot / AI agent instructions — EDUflow
 
 Purpose: help AI coding agents be immediately productive in this mixed static + Django prototype.
 

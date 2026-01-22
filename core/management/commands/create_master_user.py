@@ -10,7 +10,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         username = os.environ.get("MASTER_USERNAME", "Admin")
         password = os.environ.get("MASTER_PASSWORD", "Masterkey1502")
-        email = os.environ.get("MASTER_EMAIL", "admin@cinienglish.com")
+        email = os.environ.get("MASTER_EMAIL", "admin@eduflow.com")
 
         user, created = User.objects.get_or_create(
             username=username,

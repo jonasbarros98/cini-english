@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog, Subscription
+from rest_framework import serializers as drf_serializers
 
 
 class StudentSerializer(serializers.ModelSerializer):
@@ -215,6 +216,7 @@ class UserSerializer(serializers.ModelSerializer):
     user_profile = serializers.SerializerMethodField()
     partner_teachers = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=False)
+    password_confirm = serializers.CharField(write_only=True, required=False)
     user_profile_write = serializers.ChoiceField(
         choices=UserProfile.PROFILE_CHOICES,
         write_only=True,
@@ -237,6 +239,7 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "password",
+            "password_confirm",
             "is_admin",
             "user_profile",
             "partner_teachers",
@@ -275,9 +278,17 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
+        password_confirm = validated_data.pop('password_confirm', None)
         is_admin = validated_data.pop('is_admin', False)
         user_profile = validated_data.pop('user_profile_write', UserProfile.PROFILE_TEACHER)
         partner_teachers_ids = validated_data.pop('partner_teachers_ids', [])
+        
+        # Validar confirmação de senha
+        if password:
+            if not password_confirm:
+                raise serializers.ValidationError({'password_confirm': 'Confirmação de senha é obrigatória quando uma senha é fornecida.'})
+            if password != password_confirm:
+                raise serializers.ValidationError({'password_confirm': 'As senhas não coincidem.'})
         
         user = User.objects.create_user(**validated_data)
         if password:
@@ -360,3 +371,175 @@ class BillingLogSerializer(serializers.ModelSerializer):
             "sent_at",
         ]
         read_only_fields = ["user", "sent_at"]
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    plan_display = serializers.CharField(source="get_plan_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    user_username = serializers.CharField(source="user.username", read_only=True)
+    
+    class Meta:
+        model = Subscription
+        fields = [
+            "id",
+            "user",
+            "user_username",
+            "plan",
+            "plan_display",
+            "status",
+            "status_display",
+            "is_active",
+            "stripe_customer_id",
+            "stripe_subscription_id",
+            "current_period_start",
+            "current_period_end",
+            "cancel_at_period_end",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["user", "is_active"]
+
+
+class ProfileSerializer(drf_serializers.ModelSerializer):
+    """Serializer para o perfil do usuário (dados editáveis)"""
+    username = drf_serializers.CharField(source='user.username', read_only=True)
+    email = drf_serializers.EmailField(required=False, allow_blank=True, write_only=True)
+    first_name = drf_serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    last_name = drf_serializers.CharField(required=False, allow_blank=True, allow_null=True, write_only=True)
+    password = drf_serializers.CharField(write_only=True, required=False, allow_blank=True)
+    password_confirm = drf_serializers.CharField(write_only=True, required=False, allow_blank=True)
+    photo = drf_serializers.ImageField(required=False, allow_null=True)
+    is_admin = drf_serializers.BooleanField(read_only=True)
+    user_profile = drf_serializers.CharField(read_only=True)
+    role = drf_serializers.SerializerMethodField()
+    subscription_status = drf_serializers.SerializerMethodField()
+    stripe_customer_id = drf_serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserProfile
+        fields = [
+            'username', 'email', 'first_name', 'last_name',
+            'password', 'password_confirm',
+            'cpf_cnpj', 'phone', 'cep', 'address', 'city', 'state',
+            'timezone', 'language', 'photo',
+            'is_admin', 'user_profile', 'role',
+            'subscription_status', 'stripe_customer_id'
+        ]
+        read_only_fields = ['is_admin', 'user_profile', 'username']
+    
+    def to_representation(self, instance):
+        """Customizar representação para incluir dados do User"""
+        representation = super().to_representation(instance)
+        # Adicionar dados do User na representação
+        representation['email'] = instance.user.email
+        representation['first_name'] = instance.user.first_name
+        representation['last_name'] = instance.user.last_name
+        
+        # Garantir que a URL da foto seja absoluta se existir
+        if instance.photo:
+            representation['photo'] = instance.photo.url
+        else:
+            representation['photo'] = None
+            
+        return representation
+    
+    def get_role(self, obj):
+        return "ADMIN" if obj.is_admin else "USER"
+    
+    def get_subscription_status(self, obj):
+        try:
+            subscription = obj.user.subscription
+            return {
+                'plan': subscription.plan,
+                'status': subscription.status,
+                'is_active': subscription.status == Subscription.STATUS_ACTIVE
+            }
+        except:
+            return {
+                'plan': None,
+                'status': None,
+                'is_active': False
+            }
+    
+    def get_stripe_customer_id(self, obj):
+        try:
+            subscription = obj.user.subscription
+            return subscription.stripe_customer_id or None
+        except:
+            return None
+    
+    def validate(self, data):
+        password = data.get('password', '')
+        password_confirm = data.get('password_confirm', '')
+        
+        if password or password_confirm:
+            if password != password_confirm:
+                raise drf_serializers.ValidationError({
+                    'password_confirm': 'As senhas não coincidem.'
+                })
+            if len(password) < 8:
+                raise drf_serializers.ValidationError({
+                    'password': 'A senha deve ter pelo menos 8 caracteres.'
+                })
+        
+        return data
+    
+    # Removido to_internal_value - a transformação agora é feita na view
+    
+    def update(self, instance, validated_data):
+        user = instance.user
+        
+        # Extrair dados do User diretamente do validated_data (não mais aninhados)
+        email = validated_data.pop('email', None)
+        first_name = validated_data.pop('first_name', None)
+        last_name = validated_data.pop('last_name', None)
+        password = validated_data.pop('password', None)
+        password_confirm = validated_data.pop('password_confirm', None)
+        photo = validated_data.pop('photo', None)
+        
+        # Log para debug
+        print(f"[DEBUG Serializer] validated_data recebido: {validated_data}")
+        print(f"[DEBUG Serializer] email={email}, first_name={first_name}, last_name={last_name}")
+        print(f"[DEBUG Serializer] photo recebido: {photo}")
+        print(f"[DEBUG Serializer] User antes: email={user.email}, first_name={user.first_name}, last_name={user.last_name}")
+        
+        # Atualizar dados do User diretamente
+        if email is not None:
+            user.email = email
+            print(f"[DEBUG Serializer] Atualizando email para: {email}")
+        if first_name is not None:
+            user.first_name = first_name
+            print(f"[DEBUG Serializer] Atualizando first_name para: {first_name}")
+        if last_name is not None:
+            user.last_name = last_name
+            print(f"[DEBUG Serializer] Atualizando last_name para: {last_name}")
+        
+        # Atualizar senha se fornecida
+        if password:
+            user.set_password(password)
+            print(f"[DEBUG Serializer] Senha atualizada")
+        
+        # Salvar User
+        user.save()
+        print(f"[DEBUG Serializer] User salvo: email={user.email}, first_name={user.first_name}, last_name={user.last_name}")
+        
+        # Atualizar dados do UserProfile
+        print(f"[DEBUG Serializer] validated_data restante: {validated_data}")
+        for field, value in validated_data.items():
+            print(f"[DEBUG Serializer] Atualizando {field} para: {value}")
+            setattr(instance, field, value)
+        
+        # Atualizar foto se fornecida
+        if photo:
+            instance.photo = photo
+            print(f"[DEBUG Serializer] Foto atualizada: {photo.name}")
+        
+        # Salvar UserProfile
+        instance.save()
+        print(f"[DEBUG Serializer] UserProfile salvo")
+        
+        # Recarregar do banco para garantir
+        user.refresh_from_db()
+        instance.refresh_from_db()
+        
+        return instance

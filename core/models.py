@@ -415,6 +415,17 @@ class UserProfile(models.Model):
         related_name='teachers',
         help_text="Professores parceiros vinculados (apenas para perfil Professor)"
     )
+    
+    # Campos adicionais do perfil
+    cpf_cnpj = models.CharField(max_length=20, blank=True, help_text="CPF ou CNPJ")
+    phone = models.CharField(max_length=50, blank=True, help_text="Telefone/WhatsApp")
+    cep = models.CharField(max_length=10, blank=True, help_text="CEP")
+    address = models.CharField(max_length=255, blank=True, help_text="Endereço completo")
+    city = models.CharField(max_length=100, blank=True, help_text="Cidade")
+    state = models.CharField(max_length=2, blank=True, help_text="UF (Estado)")
+    timezone = models.CharField(max_length=50, default="America/Sao_Paulo", help_text="Timezone")
+    language = models.CharField(max_length=10, default="pt-BR", help_text="Idioma preferido")
+    photo = models.ImageField(upload_to="profile_photos/", blank=True, null=True, help_text="Foto do perfil")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -426,3 +437,141 @@ class UserProfile(models.Model):
     class Meta:
         verbose_name = "Perfil de Usuário"
         verbose_name_plural = "Perfis de Usuários"
+
+
+class Subscription(models.Model):
+    """Assinatura do usuário no sistema - controle de billing"""
+    
+    PLAN_MONTHLY = "monthly"
+    PLAN_SEMESTRAL = "semestral"
+    PLAN_ANNUAL = "annual"
+    
+    PLAN_CHOICES = [
+        (PLAN_MONTHLY, "Mensal"),
+        (PLAN_SEMESTRAL, "Semestral"),
+        (PLAN_ANNUAL, "Anual"),
+    ]
+    
+    STATUS_ACTIVE = "active"
+    STATUS_PENDING = "pending"
+    STATUS_CANCELED = "canceled"
+    STATUS_PAST_DUE = "past_due"
+    STATUS_UNPAID = "unpaid"
+    
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, "Ativa"),
+        (STATUS_PENDING, "Pendente"),
+        (STATUS_CANCELED, "Cancelada"),
+        (STATUS_PAST_DUE, "Atrasada"),
+        (STATUS_UNPAID, "Não paga"),
+    ]
+    
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="subscription",
+        help_text="Usuário da assinatura"
+    )
+    plan = models.CharField(
+        max_length=20,
+        choices=PLAN_CHOICES,
+        help_text="Plano escolhido"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        help_text="Status da assinatura"
+    )
+    
+    # IDs do Stripe
+    stripe_customer_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="ID do cliente no Stripe"
+    )
+    stripe_subscription_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        unique=True,
+        help_text="ID da assinatura no Stripe"
+    )
+    
+    # Datas importantes
+    current_period_start = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Início do período atual"
+    )
+    current_period_end = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fim do período atual"
+    )
+    cancel_at_period_end = models.BooleanField(
+        default=False,
+        help_text="Cancelar ao fim do período"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Assinatura"
+        verbose_name_plural = "Assinaturas"
+        ordering = ["-created_at"]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.get_plan_display()} - {self.get_status_display()}"
+    
+    @property
+    def is_active(self):
+        """Retorna True se a assinatura está ativa"""
+        return self.status == self.STATUS_ACTIVE
+
+
+class StripeEvent(models.Model):
+    """Registro de eventos do Stripe para idempotência de webhooks"""
+    
+    event_id = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="ID único do evento no Stripe"
+    )
+    event_type = models.CharField(
+        max_length=100,
+        help_text="Tipo do evento (ex: invoice.paid, customer.subscription.deleted)"
+    )
+    processed = models.BooleanField(
+        default=False,
+        help_text="Se o evento já foi processado"
+    )
+    processed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Quando o evento foi processado"
+    )
+    error_message = models.TextField(
+        blank=True,
+        help_text="Mensagem de erro se houver falha no processamento"
+    )
+    event_data = models.JSONField(
+        default=dict,
+        help_text="Dados completos do evento (para debug)"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Evento Stripe"
+        verbose_name_plural = "Eventos Stripe"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["event_id"]),
+            models.Index(fields=["event_type", "processed"]),
+        ]
+    
+    def __str__(self):
+        return f"{self.event_type} - {self.event_id} - {'Processado' if self.processed else 'Pendente'}"

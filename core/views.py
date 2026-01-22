@@ -1,16 +1,27 @@
-from datetime import datetime
-from datetime import date
-from django.db.models import Q
+from datetime import datetime, date, timedelta
+from django.utils import timezone
+from django.db.models import Q, Sum, Count
+from decimal import Decimal
+from django.conf import settings
+from django.urls import reverse
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.utils.decorators import method_decorator
+from django.http import JsonResponse, HttpResponse
+from django.views.generic import TemplateView
+import stripe
+import json
+import os
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog
-from .models import Student, Lesson, Task
+from .models import Student, Lesson, Task, Subscription, StripeEvent
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
-from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, BillingLogSerializer
+from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, BillingLogSerializer, ProfileSerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.select_related("user").all().order_by("name")
@@ -160,6 +171,26 @@ from django.views.generic import TemplateView
 
 class DashboardView(TemplateView):
     template_name = "index.html"
+
+class DashboardHomeView(TemplateView):
+    template_name = "dashboard_home.html"
+    login_required = True
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
+
+class PerfilView(TemplateView):
+    template_name = "perfil_user.html"
+    login_required = True
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
 
 class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.select_related("student").all()
@@ -618,3 +649,1157 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().destroy(request, *args, **kwargs)
+
+
+# ==========================
+# Stripe Subscription Flow
+# ==========================
+
+# Configurar Stripe
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_checkout_session(request):
+    """
+    Cria uma Stripe Checkout Session para assinatura.
+    Requer autenticação e plano válido.
+    """
+    plan = request.data.get('plan')
+    
+    if plan not in [Subscription.PLAN_MONTHLY, Subscription.PLAN_SEMESTRAL, Subscription.PLAN_ANNUAL]:
+        return Response(
+            {'error': 'Plano inválido. Use: monthly, semestral ou annual'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Mapeamento de planos para price IDs do Stripe
+    # IMPORTANTE: Configure estes IDs no seu painel do Stripe
+    PLAN_PRICE_IDS = {
+        Subscription.PLAN_MONTHLY: os.environ.get("STRIPE_PRICE_ID_MONTHLY", ""),
+        Subscription.PLAN_SEMESTRAL: os.environ.get("STRIPE_PRICE_ID_SEMESTRAL", ""),
+        Subscription.PLAN_ANNUAL: os.environ.get("STRIPE_PRICE_ID_ANNUAL", ""),
+    }
+    
+    price_id = PLAN_PRICE_IDS.get(plan)
+    if not price_id:
+        return Response(
+            {'error': 'Price ID não configurado para este plano'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+    # URLs de retorno
+    base_url = request.build_absolute_uri('/')[:-1]  # Remove trailing slash
+    success_url = f"{base_url}/payment-processing/?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{base_url}/signup/?plan={plan}"
+    
+    try:
+        # Criar ou obter customer no Stripe
+        customer_id = None
+        subscription = getattr(request.user, 'subscription', None)
+        if subscription and subscription.stripe_customer_id:
+            customer_id = subscription.stripe_customer_id
+        else:
+            # Criar customer no Stripe
+            customer = stripe.Customer.create(
+                email=request.user.email or None,
+                metadata={
+                    'user_id': str(request.user.id),
+                    'username': request.user.username,
+                }
+            )
+            customer_id = customer.id
+            
+            # Criar ou atualizar subscription local
+            if not subscription:
+                subscription = Subscription.objects.create(
+                    user=request.user,
+                    plan=plan,
+                    status=Subscription.STATUS_PENDING,
+                    stripe_customer_id=customer_id
+                )
+            else:
+                subscription.stripe_customer_id = customer_id
+                subscription.save()
+        
+        # Criar Checkout Session
+        checkout_session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=['card'],
+            line_items=[{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            mode='subscription',
+            success_url=success_url,
+            cancel_url=cancel_url,
+            client_reference_id=str(request.user.id),  # Liga a sessão ao usuário
+            metadata={
+                'user_id': str(request.user.id),
+                'plan': plan,
+            },
+            subscription_data={
+                'metadata': {
+                    'user_id': str(request.user.id),
+                    'plan': plan,
+                }
+            }
+        )
+        
+        return Response({
+            'checkout_url': checkout_session.url,
+            'session_id': checkout_session.id
+        })
+        
+    except stripe.error.StripeError as e:
+        return Response(
+            {'error': f'Erro ao criar sessão de checkout: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro inesperado: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def stripe_webhook(request):
+    """
+    Webhook do Stripe para processar eventos de assinatura.
+    Processa: checkout.session.completed, invoice.paid, invoice.payment_failed, customer.subscription.deleted
+    """
+    print("=" * 50)
+    print("WEBHOOK RECEBIDO!")
+    print("=" * 50)
+    
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+    
+    if not webhook_secret:
+        print("ERRO: Webhook secret não configurado")
+        return HttpResponse("Webhook secret não configurado", status=500)
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+        print(f"✅ Evento verificado: {event['id']}")
+    except ValueError as e:
+        print(f"ERRO: Payload inválido - {e}")
+        return HttpResponse("Payload inválido", status=400)
+    except stripe.error.SignatureVerificationError as e:
+        print(f"ERRO: Assinatura inválida - {e}")
+        return HttpResponse("Assinatura inválida", status=400)
+    
+    event_id = event['id']
+    event_type = event['type']
+    
+    print(f"📦 Tipo de evento: {event_type}")
+    print(f"🆔 ID do evento: {event_id}")
+    
+    # Verificar idempotência
+    stripe_event, created = StripeEvent.objects.get_or_create(
+        event_id=event_id,
+        defaults={
+            'event_type': event_type,
+            'event_data': event,
+        }
+    )
+    
+    if not created:
+        if stripe_event.processed:
+            print(f"⚠️ Evento já processado anteriormente")
+            return JsonResponse({'status': 'already_processed'})
+        else:
+            print(f"🔄 Evento já existe mas não foi processado. Processando agora...")
+    
+    # Processar evento
+    try:
+        print(f"🔄 Processando evento {event_type}...")
+        
+        if event_type == 'checkout.session.completed':
+            print("📝 Chamando handle_checkout_session_completed...")
+            handle_checkout_session_completed(event['data']['object'])
+        elif event_type == 'invoice.paid' or event_type == 'invoice.payment_succeeded':
+            print("📝 Chamando handle_invoice_paid...")
+            handle_invoice_paid(event['data']['object'])
+        elif event_type == 'invoice.payment_failed':
+            print("📝 Chamando handle_invoice_payment_failed...")
+            handle_invoice_payment_failed(event['data']['object'])
+        elif event_type == 'customer.subscription.deleted':
+            print("📝 Chamando handle_subscription_deleted...")
+            handle_subscription_deleted(event['data']['object'])
+        elif event_type == 'customer.subscription.updated':
+            print("📝 Chamando handle_subscription_updated...")
+            handle_subscription_updated(event['data']['object'])
+        elif event_type == 'customer.subscription.created':
+            print("📝 Chamando handle_subscription_created...")
+            handle_subscription_created(event['data']['object'])
+        else:
+            print(f"⚠️ Tipo de evento não tratado: {event_type}")
+        
+        stripe_event.processed = True
+        stripe_event.processed_at = timezone.now()
+        stripe_event.save()
+        
+        print(f"✅ Evento processado com sucesso!")
+        return JsonResponse({'status': 'success'})
+        
+    except Exception as e:
+        print(f"❌ ERRO ao processar evento: {e}")
+        import traceback
+        traceback.print_exc()
+        stripe_event.error_message = str(e)
+        stripe_event.save()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+def handle_checkout_session_completed(session):
+    """Processa conclusão do checkout - ativa assinatura imediatamente"""
+    print(f"🔍 handle_checkout_session_completed chamado")
+    print(f"📋 Session data: subscription={session.get('subscription')}, customer={session.get('customer')}, client_reference_id={session.get('client_reference_id')}")
+    
+    subscription_id = session.get('subscription')
+    customer_id = session.get('customer')
+    client_reference_id = session.get('client_reference_id')  # user_id
+    
+    if not subscription_id:
+        print("❌ Subscription ID não encontrado na session")
+        return
+    
+    print(f"✅ Subscription ID encontrado: {subscription_id}")
+    
+    try:
+        # Tentar encontrar subscription pelo subscription_id
+        try:
+            subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+            print(f"✅ Subscription encontrada no banco: {subscription.id}, status: {subscription.status}")
+        except Subscription.DoesNotExist:
+            print(f"⚠️ Subscription não encontrada no banco. Tentando criar...")
+            # Se não encontrar, tentar criar a partir do customer_id ou client_reference_id
+            user = None
+            if client_reference_id:
+                try:
+                    user = User.objects.get(id=int(client_reference_id))
+                except (User.DoesNotExist, ValueError):
+                    pass
+            
+            if not user and customer_id:
+                try:
+                    stripe_customer = stripe.Customer.retrieve(customer_id)
+                    user_id = stripe_customer.metadata.get('user_id')
+                    if user_id:
+                        user = User.objects.get(id=int(user_id))
+                except Exception as e:
+                    print(f"Erro ao obter user do customer: {e}")
+            
+            if not user:
+                print(f"Não foi possível encontrar usuário para subscription {subscription_id}")
+                return
+            
+            # Verificar se já existe subscription para este usuário
+            try:
+                existing_subscription = Subscription.objects.get(user=user)
+                print(f"✅ Subscription existente encontrada para o usuário. Atualizando...")
+                subscription = existing_subscription
+                subscription.stripe_subscription_id = subscription_id
+                subscription.stripe_customer_id = customer_id or subscription.stripe_customer_id
+            except Subscription.DoesNotExist:
+                # Obter dados da subscription do Stripe
+                stripe_sub = stripe.Subscription.retrieve(subscription_id)
+                price_id = stripe_sub['items']['data'][0]['price']['id']
+                plan = determine_plan_from_price_id(price_id)
+                
+                subscription = Subscription(
+                    user=user,
+                    plan=plan,
+                    status=Subscription.STATUS_ACTIVE,
+                    stripe_customer_id=customer_id or stripe_sub.get('customer'),
+                    stripe_subscription_id=subscription_id,
+                )
+            
+            # Atualizar períodos da subscription do Stripe
+            stripe_sub = stripe.Subscription.retrieve(subscription_id)
+            # Usar getattr com valor padrão para evitar erro se o atributo não existir
+            try:
+                period_start = getattr(stripe_sub, 'current_period_start', None)
+                if period_start:
+                    subscription.current_period_start = timezone.make_aware(
+                        datetime.fromtimestamp(period_start)
+                    )
+            except (AttributeError, KeyError, TypeError):
+                pass
+            
+            try:
+                period_end = getattr(stripe_sub, 'current_period_end', None)
+                if period_end:
+                    subscription.current_period_end = timezone.make_aware(
+                        datetime.fromtimestamp(period_end)
+                    )
+            except (AttributeError, KeyError, TypeError):
+                pass
+            
+            subscription.status = Subscription.STATUS_ACTIVE
+            subscription.save()
+            print(f"✅ Subscription salva/atualizada com sucesso!")
+        
+        # Ativar assinatura se ainda estiver pending
+        if subscription.status == Subscription.STATUS_PENDING:
+            print(f"🔄 Ativando assinatura (status atual: {subscription.status})...")
+            subscription.status = Subscription.STATUS_ACTIVE
+            
+            # Atualizar período atual
+            print(f"📅 Buscando dados da subscription no Stripe...")
+            stripe_sub = stripe.Subscription.retrieve(subscription_id)
+            # Usar getattr com valor padrão para evitar erro se o atributo não existir
+            try:
+                period_start = getattr(stripe_sub, 'current_period_start', None)
+                if period_start:
+                    subscription.current_period_start = timezone.make_aware(
+                        datetime.fromtimestamp(period_start)
+                    )
+            except (AttributeError, KeyError, TypeError):
+                pass
+            
+            try:
+                period_end = getattr(stripe_sub, 'current_period_end', None)
+                if period_end:
+                    subscription.current_period_end = timezone.make_aware(
+                        datetime.fromtimestamp(period_end)
+                    )
+            except (AttributeError, KeyError, TypeError):
+                pass
+            
+            subscription.save()
+            print(f"✅ Assinatura {subscription_id} ativada via checkout.session.completed")
+            print(f"   Status: {subscription.status}")
+            print(f"   Período: {subscription.current_period_start} até {subscription.current_period_end}")
+        else:
+            print(f"ℹ️ Assinatura já está com status: {subscription.status}")
+        
+    except Exception as e:
+        print(f"Erro ao processar checkout.session.completed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def handle_subscription_created(subscription_obj):
+    """Processa criação de assinatura - garante que está ativa"""
+    subscription_id = subscription_obj.get('id')
+    customer_id = subscription_obj.get('customer')
+    
+    try:
+        subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+        
+        # Se estiver pending, ativar
+        if subscription.status == Subscription.STATUS_PENDING:
+            subscription.status = Subscription.STATUS_ACTIVE
+            subscription.current_period_start = timezone.make_aware(
+                datetime.fromtimestamp(subscription_obj.get('current_period_start', 0))
+            )
+            subscription.current_period_end = timezone.make_aware(
+                datetime.fromtimestamp(subscription_obj.get('current_period_end', 0))
+            )
+            subscription.save()
+            print(f"Assinatura {subscription_id} ativada via customer.subscription.created")
+    except Subscription.DoesNotExist:
+        # Tentar criar se não existir
+        if customer_id:
+            try:
+                stripe_customer = stripe.Customer.retrieve(customer_id)
+                user_id = stripe_customer.metadata.get('user_id')
+                if user_id:
+                    user = User.objects.get(id=int(user_id))
+                    price_id = subscription_obj['items']['data'][0]['price']['id']
+                    plan = determine_plan_from_price_id(price_id)
+                    
+                    # Verificar se já existe subscription para este usuário
+                    try:
+                        subscription = Subscription.objects.get(user=user)
+                        subscription.stripe_subscription_id = subscription_id
+                        subscription.stripe_customer_id = customer_id
+                    except Subscription.DoesNotExist:
+                        subscription = Subscription(
+                            user=user,
+                            plan=plan,
+                            status=Subscription.STATUS_ACTIVE,
+                            stripe_customer_id=customer_id,
+                            stripe_subscription_id=subscription_id,
+                        )
+                    
+                    subscription.current_period_start = timezone.make_aware(
+                        datetime.fromtimestamp(subscription_obj.get('current_period_start', 0))
+                    )
+                    subscription.current_period_end = timezone.make_aware(
+                        datetime.fromtimestamp(subscription_obj.get('current_period_end', 0))
+                    )
+                    subscription.status = Subscription.STATUS_ACTIVE
+                    subscription.save()
+            except Exception as e:
+                print(f"Erro ao criar subscription: {e}")
+
+
+def handle_invoice_paid(invoice):
+    """Processa pagamento de invoice - ativa assinatura"""
+    subscription_id = invoice.get('subscription')
+    customer_id = invoice.get('customer')
+    
+    if not subscription_id:
+        return
+    
+    try:
+        subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+        subscription.status = Subscription.STATUS_ACTIVE
+        
+        # Atualizar período atual
+        stripe_sub = stripe.Subscription.retrieve(subscription_id)
+        # Usar getattr com valor padrão para evitar erro se o atributo não existir
+        try:
+            period_start = getattr(stripe_sub, 'current_period_start', None)
+            if period_start:
+                subscription.current_period_start = timezone.make_aware(
+                    datetime.fromtimestamp(period_start)
+                )
+        except (AttributeError, KeyError, TypeError):
+            pass
+        
+        try:
+            period_end = getattr(stripe_sub, 'current_period_end', None)
+            if period_end:
+                subscription.current_period_end = timezone.make_aware(
+                    datetime.fromtimestamp(period_end)
+                )
+        except (AttributeError, KeyError, TypeError):
+            pass
+        
+        subscription.save()
+        
+    except Subscription.DoesNotExist:
+        # Tentar criar subscription a partir do customer_id
+        if customer_id:
+            try:
+                stripe_customer = stripe.Customer.retrieve(customer_id)
+                user_id = stripe_customer.metadata.get('user_id')
+                if user_id:
+                    user = User.objects.get(id=int(user_id))
+                    stripe_sub = stripe.Subscription.retrieve(subscription_id)
+                    
+                    # Determinar plano a partir do price_id
+                    price_id = stripe_sub['items']['data'][0]['price']['id']
+                    plan = determine_plan_from_price_id(price_id)
+                    
+                    # Verificar se já existe subscription para este usuário
+                    try:
+                        subscription = Subscription.objects.get(user=user)
+                        subscription.stripe_subscription_id = subscription_id
+                        subscription.stripe_customer_id = customer_id
+                    except Subscription.DoesNotExist:
+                        subscription = Subscription(
+                            user=user,
+                            plan=plan,
+                            status=Subscription.STATUS_ACTIVE,
+                            stripe_customer_id=customer_id,
+                            stripe_subscription_id=subscription_id,
+                        )
+                    
+                    # Usar getattr com valor padrão para evitar erro se o atributo não existir
+                    try:
+                        period_start = getattr(stripe_sub, 'current_period_start', None)
+                        if period_start:
+                            subscription.current_period_start = timezone.make_aware(
+                                datetime.fromtimestamp(period_start)
+                            )
+                    except (AttributeError, KeyError, TypeError):
+                        pass
+                    
+                    try:
+                        period_end = getattr(stripe_sub, 'current_period_end', None)
+                        if period_end:
+                            subscription.current_period_end = timezone.make_aware(
+                                datetime.fromtimestamp(period_end)
+                            )
+                    except (AttributeError, KeyError, TypeError):
+                        pass
+                    
+                    subscription.status = Subscription.STATUS_ACTIVE
+                    subscription.save()
+            except Exception as e:
+                print(f"Erro ao criar subscription: {e}")
+
+
+def handle_invoice_payment_failed(invoice):
+    """Processa falha de pagamento - suspende acesso"""
+    subscription_id = invoice.get('subscription')
+    
+    if not subscription_id:
+        return
+    
+    try:
+        subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+        subscription.status = Subscription.STATUS_PAST_DUE
+        subscription.save()
+    except Subscription.DoesNotExist:
+        pass
+
+
+def handle_subscription_deleted(subscription_obj):
+    """Processa cancelamento de assinatura"""
+    subscription_id = subscription_obj.get('id')
+    
+    try:
+        subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+        subscription.status = Subscription.STATUS_CANCELED
+        subscription.stripe_subscription_id = None  # Limpar referência
+        subscription.save()
+    except Subscription.DoesNotExist:
+        pass
+
+
+def handle_subscription_updated(subscription_obj):
+    """Processa atualização de assinatura"""
+    subscription_id = subscription_obj.get('id')
+    
+    try:
+        subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+        
+        # Atualizar período
+        subscription.current_period_start = timezone.make_aware(
+            datetime.fromtimestamp(subscription_obj.get('current_period_start', 0))
+        )
+        subscription.current_period_end = timezone.make_aware(
+            datetime.fromtimestamp(subscription_obj.get('current_period_end', 0))
+        )
+        
+        # Atualizar status baseado no status do Stripe
+        stripe_status = subscription_obj.get('status', '')
+        if stripe_status == 'active':
+            subscription.status = Subscription.STATUS_ACTIVE
+        elif stripe_status == 'past_due':
+            subscription.status = Subscription.STATUS_PAST_DUE
+        elif stripe_status == 'canceled' or stripe_status == 'unpaid':
+            subscription.status = Subscription.STATUS_CANCELED
+        
+        subscription.cancel_at_period_end = subscription_obj.get('cancel_at_period_end', False)
+        subscription.save()
+        
+    except Subscription.DoesNotExist:
+        pass
+
+
+def determine_plan_from_price_id(price_id):
+    """Determina o plano a partir do price_id do Stripe"""
+    monthly_id = os.environ.get("STRIPE_PRICE_ID_MONTHLY", "")
+    semestral_id = os.environ.get("STRIPE_PRICE_ID_SEMESTRAL", "")
+    annual_id = os.environ.get("STRIPE_PRICE_ID_ANNUAL", "")
+    
+    if price_id == monthly_id:
+        return Subscription.PLAN_MONTHLY
+    elif price_id == semestral_id:
+        return Subscription.PLAN_SEMESTRAL
+    elif price_id == annual_id:
+        return Subscription.PLAN_ANNUAL
+    
+    # Default
+    return Subscription.PLAN_MONTHLY
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def subscription_status(request):
+    """Retorna o status da assinatura do usuário"""
+    try:
+        subscription = request.user.subscription
+        return Response({
+            'has_subscription': True,
+            'plan': subscription.plan,
+            'status': subscription.status,
+            'is_active': subscription.is_active,
+            'current_period_end': subscription.current_period_end,
+        })
+    except Subscription.DoesNotExist:
+        return Response({
+            'has_subscription': False,
+            'plan': None,
+            'status': None,
+            'is_active': False,
+        })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_portal_session(request):
+    """
+    Cria uma sessão do Stripe Customer Portal para o usuário gerenciar sua assinatura.
+    Retorna a URL do portal para redirecionamento.
+    """
+    try:
+        subscription = request.user.subscription
+        
+        if not subscription.stripe_customer_id:
+            return Response(
+                {'error': 'Cliente não encontrado no Stripe'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # URLs de retorno
+        base_url = request.build_absolute_uri('/')[:-1]
+        return_url = f"{base_url}/planos/"
+        
+        # Criar sessão do Customer Portal
+        portal_session = stripe.billing_portal.Session.create(
+            customer=subscription.stripe_customer_id,
+            return_url=return_url,
+        )
+        
+        return Response({
+            'url': portal_session.url
+        })
+        
+    except Subscription.DoesNotExist:
+        return Response(
+            {'error': 'Assinatura não encontrada'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except stripe.error.StripeError as e:
+        return Response(
+            {'error': f'Erro ao criar sessão do portal: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro inesperado: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class PlanosView(TemplateView):
+    """View para exibir página de planos e faturamento"""
+    template_name = 'planos.html'
+    login_required = True
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        # Obter dados da assinatura
+        try:
+            subscription = user.subscription
+            context['subscription'] = subscription
+            context['has_subscription'] = True
+            context['is_active'] = subscription.is_active
+            
+            # Formatar nome do plano
+            plan_names = {
+                'monthly': 'Plano Mensal',
+                'semestral': 'Plano Semestral',
+                'annual': 'Plano Anual'
+            }
+            context['plan_name'] = plan_names.get(subscription.plan, subscription.get_plan_display())
+            
+            # Formatar preço (buscar do Stripe se necessário)
+            plan_prices = {
+                'monthly': 'R$ 49,90',
+                'semestral': 'R$ 269,00',
+                'annual': 'R$ 479,00'
+            }
+            context['plan_price'] = plan_prices.get(subscription.plan, '—')
+            
+            # Formatar período
+            if subscription.current_period_end:
+                context['next_billing'] = subscription.current_period_end.strftime('%d/%m/%Y')
+            else:
+                context['next_billing'] = '—'
+                
+        except Subscription.DoesNotExist:
+            context['subscription'] = None
+            context['has_subscription'] = False
+            context['is_active'] = False
+            context['plan_name'] = 'Nenhum plano ativo'
+            context['plan_price'] = '—'
+            context['next_billing'] = '—'
+        
+        return context
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def signup_view(request):
+    """
+    Endpoint público para criar conta de usuário.
+    Usado no fluxo de signup antes do pagamento.
+    """
+    username = request.data.get('username')
+    email = request.data.get('email')
+    password = request.data.get('password')
+    password_confirm = request.data.get('password_confirm')
+    first_name = request.data.get('first_name', '')
+    last_name = request.data.get('last_name', '')
+    
+    if not username or not email or not password:
+        return Response(
+            {'error': 'Username, email e senha são obrigatórios'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Validar confirmação de senha
+    if not password_confirm:
+        return Response(
+            {'error': 'Confirmação de senha é obrigatória'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if password != password_confirm:
+        return Response(
+            {'error': 'As senhas não coincidem'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Verificar se usuário já existe
+    if User.objects.filter(username=username).exists():
+        return Response(
+            {'error': 'Este nome de usuário já está em uso'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if User.objects.filter(email=email).exists():
+        return Response(
+            {'error': 'Este e-mail já está em uso'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Criar usuário
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        
+        # Criar perfil padrão
+        UserProfile.objects.create(
+            user=user,
+            user_profile=UserProfile.PROFILE_TEACHER,
+            is_admin=False
+        )
+        
+        return Response({
+            'success': True,
+            'user_id': user.id,
+            'username': user.username,
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao criar usuário: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ==========================
+# Dashboard Summary API
+# ==========================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_summary_view(request):
+    """
+    Endpoint para fornecer dados do dashboard inicial.
+    Retorna KPIs, lista de hoje, alertas e resumo do mês.
+    """
+    try:
+        user = request.user
+        today = timezone.now().date()
+        current_month_start = today.replace(day=1)
+        # Calcular o último dia do mês atual
+        if today.month == 12:
+            current_month_end = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            current_month_end = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+        next_3_days = today + timedelta(days=3)
+        
+        # Filtrar dados do usuário (considerando professores parceiros)
+        try:
+            is_admin = user.profile.is_admin
+            user_profile = user.profile.user_profile
+        except UserProfile.DoesNotExist:
+            is_admin = False
+            user_profile = None
+        
+        # IDs de usuários para filtrar
+        # IMPORTANTE: Por enquanto, mostrar apenas dados do usuário atual
+        # Se precisar incluir parceiros no futuro, descomentar o código abaixo
+        user_ids = [user.id]
+        
+        # NOTA: Desabilitado temporariamente para evitar mostrar dados de outros usuários
+        # if user_profile == UserProfile.PROFILE_TEACHER:
+        #     try:
+        #         partner_ids = list(user.profile.partner_teachers.values_list('user_id', flat=True))
+        #         user_ids.extend(partner_ids)
+        #     except:
+        #         pass
+        
+        # Filtrar APENAS dados do usuário logado - sem correção automática
+        # Se não houver dados, retornará zero/vazio
+        
+        # ===== KPIs =====
+        # Aulas hoje
+        today_lessons = Lesson.objects.filter(
+            user_id__in=user_ids,
+            date=today
+        )
+        today_classes = today_lessons.count()
+        today_pending = today_lessons.filter(status='pending').count()
+        
+        # Canceladas no mês
+        month_canceled = Lesson.objects.filter(
+            user_id__in=user_ids,
+            date__gte=current_month_start,
+            date__lte=today,
+            status='canceled'
+        ).count()
+        
+        # Alunos ativos
+        active_students = Student.objects.filter(
+            user_id__in=user_ids,
+            status=Student.STATUS_ACTIVE
+        ).count()
+        
+        # Financeiro - vencendo hoje
+        # Filtrar por beneficiary_user_id OU user_id
+        due_today_entries = FinancialEntry.objects.filter(
+            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+            due_date=today,
+            status__in=[FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE]
+        )
+        due_today_amount = due_today_entries.aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        # Financeiro - em atraso
+        # Filtrar por beneficiary_user_id OU user_id
+        overdue_entries = FinancialEntry.objects.filter(
+            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+            due_date__lt=today,
+            status__in=[FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE]
+        )
+        overdue_amount = overdue_entries.aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        # Financeiro - recebido no mês
+        # IMPORTANTE: Filtrar APENAS por beneficiary_user_id (quem recebe) OU user_id (quem criou)
+        # Mostrar SOMENTE dados do usuário logado - se não tiver, mostrar zero
+        paid_month_entries = FinancialEntry.objects.filter(
+            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+            payment_date__gte=current_month_start,
+            payment_date__lte=today,
+            status=FinancialEntry.STATUS_PAID
+        )
+        
+        paid_month_amount = paid_month_entries.aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        # ===== Lista "Hoje" =====
+        today_items = []
+        
+        # Aulas de hoje (até 3)
+        lessons_today = today_lessons.select_related('student').order_by('time')[:3]
+        for lesson in lessons_today:
+            time_str = lesson.time.strftime('%H:%M') if lesson.time else '-'
+            status_badge = 'good' if lesson.status == 'confirmed' else ('warn' if lesson.status == 'pending' else 'bad')
+            status_label = 'Confirmado' if lesson.status == 'confirmed' else ('Pendente' if lesson.status == 'pending' else 'Cancelado')
+            
+            meta = []
+            if lesson.title:
+                meta.append(f"📘 {lesson.title}")
+            
+            today_items.append({
+                'time': time_str,
+                'title': f'Aula • {lesson.student.name}',
+                'badges': [{'type': status_badge, 'label': status_label}],
+                'meta': meta
+            })
+        
+        # Cobrança vencendo hoje (se não tiver 3 aulas já)
+        if len(today_items) < 3:
+            billing_today = due_today_entries.select_related('student').first()
+            if billing_today:
+                today_items.append({
+                    'time': '-',
+                    'title': f'Cobrança • {billing_today.student.name}',
+                    'badges': [{'type': 'warn', 'label': 'Vence hoje'}],
+                    'meta': [f'💳 R$ {billing_today.amount:.2f}'.replace('.', ','), '📲 WhatsApp']
+                })
+        
+        # ===== Alertas =====
+        alerts = []
+        
+        # Alerta 1: Cobranças em atraso
+        overdue_count = overdue_entries.count()
+        if overdue_count > 0:
+            alerts.append({
+                'type': 'bad',
+                'title': f'{overdue_count} cobrança{"s" if overdue_count > 1 else ""} em atraso',
+                'description': 'Enviar agora aumenta muito a chance de pagamento hoje.'
+            })
+        
+        # Alerta 2: Vencimentos próximos (próximos 3 dias)
+        # Filtrar por beneficiary_user_id OU user_id
+        upcoming_entries = FinancialEntry.objects.filter(
+            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+            due_date__gt=today,
+            due_date__lte=next_3_days,
+            status__in=[FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE]
+        )
+        upcoming_count = upcoming_entries.count()
+        if upcoming_count > 0:
+            alerts.append({
+                'type': 'warn',
+                'title': f'Vencimentos próximos (3 dias)',
+                'description': 'Prepare as cobranças antes do prazo e evite "correria de última hora".'
+            })
+        
+        # ===== Resumo do mês =====
+        # Taxa de confirmação - APENAS aulas do usuário logado
+        month_lessons = Lesson.objects.filter(
+            user_id__in=user_ids,
+            date__gte=current_month_start,
+            date__lte=today
+        )
+        
+        total_month_lessons = month_lessons.exclude(status='canceled').count()
+        confirmed_month_lessons = month_lessons.filter(status='confirmed').count()
+        confirmation_rate = (confirmed_month_lessons / total_month_lessons * 100) if total_month_lessons > 0 else 0
+        
+        # Pendente no mês - APENAS do mês atual
+        # Filtrar APENAS por beneficiary_user_id OU user_id do usuário logado
+        # Mostrar SOMENTE dados do usuário logado - se não tiver, mostrar zero
+        pending_month_entries = FinancialEntry.objects.filter(
+            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+            due_date__gte=current_month_start,
+            due_date__lte=current_month_end,
+            status__in=[FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE]
+        )
+        
+        pending_month_amount = pending_month_entries.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # Tarefas abertas
+        tasks_open = Task.objects.filter(
+            user_id__in=user_ids,
+            status__in=['todo', 'doing']
+        ).count()
+        
+        # Reagendamentos (aulas canceladas no mês)
+        reschedules = month_canceled
+        
+        # Buscar foto do perfil
+        user_photo = None
+        try:
+            if user.profile.photo:
+                user_photo = user.profile.photo.url
+        except:
+            pass
+        
+        # Montar resposta
+        response_data = {
+            'user': {
+                'name': user.get_full_name() or user.username,
+                'email': user.email or '',
+                'photo': user_photo
+            },
+            'kpis': {
+                'today_classes': today_classes,
+                'today_pending': today_pending,
+                'month_canceled': month_canceled,
+                'active_students': active_students,
+                'due_today_amount': float(due_today_amount),
+                'overdue_amount': float(overdue_amount),
+                'paid_month_amount': float(paid_month_amount)
+            },
+            'today': {
+                'items': today_items
+            },
+            'alerts': alerts,
+            'month_summary': {
+                'confirmation_rate': round(confirmation_rate, 1),
+                'confirmation_rate_target': 90,
+                'pending_amount': float(pending_month_amount),
+                'paid_amount': float(paid_month_amount),
+                'tasks_open': tasks_open,
+                'reschedules': reschedules
+            }
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao carregar dados do dashboard: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ==========================
+# Profile API
+# ==========================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def profile_get_view(request):
+    """
+    Endpoint para obter dados do perfil do usuário atual.
+    Acessível para todos os usuários logados (não apenas admins).
+    """
+    try:
+        user = request.user
+        try:
+            profile = user.profile
+        except UserProfile.DoesNotExist:
+            # Criar perfil se não existir
+            profile = UserProfile.objects.create(
+                user=user,
+                user_profile=UserProfile.PROFILE_TEACHER,
+                is_admin=False
+            )
+        
+        serializer = ProfileSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao carregar perfil: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def profile_update_view(request):
+    """
+    Endpoint para atualizar dados do perfil do usuário atual.
+    Acessível para todos os usuários logados (podem editar apenas seu próprio perfil).
+    """
+    try:
+        user = request.user
+        try:
+            profile = user.profile
+        except UserProfile.DoesNotExist:
+            # Criar perfil se não existir
+            profile = UserProfile.objects.create(
+                user=user,
+                user_profile=UserProfile.PROFILE_TEACHER,
+                is_admin=False
+            )
+        
+        # Preparar dados para o serializer
+        # request.data pode ser QueryDict (FormData) ou dict (JSON)
+        raw_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        
+        # Log para debug
+        import logging
+        logger = logging.getLogger(__name__)
+        print(f"[DEBUG] Profile update - raw data recebido: {raw_data}")
+        print(f"[DEBUG] Profile update - request.FILES: {request.FILES}")
+        logger.info(f"Profile update - raw data: {raw_data}")
+        
+        # Transformar dados planos - agora os campos do User vão direto (não mais aninhados)
+        serializer_data = {}
+        
+        # Dados do User - incluir diretamente (não mais aninhados)
+        if 'email' in raw_data:
+            serializer_data['email'] = raw_data.get('email', '') or ''
+        if 'first_name' in raw_data:
+            serializer_data['first_name'] = raw_data.get('first_name', '') or ''
+        if 'last_name' in raw_data:
+            serializer_data['last_name'] = raw_data.get('last_name', '') or ''
+        
+        # Campos diretos do UserProfile - incluir apenas os que foram enviados
+        profile_fields = ['cpf_cnpj', 'phone', 'cep', 'address', 'city', 'state', 'timezone', 'language']
+        for field in profile_fields:
+            if field in raw_data:
+                serializer_data[field] = raw_data.get(field, '') or ''
+        
+        # Foto - processar se foi enviada via FormData (request.FILES)
+        # Se não houver foto em FILES, mas houver em data (pode ser string vazia), não incluir
+        if 'photo' in request.FILES:
+            serializer_data['photo'] = request.FILES['photo']
+            print(f"[DEBUG] Foto recebida via FILES: {request.FILES['photo'].name}, tamanho: {request.FILES['photo'].size}")
+        elif 'photo' in raw_data and raw_data.get('photo'):
+            # Se vier como string (JSON), pode ser uma URL ou path existente - não processar
+            print(f"[DEBUG] Foto em raw_data (ignorando, deve vir via FILES): {raw_data.get('photo')}")
+        
+        # Senhas - só incluir se foram fornecidas
+        if raw_data.get('password') and raw_data.get('password').strip():
+            serializer_data['password'] = raw_data.get('password')
+            serializer_data['password_confirm'] = raw_data.get('password_confirm', raw_data.get('password'))
+        
+        print(f"[DEBUG] Profile update - serializer data preparado: {serializer_data}")
+        print(f"[DEBUG] Profile atual antes: email={user.email}, first_name={user.first_name}, last_name={user.last_name}")
+        print(f"[DEBUG] UserProfile atual antes: cpf_cnpj={profile.cpf_cnpj}, phone={profile.phone}, city={profile.city}")
+        logger.info(f"Profile update - serializer data: {serializer_data}")
+        
+        serializer = ProfileSerializer(profile, data=serializer_data, partial=True)
+        
+        print(f"[DEBUG] Serializer is_valid: {serializer.is_valid()}")
+        if not serializer.is_valid():
+            print(f"[DEBUG] Serializer errors: {serializer.errors}")
+            logger.error(f"Serializer errors: {serializer.errors}")
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Salvar
+        try:
+            print(f"[DEBUG] Chamando serializer.save()...")
+            updated_instance = serializer.save()
+            print(f"[DEBUG] serializer.save() retornou")
+            
+            # Recarregar do banco para garantir que temos os dados atualizados
+            print(f"[DEBUG] Recarregando do banco...")
+            updated_instance.refresh_from_db()
+            updated_instance.user.refresh_from_db()
+            
+            print(f"[DEBUG] Profile atualizado: email={updated_instance.user.email}, first_name={updated_instance.user.first_name}, last_name={updated_instance.user.last_name}")
+            print(f"[DEBUG] UserProfile atualizado: cpf_cnpj={updated_instance.cpf_cnpj}, phone={updated_instance.phone}, city={updated_instance.city}")
+            print(f"[DEBUG] Perfil salvo com sucesso")
+            
+            # Retornar dados atualizados do serializer
+            response_data = ProfileSerializer(updated_instance).data
+            print(f"[DEBUG] Dados retornados no response: {response_data}")
+            
+            return Response({
+                'success': True,
+                'message': 'Perfil atualizado com sucesso',
+                'data': response_data
+            }, status=status.HTTP_200_OK)
+        except Exception as save_error:
+            print(f"[DEBUG] Erro ao salvar: {str(save_error)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Erro ao salvar: {str(save_error)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': f'Erro ao atualizar perfil: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
