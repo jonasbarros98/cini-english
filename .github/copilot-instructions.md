@@ -1,4 +1,4 @@
-# Copilot / AI agent instructions — EDUflow
+# Copilot / AI agent instructions — EDUCAflowOne
 
 Purpose: help AI coding agents be immediately productive in this mixed static + Django prototype.
 

@@ -3,6 +3,6 @@ set -euo pipefail
 
 PORT="${PORT:-8000}"
 
-echo "Serving EDUflow dashboard at http://localhost:${PORT}"
+echo "Serving EDUCAflowOne dashboard at http://localhost:${PORT}"
 echo "Press Ctrl+C to stop."
 python3 -m http.server "${PORT}"

@@ -3893,7 +3893,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function initContaGroupCollapse() {
-  const STORAGE_KEY = "eduflow_sidebar_conta_expanded";
+  const STORAGE_KEY = "educaflowone_sidebar_conta_expanded";
   const group = document.getElementById("navGroupConta");
   const btn = document.getElementById("navGroupContaBtn");
   if (!group || !btn) {
