@@ -192,6 +192,18 @@ class PerfilView(TemplateView):
             return redirect('login')
         return super().dispatch(request, *args, **kwargs)
 
+
+class TutorialView(TemplateView):
+    template_name = "tutorial.html"
+    login_required = True
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect("login")
+        return super().dispatch(request, *args, **kwargs)
+
+
 class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.select_related("student").all()
     serializer_class = InvoiceSerializer
@@ -490,9 +502,11 @@ def current_user_view(request):
     try:
         is_admin = user.profile.is_admin
         user_profile = user.profile.user_profile
+        welcome_dismissed_forever = getattr(user.profile, 'welcome_dismissed_forever', False)
     except UserProfile.DoesNotExist:
         is_admin = False
         user_profile = None
+        welcome_dismissed_forever = False
     
     return Response({
         'id': user.id,
@@ -502,6 +516,7 @@ def current_user_view(request):
         'last_name': user.last_name,
         'is_admin': is_admin,
         'user_profile': user_profile,
+        'welcome_dismissed_forever': welcome_dismissed_forever,
     })
 
 
@@ -1606,12 +1621,14 @@ def dashboard_summary_view(request):
         # Reagendamentos (aulas canceladas no mês)
         reschedules = month_canceled
         
-        # Buscar foto do perfil
+        # Buscar foto do perfil e flag de boas-vindas
         user_photo = None
+        welcome_dismissed_forever = False
         try:
             if user.profile.photo:
                 user_photo = user.profile.photo.url
-        except:
+            welcome_dismissed_forever = getattr(user.profile, 'welcome_dismissed_forever', False)
+        except Exception:
             pass
         
         # Montar resposta
@@ -1619,7 +1636,8 @@ def dashboard_summary_view(request):
             'user': {
                 'name': user.get_full_name() or user.username,
                 'email': user.email or '',
-                'photo': user_photo
+                'photo': user_photo,
+                'welcome_dismissed_forever': welcome_dismissed_forever,
             },
             'kpis': {
                 'today_classes': today_classes,
@@ -1684,6 +1702,27 @@ def profile_get_view(request):
             {'error': f'Erro ao carregar perfil: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def welcome_dismiss_view(request):
+    """
+    Marca que o usuário não deseja mais ver o popup de boas-vindas.
+    Usado quando o usuário marca "Não mostrar novamente" e fecha o modal.
+    """
+    try:
+        user = request.user
+        profile = user.profile
+    except UserProfile.DoesNotExist:
+        profile = UserProfile.objects.create(
+            user=user,
+            user_profile=UserProfile.PROFILE_TEACHER,
+            is_admin=False
+        )
+    profile.welcome_dismissed_forever = True
+    profile.save(update_fields=['welcome_dismissed_forever'])
+    return Response({'success': True}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST', 'PATCH'])

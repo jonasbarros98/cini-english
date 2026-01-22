@@ -426,6 +426,10 @@ class UserProfile(models.Model):
     timezone = models.CharField(max_length=50, default="America/Sao_Paulo", help_text="Timezone")
     language = models.CharField(max_length=10, default="pt-BR", help_text="Idioma preferido")
     photo = models.ImageField(upload_to="profile_photos/", blank=True, null=True, help_text="Foto do perfil")
+    welcome_dismissed_forever = models.BooleanField(
+        default=False,
+        help_text="Se True, o popup de boas-vindas não é exibido novamente"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

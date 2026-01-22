@@ -1,0 +1,332 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tutorial • EduFlow</title>
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .tut-page { max-width: 100%; margin: 0; padding: 0; }
+    .tut-header { margin-bottom: 20px; }
+    .tut-header h1 { font-size: 24px; line-height: 1.2; margin: 0 0 6px; }
+    .tut-header p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; max-width: 56ch; }
+    .tut-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+    }
+    .tut-card {
+      background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.85));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+      transition: transform .15s ease, box-shadow .2s ease, border-color .15s ease;
+    }
+    .tut-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      border-color: rgba(30,136,255,.2);
+    }
+    .tut-card-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(99,102,241,.06), transparent);
+    }
+    .tut-card-header h2 { font-size: 16px; font-weight: 800; margin: 0; letter-spacing: -.01em; }
+    .tut-card-header p { font-size: 12px; color: var(--muted); margin: 4px 0 0; line-height: 1.35; }
+    .tut-embed-wrap {
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      background: #0f172a;
+    }
+    .tut-embed-wrap iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .tut-embed-fallback {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(99,102,241,.1), rgba(30,136,255,.08));
+      color: var(--text);
+      padding: 20px;
+      text-align: center;
+    }
+    .tut-embed-fallback p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .tut-embed-fallback a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 8px;
+      display: inline-block;
+    }
+    .tut-embed-fallback a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 980px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .tut-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/eduflow-8.png' %}" alt="EDUflow"></div>
+        <div>
+          <p class="brand-kicker">Tutorial</p>
+          <p class="brand-name">EDUflow</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/dashboard/" class="nav-item">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        <a href="/?view=view-calendar" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/?view=view-students" class="nav-item">
+          <span class="nav-emoji">👩‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/?view=view-planning" class="nav-item">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        <a href="/?view=view-tasks" class="nav-item">
+          <span class="nav-emoji">✅</span>
+          <div>
+            <p class="nav-title">Tarefas</p>
+            <p class="nav-subtitle">Planejamento rápido</p>
+          </div>
+        </a>
+        <a href="/?view=view-finance" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        <div class="nav-divider"></div>
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        <div class="nav-divider"></div>
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+            <span class="nav-emoji">👥</span>
+            <div>
+              <p class="nav-title">Usuários</p>
+              <p class="nav-subtitle">Gerenciar usuários</p>
+            </div>
+          </a>
+          <a href="/perfil/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">👤</span>
+            <div>
+              <p class="nav-title">Perfil</p>
+              <p class="nav-subtitle">Dados da conta</p>
+            </div>
+          </a>
+          <a href="/planos/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">💳</span>
+            <div>
+              <p class="nav-title">Plano e Faturamento</p>
+              <p class="nav-subtitle">Gerenciar assinatura</p>
+            </div>
+          </a>
+          <a href="/tutorial/" class="nav-item nav-item-nested active">
+            <span class="nav-emoji">🎬</span>
+            <div>
+              <p class="nav-title">Tutorial</p>
+              <p class="nav-subtitle">Vídeos rápidos</p>
+            </div>
+          </a>
+          </div>
+        </div>
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida</p>
+        <ul class="sidebar-highlights">
+          <li><strong>Vídeos</strong> em destaque</li>
+          <li>Visão geral, agenda e cobrança</li>
+        </ul>
+        <a href="/dashboard/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Voltar ao Dashboard</a>
+        <button class="primary ghost" id="logoutBtn" type="button" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      </div>
+    </aside>
+
+    <main class="page tut-page">
+      <header class="tut-header">
+        <h1>Tutorial</h1>
+        <p>Vídeos rápidos para você dominar o EduFlow: visão geral, calendário, alunos, financeiro e cobrança.</p>
+      </header>
+
+      <section class="tut-grid">
+        <article class="tut-card">
+          <div class="tut-card-header">
+            <h2>Visão geral do EduFlow</h2>
+            <p>Conheça o painel, o que cada módulo faz e como começar em poucos minutos.</p>
+          </div>
+          <div class="tut-embed-wrap">
+            <iframe 
+              src="https://www.youtube.com/embed/2PuFyjAs7JA?rel=0&modestbranding=1&playsinline=1&enablejsapi=1" 
+              title="Visão geral do EduFlow" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+              allowfullscreen
+              loading="lazy"
+              referrerpolicy="strict-origin-when-cross-origin"
+              frameborder="0">
+            </iframe>
+          </div>
+        </article>
+
+        <article class="tut-card">
+          <div class="tut-card-header">
+            <h2>Calendário e agenda</h2>
+            <p>Agende aulas, confirme ou cancele e acompanhe o mês de forma visual.</p>
+          </div>
+          <div class="tut-embed-wrap">
+            <iframe 
+              src="https://www.youtube.com/embed/2PuFyjAs7JA?rel=0&modestbranding=1&playsinline=1&enablejsapi=1" 
+              title="Calendário e agenda" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+              allowfullscreen
+              loading="lazy"
+              referrerpolicy="strict-origin-when-cross-origin"
+              frameborder="0">
+            </iframe>
+          </div>
+        </article>
+
+        <article class="tut-card">
+          <div class="tut-card-header">
+            <h2>Financeiro e cobrança</h2>
+            <p>Lançamentos, vencimentos, templates de cobrança e integração com WhatsApp.</p>
+          </div>
+          <div class="tut-embed-wrap">
+            <iframe 
+              src="https://www.youtube.com/embed/2PuFyjAs7JA?rel=0&modestbranding=1&playsinline=1&enablejsapi=1" 
+              title="Financeiro e cobrança" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+              allowfullscreen
+              loading="lazy"
+              referrerpolicy="strict-origin-when-cross-origin"
+              frameborder="0">
+            </iframe>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+  (function() {
+    function getCookie(name) {
+      const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+      return v ? v[2] : null;
+    }
+    async function checkAdmin() {
+      try {
+        const r = await fetch("/api/auth/current-user/", { method: "GET", headers: { "Content-Type": "application/json" }, credentials: "same-origin" });
+        if (!r.ok) return;
+        const u = await r.json();
+        const el = document.getElementById("navUsers");
+        if (el && u && u.is_admin) el.style.display = "flex";
+      } catch (_) {}
+    }
+    function initContaGroupCollapse() {
+      const STORAGE_KEY = "eduflow_sidebar_conta_expanded";
+      const group = document.getElementById("navGroupConta");
+      const btn = document.getElementById("navGroupContaBtn");
+      if (!group || !btn) {
+        console.warn("initContaGroupCollapse: elementos não encontrados");
+        return;
+      }
+      function setExpanded(expanded) {
+        if (expanded) {
+          group.classList.remove("nav-group--collapsed");
+          group.classList.add("nav-group--expanded");
+          btn.setAttribute("aria-expanded", "true");
+          try { localStorage.setItem(STORAGE_KEY, "1"); } catch (_) {}
+        } else {
+          group.classList.add("nav-group--collapsed");
+          group.classList.remove("nav-group--expanded");
+          btn.setAttribute("aria-expanded", "false");
+          try { localStorage.setItem(STORAGE_KEY, "0"); } catch (_) {}
+        }
+      }
+      btn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isExpanded = group.classList.contains("nav-group--expanded");
+        setExpanded(!isExpanded);
+      });
+      try {
+        if (localStorage.getItem(STORAGE_KEY) === "1") setExpanded(true);
+      } catch (_) {}
+    }
+    document.getElementById("logoutBtn") && document.getElementById("logoutBtn").addEventListener("click", async function() {
+      try {
+        const r = await fetch("/api/auth/logout/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
+          credentials: "same-origin"
+        });
+      } catch (_) {}
+      window.location.href = "/login/";
+    });
+    document.addEventListener("DOMContentLoaded", function() {
+      checkAdmin();
+      setTimeout(initContaGroupCollapse, 100);
+    });
+  })();
+  </script>
+</body>
+</html>

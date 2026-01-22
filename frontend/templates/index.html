@@ -83,11 +83,13 @@
           
           <div class="nav-divider"></div>
           
-          <div class="nav-group">
-            <div class="nav-group-header">
+          <div class="nav-group nav-group--collapsed" id="navGroupConta">
+            <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
               <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
               <span class="nav-group-title">Conta</span>
-            </div>
+              <span class="nav-group-chevron" aria-hidden="true">›</span>
+            </button>
+            <div class="nav-group-items" id="navGroupContaItems">
             <button class="nav-item nav-item-nested" data-view="view-users" id="navUsers" style="display: none;">
               <span class="nav-emoji">👥</span>
               <div>
@@ -109,6 +111,14 @@
                 <p class="nav-subtitle">Gerenciar assinatura</p>
               </div>
             </a>
+            <a href="/tutorial/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">🎬</span>
+              <div>
+                <p class="nav-title">Tutorial</p>
+                <p class="nav-subtitle">Vídeos rápidos</p>
+              </div>
+            </a>
+            </div>
           </div>
           
           <div class="nav-divider"></div>
@@ -1488,7 +1498,6 @@
 
     <script src="{% static 'script.js' %}"></script>
 
-
-
+    {% include '_welcome_modal.html' %}
   </body>
 </html>

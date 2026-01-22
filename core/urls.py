@@ -7,8 +7,8 @@ from .views import (
     InvoiceViewSet, FinancialEntryViewSet, UserViewSet, LessonPlanViewSet, BillingLogViewSet,
     login_view, logout_view, current_user_view,
     create_checkout_session, stripe_webhook, subscription_status, signup_view,
-    create_portal_session, PlanosView, dashboard_summary_view, PerfilView,
-    profile_get_view, profile_update_view
+    create_portal_session, PlanosView, dashboard_summary_view, PerfilView, TutorialView,
+    profile_get_view, profile_update_view, welcome_dismiss_view
 )
 
 router = DefaultRouter()
@@ -36,10 +36,12 @@ urlpatterns = [
     path("api/auth/current-user/", current_user_view, name="api-current-user"),
     path("api/profile/me/", profile_get_view, name="profile-get"),
     path("api/profile/update/", profile_update_view, name="profile-update"),
+    path("api/profile/welcome-dismiss/", welcome_dismiss_view, name="welcome-dismiss"),
     path("api/dashboard/summary/", dashboard_summary_view, name="dashboard-summary"),
     path("api/subscription/create-checkout/", create_checkout_session, name="create-checkout"),
     path("api/subscription/status/", subscription_status, name="subscription-status"),
     path("api/subscription/create-portal/", create_portal_session, name="create-portal"),
     path("api/webhooks/stripe/", stripe_webhook, name="stripe-webhook"),
     path("planos/", PlanosView.as_view(), name="planos"),
+    path("tutorial/", TutorialView.as_view(), name="tutorial"),
 ]

@@ -441,11 +441,13 @@
         
         <div class="nav-divider"></div>
         
-        <div class="nav-group">
-          <div class="nav-group-header">
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
             <span class="nav-group-title">Conta</span>
-          </div>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
           <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
             <span class="nav-emoji">👥</span>
             <div>
@@ -467,6 +469,14 @@
               <p class="nav-subtitle">Gerenciar assinatura</p>
             </div>
           </a>
+          <a href="/tutorial/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">🎬</span>
+            <div>
+              <p class="nav-title">Tutorial</p>
+              <p class="nav-subtitle">Vídeos rápidos</p>
+            </div>
+          </a>
+          </div>
         </div>
       </nav>
       <div class="sidebar-card">
@@ -711,6 +721,39 @@
       }
     }
 
+    // Colapso do grupo Conta
+    function initContaGroupCollapse() {
+      const STORAGE_KEY = "eduflow_sidebar_conta_expanded";
+      const group = document.getElementById("navGroupConta");
+      const btn = document.getElementById("navGroupContaBtn");
+      if (!group || !btn) {
+        console.warn("initContaGroupCollapse: elementos não encontrados");
+        return;
+      }
+      function setExpanded(expanded) {
+        if (expanded) {
+          group.classList.remove("nav-group--collapsed");
+          group.classList.add("nav-group--expanded");
+          btn.setAttribute("aria-expanded", "true");
+          try { localStorage.setItem(STORAGE_KEY, "1"); } catch (_) {}
+        } else {
+          group.classList.add("nav-group--collapsed");
+          group.classList.remove("nav-group--expanded");
+          btn.setAttribute("aria-expanded", "false");
+          try { localStorage.setItem(STORAGE_KEY, "0"); } catch (_) {}
+        }
+      }
+      btn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isExpanded = group.classList.contains("nav-group--expanded");
+        setExpanded(!isExpanded);
+      });
+      try {
+        if (localStorage.getItem(STORAGE_KEY) === "1") setExpanded(true);
+      } catch (_) {}
+    }
+
     // Adicionar event listeners aos botões
     document.addEventListener("DOMContentLoaded", () => {
       const btn1 = document.getElementById("manageStripeBtn");
@@ -725,6 +768,9 @@
 
       // Verificar se é admin e mostrar menu Usuários
       checkAdminAndShowUsersMenu();
+      
+      // Inicializar colapso do grupo Conta (com pequeno delay para garantir DOM)
+      setTimeout(initContaGroupCollapse, 100);
     });
   </script>
 </body>

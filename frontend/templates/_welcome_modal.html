@@ -1,0 +1,292 @@
+{% comment %}
+  Modal de boas-vindas (primeiro acesso).
+  - Mostra apenas se o usuário NÃO marcou "Não mostrar novamente" (backend).
+  - "Pular": fecha sem persistir; volta a aparecer no próximo login.
+  - "Ir para tutorial rápido": redireciona para /tutorial/; volta a aparecer no próximo login.
+  - "Não mostrar novamente" + Fechar (X / overlay / ESC): persiste no backend, nunca mais aparece.
+  Incluir em páginas que exigem login (ex.: dashboard_home, index).
+{% endcomment %}
+
+<style>
+  .wm-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    z-index: 99999;
+    background:
+      radial-gradient(900px 500px at 20% 10%, rgba(124,92,255,.24), transparent 60%),
+      radial-gradient(700px 450px at 90% 20%, rgba(34,211,238,.18), transparent 55%),
+      rgba(10,14,25,.55);
+    backdrop-filter: blur(10px);
+  }
+  .wm-overlay.is-open { display: flex; }
+  .wm-modal {
+    width: min(720px, 92vw);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+    box-shadow: 0 26px 70px rgba(0,0,0,.55);
+    padding: 18px 18px 16px;
+    position: relative;
+    transform: translateY(8px) scale(.92);
+    opacity: 0;
+    transition: transform .22s ease, opacity .22s ease;
+  }
+  .wm-overlay.is-open .wm-modal {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  .wm-overlay.is-closing .wm-modal {
+    transform: translateY(10px) scale(.92);
+    opacity: 0;
+  }
+  .wm-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.08);
+    color: rgba(255,255,255,.88);
+    cursor: pointer;
+    font-weight: 900;
+    transition: transform .15s ease, background .15s ease;
+  }
+  .wm-close:hover { background: rgba(255,255,255,.12); transform: translateY(-1px); }
+  .wm-close:focus { outline: none; box-shadow: 0 0 0 3px rgba(124,92,255,.22); }
+  .wm-head { padding: 10px 6px 6px; }
+  .wm-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.08);
+    font-size: 12px;
+    font-weight: 800;
+    color: rgba(255,255,255,.78);
+  }
+  .wm-title { margin: 10px 0 6px; font-size: 22px; letter-spacing: -.02em; }
+  .wm-desc { margin: 0; color: rgba(255,255,255,.70); font-size: 13px; line-height: 1.45; }
+  .wm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 14px 0 14px;
+  }
+  @media (max-width: 620px) { .wm-grid { grid-template-columns: 1fr; } }
+  .wm-card {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.16);
+  }
+  .wm-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(124,92,255,.30), rgba(34,211,238,.18));
+    border: 1px solid rgba(255,255,255,.12);
+    font-size: 18px;
+  }
+  .wm-card-title { font-weight: 900; font-size: 13px; letter-spacing: -.01em; }
+  .wm-card-sub { color: rgba(255,255,255,.68); font-size: 12px; margin-top: 2px; }
+  .wm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    padding: 6px 4px 4px;
+  }
+  .wm-btn {
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.08);
+    color: rgba(255,255,255,.92);
+    padding: 11px 12px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-weight: 900;
+    font-size: 13px;
+    transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    user-select: none;
+  }
+  .wm-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.12); }
+  .wm-btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(124,92,255,.22); }
+  .wm-primary {
+    border: none;
+    background: linear-gradient(135deg, rgba(124,92,255,.85), rgba(34,211,238,.55));
+    box-shadow: 0 14px 34px rgba(124,92,255,.22);
+  }
+  .wm-primary:hover { box-shadow: 0 18px 44px rgba(124,92,255,.28); }
+  .wm-ghost { background: transparent; }
+  .wm-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 8px 6px 2px;
+    color: rgba(255,255,255,.72);
+    font-size: 12px;
+    font-weight: 800;
+    user-select: none;
+  }
+  .wm-check input { width: 16px; height: 16px; accent-color: rgba(124,92,255,.95); }
+</style>
+
+<div id="welcomeOverlay" class="wm-overlay" aria-hidden="true">
+  <div class="wm-modal" role="dialog" aria-modal="true" aria-labelledby="wmTitle" aria-describedby="wmDesc">
+    <button class="wm-close" id="wmClose" type="button" aria-label="Fechar">✕</button>
+    <div class="wm-head">
+      <div class="wm-badge">Primeiro acesso</div>
+      <h2 id="wmTitle" class="wm-title">Bem-vindo ao EduFlow</h2>
+      <p id="wmDesc" class="wm-desc">
+        Em 2 minutos você deixa tudo redondo: calendário, alunos, financeiro e cobrança.
+      </p>
+    </div>
+    <div class="wm-grid">
+      <div class="wm-card">
+        <div class="wm-icon">📅</div>
+        <div>
+          <div class="wm-card-title">Agenda</div>
+          <div class="wm-card-sub">Crie aulas, recorrência e lembretes.</div>
+        </div>
+      </div>
+      <div class="wm-card">
+        <div class="wm-icon">👩‍🎓</div>
+        <div>
+          <div class="wm-card-title">Alunos</div>
+          <div class="wm-card-sub">Controle pacotes e histórico.</div>
+        </div>
+      </div>
+      <div class="wm-card">
+        <div class="wm-icon">💰</div>
+        <div>
+          <div class="wm-card-title">Financeiro</div>
+          <div class="wm-card-sub">Lançamentos e vencimentos.</div>
+        </div>
+      </div>
+      <div class="wm-card">
+        <div class="wm-icon">📲</div>
+        <div>
+          <div class="wm-card-title">Cobrança</div>
+          <div class="wm-card-sub">Templates + WhatsApp + log.</div>
+        </div>
+      </div>
+    </div>
+    <div class="wm-actions">
+      <button class="wm-btn wm-ghost" id="wmSkip" type="button">Pular</button>
+      <button class="wm-btn wm-primary" id="wmGoTutorial" type="button">Ir para tutorial rápido →</button>
+    </div>
+    <label class="wm-check">
+      <input type="checkbox" id="wmDontShow" />
+      Não mostrar novamente
+    </label>
+  </div>
+</div>
+
+<script>
+(function(){
+  const overlay = document.getElementById('welcomeOverlay');
+  if (!overlay) return;
+
+  const btnClose = document.getElementById('wmClose');
+  const btnSkip = document.getElementById('wmSkip');
+  const btnGoTutorial = document.getElementById('wmGoTutorial');
+  const chkDontShow = document.getElementById('wmDontShow');
+
+  function getCookie(name) {
+    const value = '; ' + document.cookie;
+    const parts = value.split('; ' + name + '=');
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  }
+
+  const SESSION_KEY = 'eduflow_welcome_shown_session';
+
+  function open() {
+    overlay.classList.add('is-open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.documentElement.style.overflow = 'hidden';
+    try { sessionStorage.setItem(SESSION_KEY, '1'); } catch (_) {}
+  }
+
+  function close(persistForever) {
+    overlay.classList.add('is-closing');
+    overlay.setAttribute('aria-hidden', 'true');
+    window.setTimeout(function() {
+      overlay.classList.remove('is-open', 'is-closing');
+      document.documentElement.style.overflow = '';
+    }, 220);
+
+    if (persistForever) {
+      const csrf = getCookie('csrftoken');
+      fetch('/api/profile/welcome-dismiss/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf || '',
+        },
+        credentials: 'same-origin',
+      }).catch(function() {});
+    }
+  }
+
+  btnClose && btnClose.addEventListener('click', function() {
+    close(!!(chkDontShow && chkDontShow.checked));
+  });
+
+  btnSkip && btnSkip.addEventListener('click', function() {
+    close(false);
+  });
+
+  btnGoTutorial && btnGoTutorial.addEventListener('click', function() {
+    close(false);
+    window.location.href = '/tutorial/';
+  });
+
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) close(!!(chkDontShow && chkDontShow.checked));
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && overlay.classList.contains('is-open')) {
+      close(!!(chkDontShow && chkDontShow.checked));
+    }
+  });
+
+  function tryShow() {
+    fetch('/api/auth/current-user/', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+    })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(user) {
+        if (!user) return;
+        if (user.welcome_dismissed_forever) return;
+        try {
+          if (sessionStorage.getItem(SESSION_KEY) === '1') return;
+        } catch (_) {}
+        window.setTimeout(open, 350);
+      })
+      .catch(function() {});
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tryShow);
+  } else {
+    tryShow();
+  }
+})();
+</script>

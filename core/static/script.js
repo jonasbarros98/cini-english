@@ -3599,6 +3599,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   init().catch((err) => console.error(err));
 
+  // Colapso do grupo Conta na sidebar (com pequeno delay para garantir DOM)
+  setTimeout(initContaGroupCollapse, 100);
+
   // Se for admin, inicializa UI de usuários
   if (state.currentUser && state.currentUser.is_admin) {
     initUsersUI();
@@ -3606,6 +3609,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderUsers();
   }
 });
+
+function initContaGroupCollapse() {
+  const STORAGE_KEY = "eduflow_sidebar_conta_expanded";
+  const group = document.getElementById("navGroupConta");
+  const btn = document.getElementById("navGroupContaBtn");
+  if (!group || !btn) {
+    console.warn("initContaGroupCollapse: elementos não encontrados");
+    return;
+  }
+
+  function setExpanded(expanded) {
+    if (expanded) {
+      group.classList.remove("nav-group--collapsed");
+      group.classList.add("nav-group--expanded");
+      btn.setAttribute("aria-expanded", "true");
+      try { localStorage.setItem(STORAGE_KEY, "1"); } catch (_) {}
+    } else {
+      group.classList.add("nav-group--collapsed");
+      group.classList.remove("nav-group--expanded");
+      btn.setAttribute("aria-expanded", "false");
+      try { localStorage.setItem(STORAGE_KEY, "0"); } catch (_) {}
+    }
+  }
+
+  btn.addEventListener("click", function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const isExpanded = group.classList.contains("nav-group--expanded");
+    setExpanded(!isExpanded);
+  });
+
+  try {
+    if (localStorage.getItem(STORAGE_KEY) === "1") setExpanded(true);
+  } catch (_) {}
+}
 
 function renderFinanceTotal() {
   const totalEl = document.getElementById("financeTotalAmount");

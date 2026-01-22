@@ -150,6 +150,17 @@ p {
   gap: 4px;
 }
 
+/* Colapso do grupo Conta: itens ocultos por padrão */
+.nav-group.nav-group--collapsed .nav-group-items {
+  display: none !important;
+}
+
+.nav-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .nav-group-header {
   display: flex;
   align-items: center;
@@ -161,6 +172,37 @@ p {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 2px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  font-family: inherit;
+  appearance: none;
+}
+
+.nav-group-header:hover {
+  background: rgba(255, 255, 255, 0.4);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.nav-group-header:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(30, 136, 255, 0.25);
+}
+
+.nav-group-chevron {
+  margin-left: auto;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+.nav-group.nav-group--expanded .nav-group-chevron {
+  transform: rotate(90deg);
 }
 
 .nav-group-title {

@@ -165,7 +165,7 @@ REST_FRAMEWORK = {
 
 # Redireciona para login quando não autenticado
 LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/login/"
 
 # Session configuration

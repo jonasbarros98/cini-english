@@ -218,8 +218,8 @@
             console.log("Login bem-sucedido, redirecionando...");
             // Aguarda um pouco para garantir que a sessão foi estabelecida
             await new Promise(resolve => setTimeout(resolve, 200));
-            // Redireciona para o dashboard com replace para não criar histórico
-            window.location.replace("/");
+            // Redireciona para o dashboard (visão geral), não para o calendário
+            window.location.replace("/dashboard/");
           } else {
             errorMessage.textContent = data.error || "Erro ao fazer login";
             errorMessage.classList.add("show");
