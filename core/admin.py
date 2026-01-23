@@ -10,8 +10,8 @@ class StudentAdmin(admin.ModelAdmin):
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
-    list_display = ("date", "time", "student", "user", "title", "status")
-    list_filter = ("status", "date", "student", "user")
+    list_display = ("date", "time", "student", "user", "title", "status", "realized")
+    list_filter = ("status", "realized", "date", "student", "user")
     search_fields = ("title", "info", "student__name", "user__username")
 
 @admin.register(Task)

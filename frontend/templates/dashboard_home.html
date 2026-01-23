@@ -24,9 +24,7 @@
       .app-shell {
         grid-template-columns: 1fr;
       }
-      .sidebar {
-        display: none;
-      }
+      /* Sidebar agora é padronizado no styles.css */
     }
 
     .topbar .title{
@@ -561,8 +559,8 @@
             <p class="nav-subtitle">Agenda visual do mês</p>
           </div>
         </a>
-        <a href="/?view=view-students" class="nav-item">
-          <span class="nav-emoji">👩‍🎓</span>
+        <a href="/alunos/" class="nav-item">
+          <span class="nav-emoji">🧑‍🎓</span>
           <div>
             <p class="nav-title">Alunos</p>
             <p class="nav-subtitle">Cadastro e planos</p>
@@ -1288,12 +1286,17 @@
 
       // ====== Navegação ======
       function go(where) {
+        // Redirecionar para /alunos/ se for 'students'
+        if (where === 'students') {
+          window.location.href = '/alunos/';
+          return;
+        }
+        
         // Mapear para views do sistema
         const viewMap = {
           'calendar': 'view-calendar',
           'finance': 'view-finance',
           'billing': 'view-billing',
-          'students': 'view-students',
           'tasks': 'view-tasks'
         };
 

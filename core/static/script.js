@@ -294,6 +294,7 @@ async function loadLessonsForCurrentMonth() {
       studentId: lesson.student,
       studentName: lesson.student_name,
       time: lesson.time,
+      realized: lesson.realized || false,
     });
   });
 }
@@ -335,6 +336,7 @@ async function loadLessonsForWeek(weekStart) {
       studentId: lesson.student,
       studentName: lesson.student_name,
       time: lesson.time,
+      realized: lesson.realized || false,
     });
   });
 }
@@ -595,7 +597,12 @@ function renderCalendar() {
 
     visibleNotes.forEach((note) => {
       const row = document.createElement("div");
-      row.className = `day-event ${note.status}`;
+      let className = `day-event ${note.status || "pending"}`;
+      // Adiciona classe "realized" se a aula foi realizada
+      if (note.realized === true || note.realized === "true") {
+        className += " realized";
+      }
+      row.className = className;
       const timeStr = note.time ? note.time.slice(0, 5) : "";
       row.innerHTML = `
         <span class="day-event-dot"></span>
@@ -710,7 +717,12 @@ function renderCalendarWeek() {
 
       cellNotes.forEach((note) => {
         const ev = document.createElement("div");
-        ev.className = `week-event ${note.status}`;
+        let className = `week-event ${note.status || "pending"}`;
+        // Adiciona classe "realized" se a aula foi realizada
+        if (note.realized === true || note.realized === "true") {
+          className += " realized";
+        }
+        ev.className = className;
         ev.innerHTML = `
           <span class="week-event-time">${(note.time || "").slice(0, 5)}</span>
           <span class="week-event-title">${note.title || "Aula"}</span>
@@ -744,7 +756,7 @@ function startEditLesson(note) {
   const submitBtn = form.querySelector('button[type="submit"]');
 
   document.getElementById("noteTitle").value = note.title || "";
-  document.getElementById("noteStatus").value = note.status || "confirmed";
+  document.getElementById("noteStatus").value = note.status || "pending";
   document.getElementById("noteInfo").value = note.info || "";
 
   if (note.studentId) {
@@ -769,6 +781,11 @@ function resetLessonFormMode() {
   const submitBtn = form.querySelector('button[type="submit"]');
   editingLessonId = null;
   form.reset();
+  // Garantir que o status padrão seja "pending" após reset
+  const statusSelect = document.getElementById("noteStatus");
+  if (statusSelect) {
+    statusSelect.value = "pending";
+  }
   if (submitBtn) {
     submitBtn.textContent = "Salvar anotação";
   }
@@ -809,8 +826,14 @@ function renderDayDetails() {
     title.textContent = note.title;
 
     const badge = document.createElement("span");
-    badge.className = `pill status ${note.status}`;
-    badge.textContent = lessonStatusLabels[note.status] || "Status";
+    // Se a aula foi realizada, mostra "Realizado" no badge
+    if (note.realized === true || note.realized === "true") {
+      badge.className = "pill status realized";
+      badge.textContent = "Realizado";
+    } else {
+      badge.className = `pill status ${note.status}`;
+      badge.textContent = lessonStatusLabels[note.status] || "Status";
+    }
 
     header.append(title, badge);
 
@@ -821,24 +844,55 @@ function renderDayDetails() {
     const actions = document.createElement("div");
     actions.className = "note-actions";
 
+    const isRealized = note.realized === true || note.realized === "true";
+
     // STATUS BUTTONS
     ["confirmed", "pending", "canceled"].forEach((status) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "tag";
-      button.textContent = `Marcar ${lessonStatusLabels[status]}`;
-      button.addEventListener("click", () => {
-        updateLessonStatus(note, status);
-      });
+      button.textContent = lessonStatusLabels[status];
+      if (isRealized) {
+        button.disabled = true;
+        button.classList.add("disabled");
+        button.title = "Aula realizada - não é possível alterar o status";
+      } else {
+        button.addEventListener("click", () => {
+          updateLessonStatus(note, status);
+        });
+      }
       actions.append(button);
     });
+
+    // REALIZED BUTTON
+    const realizedBtn = document.createElement("button");
+    realizedBtn.type = "button";
+    if (isRealized) {
+      realizedBtn.className = "tag realized";
+      realizedBtn.textContent = "✓ Realizado";
+      realizedBtn.title = "Clique para marcar como não realizado";
+    } else {
+      realizedBtn.className = "tag";
+      realizedBtn.textContent = "Realizado";
+      realizedBtn.title = "Clique para marcar como realizado";
+    }
+    realizedBtn.addEventListener("click", () => {
+      toggleLessonRealized(note);
+    });
+    actions.append(realizedBtn);
 
     // EDIT BUTTON
     const editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.className = "tag";
     editBtn.textContent = "Editar";
-    editBtn.addEventListener("click", () => startEditLesson(note));
+    if (isRealized) {
+      editBtn.disabled = true;
+      editBtn.classList.add("disabled");
+      editBtn.title = "Aula realizada - não é possível editar";
+    } else {
+      editBtn.addEventListener("click", () => startEditLesson(note));
+    }
     actions.append(editBtn);
 
     // DELETE BUTTON
@@ -888,6 +942,41 @@ async function deleteLesson(note, dateKey) {
 }
 
 
+async function toggleLessonRealized(note) {
+  try {
+    const newRealized = !(note.realized || false);
+    
+    // Feedback visual imediato (otimista)
+    const response = await fetchJSON(`/lessons/${note.id}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ realized: newRealized }),
+    });
+    
+    // Atualizar no state com os dados retornados do servidor
+    const notes = state.notes[state.selectedDate] || [];
+    const noteIndex = notes.findIndex((n) => n.id === note.id);
+    if (noteIndex !== -1) {
+      notes[noteIndex].realized = response.realized || newRealized;
+    }
+    
+    // Recarregar dados para garantir sincronização completa
+    if (state.calendarView === "week") {
+      await loadLessonsForWeek(getWeekStartForState());
+    } else {
+      await loadLessonsForCurrentMonth();
+    }
+    renderStats();
+    renderCalendar();
+    renderDayDetails();
+    
+    // Log para debug (pode remover em produção)
+    console.log(`Aula ${note.id} marcada como ${newRealized ? 'realizada' : 'não realizada'} - Salvo no banco de dados`);
+  } catch (error) {
+    console.error("Erro ao atualizar status de realizado:", error);
+    alert("Erro ao atualizar status de realizado. Tente novamente.");
+  }
+}
+
 async function updateLessonStatus(note, newStatus) {
   try {
     await fetchJSON(`/lessons/${note.id}/`, {
@@ -914,156 +1003,10 @@ async function updateLessonStatus(note, newStatus) {
 // Alunos (lista + tela de cadastro/edição)
 // ==========================
 
-function getFilteredStudents() {
-  const filterValue = document.getElementById("studentFilter")?.value.toLowerCase().trim() || "";
-  
-  if (!filterValue) {
-    return state.students.filter((s) => s.active !== false);
-  }
+// getFilteredStudents() removido - agora em /alunos/
 
-  return state.students.filter((student) => {
-    if (student.active === false) return false;
-    
-    const searchText = filterValue.toLowerCase();
-    const name = (student.name || "").toLowerCase();
-    const phone = (student.phone || "").toLowerCase();
-    const address = (student.address || "").toLowerCase();
-    const plan = (student.plan || "").toLowerCase();
-    const guardians = (student.guardians || "").toLowerCase();
-    
-    return (
-      name.includes(searchText) ||
-      phone.includes(searchText) ||
-      address.includes(searchText) ||
-      plan.includes(searchText) ||
-      guardians.includes(searchText)
-    );
-  });
-}
-
-function renderStudents() {
-  const list = document.getElementById("studentList");
-  const select = document.getElementById("billingStudent"); // Elemento pode não existir mais (nova tela de cobrança)
-  const titleEl = document.getElementById("studentListTitle");
-  const subtitleEl = document.getElementById("studentListSubtitle");
-
-  // Guardas de segurança
-  if (!list) return;
-
-  const filteredStudents = getFilteredStudents();
-
-  // Atualiza título e subtítulo
-  if (titleEl && subtitleEl) {
-    if (filteredStudents.length === state.students.filter((s) => s.active !== false).length) {
-      titleEl.textContent = "Cadastro e status";
-      subtitleEl.textContent = `${filteredStudents.length} aluno(s) cadastrado(s)`;
-    } else {
-      titleEl.textContent = "Alunos Filtrados";
-      subtitleEl.textContent = `${filteredStudents.length} de ${state.students.filter((s) => s.active !== false).length} aluno(s)`;
-    }
-  }
-
-  list.innerHTML = "";
-  
-  // Popula select de cobrança apenas se existir (compatibilidade)
-  if (select) {
-    select.innerHTML = "";
-  }
-
-  if (filteredStudents.length === 0) {
-    list.innerHTML = `
-      <div style="text-align: center; padding: 48px; color: var(--text-muted);">
-        <p style="font-size: 18px; margin-bottom: 8px;">Nenhum aluno encontrado</p>
-        <p style="font-size: 14px;">Tente ajustar o filtro de busca</p>
-      </div>
-    `;
-    // Ainda popula o select para cobrança mesmo sem resultados na lista (se existir)
-    if (select) {
-      state.students.forEach((student) => {
-        if (student.active === false) return;
-        const opt = document.createElement("option");
-        opt.value = student.id;
-        opt.textContent = student.name;
-        select.appendChild(opt);
-      });
-    }
-    return;
-  }
-
-  filteredStudents.forEach((student) => {
-
-    const card = document.createElement("div");
-    card.className = "student-card";
-
-    const heading = document.createElement("div");
-    heading.className = "note-row-header";
-
-    const name = document.createElement("strong");
-    name.textContent = student.name;
-
-    const plan = document.createElement("span");
-    plan.className = "pill";
-    plan.textContent = student.plan || "Plano não informado";
-
-    heading.append(name, plan);
-
-    const meta = document.createElement("div");
-    meta.className = "student-meta";
-    meta.innerHTML = `
-      👪 ${student.guardians || "Responsável próprio"}<br/>
-      📞 ${student.phone || "Sem telefone"}<br/>
-      📍 ${student.address || "Endereço não informado"}
-    `;
-
-    const progress = document.createElement("div");
-    progress.className = "progress";
-
-    const bar = document.createElement("span");
-    const prog = student.progress || { done: 0, total: 0 };  // <- safe fallback
-    const total = prog.total || 0;
-    const done = prog.done || 0;
-    const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
-    bar.style.width = `${pct}%`;
-
-    progress.append(bar);
-
-    const info = document.createElement("p");
-    info.className = "muted";
-    info.textContent = `${done} aulas de ${total || "?"}`;
-
-    const actions = document.createElement("div");
-    actions.className = "student-actions";
-
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "primary ghost";
-    editBtn.textContent = "Editar cadastro";
-    editBtn.addEventListener("click", () => openStudentForm(student.id));
-
-    const deactivateBtn = document.createElement("button");
-    deactivateBtn.type = "button";
-    deactivateBtn.className = "primary ghost danger";
-    deactivateBtn.textContent = "Inativar aluno";
-    deactivateBtn.addEventListener("click", () => inactivateStudent(student.id));
-
-    actions.append(editBtn, deactivateBtn);
-
-    card.append(heading, meta, progress, info, actions);
-    list.append(card);
-
-    // Popula select de cobrança apenas se existir (compatibilidade)
-    if (select) {
-      const option = document.createElement("option");
-      option.value = student.id;
-      option.textContent = student.name;
-      select.append(option);
-    }
-  });
-
-  loadBillingEntries();
-  populateNoteStudentSelect();
-  renderStats();
-}
+// renderStudents() removido - agora em /alunos/
+// Mantendo apenas funções auxiliares usadas em outras partes
 
 
 // select de aluno do formulário de aula
@@ -1094,8 +1037,11 @@ function populateNoteStudentSelect() {
   }
 }
 
-// cria uma card-form no meio da tela de alunos (se ainda não existir)
-function ensureStudentFormCard() {
+// Funções de formulário de alunos removidas - agora em /alunos/
+// Mantendo apenas funções auxiliares usadas em outras partes
+
+// Função removida - não usada mais
+function _removed_ensureStudentFormCard() {
   let card = document.getElementById("studentFormCard");
   if (card) return card;
 
@@ -1342,7 +1288,7 @@ async function inactivateStudent(studentId) {
     });
 
     await loadStudents();
-    renderStudents();
+    populateNoteStudentSelect();
     renderStats();
   } catch (error) {
     console.error(error);
@@ -1461,8 +1407,11 @@ async function onStudentFormSubmit(event) {
   // 2) Atualizar tela
   try {
     await loadStudents();
-    renderStudents();
-    hideStudentForm();
+    populateNoteStudentSelect();
+    // Redireciona para /alunos/ se estiver na página de alunos
+    if (window.location.pathname.includes('/alunos/')) {
+      window.location.reload();
+    }
   } catch (error) {
     console.error(error);
     alert("Aluno salvo, mas houve erro ao atualizar a tela. Recarregue a página.");
@@ -2824,11 +2773,7 @@ async function showView(viewId) {
     }
   }
   
-  // Se abrir a visualização de alunos
-  if (viewId === "view-students") {
-    renderStudents();
-    initStudentFilter();
-  }
+  // Visualização de alunos removida - agora em /alunos/
   
   // Se abrir a visualização de cobrança
   if (viewId === "view-billing") {
@@ -2947,6 +2892,16 @@ function attachForms() {
       return;
     }
 
+    // Buscar o valor atual de realized se estiver editando
+    let currentRealized = false;
+    if (editingLessonId) {
+      const notes = state.notes[state.selectedDate] || [];
+      const currentNote = notes.find((n) => n.id === editingLessonId);
+      if (currentNote) {
+        currentRealized = currentNote.realized || false;
+      }
+    }
+
     const payload = {
       student: Number(studentId),
       date: state.selectedDate,
@@ -2954,6 +2909,7 @@ function attachForms() {
       title,
       info,
       status,
+      realized: editingLessonId ? currentRealized : false, // Mantém o valor atual ao editar, inicia como false ao criar
     };
 
     try {
@@ -3154,9 +3110,14 @@ function attachForms() {
   });
 
   // alunos
-  document.getElementById("addStudent").addEventListener("click", () => {
-    openStudentForm(null);
-  });
+  // Event listener de addStudent removido - agora em /alunos/
+  const addStudentBtn = document.getElementById("addStudent");
+  if (addStudentBtn) {
+    // Botão não existe mais no index.html, mas mantendo compatibilidade
+    addStudentBtn.addEventListener("click", () => {
+      window.location.href = "/alunos/";
+    });
+  }
 
 
   // Botão de novo lançamento financeiro
@@ -3344,7 +3305,11 @@ async function init() {
     alert("Não foi possível carregar os dados iniciais. Verifique a API.");
   }
 
-  renderStudents();
+  // renderStudents() removido - agora em /alunos/
+  // Mas ainda precisamos popular selects que dependem de alunos
+  populateNoteStudentSelect();
+  populateBillingStudentFilter();
+  
   renderStats();
   renderCalendar();
   renderFinance();
@@ -3942,16 +3907,5 @@ function renderFinanceTotal() {
 }
 
 
-function initStudentFilter() {
-  const filterInput = document.getElementById("studentFilter");
-  if (filterInput) {
-    // Remove listener antigo se existir
-    const newInput = filterInput.cloneNode(true);
-    filterInput.parentNode.replaceChild(newInput, filterInput);
-    
-    newInput.addEventListener("input", () => {
-      renderStudents();
-    });
-  }
-}
+// initStudentFilter() removido - agora em /alunos/
 

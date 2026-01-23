@@ -1,0 +1,1592 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Alunos • EDUCAflowOne</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --muted2:#94a3b8;
+      --border: rgba(15,23,42,.10);
+      --shadow-soft: 0 10px 24px rgba(2,6,23,.06);
+      --shadow: 0 16px 40px rgba(2,6,23,.10);
+
+      --primary:#2563eb;
+      --primary2:#3b82f6;
+
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+
+      --radius: 18px;
+      --radius-sm: 14px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(900px 500px at 15% 0%, rgba(37,99,235,.10), transparent 60%),
+                  radial-gradient(700px 450px at 90% 15%, rgba(59,130,246,.10), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+    
+    /* Ajustes para sidebar - removido, agora padronizado no styles.css */
+
+    .wrap{max-width:100%;margin:0;padding:26px 18px 90px;width:100%;}
+
+    /* Header */
+    .page-head{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px;
+    }
+    .title h1{margin:0;font-size:22px;letter-spacing:-.02em}
+    .title p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
+
+    .btn-primary{
+      border:none;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color:#fff;
+      font-weight:900;
+      font-size:13px;
+      padding:11px 14px;
+      border-radius:14px;
+      box-shadow:0 14px 32px rgba(37,99,235,.18);
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+      white-space:nowrap;
+    }
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 18px 40px rgba(37,99,235,.22);}
+
+    .btn{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.92);
+      padding:10px 12px;
+      border-radius:14px;
+      font-weight:900;
+      font-size:12px;
+      cursor:pointer;
+      transition:.15s;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .btn:hover{transform: translateY(-1px); box-shadow: var(--shadow-soft);}
+    .btn.danger{
+      background: rgba(239,68,68,.08);
+      border-color: rgba(239,68,68,.18);
+      color: rgba(185,28,28,.95);
+    }
+    .btn.ghost{
+      background: rgba(2,6,23,.02);
+    }
+
+    /* Tabs */
+    .tabs{
+      display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;
+    }
+    .tab{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.86);
+      border-radius:999px;
+      padding:9px 12px;
+      font-weight:900;
+      font-size:12px;
+      color: var(--muted);
+      cursor:pointer;
+      transition:.15s;
+    }
+    .tab:hover{transform: translateY(-1px); box-shadow: var(--shadow-soft); color: var(--text);}
+    .tab.active{
+      border:none;
+      background: linear-gradient(135deg, rgba(37,99,235,.16), rgba(59,130,246,.10));
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px rgba(37,99,235,.20);
+    }
+
+    /* Sticky Filter Bar */
+    .filters{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 0 12px;
+      background: linear-gradient(180deg, rgba(245,247,251,.96), rgba(245,247,251,.72));
+      backdrop-filter: blur(10px);
+    }
+    .filters-inner{
+      background: rgba(255,255,255,.86);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      padding: 12px;
+      display:grid;
+      grid-template-columns: 1.3fr .9fr .9fr;
+      gap: 10px;
+      align-items:end;
+    }
+    @media (max-width: 920px){
+      .filters-inner{grid-template-columns:1fr 1fr;}
+    }
+    @media (max-width: 560px){
+      .filters-inner{grid-template-columns:1fr;}
+    }
+    .field{display:flex;flex-direction:column;gap:8px;}
+    .field label{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .field input, .field select, .field textarea{
+      width:100%;
+      padding: 11px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.92);
+      outline:none;
+      font-weight: 700;
+      color: var(--text);
+      box-shadow: 0 10px 22px rgba(2,6,23,.04);
+      font-family: inherit;
+    }
+    .field textarea{min-height: 88px; resize: vertical;}
+    .field input:focus, .field select:focus, .field textarea:focus{
+      border-color: rgba(37,99,235,.25);
+      box-shadow: 0 16px 34px rgba(37,99,235,.10);
+    }
+    .help{
+      margin-top: 6px;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    /* Layout split */
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 420px;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr;}
+    }
+
+    .panel{
+      background: rgba(255,255,255,.86);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      overflow:hidden;
+    }
+    .panel-head{
+      padding: 14px;
+      border-bottom: 1px solid rgba(15,23,42,.06);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .panel-head h2{margin:0;font-size:14px;font-weight:900;letter-spacing:-.01em}
+    .panel-head .meta{color:var(--muted);font-size:12px;font-weight:800}
+
+    /* Student list cards */
+    .list{padding:12px;display:grid;gap:10px;}
+    .student-card{
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 12px 26px rgba(2,6,23,.05);
+      padding: 12px;
+      cursor:pointer;
+      transition:.15s;
+    }
+    .student-card:hover{transform: translateY(-1px); box-shadow: var(--shadow-soft);}
+    .student-card.active{
+      border-color: rgba(37,99,235,.25);
+      box-shadow: 0 16px 34px rgba(37,99,235,.10);
+    }
+
+    .row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+    .name{font-weight:900;font-size:14px;letter-spacing:-.01em;margin:0;}
+    .badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .badge{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:7px 10px;border-radius:999px;
+      font-size:12px;font-weight:900;
+      border:1px solid var(--border);
+      background: rgba(2,6,23,.02);
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--muted2);}
+    .badge.ok{background: rgba(22,163,74,.08); border-color: rgba(22,163,74,.14); color: rgba(22,163,74,.95);}
+    .badge.ok .dot{background: var(--ok);}
+    .badge.warn{background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.18); color: rgba(180,83,9,.95);}
+    .badge.warn .dot{background: var(--warn);}
+    .badge.bad{background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.18); color: rgba(185,28,28,.95);}
+    .badge.bad .dot{background: var(--bad);}
+
+    .info{margin-top:8px;color:var(--muted);font-size:12px;font-weight:700;display:grid;gap:4px;line-height:1.35;}
+    .info .line{display:flex;gap:8px;align-items:flex-start;}
+    .info b{color: var(--text); font-weight: 900;}
+
+    .progress-wrap{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .progress{flex:1;height:10px;border-radius:999px;background: rgba(15,23,42,.06);overflow:hidden;border:1px solid rgba(15,23,42,.06);}
+    .bar{height:100%;width:18%;border-radius:999px;background: linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.70));}
+    .progress-meta{font-size:12px;font-weight:900;color:var(--muted);white-space:nowrap;}
+
+    .quick-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
+    .btn.primary{
+      border:none;
+      background: linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.70));
+      color:#fff;
+      box-shadow: 0 14px 32px rgba(37,99,235,.18);
+    }
+
+    /* Right panel (Editor / New) */
+    .editor{padding:12px;display:grid;gap:12px;}
+    .hint{
+      padding:12px;border-radius: var(--radius-sm);
+      border: 1px dashed rgba(15,23,42,.18);
+      background: rgba(2,6,23,.02);
+      color: var(--muted);
+      font-weight:700;font-size:12px;line-height:1.45;
+    }
+
+    .section{
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 12px 26px rgba(2,6,23,.05);
+      overflow:hidden;
+    }
+    .section-head{
+      width:100%;
+      border:none;
+      background: transparent;
+      text-align:left;
+      cursor:pointer;
+      padding: 12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(15,23,42,.06);
+    }
+    .section-head strong{font-size:13px;font-weight:900;}
+    .section-head span{
+      font-size:12px;color:var(--muted);font-weight:900;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:6px 10px;
+      background: rgba(255,255,255,.9);
+    }
+    .section-body{padding:12px;display:grid;gap:10px;}
+    .section[data-open="false"] .section-body{display:none;}
+    .section[data-open="true"] .section-head span{color: var(--text);}
+
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    @media (max-width: 980px){ .two{grid-template-columns:1fr;} }
+
+    .footer-actions{
+      display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;padding-top:2px;
+    }
+
+    /* Modal */
+    .modal-overlay{
+      position: fixed; inset:0;
+      display:none;
+      align-items:center; justify-content:center;
+      padding: 18px;
+      background: rgba(2,6,23,.55);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+    }
+    .modal-overlay.is-open{display:flex;}
+    .modal{
+      width: min(860px, 96vw);
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      transform: translateY(8px) scale(.96);
+      opacity: 0;
+      transition: .18s ease;
+    }
+    .modal-overlay.is-open .modal{transform: translateY(0) scale(1); opacity:1;}
+    .modal-head{
+      padding: 14px;
+      display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+      border-bottom: 1px solid rgba(15,23,42,.06);
+    }
+    .modal-head h3{margin:0;font-size:14px;font-weight:900;letter-spacing:-.01em}
+    .modal-head p{margin:4px 0 0;color:var(--muted);font-size:12px;font-weight:700}
+    .modal-close{
+      width:36px;height:36px;border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.9);
+      cursor:pointer;font-weight:900;
+    }
+    .modal-body{padding:14px;}
+    .modal-actions{padding: 0 14px 14px;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
+
+    /* FAB */
+    .fab{
+      position: fixed; right: 18px; bottom: 18px; z-index: 20;
+      border:none; width: 52px; height: 52px; border-radius: 18px;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color:#fff; font-size:22px; font-weight:900;
+      box-shadow: 0 18px 42px rgba(37,99,235,.22);
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .fab:hover{transform: translateY(-2px); box-shadow: 0 22px 54px rgba(37,99,235,.26);}
+
+    /* small toast */
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(15,23,42,.92);
+      color:#fff;
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 12px;
+      box-shadow: 0 16px 40px rgba(2,6,23,.20);
+      display:none;
+      z-index: 99999;
+      max-width: 92vw;
+      text-align:center;
+    }
+    .toast.show{display:block; animation: pop .18s ease;}
+    @keyframes pop{from{opacity:0; transform:translateX(-50%) translateY(6px) scale(.98);}to{opacity:1; transform:translateX(-50%) translateY(0) scale(1);}}
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
+        <div>
+          <p class="brand-kicker">Dashboard</p>
+          <p class="brand-name">EDUCAflowOne</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/dashboard/" class="nav-item">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        <a href="/?view=view-calendar" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/alunos/" class="nav-item active">
+          <span class="nav-emoji">🧑‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/planejamento/" class="nav-item">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        <a href="/?view=view-tasks" class="nav-item">
+          <span class="nav-emoji">✅</span>
+          <div>
+            <p class="nav-title">Tarefas</p>
+            <p class="nav-subtitle">Planejamento rápido</p>
+          </div>
+        </a>
+        <a href="/?view=view-finance" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+            <a href="/perfil/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">👤</span>
+              <div>
+                <p class="nav-title">Perfil</p>
+                <p class="nav-subtitle">Dados da conta</p>
+              </div>
+            </a>
+            <a href="/planos/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">💳</span>
+              <div>
+                <p class="nav-title">Plano e Faturamento</p>
+                <p class="nav-subtitle">Gerenciar assinatura</p>
+              </div>
+            </a>
+            <a href="/tutorial/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">🎬</span>
+              <div>
+                <p class="nav-title">Tutorial</p>
+                <p class="nav-subtitle">Vídeos rápidos</p>
+              </div>
+            </a>
+          </div>
+        </div>
+        
+        <div class="nav-divider"></div>
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <button class="primary ghost" id="createLessonBtn" style="font-size: 13px; padding: 8px 12px; width: 100%; margin-top: 8px;">+ Novo agendamento</button>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="wrap">
+    <div class="page-head">
+      <div class="title">
+        <h1>Cadastro de Alunos</h1>
+        <p>Lista à esquerda + cadastro rápido em modal. Menos rolagem. Mais controle.</p>
+        <div class="tabs" role="tablist" aria-label="Visão">
+          <button class="tab active" type="button">📋 Lista</button>
+          <button class="tab" type="button">📈 Insights (futuro)</button>
+          <button class="tab" type="button">⚙️ Preferências (futuro)</button>
+        </div>
+      </div>
+      <button class="btn-primary" type="button" id="btnNew">+ Novo aluno</button>
+    </div>
+
+    <div class="filters">
+      <div class="filters-inner">
+        <div class="field">
+          <label for="q">Buscar aluno</label>
+          <input id="q" type="search" placeholder="Nome, telefone, email, plano..." />
+        </div>
+        <div class="field">
+          <label for="status">Status</label>
+          <select id="status">
+            <option value="all" selected>Todos</option>
+            <option value="active">Ativos</option>
+            <option value="inactive">Pausados/Encerrados</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="plan">Plano</label>
+          <input type="text" id="plan" placeholder="Filtrar por nome do plano..." />
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
+        <div style="color:var(--muted);font-weight:900;font-size:12px;">
+          1 aluno(s) • clique em um aluno para editar
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn ghost" type="button" id="btnSort">Ordenar</button>
+          <button class="btn ghost" type="button" id="btnExport">Exportar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: LIST -->
+      <section class="panel" aria-label="Lista de alunos">
+        <div class="panel-head">
+          <div>
+            <h2>Lista</h2>
+            <div class="meta">Cards com ações rápidas</div>
+          </div>
+          <div class="meta">Ativos primeiro</div>
+        </div>
+
+        <div class="list" id="studentsList">
+          <!-- Alunos serão carregados via JavaScript -->
+        </div>
+      </section>
+
+      <!-- RIGHT: EDITOR -->
+      <aside class="panel" aria-label="Editar aluno">
+        <div class="panel-head">
+          <div>
+            <h2>Edição rápida</h2>
+            <div class="meta" id="editorMeta">Selecione um aluno</div>
+          </div>
+          <div class="meta">Sem rolagem infinita</div>
+        </div>
+
+        <div class="editor">
+          <!-- Section: Identity -->
+          <section class="section" data-open="true">
+            <button class="section-head" type="button">
+              <strong>Identidade</strong>
+              <span>Aberto</span>
+            </button>
+            <div class="section-body">
+              <div class="field">
+                <label>Nome completo *</label>
+                <input type="text" id="f_name" placeholder="Nome do aluno"/>
+              </div>
+              <div class="field">
+                <label>Responsável</label>
+                <input type="text" id="f_responsible" placeholder="Pai/mãe ou 'Responsável próprio'"/>
+              </div>
+              <div class="two">
+                <div class="field">
+                  <label>Telefone</label>
+                  <input type="tel" id="f_phone" placeholder="DDD + número"/>
+                </div>
+                <div class="field">
+                  <label>E-mail</label>
+                  <input type="email" id="f_email" placeholder="Opcional"/>
+                </div>
+              </div>
+              <div class="field">
+                <label>Endereço</label>
+                <input type="text" id="f_address" placeholder="Cidade / bairro (ou endereço completo)"/>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section: Plan -->
+          <section class="section" data-open="true">
+            <button class="section-head" type="button">
+              <strong>Plano</strong>
+              <span>Aberto</span>
+            </button>
+            <div class="section-body">
+              <div class="two">
+                <div class="field">
+                  <label>Status *</label>
+                  <select id="f_status">
+                    <option value="active">Ativo</option>
+                    <option value="paused">Pausado</option>
+                    <option value="ended">Encerrado</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Plano atual</label>
+                  <select id="f_plan">
+                    <option value="">Sem plano</option>
+                    <option value="Mensal">Mensal</option>
+                    <option value="Trimestral">Trimestral</option>
+                    <option value="Semestral">Semestral</option>
+                    <option value="Anual">Anual</option>
+                    <option value="Outro">Outro</option>
+                  </select>
+                  <small style="display:block;margin-top:4px;color:var(--muted);font-size:11px;">Para planos customizados, use "Outro"</small>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Aulas do plano</label>
+                <input type="number" id="f_total" placeholder="Ex: 23"/>
+              </div>
+              <div class="field">
+                <label>Aulas realizadas</label>
+                <input type="number" id="f_done" placeholder="Calculado automaticamente" readonly style="background-color: #f5f5f5; cursor: not-allowed;" />
+                <small class="muted" style="display: block; margin-top: 4px; font-size: 12px;">Calculado automaticamente baseado em aulas marcadas como "Realizado"</small>
+              </div>
+
+              <div class="two">
+                <div class="field">
+                  <label>Data de início</label>
+                  <input type="date" id="f_start"/>
+                </div>
+                <div class="field">
+                  <label>Dia de vencimento</label>
+                  <input type="number" id="f_due" min="1" max="28" placeholder="1 a 28"/>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section: Finance (optional, collapsed by default) -->
+          <section class="section" data-open="false">
+            <button class="section-head" type="button">
+              <strong>Financeiro (opcional)</strong>
+              <span>Fechado</span>
+            </button>
+            <div class="section-body">
+                <div class="field">
+                  <label>Forma de pagamento preferida</label>
+                  <select id="f_payment">
+                    <option value="">Selecione...</option>
+                    <option value="pix">PIX</option>
+                    <option value="card">Cartão</option>
+                    <option value="cash">Dinheiro</option>
+                    <option value="transfer">Transferência</option>
+                  </select>
+                </div>
+              <div class="field">
+                <label>Chave Pix</label>
+                <input type="text" id="f_pix" placeholder="Opcional"/>
+              </div>
+              <div class="field">
+                <label>Contrato PDF</label>
+                <input type="file" accept="application/pdf"/>
+                <div style="margin-top:6px;color:var(--muted);font-weight:700;font-size:12px;">Somente PDF.</div>
+              </div>
+            </div>
+          </section>
+
+          <div class="footer-actions">
+            <button class="btn" type="button" id="btnCancel">Cancelar</button>
+            <button class="btn primary" type="button" id="btnSave">Salvar</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <button class="fab" type="button" title="Novo aluno" id="fabNew">+</button>
+
+  <!-- MODAL: NOVO ALUNO -->
+  <div class="modal-overlay" id="newStudentOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newStudentTitle">
+      <div class="modal-head">
+        <div>
+          <h3 id="newStudentTitle">Novo aluno</h3>
+          <p>Cadastro rápido. O resto é opcional e colapsado.</p>
+        </div>
+        <button class="modal-close" type="button" id="newStudentClose" aria-label="Fechar">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- ESSENCIAL -->
+        <section class="section" data-open="true">
+          <button class="section-head" type="button">
+            <strong>Essencial</strong>
+            <span>Aberto</span>
+          </button>
+          <div class="section-body">
+            <div class="field">
+              <label for="n_name">Nome completo *</label>
+              <input id="n_name" type="text" placeholder="Ex: Maria Silva" autocomplete="name"/>
+              <div class="help">Obrigatório. O resto você pode preencher depois.</div>
+            </div>
+
+            <div class="two">
+              <div class="field">
+                <label for="n_phone">Telefone</label>
+                <input id="n_phone" type="tel" placeholder="DDD + número" autocomplete="tel"/>
+              </div>
+              <div class="field">
+                <label for="n_email">E-mail</label>
+                <input id="n_email" type="email" placeholder="Opcional" autocomplete="email"/>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="n_responsible">Responsável</label>
+              <input id="n_responsible" type="text" placeholder="Pai/mãe ou 'Responsável próprio'"/>
+            </div>
+
+            <div class="field">
+              <label for="n_address">Endereço</label>
+              <input id="n_address" type="text" placeholder="Cidade / bairro (ou endereço completo)"/>
+            </div>
+
+            <div class="two">
+              <div class="field">
+                <label for="n_status">Status *</label>
+                <select id="n_status">
+                  <option value="active" selected>Ativo</option>
+                  <option value="paused">Pausado</option>
+                  <option value="ended">Encerrado</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="n_plan">Plano atual</label>
+                <select id="n_plan">
+                  <option value="none" selected>Sem plano</option>
+                  <option value="Mensal">Mensal</option>
+                  <option value="Trimestral">Trimestral</option>
+                  <option value="Semestral">Semestral</option>
+                  <option value="Anual">Anual</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="n_total">Aulas do plano</label>
+              <input id="n_total" type="number" min="0" placeholder="Ex: 8, 12, 23"/>
+            </div>
+          </div>
+        </section>
+
+        <!-- OPCIONAL -->
+        <section class="section" data-open="false">
+          <button class="section-head" type="button">
+            <strong>Financeiro (opcional)</strong>
+            <span>Fechado</span>
+          </button>
+          <div class="section-body">
+            <div class="two">
+              <div class="field">
+                <label for="n_due">Dia de vencimento padrão</label>
+                <input id="n_due" type="number" min="1" max="28" placeholder="1 a 28"/>
+              </div>
+              <div class="field">
+                <label for="n_payment">Forma de pagamento preferida</label>
+                <select id="n_payment">
+                  <option value="" selected>Selecione...</option>
+                  <option value="pix">PIX</option>
+                  <option value="card">Cartão</option>
+                  <option value="cash">Dinheiro</option>
+                  <option value="transfer">Transferência</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="n_pix">Chave Pix</label>
+              <input id="n_pix" type="text" placeholder="Opcional"/>
+            </div>
+
+            <div class="field">
+              <label for="n_contract">Contrato PDF</label>
+              <input id="n_contract" type="file" accept="application/pdf"/>
+              <div class="help">Somente PDF. Você pode anexar depois.</div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" type="button" id="newStudentCancel">Cancelar</button>
+        <button class="btn primary" type="button" id="newStudentSave">Salvar aluno</button>
+      </div>
+    </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function(){
+      const $ = (s, root=document) => root.querySelector(s);
+      const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
+
+      const API_BASE = '/api/students/';
+      const PLANNING_URL_BASE = "/planejamento/novo";
+
+      const overlay = $('#newStudentOverlay');
+      const btnOpen = $('#btnNew');
+      const fabOpen = $('#fabNew');
+      const btnClose = $('#newStudentClose');
+      const btnCancel = $('#newStudentCancel');
+      const btnSave = $('#newStudentSave');
+      const toast = $('#toast');
+      const studentsList = $('#studentsList');
+      const qInput = $('#q');
+      const statusFilter = $('#status');
+      const planFilter = $('#plan');
+      const btnSort = $('#btnSort');
+      const btnExport = $('#btnExport');
+      
+      let allStudents = [];
+      let currentEditingId = null;
+      let currentSort = null; // null, 'name-asc', 'name-desc', 'status', 'progress-asc', 'progress-desc'
+
+      // Função para calcular aulas realizadas de um aluno
+      async function calculateLessonsDone(studentId) {
+        try {
+          if (!studentId) return 0;
+          
+          const lessons = await fetchJSON(`/api/lessons/?student=${studentId}`);
+          
+          // Verificar se lessons é um array válido
+          if (!Array.isArray(lessons)) {
+            return 0;
+          }
+          
+          // Filtrar apenas aulas realmente realizadas (verificar explicitamente por true)
+          const realizedCount = lessons.filter(lesson => lesson.realized === true).length;
+          
+          return realizedCount;
+        } catch (error) {
+          console.error('Erro ao calcular aulas realizadas:', error);
+          return 0;
+        }
+      }
+
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+
+      async function fetchJSON(url, options = {}) {
+        const csrf = getCookie('csrftoken');
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf || '',
+            ...options.headers,
+          },
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+          throw new Error(error.error || error.detail || `Erro ${response.status}`);
+        }
+        return response.json();
+      }
+
+      function showToast(msg, isError = false){
+        if(!toast) return;
+        toast.textContent = msg;
+        toast.style.background = isError ? 'rgba(239,68,68,.92)' : 'rgba(15,23,42,.92)';
+        toast.classList.add('show');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove('show'), 3000);
+      }
+
+      function openModal(){
+        if(!overlay) return;
+        overlay.classList.add('is-open');
+        overlay.setAttribute('aria-hidden','false');
+        document.documentElement.style.overflow = 'hidden';
+        // foco no primeiro campo
+        setTimeout(() => $('#n_name')?.focus(), 0);
+      }
+
+      function closeModal(){
+        if(!overlay) return;
+        overlay.classList.remove('is-open');
+        overlay.setAttribute('aria-hidden','true');
+        document.documentElement.style.overflow = '';
+      }
+
+      btnOpen?.addEventListener('click', openModal);
+      fabOpen?.addEventListener('click', openModal);
+      btnClose?.addEventListener('click', closeModal);
+      btnCancel?.addEventListener('click', closeModal);
+      overlay?.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
+      document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && overlay?.classList.contains('is-open')) closeModal(); });
+
+      // Collapsible sections (both page + modal)
+      document.addEventListener('click', (e) => {
+        const el = e.target instanceof Element ? e.target : null;
+        if(!el) return;
+        const head = el.closest('.section-head');
+        if(!head) return;
+        const section = head.closest('.section');
+        if(!section) return;
+
+        const open = section.getAttribute('data-open') === 'true';
+        section.setAttribute('data-open', String(!open));
+        const tag = head.querySelector('span');
+        if(tag) tag.textContent = open ? 'Fechado' : 'Aberto';
+      });
+
+      // Carregar alunos da API
+      async function loadStudents() {
+        try {
+          allStudents = await fetchJSON(API_BASE);
+          await renderStudents();
+          updateCount();
+        } catch (error) {
+          console.error('Erro ao carregar alunos:', error);
+          showToast('Erro ao carregar alunos', true);
+          if (studentsList) {
+            studentsList.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted);">Erro ao carregar alunos</div>';
+          }
+        }
+      }
+
+      // Renderizar lista de alunos
+      async function renderStudents() {
+        if (!studentsList) return;
+        
+        try {
+          const filtered = getFilteredStudents();
+          
+          if (!filtered || filtered.length === 0) {
+            studentsList.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted);">Nenhum aluno encontrado</div>';
+            return;
+          }
+
+          // Calcular aulas realizadas para todos os alunos antes de renderizar
+          const studentsWithDone = await Promise.all(
+            filtered.map(async (student) => {
+              const done = await calculateLessonsDone(student.id);
+              return { ...student, calculated_lessons_done: done };
+            })
+          );
+
+        studentsList.innerHTML = studentsWithDone.map(student => {
+          const status = student.status || 'active';
+          const plan = student.plan_name || '';
+          const total = student.lessons_total || 0;
+          // Usar o valor calculado dinamicamente
+          const done = student.calculated_lessons_done || 0;
+          const pct = total > 0 ? Math.min(100, Math.round((done/total)*100)) : 0;
+          
+          const badgePlan = plan 
+            ? `<span class="badge ok"><span class="dot"></span>${escapeHtml(plan)}</span>`
+            : `<span class="badge warn"><span class="dot"></span>Sem plano</span>`;
+          
+          const badgeStatus = status === 'active'
+            ? `<span class="badge ok"><span class="dot"></span>Ativo</span>`
+            : status === 'paused'
+            ? `<span class="badge warn"><span class="dot"></span>Pausado</span>`
+            : `<span class="badge bad"><span class="dot"></span>Encerrado</span>`;
+
+          return `
+            <article class="student-card" 
+                     data-student-id="${student.id}"
+                     data-name="${escapeHtml(student.name)}"
+                     data-status="${status}"
+                     data-plan="${escapeHtml(plan)}"
+                     data-phone="${escapeHtml(student.phone || '')}"
+                     data-email="${escapeHtml(student.email || '')}"
+                     data-address="${escapeHtml(student.address || '')}"
+                     data-responsible="${escapeHtml(student.guardians || 'Responsável próprio')}"
+                     data-classes-total="${total}"
+                     data-classes-done="${done}">
+              <div class="row">
+                <p class="name">${escapeHtml(student.name)}</p>
+                <div class="badges">
+                  ${badgePlan}
+                  ${badgeStatus}
+                </div>
+              </div>
+              <div class="info">
+                <div class="line">👤 <b>Responsável:</b> <span>${escapeHtml(student.guardians || 'Responsável próprio')}</span></div>
+                <div class="line">📞 <b>Telefone:</b> <span>${escapeHtml(student.phone || '—')}</span></div>
+                <div class="line">📍 <b>Endereço:</b> <span>${escapeHtml(student.address || '—')}</span></div>
+              </div>
+              <div class="progress-wrap">
+                <div class="progress" aria-label="Progresso de aulas">
+                  <div class="bar" style="width: ${pct}%;"></div>
+                </div>
+                <div class="progress-meta">${done}/${total || '—'} aulas</div>
+              </div>
+              <div class="quick-actions">
+                <button class="btn primary js-plan" type="button">Criar planejamento</button>
+                <button class="btn js-edit" type="button">Editar</button>
+                <button class="btn danger js-toggle" type="button">${status === 'active' ? 'Inativar' : 'Ativar'}</button>
+              </div>
+            </article>
+          `;
+        }).join('');
+        } catch (error) {
+          console.error('Erro ao renderizar alunos:', error);
+          studentsList.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted);">Erro ao renderizar lista de alunos</div>';
+        }
+      }
+
+      function getFilteredStudents() {
+        const q = (qInput?.value || '').toLowerCase().trim();
+        const statusVal = statusFilter?.value || 'all';
+        const planVal = planFilter?.value || 'all';
+
+        let filtered = allStudents.filter(s => {
+          if (q && !s.name.toLowerCase().includes(q) && 
+              !(s.phone || '').includes(q) && 
+              !(s.email || '').toLowerCase().includes(q) &&
+              !(s.address || '').toLowerCase().includes(q) &&
+              !(s.plan_name || '').toLowerCase().includes(q)) {
+            return false;
+          }
+          if (statusVal !== 'all') {
+            const statusMap = { 'active': 'active', 'inactive': ['paused', 'ended'] };
+            if (statusVal === 'active' && s.status !== 'active') return false;
+            if (statusVal === 'inactive' && !['paused', 'ended'].includes(s.status)) return false;
+          }
+          if (planVal && planVal !== 'all') {
+            if (!s.plan_name || !s.plan_name.toLowerCase().includes(planVal.toLowerCase())) return false;
+          }
+          return true;
+        });
+        
+        // Aplicar ordenação se houver
+        if (currentSort && filtered.length > 0) {
+          filtered = sortStudents(filtered, currentSort);
+        }
+        
+        return filtered;
+      }
+      
+      function sortStudents(students, sortType) {
+        if (!students || !Array.isArray(students) || students.length === 0) {
+          return students || [];
+        }
+        if (!sortType) {
+          return students;
+        }
+        
+        const sorted = [...students];
+        
+        try {
+          switch(sortType) {
+          case 'name-asc':
+            sorted.sort((a, b) => {
+              const nameA = (a.name || '').toLowerCase();
+              const nameB = (b.name || '').toLowerCase();
+              return nameA.localeCompare(nameB, 'pt-BR');
+            });
+            break;
+          case 'name-desc':
+            sorted.sort((a, b) => {
+              const nameA = (a.name || '').toLowerCase();
+              const nameB = (b.name || '').toLowerCase();
+              return nameB.localeCompare(nameA, 'pt-BR');
+            });
+            break;
+          case 'status':
+            sorted.sort((a, b) => {
+              // Ativos primeiro, depois pausados, depois encerrados
+              const order = { 'active': 1, 'paused': 2, 'ended': 3 };
+              const orderA = order[a.status] || 99;
+              const orderB = order[b.status] || 99;
+              if (orderA !== orderB) return orderA - orderB;
+              // Se mesmo status, ordenar por nome
+              return (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase(), 'pt-BR');
+            });
+            break;
+          case 'progress-asc':
+            // Para ordenação, precisamos calcular os valores primeiro
+            // Mas como é síncrono, vamos usar o valor do backend como fallback
+            sorted.sort((a, b) => {
+              const totalA = a.lessons_total || 0;
+              const doneA = a.calculated_lessons_done !== undefined ? a.calculated_lessons_done : (a.lessons_done || 0);
+              const progressA = totalA > 0 ? (doneA / totalA) : 0;
+              
+              const totalB = b.lessons_total || 0;
+              const doneB = b.calculated_lessons_done !== undefined ? b.calculated_lessons_done : (b.lessons_done || 0);
+              const progressB = totalB > 0 ? (doneB / totalB) : 0;
+              
+              if (progressA !== progressB) return progressA - progressB;
+              // Se mesmo progresso, ordenar por nome
+              return (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase(), 'pt-BR');
+            });
+            break;
+          case 'progress-desc':
+            sorted.sort((a, b) => {
+              const totalA = a.lessons_total || 0;
+              const doneA = a.calculated_lessons_done !== undefined ? a.calculated_lessons_done : (a.lessons_done || 0);
+              const progressA = totalA > 0 ? (doneA / totalA) : 0;
+              
+              const totalB = b.lessons_total || 0;
+              const doneB = b.calculated_lessons_done !== undefined ? b.calculated_lessons_done : (b.lessons_done || 0);
+              const progressB = totalB > 0 ? (doneB / totalB) : 0;
+              
+              if (progressA !== progressB) return progressB - progressA;
+              // Se mesmo progresso, ordenar por nome
+              return (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase(), 'pt-BR');
+            });
+            break;
+          }
+        } catch (error) {
+          console.error('Erro ao ordenar alunos:', error);
+          return students; // Retornar lista original em caso de erro
+        }
+        
+        return sorted;
+      }
+      
+      function handleSort() {
+        if (!btnSort) return;
+        
+        const options = [
+          { value: null, label: 'Sem ordenação' },
+          { value: 'name-asc', label: 'Nome (A-Z)' },
+          { value: 'name-desc', label: 'Nome (Z-A)' },
+          { value: 'status', label: 'Status (Ativos primeiro)' },
+          { value: 'progress-asc', label: 'Progresso (menor → maior)' },
+          { value: 'progress-desc', label: 'Progresso (maior → menor)' }
+        ];
+        
+        // Encontrar índice atual
+        let currentIndex = options.findIndex(opt => opt.value === currentSort);
+        if (currentIndex === -1) currentIndex = 0;
+        
+        // Próxima opção (circular)
+        const nextIndex = (currentIndex + 1) % options.length;
+        currentSort = options[nextIndex].value;
+        
+        // Atualizar texto do botão
+        btnSort.textContent = currentSort ? `Ordenar: ${options[nextIndex].label}` : 'Ordenar';
+        
+        // Re-renderizar
+        renderStudents().then(() => {
+          showToast(`Ordenação: ${options[nextIndex].label}`, false);
+        });
+      }
+      
+      function handleExport() {
+        if (!btnExport) return;
+        
+        const filtered = getFilteredStudents();
+        if (!filtered || filtered.length === 0) {
+          showToast('Nenhum aluno para exportar', true);
+          return;
+        }
+        
+        // Desabilitar botão durante exportação
+        btnExport.disabled = true;
+        const originalText = btnExport.textContent;
+        btnExport.textContent = 'Exportando...';
+        
+        try {
+          // Preparar dados CSV
+          const headers = ['Nome', 'Status', 'Plano', 'Total de Aulas', 'Aulas Realizadas', 'Telefone', 'Email'];
+          const rows = filtered.map(student => {
+            const status = student.status === 'active' ? 'Ativo' : 
+                          student.status === 'paused' ? 'Pausado' : 'Encerrado';
+            const plan = student.plan_name || 'Sem plano';
+            const total = student.lessons_total || 0;
+            // Calcular aulas realizadas dinamicamente
+          // Por enquanto usa o valor do backend, mas idealmente deveria calcular aqui também
+          const done = student.lessons_done || 0;
+            const phone = student.phone || '';
+            const email = student.email || '';
+            
+            // Escapar valores que podem conter vírgulas ou aspas
+            const escapeCSV = (val) => {
+              if (!val) return '';
+              const str = String(val);
+              if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+              }
+              return str;
+            };
+            
+            return [
+              escapeCSV(student.name || ''),
+              escapeCSV(status),
+              escapeCSV(plan),
+              escapeCSV(total),
+              escapeCSV(done),
+              escapeCSV(phone),
+              escapeCSV(email)
+            ];
+          });
+          
+          // Criar conteúdo CSV
+          const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+          ].join('\n');
+          
+          // Adicionar BOM para UTF-8 (ajuda Excel a abrir corretamente)
+          const BOM = '\uFEFF';
+          const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+          
+          // Criar link de download
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          
+          // Nome do arquivo com data
+          const today = new Date();
+          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          link.download = `alunos_${dateStr}.csv`;
+          
+          // Trigger download
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          showToast(`Exportados ${filtered.length} aluno(s) com sucesso!`, false);
+        } catch (error) {
+          console.error('Erro ao exportar:', error);
+          showToast('Erro ao exportar. Tente novamente.', true);
+        } finally {
+          // Reabilitar botão
+          btnExport.disabled = false;
+          btnExport.textContent = originalText;
+        }
+      }
+
+      function updateCount() {
+        const countEl = $('.filters + div [style*="color:var(--muted)"]');
+        if (countEl) {
+          const filtered = getFilteredStudents();
+          countEl.textContent = `${filtered.length} aluno(s) • clique em um aluno para editar`;
+        }
+      }
+
+      // Filtros
+      [qInput, statusFilter, planFilter].forEach(el => {
+        if (el) el.addEventListener('input', () => {
+          renderStudents().then(() => {
+            updateCount();
+          });
+        });
+      });
+      
+      // Botões Ordenar e Exportar
+      if (btnSort) {
+        btnSort.addEventListener('click', handleSort);
+      }
+      if (btnExport) {
+        btnExport.addEventListener('click', handleExport);
+      }
+
+      // Student card actions
+      document.addEventListener('click', async (e) => {
+        const el = e.target instanceof Element ? e.target : null;
+        if(!el) return;
+
+        const planBtn = el.closest('.js-plan');
+        if(planBtn){
+          const c = planBtn.closest('.student-card');
+          const id = c?.dataset?.studentId || '';
+          // Redirecionar para planejamento com student_id na URL
+          window.location.href = `/planejamento/?student_id=${encodeURIComponent(id)}`;
+          return;
+        }
+
+        const editBtn = el.closest('.js-edit');
+        if(editBtn){
+          const c = editBtn.closest('.student-card');
+          if (!c) return;
+          const student = allStudents.find(s => s.id === parseInt(c.dataset.studentId));
+          if (student) {
+            loadStudentIntoEditor(student);
+            currentEditingId = student.id;
+            // Scroll para o editor
+            $('.panel[aria-label="Editar aluno"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          return;
+        }
+
+        const toggleBtn = el.closest('.js-toggle');
+        if(toggleBtn){
+          const c = toggleBtn.closest('.student-card');
+          if(!c) return;
+          const name = c.dataset.name || 'este aluno';
+          const current = c.dataset.status || 'active';
+          const newStatus = current === 'active' ? 'paused' : 'active';
+          const actionText = newStatus === 'paused' ? 'Pausar' : 'Ativar';
+          const ok = confirm(`${actionText} ${name}?`);
+          if(!ok) return;
+          
+          try {
+            const student = allStudents.find(s => s.id === parseInt(c.dataset.studentId));
+            if (!student) return;
+            
+            // Criar payload com todos os campos do aluno, apenas mudando o status
+            const payload = { ...student };
+            payload.status = newStatus;
+            
+            await fetchJSON(`${API_BASE}${student.id}/`, {
+              method: 'PUT',
+              body: JSON.stringify(payload),
+            });
+            
+            showToast(`${name}: ${newStatus === 'active' ? 'ativado' : 'pausado'}.`);
+            await loadStudents();
+          } catch (error) {
+            showToast(`Erro ao ${actionText.toLowerCase()} aluno: ${error.message}`, true);
+          }
+          return;
+        }
+
+        // Selecionar aluno ao clicar no card
+        const card = el.closest('.student-card');
+        if (card && !el.closest('.quick-actions')) {
+          $$('.student-card').forEach(c => c.classList.remove('active'));
+          card.classList.add('active');
+          const student = allStudents.find(s => s.id === parseInt(card.dataset.studentId));
+          if (student) {
+            loadStudentIntoEditor(student);
+            currentEditingId = student.id;
+          }
+        }
+      });
+
+      // Carregar dados do aluno no editor
+      function loadStudentIntoEditor(student) {
+        if (!$('#f_name')) return; // Editor não existe
+        
+        $('#f_name').value = student.name || '';
+        $('#f_responsible').value = student.guardians || '';
+        $('#f_phone').value = student.phone || '';
+        $('#f_email').value = student.email || '';
+        $('#f_address').value = student.address || '';
+        $('#f_status').value = student.status || 'active';
+        // Mapear plano para select
+        const planValue = student.plan_name || '';
+        const planSelect = $('#f_plan');
+        if (planSelect) {
+          // Se o valor existe nas opções, seleciona; senão, deixa vazio (sem plano)
+          const options = Array.from(planSelect.options).map(opt => opt.value);
+          if (planValue && options.includes(planValue)) {
+            planSelect.value = planValue;
+          } else {
+            planSelect.value = ''; // Sem plano
+          }
+        }
+        $('#f_total').value = student.lessons_total || '';
+        // Calcular aulas realizadas automaticamente
+        calculateLessonsDone(student.id).then(count => {
+          $('#f_done').value = count;
+        });
+        $('#f_start').value = student.plan_start_date ? student.plan_start_date.split('T')[0] : '';
+        $('#f_due').value = student.default_due_day || '';
+        $('#f_payment').value = student.preferred_payment_method || '';
+        $('#f_pix').value = student.pix_key || '';
+        
+        const meta = $('#editorMeta');
+        if (meta) meta.textContent = `Editando: ${student.name}`;
+        currentEditingId = student.id;
+      }
+
+      // Salvar aluno (criar ou editar)
+      btnSave?.addEventListener('click', async () => {
+        const name = ($('#n_name')?.value || '').trim();
+        if(!name){
+          showToast('Preencha o nome do aluno.', true);
+          $('#n_name')?.focus();
+          return;
+        }
+
+          const planValue = $('#n_plan')?.value || 'none';
+          const data = {
+            name,
+            guardians: ($('#n_responsible')?.value || '').trim() || 'Responsável próprio',
+            phone: ($('#n_phone')?.value || '').trim(),
+            email: ($('#n_email')?.value || '').trim(),
+            address: ($('#n_address')?.value || '').trim(),
+            status: $('#n_status')?.value || 'active',
+            plan_name: planValue === 'none' ? '' : planValue,
+            lessons_total: parseInt(($('#n_total')?.value || '0'), 10) || 0,
+            // lessons_done será calculado automaticamente no backend
+            // lessons_done: 0,
+            plan_start_date: $('#n_start')?.value || null,
+            default_due_day: $('#n_due')?.value ? parseInt($('#n_due')?.value, 10) : null,
+            preferred_payment_method: $('#n_payment')?.value || '',
+            pix_key: ($('#n_pix')?.value || '').trim(),
+          };
+
+          // Limpar campos vazios (manter campos obrigatórios)
+          // Não remover: name, status, guardians (tem default)
+          const optionalFields = ['phone', 'email', 'address', 'plan_name', 'pix_key', 'preferred_payment_method'];
+          optionalFields.forEach(key => {
+            if (data[key] === '') {
+              delete data[key];
+            }
+          });
+          
+          // Converter string vazia para null em campos opcionais
+          if (data.plan_start_date === '') data.plan_start_date = null;
+          if (data.default_due_day === '' || data.default_due_day === null) {
+            if ('default_due_day' in data && data.default_due_day === '') delete data.default_due_day;
+          }
+
+        try {
+          btnSave.disabled = true;
+          btnSave.textContent = 'Salvando...';
+          
+          if (currentEditingId) {
+            // Editar
+            await fetchJSON(`${API_BASE}${currentEditingId}/`, {
+              method: 'PUT',
+              body: JSON.stringify(data),
+            });
+            showToast('Aluno atualizado com sucesso!');
+          } else {
+            // Criar
+            await fetchJSON(API_BASE, {
+              method: 'POST',
+              body: JSON.stringify(data),
+            });
+            showToast('Aluno criado com sucesso!');
+          }
+          
+          closeModal();
+          clearNewForm();
+          currentEditingId = null;
+          await loadStudents();
+        } catch (error) {
+          showToast(`Erro ao salvar: ${error.message}`, true);
+        } finally {
+          btnSave.disabled = false;
+          btnSave.textContent = 'Salvar aluno';
+        }
+      });
+
+      // Salvar do editor lateral
+      $('#btnSave')?.addEventListener('click', async () => {
+        if (!currentEditingId) {
+          showToast('Selecione um aluno para editar', true);
+          return;
+        }
+
+        const name = ($('#f_name')?.value || '').trim();
+        if(!name){
+          showToast('Preencha o nome do aluno.', true);
+          return;
+        }
+
+        const student = allStudents.find(s => s.id === currentEditingId);
+        if (!student) return;
+
+        const data = {
+          ...student,
+          name,
+          guardians: ($('#f_responsible')?.value || '').trim() || 'Responsável próprio',
+          phone: ($('#f_phone')?.value || '').trim() || '',
+          email: ($('#f_email')?.value || '').trim() || '',
+          address: ($('#f_address')?.value || '').trim() || '',
+          status: $('#f_status')?.value || 'active',
+          plan_name: ($('#f_plan')?.value || '').trim() || '',
+          lessons_total: parseInt(($('#f_total')?.value || '0'), 10) || 0,
+          // lessons_done será calculado automaticamente no backend, não enviar
+          // lessons_done: parseInt(($('#f_done')?.value || '0'), 10) || 0,
+          plan_start_date: $('#f_start')?.value || null,
+          default_due_day: $('#f_due')?.value ? parseInt($('#f_due')?.value, 10) : null,
+          preferred_payment_method: $('#f_payment')?.value || '',
+          pix_key: ($('#f_pix')?.value || '').trim() || '',
+        };
+
+        try {
+          await fetchJSON(`${API_BASE}${currentEditingId}/`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+          });
+          showToast('Aluno atualizado com sucesso!');
+          await loadStudents();
+        } catch (error) {
+          showToast(`Erro ao atualizar: ${error.message}`, true);
+        }
+      });
+
+      $('#btnCancel')?.addEventListener('click', () => {
+        currentEditingId = null;
+        const meta = $('#editorMeta');
+        if (meta) meta.textContent = 'Selecione um aluno';
+        $$('.student-card').forEach(c => c.classList.remove('active'));
+      });
+
+      function clearNewForm(){
+        ['n_name','n_phone','n_email','n_responsible','n_address','n_total','n_start','n_due','n_pix'].forEach(id=>{
+          const el = document.getElementById(id);
+          if(el) el.value = '';
+        });
+        $('#n_status') && ($('#n_status').value = 'active');
+        $('#n_plan') && ($('#n_plan').value = 'none');
+        $('#n_payment') && ($('#n_payment').value = '');
+        const f = $('#n_contract'); if(f) f.value = '';
+        currentEditingId = null;
+      }
+
+      function escapeHtml(str){
+        return String(str)
+          .replaceAll('&','&amp;')
+          .replaceAll('<','&lt;')
+          .replaceAll('>','&gt;')
+          .replaceAll('"','&quot;')
+          .replaceAll("'","&#039;");
+      }
+
+      // Optional: Enter to save inside modal (ctrl+enter)
+      document.addEventListener('keydown', (e) => {
+        if(!overlay?.classList.contains('is-open')) return;
+        if(e.ctrlKey && e.key === 'Enter'){
+          e.preventDefault();
+          btnSave?.click();
+        }
+      });
+
+      // Inicializar
+      loadStudents();
+
+      // Menu colapsável "Conta"
+      const navGroupConta = document.getElementById('navGroupConta');
+      const navGroupContaBtn = document.getElementById('navGroupContaBtn');
+      if (navGroupConta && navGroupContaBtn) {
+        navGroupContaBtn.addEventListener('click', () => {
+          const isCollapsed = navGroupConta.classList.contains('nav-group--collapsed');
+          if (isCollapsed) {
+            navGroupConta.classList.remove('nav-group--collapsed');
+            navGroupConta.classList.add('nav-group--expanded');
+            navGroupContaBtn.setAttribute('aria-expanded', 'true');
+          } else {
+            navGroupConta.classList.remove('nav-group--expanded');
+            navGroupConta.classList.add('nav-group--collapsed');
+            navGroupContaBtn.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
+
+      // Logout
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await fetch('/api/auth/logout/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'X-CSRFToken': getCookie('csrftoken') || '',
+              },
+            });
+            window.location.href = '/login/';
+          } catch (error) {
+            console.error('Erro ao fazer logout:', error);
+            window.location.href = '/login/';
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

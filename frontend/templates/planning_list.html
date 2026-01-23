@@ -34,14 +34,195 @@
       color: var(--text);
       line-height: 1.4;
     }
-    .page {
-      max-width: 100%;
-      margin: 0;
-      padding: 24px;
+    /* Garantir que app-shell está padronizado */
+    .app-shell {
+      display: grid !important;
+      grid-template-columns: 320px 1fr !important;
+      gap: 24px !important;
+      padding: 24px !important;
+      min-height: 100vh !important;
+    }
+    
+    /* Main/Page - não deve interferir no grid do app-shell */
+    main.page {
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      display: block !important;
+      grid-column: 2 !important;
+    }
+    
+    /* Garantir que a sidebar não seja afetada por estilos locais */
+    .app-shell .sidebar,
+    aside.sidebar {
+      position: sticky !important;
+      top: 24px !important;
+      height: calc(100vh - 48px) !important;
+      max-height: calc(100vh - 48px) !important;
+      width: 320px !important;
+      min-width: 320px !important;
+      max-width: 320px !important;
+      grid-column: 1 !important;
+      flex-shrink: 0 !important;
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 251, 0.95)) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) !important;
+      padding: 16px !important;
+      box-shadow: var(--shadow-soft) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      backdrop-filter: blur(10px) !important;
+    }
+    
+    /* Brand padronizado */
+    .app-shell .sidebar .brand,
+    aside.sidebar .brand {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      flex-shrink: 0 !important;
+      margin-bottom: 0 !important;
+    }
+    
+    .app-shell .sidebar .brand-icon,
+    aside.sidebar .brand-icon {
+      width: 40px !important;
+      height: 40px !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      display: grid !important;
+      place-items: center !important;
+      flex-shrink: 0 !important;
+      overflow: hidden !important;
+    }
+    
+    .app-shell .sidebar .brand-kicker,
+    aside.sidebar .brand-kicker {
+      font-size: 13px !important;
+      letter-spacing: 0.5px !important;
+      color: var(--muted2) !important;
+      font-weight: 600 !important;
+      margin: 0 !important;
+    }
+    
+    .app-shell .sidebar .brand-name,
+    aside.sidebar .brand-name {
+      font-weight: 700 !important;
+      font-size: 18px !important;
+      color: var(--text) !important;
+      margin: 0 !important;
+    }
+    
+    /* Nav padronizado */
+    .app-shell .sidebar .nav,
+    aside.sidebar .nav {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 4px !important;
+      flex-shrink: 0 !important;
+      flex: 1 !important;
+      min-height: 0 !important;
+      overflow-y: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    /* Nav Item padronizado */
+    .app-shell .sidebar .nav-item,
+    aside.sidebar .nav-item {
+      display: grid !important;
+      grid-template-columns: 40px 1fr !important;
+      gap: 10px !important;
+      width: 100% !important;
+      background: transparent !important;
+      border: 1px solid transparent !important;
+      color: var(--text) !important;
+      cursor: pointer !important;
+      text-align: left !important;
+      border-radius: 12px !important;
+      padding: 8px 10px !important;
+      transition: all 0.2s ease !important;
+      flex-shrink: 0 !important;
+      text-decoration: none !important;
+      align-items: center !important;
+      margin: 0 !important;
+      font-family: inherit !important;
+    }
+    
+    .app-shell .sidebar .nav-emoji,
+    aside.sidebar .nav-emoji {
+      font-size: 24px !important;
+      display: grid !important;
+      place-items: center !important;
+      line-height: 1 !important;
+      margin: 0 !important;
+      width: 40px !important;
+      height: 40px !important;
+    }
+    
+    .app-shell .sidebar .nav-title,
+    aside.sidebar .nav-title {
+      font-weight: 600 !important;
+      font-size: 15px !important;
+      color: var(--text) !important;
+      letter-spacing: -0.01em !important;
+      margin: 0 !important;
+      line-height: 1.2 !important;
+    }
+    
+    .app-shell .sidebar .nav-subtitle,
+    aside.sidebar .nav-subtitle {
+      font-size: 13px !important;
+      color: var(--muted) !important;
+      font-weight: 500 !important;
+      margin: 0 !important;
+      line-height: 1.3 !important;
+    }
+    
+    /* Sidebar Card padronizado */
+    .app-shell .sidebar .sidebar-card,
+    aside.sidebar .sidebar-card {
+      margin-top: auto !important;
+      background: #f9fbff !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 18px !important;
+      padding: 10px !important;
+      flex-shrink: 0 !important;
+    }
+    
+    .app-shell .sidebar .nav-divider,
+    aside.sidebar .nav-divider {
+      height: 1px !important;
+      background: var(--border) !important;
+      margin: 8px 0 !important;
+      opacity: 0.6 !important;
+      border: none !important;
+      padding: 0 !important;
     }
     @media (max-width: 980px) {
-      .app-shell { grid-template-columns: 1fr; }
-      .sidebar { display: none; }
+      .app-shell { 
+        grid-template-columns: 1fr !important;
+        padding: 16px !important;
+        gap: 16px !important;
+      }
+      .app-shell .sidebar,
+      aside.sidebar {
+        position: relative !important;
+        height: auto !important;
+        max-height: none !important;
+        top: 0 !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        grid-column: 1 !important;
+      }
+      main.page {
+        grid-column: 1 !important;
+      }
     }
     .wrap {
       max-width: 1180px;
@@ -419,8 +600,8 @@
             <p class="nav-subtitle">Agenda visual do mês</p>
           </div>
         </a>
-        <a href="/?view=view-students" class="nav-item">
-          <span class="nav-emoji">👩‍🎓</span>
+        <a href="/alunos/" class="nav-item">
+          <span class="nav-emoji">🧑‍🎓</span>
           <div>
             <p class="nav-title">Alunos</p>
             <p class="nav-subtitle">Cadastro e planos</p>
@@ -705,6 +886,8 @@
         meta.textContent = "Mostrando: " + label + " • " + total + " planejamento(s)";
       }
 
+      var pendingStudentIdForModal = null; // Variável para armazenar student_id da URL
+      
       function renderStudents(students) {
         allStudents = students || [];
         var sel = $("select#student");
@@ -721,6 +904,15 @@
         }
         if (cur && cur !== "all") sel.value = cur;
         populateModalStudentSelect();
+        
+        // Se havia um student_id pendente, abrir o modal agora
+        if (pendingStudentIdForModal) {
+          var studentId = pendingStudentIdForModal;
+          pendingStudentIdForModal = null;
+          setTimeout(function() {
+            openModalForNew(studentId);
+          }, 100);
+        }
       }
 
       function populateModalStudentSelect() {
@@ -944,7 +1136,7 @@
         if (btnAddAttachment) btnAddAttachment.disabled = viewMode;
       }
 
-      function openModalForNew() {
+      function openModalForNew(studentId) {
         isViewMode = false;
         setModalViewMode(false);
         currentEditingPlanId = null;
@@ -956,6 +1148,22 @@
           var y = today.getFullYear(), m = String(today.getMonth() + 1).padStart(2, "0"), d = String(today.getDate()).padStart(2, "0");
           var modalDate = $("#modalDate");
           if (modalDate) modalDate.value = y + "-" + m + "-" + d;
+          
+          // Se studentId foi passado, pré-selecionar o aluno
+          if (studentId) {
+            var modalStudent = $("#modalStudent");
+            if (modalStudent) {
+              // Aguardar um pouco para garantir que o select foi populado
+              setTimeout(function() {
+                modalStudent.value = String(studentId);
+                // Disparar evento change para garantir que o valor foi definido
+                if (modalStudent.value === String(studentId)) {
+                  var event = new Event('change', { bubbles: true });
+                  modalStudent.dispatchEvent(event);
+                }
+              }, 100);
+            }
+          }
         }
         if (overlay) {
           overlay.classList.add("is-open");
@@ -1422,6 +1630,19 @@
       if (fab) fab.addEventListener("click", function (e) { e.preventDefault(); openModalForNew(); });
       if (btnNew) btnNew.addEventListener("click", function (e) { e.preventDefault(); openModalForNew(); });
 
+      // Verificar se há student_id na URL para abrir modal automaticamente
+      (function() {
+        var urlParams = new URLSearchParams(window.location.search);
+        var studentId = urlParams.get('student_id');
+        if (studentId) {
+          // Armazenar o student_id para ser usado quando os alunos forem carregados
+          pendingStudentIdForModal = studentId;
+          // Limpar o parâmetro da URL sem recarregar a página
+          var newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
+      })();
+      
       setupCustomRange();
       setupFilters();
       fetchList();

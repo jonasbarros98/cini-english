@@ -109,6 +109,10 @@ class Lesson(models.Model):
         choices=STATUS_CHOICES,
         default="pending",
     )
+    realized = models.BooleanField(
+        default=False,
+        help_text="Indica se a aula foi realizada"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

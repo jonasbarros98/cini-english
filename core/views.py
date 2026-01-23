@@ -95,10 +95,20 @@ class LessonViewSet(viewsets.ModelViewSet):
         # /api/lessons/?date=2026-01-19
         # /api/lessons/?month=2026-01
         # /api/lessons/?start=2026-01-01&end=2026-01-07  (intervalo, ex.: semana)
+        # /api/lessons/?student=123  (filtrar por aluno)
         date_str = self.request.query_params.get("date")
         month_str = self.request.query_params.get("month")
         start_str = self.request.query_params.get("start")
         end_str = self.request.query_params.get("end")
+        student_param = self.request.query_params.get("student")
+
+        # Filtro por aluno (pode ser combinado com outros filtros)
+        if student_param:
+            try:
+                student_id = int(student_param)
+                qs = qs.filter(student_id=student_id)
+            except (ValueError, TypeError):
+                pass
 
         if start_str and end_str:
             try:
@@ -175,6 +185,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 from django.views.generic import TemplateView
+
+class AlunosView(TemplateView):
+    """View para renderizar a página de alunos"""
+    template_name = "alunos_new.html"
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Garantir que o usuário está autenticado
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
 
 class DashboardView(TemplateView):
     template_name = "index.html"

@@ -12,6 +12,7 @@ from .views import (
     PlanningListView, planning_list_api,
     planning_edit_redirect, planning_new_redirect,
     upload_planning_attachment, delete_planning_attachment,
+    AlunosView,
 )
 
 router = DefaultRouter()
@@ -29,6 +30,7 @@ urlpatterns = [
     path("dashboard/", DashboardHomeView.as_view(), name="dashboard-home"),
     path("perfil/", PerfilView.as_view(), name="perfil"),
     path("", DashboardView.as_view(), name="dashboard"),
+    path("alunos/", AlunosView.as_view(), name="alunos"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("signup/", TemplateView.as_view(template_name="signup.html"), name="signup"),
     path("payment-processing/", TemplateView.as_view(template_name="payment_processing.html"), name="payment-processing"),

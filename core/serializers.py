@@ -73,6 +73,7 @@ class LessonSerializer(serializers.ModelSerializer):
             "title",
             "info",
             "status",
+            "realized",
             "created_at",
             "updated_at",
         ]

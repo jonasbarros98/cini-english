@@ -15,6 +15,46 @@
 
     <link rel="stylesheet" href="{% static 'styles.css' %}" />
     
+    <script>
+      // Verificar parâmetro view na URL IMEDIATAMENTE para evitar flash
+      // Este script roda o mais cedo possível quando o DOM estiver disponível
+      (function() {
+        function setInitialView() {
+          try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const viewParam = urlParams.get('view');
+            const targetViewId = viewParam || 'view-calendar';
+            
+            // Remover active de todas as views
+            const allViews = document.querySelectorAll('.view');
+            allViews.forEach(view => {
+              view.classList.remove('active');
+            });
+            
+            // Adicionar active na view correta
+            const targetView = document.getElementById(targetViewId);
+            if (targetView) {
+              targetView.classList.add('active');
+            }
+          } catch(e) {
+            // Se der erro, garantir que pelo menos o calendário aparece
+            const calendarView = document.getElementById('view-calendar');
+            if (calendarView) {
+              calendarView.classList.add('active');
+            }
+          }
+        }
+        
+        // Executar imediatamente se o DOM estiver pronto, senão aguardar DOMContentLoaded
+        if (document.readyState === 'loading') {
+          // Usar capture phase para executar antes de outros listeners
+          document.addEventListener('DOMContentLoaded', setInitialView, true);
+        } else {
+          // DOM já está pronto, executar imediatamente
+          setInitialView();
+        }
+      })();
+    </script>
 
   </head>
   <body>
@@ -42,13 +82,13 @@
               <p class="nav-subtitle">Agenda visual do mês</p>
             </div>
           </button>
-          <button class="nav-item" data-view="view-students">
-            <span class="nav-emoji">👩‍🎓</span>
+          <a href="/alunos/" class="nav-item">
+            <span class="nav-emoji">🧑‍🎓</span>
             <div>
               <p class="nav-title">Alunos</p>
               <p class="nav-subtitle">Cadastro e planos</p>
             </div>
-          </button>
+          </a>
           <a href="/planejamento/" class="nav-item">
             <span class="nav-emoji">📚</span>
             <div>
@@ -137,7 +177,7 @@
       </aside>
 
       <main class="main">
-        <section class="view active" id="view-calendar">
+        <section class="view" id="view-calendar">
           <header class="topbar">
             <div>
               <h1>Calendário do Professor</h1>
@@ -268,8 +308,8 @@
                 <div class="form-row">
                   <label for="noteStatus">Status</label>
                   <select id="noteStatus" name="noteStatus">
+                    <option value="pending" selected>Pendente</option>
                     <option value="confirmed">Confirmado</option>
-                    <option value="pending">Pendente</option>
                     <option value="canceled">Cancelado</option>
                   </select>
                 </div>
@@ -291,46 +331,6 @@
           </section>
         </section>
 
-        <section class="view" id="view-students">
-          <header class="topbar">
-            <div>
-              <h1>Cadastro de Alunos</h1>
-              <p class="muted">Visualize contatos, responsáveis, planos e aulas restantes.</p>
-            </div>
-            <button class="primary" id="addStudent">+ Novo aluno</button>
-          </header>
-
-          <!-- Filtro de Alunos -->
-          <section class="card detail-card">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Filtros</p>
-                <h3>Filtrar Alunos</h3>
-              </div>
-            </div>
-            <div class="form-row">
-              <label for="studentFilter">Buscar aluno</label>
-              <input 
-                type="text" 
-                id="studentFilter" 
-                placeholder="Digite o nome, telefone, endereço ou plano do aluno..."
-                style="width: 100%; max-width: 500px;"
-              />
-              <small class="muted">Filtre alunos por nome, telefone, endereço ou plano</small>
-            </div>
-          </section>
-
-          <section class="card detail-card">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Lista de alunos</p>
-                <h3 id="studentListTitle">Cadastro e status</h3>
-                <p class="muted" id="studentListSubtitle">Ajuste rapidamente dados e acompanhe aulas restantes.</p>
-              </div>
-            </div>
-            <div id="studentList" class="student-list"></div>
-          </section>
-        </section>
 
         <!-- =========================
              BILLING VIEW (COBRANÇA)
