@@ -1600,6 +1600,107 @@ class PlanosView(TemplateView):
             context['plan_price'] = '—'
             context['next_billing'] = '—'
         
+        # Buscar histórico de invoices do Stripe
+        invoices = []
+        if context.get('has_subscription'):
+            try:
+                subscription_obj = user.subscription
+                if subscription_obj and subscription_obj.stripe_customer_id:
+                    stripe_invoices = stripe.Invoice.list(
+                        customer=subscription_obj.stripe_customer_id,
+                        limit=20,
+                        expand=['data.charge']
+                    )
+                    
+                    for inv in stripe_invoices.data:
+                        # Formatar data
+                        timestamp = getattr(inv, 'created', None) or 0
+                        if timestamp:
+                            from datetime import datetime
+                            date_str = datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y')
+                        else:
+                            date_str = '—'
+                        
+                        # Descrição
+                        description = 'Assinatura'
+                        inv_lines = getattr(inv, 'lines', None)
+                        if inv_lines and hasattr(inv_lines, 'data') and inv_lines.data:
+                            line = inv_lines.data[0]
+                            if hasattr(line, 'description') and line.description:
+                                description = line.description
+                            elif hasattr(line, 'plan') and line.plan:
+                                plan_name = getattr(line.plan, 'nickname', None) or getattr(line.plan, 'id', '')
+                                if plan_name:
+                                    description = f'Plano {plan_name}'
+                        
+                        # Status
+                        status = 'pending'
+                        status_label = 'Processando'
+                        inv_status = getattr(inv, 'status', None)
+                        inv_paid = getattr(inv, 'paid', False)
+                        
+                        if inv_paid:
+                            status = 'paid'
+                            status_label = 'Pago'
+                        elif inv_status == 'open':
+                            status = 'pending'
+                            status_label = 'Pendente'
+                        elif inv_status == 'void':
+                            status = 'failed'
+                            status_label = 'Cancelado'
+                        elif inv_status == 'uncollectible':
+                            status = 'failed'
+                            status_label = 'Falhou'
+                        elif inv_status == 'draft':
+                            status = 'pending'
+                            status_label = 'Rascunho'
+                        elif inv_status == 'paid':
+                            status = 'paid'
+                            status_label = 'Pago'
+                        
+                        # Valor
+                        amount_str = '—'
+                        amount_paid = getattr(inv, 'amount_paid', None)
+                        amount_due = getattr(inv, 'amount_due', None)
+                        total = getattr(inv, 'total', None)
+                        
+                        if amount_paid:
+                            amount = amount_paid / 100  # Stripe usa centavos
+                            amount_str = f'R$ {amount:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+                        elif amount_due:
+                            amount = amount_due / 100
+                            amount_str = f'R$ {amount:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+                        elif total:
+                            amount = total / 100
+                            amount_str = f'R$ {amount:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+                        
+                        # Link do recibo
+                        receipt_url = getattr(inv, 'hosted_invoice_url', None) or getattr(inv, 'invoice_pdf', None) or '#'
+                        
+                        invoices.append({
+                            'date': date_str,
+                            'description': description,
+                            'status': status,
+                            'status_label': status_label,
+                            'amount': amount_str,
+                            'receipt_url': receipt_url,
+                            'timestamp': timestamp,  # Para ordenação
+                        })
+                    
+                    # Ordenar por timestamp (mais recente primeiro)
+                    invoices.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+                    # Remover timestamp antes de passar para o template
+                    for inv in invoices:
+                        inv.pop('timestamp', None)
+                    
+            except Exception as e:
+                print(f"Erro ao buscar invoices do Stripe: {e}")
+                import traceback
+                traceback.print_exc()
+                invoices = []
+        
+        context['invoices'] = invoices
+        
         return context
 
 

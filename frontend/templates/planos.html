@@ -582,27 +582,37 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>05/01/2026</td>
-                <td>Plano Mensal</td>
-                <td><span class="pill paid">Pago</span></td>
-                <td style="text-align:right;">R$ 49,90</td>
-                <td style="text-align:right;"><a class="link" href="#" target="_blank" rel="noreferrer">Ver</a></td>
-              </tr>
-              <tr>
-                <td>05/12/2025</td>
-                <td>Plano Mensal</td>
-                <td><span class="pill paid">Pago</span></td>
-                <td style="text-align:right;">R$ 49,90</td>
-                <td style="text-align:right;"><a class="link" href="#" target="_blank" rel="noreferrer">Ver</a></td>
-              </tr>
-              <tr>
-                <td>05/11/2025</td>
-                <td>Plano Mensal</td>
-                <td><span class="pill pending">Processando</span></td>
-                <td style="text-align:right;">R$ 49,90</td>
-                <td style="text-align:right;"><a class="link" href="#" target="_blank" rel="noreferrer">Ver</a></td>
-              </tr>
+              {% if invoices %}
+                {% for invoice in invoices %}
+                <tr>
+                  <td>{{ invoice.date }}</td>
+                  <td>{{ invoice.description }}</td>
+                  <td>
+                    <span class="pill {% if invoice.status == 'paid' %}paid{% elif invoice.status == 'pending' %}pending{% else %}failed{% endif %}">
+                      {{ invoice.status_label }}
+                    </span>
+                  </td>
+                  <td style="text-align:right;">{{ invoice.amount }}</td>
+                  <td style="text-align:right;">
+                    {% if invoice.receipt_url != '#' %}
+                      <a class="link" href="{{ invoice.receipt_url }}" target="_blank" rel="noreferrer">Ver</a>
+                    {% else %}
+                      <span style="color: var(--muted);">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 24px; color: var(--muted);">
+                    {% if has_subscription %}
+                      Nenhuma cobrança encontrada ainda.
+                    {% else %}
+                      Nenhuma assinatura ativa. Assine um plano para ver o histórico de cobranças.
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endif %}
             </tbody>
           </table>
         </div>
