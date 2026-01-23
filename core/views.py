@@ -18,10 +18,10 @@ from django.views.generic import TemplateView
 import stripe
 import json
 import os
-from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog
+from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
 from .models import Student, Lesson, Task, Subscription, StripeEvent
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
-from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, BillingLogSerializer, ProfileSerializer
+from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.select_related("user").all().order_by("name")
@@ -237,6 +237,148 @@ def planning_new_redirect(request):
     if not request.user.is_authenticated:
         return redirect("login")
     return redirect("/?view=view-planning")
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_planning_attachment(request, plan_id):
+    """
+    Upload de anexo para um planejamento.
+    Aceita apenas: PDF, Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx)
+    Tamanho máximo: 10MB por arquivo
+    """
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.odt', '.ods', '.odp']
+    
+    try:
+        plan = LessonPlan.objects.get(id=plan_id)
+        
+        # Verificar permissão: usuário deve ser dono do planejamento ou admin
+        try:
+            is_admin = request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        
+        if not is_admin and plan.user_id != request.user.id:
+            # Verificar se é parceiro vinculado
+            try:
+                user_profile = request.user.profile.user_profile
+                if user_profile != UserProfile.PROFILE_TEACHER:
+                    return Response(
+                        {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                if plan.user_id not in partner_ids and plan.user_id != request.user.id:
+                    return Response(
+                        {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            except UserProfile.DoesNotExist:
+                return Response(
+                    {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        if 'file' not in request.FILES:
+            return Response(
+                {'error': 'Nenhum arquivo enviado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        file = request.FILES['file']
+        original_filename = file.name
+        
+        # Validar extensão
+        import os
+        ext = os.path.splitext(original_filename)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            return Response(
+                {'error': f'Tipo de arquivo não permitido. Permitidos: {", ".join(ALLOWED_EXTENSIONS)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar tamanho
+        if file.size > MAX_FILE_SIZE:
+            return Response(
+                {'error': f'Arquivo muito grande. Tamanho máximo: 10MB'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Criar anexo
+        attachment = LessonPlanAttachment.objects.create(
+            lesson_plan=plan,
+            file=file,
+            original_filename=original_filename,
+            file_size=file.size
+        )
+        
+        serializer = LessonPlanAttachmentSerializer(attachment, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+    except LessonPlan.DoesNotExist:
+        return Response(
+            {'error': 'Planejamento não encontrado.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao fazer upload: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_planning_attachment(request, attachment_id):
+    """Deleta um anexo de planejamento"""
+    try:
+        attachment = LessonPlanAttachment.objects.select_related('lesson_plan').get(id=attachment_id)
+        plan = attachment.lesson_plan
+        
+        # Verificar permissão
+        try:
+            is_admin = request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        
+        if not is_admin and plan.user_id != request.user.id:
+            try:
+                user_profile = request.user.profile.user_profile
+                if user_profile != UserProfile.PROFILE_TEACHER:
+                    return Response(
+                        {'error': 'Você não tem permissão para excluir este anexo.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                if plan.user_id not in partner_ids and plan.user_id != request.user.id:
+                    return Response(
+                        {'error': 'Você não tem permissão para excluir este anexo.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            except UserProfile.DoesNotExist:
+                return Response(
+                    {'error': 'Você não tem permissão para excluir este anexo.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Deletar arquivo físico
+        if attachment.file:
+            attachment.file.delete()
+        
+        attachment.delete()
+        return Response({'success': True}, status=status.HTTP_200_OK)
+        
+    except LessonPlanAttachment.DoesNotExist:
+        return Response(
+            {'error': 'Anexo não encontrado.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao excluir anexo: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
@@ -591,6 +733,11 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Preenche automaticamente o usuário logado ao criar um lesson plan
         serializer.save(user=self.request.user)
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 def _planning_user_ids(request):
@@ -742,6 +889,23 @@ def planning_list_api(request):
         return t + "…" if len(txt.strip()) > max_len else t
 
     def links_to_materials(links_str):
+        def normalize_url(url):
+            """Normaliza URL para garantir que seja absoluta"""
+            if not url or url == "#":
+                return "#"
+            url = url.strip()
+            # Se já começa com http:// ou https://, retorna como está
+            if url.startswith("http://") or url.startswith("https://"):
+                return url
+            # Se começa com //, adiciona https:
+            if url.startswith("//"):
+                return "https:" + url
+            # Se não começa com /, assume que é um domínio e adiciona https://
+            if not url.startswith("/"):
+                return "https://" + url
+            # URLs relativas começando com / são mantidas (podem ser links internos)
+            return url
+        
         out = []
         if not links_str or not links_str.strip():
             return out
@@ -749,6 +913,8 @@ def planning_list_api(request):
             url = raw.strip()
             if not url:
                 continue
+            # Normaliza a URL
+            url = normalize_url(url)
             title = "Link"
             if "docs.google.com" in url or "slides" in url.lower():
                 title = "Google Slides"

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog, Subscription, StripeEvent
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent
 
 
 @admin.register(Student)
@@ -45,6 +45,14 @@ class LessonPlanAdmin(admin.ModelAdmin):
     list_filter = ("date", "student", "user")
     search_fields = ("student__name", "goals", "links", "user__username")
     date_hierarchy = "date"
+
+@admin.register(LessonPlanAttachment)
+class LessonPlanAttachmentAdmin(admin.ModelAdmin):
+    list_display = ("lesson_plan", "original_filename", "file_size", "uploaded_at")
+    list_filter = ("uploaded_at", "lesson_plan__student", "lesson_plan__user")
+    search_fields = ("original_filename", "lesson_plan__student__name", "lesson_plan__user__username")
+    readonly_fields = ("file_size", "uploaded_at")
+    date_hierarchy = "uploaded_at"
 
 @admin.register(BillingLog)
 class BillingLogAdmin(admin.ModelAdmin):

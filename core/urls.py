@@ -11,6 +11,7 @@ from .views import (
     profile_get_view, profile_update_view, welcome_dismiss_view,
     PlanningListView, planning_list_api,
     planning_edit_redirect, planning_new_redirect,
+    upload_planning_attachment, delete_planning_attachment,
 )
 
 router = DefaultRouter()
@@ -50,4 +51,6 @@ urlpatterns = [
     path("planejamento/editar/", planning_edit_redirect, name="planning-edit"),
     path("planejamento/novo/", planning_new_redirect, name="planning-new"),
     path("api/planning/list/", planning_list_api, name="api-planning-list"),
+    path("api/planning/<int:plan_id>/attachments/", upload_planning_attachment, name="api-planning-upload-attachment"),
+    path("api/planning/attachments/<int:attachment_id>/", delete_planning_attachment, name="api-planning-delete-attachment"),
 ]

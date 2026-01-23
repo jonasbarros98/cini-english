@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, BillingLog, Subscription
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription
 from rest_framework import serializers as drf_serializers
 
 
@@ -171,9 +171,41 @@ class FinancialEntrySerializer(serializers.ModelSerializer):
                 self.fields['beneficiary_user'].queryset = User.objects.filter(id=user.id)
 
 
+class LessonPlanAttachmentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    file_size_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonPlanAttachment
+        fields = [
+            "id",
+            "file",
+            "file_url",
+            "original_filename",
+            "file_size",
+            "file_size_display",
+            "uploaded_at",
+        ]
+        read_only_fields = ["file_url", "file_size_display", "uploaded_at"]
+
+    def get_file_url(self, obj):
+        """Retorna a URL do arquivo"""
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+
+    def get_file_size_display(self, obj):
+        """Retorna o tamanho formatado"""
+        return obj.get_file_size_display()
+
+
 class LessonPlanSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
     links_list = serializers.SerializerMethodField()
+    attachments = LessonPlanAttachmentSerializer(many=True, read_only=True)
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     user_username = serializers.CharField(source="user.username", read_only=True)
 
@@ -187,12 +219,13 @@ class LessonPlanSerializer(serializers.ModelSerializer):
             "links",
             "links_list",
             "goals",
+            "attachments",
             "user",
             "user_username",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["links_list", "user"]
+        read_only_fields = ["links_list", "attachments", "user"]
 
     def get_links_list(self, obj):
         """Retorna os links como uma lista"""

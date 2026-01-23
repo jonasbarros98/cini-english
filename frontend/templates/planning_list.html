@@ -318,6 +318,73 @@
     .modal-actions { padding: 0 14px 14px; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
     .help { font-size: 11px; color: var(--muted2); font-weight: 600; margin-top: 4px; line-height: 1.4; }
     .modal-body .field textarea { resize: vertical; min-height: 80px; }
+    .modal-body .field input:disabled,
+    .modal-body .field select:disabled,
+    .modal-body .field textarea:disabled,
+    .modal-body .field textarea[readonly] {
+      background: rgba(245, 247, 250, 0.8);
+      color: var(--text);
+      cursor: not-allowed;
+      opacity: 0.9;
+    }
+    .modal-body .field textarea[readonly] {
+      cursor: text; /* Permite seleção de texto mesmo em readonly */
+      user-select: text;
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+    }
+    .attachment-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(245, 247, 250, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    .attachment-item-name {
+      flex: 1;
+      color: var(--text);
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .attachment-item-size {
+      color: var(--muted);
+      margin: 0 8px;
+      font-size: 11px;
+    }
+    .attachment-item-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .attachment-item-actions button,
+    .attachment-item-actions a {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 6px;
+      pointer-events: auto !important;
+      cursor: pointer;
+    }
+    /* Garantir que botões e links do modal sempre funcionem */
+    .modal button,
+    .modal a,
+    .modal .btn {
+      pointer-events: auto !important;
+      cursor: pointer;
+    }
+    /* Garantir que textareas em modo visualização permitam seleção */
+    .modal textarea[readonly] {
+      pointer-events: auto;
+      user-select: text;
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+    }
     .empty-state {
       padding: 40px 20px;
       text-align: center;
@@ -539,6 +606,13 @@
             <textarea id="modalGoals" rows="4" placeholder="Exemplo: Advice - SHOULD, Present Perfect, etc."></textarea>
             <small class="help">Descreva os objetivos e metas desta aula.</small>
           </div>
+          <div class="field" id="attachmentsField" style="display: none;">
+            <label for="modalAttachments">Anexos</label>
+            <div id="attachmentsList" style="margin-bottom: 8px;"></div>
+            <input type="file" id="modalAttachmentInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.odt,.ods,.odp" style="display: none;" />
+            <button type="button" class="btn" id="btnAddAttachment" style="width: 100%;">+ Adicionar Anexo</button>
+            <small class="help">Formatos permitidos: PDF, Word, Excel, PowerPoint, Texto. Máximo 10MB por arquivo.</small>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn" type="button" id="planModalCancel">Cancelar</button>
@@ -686,13 +760,27 @@
         return "🎯 " + safe;
       }
 
+      function normalizeUrl(url) {
+        if (!url || url === "#") return "#";
+        url = String(url).trim();
+        // Se já começa com http:// ou https://, retorna como está
+        if (/^https?:\/\//i.test(url)) return url;
+        // Se começa com //, adiciona https:
+        if (url.startsWith("//")) return "https:" + url;
+        // Se não começa com /, assume que é um domínio e adiciona https://
+        if (!url.startsWith("/")) return "https://" + url;
+        // URLs relativas começando com / são mantidas (podem ser links internos)
+        return url;
+      }
+
       function materialsLine(item) {
         var m = (item && item.materials) ? item.materials : [];
         if (!m.length) return '📎 Materiais: <span style="color:var(--muted2);font-weight:700;">Nenhum link</span>';
         var first = m[0];
         var title = (first && first.title) ? escapeHtml(first.title) : "Link";
         var url = (first && first.url) ? first.url : "#";
-        return '📎 <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + title + "</a>";
+        var normalizedUrl = normalizeUrl(url);
+        return '📎 <a href="' + escapeHtml(normalizedUrl) + '" target="_blank" rel="noopener">' + title + "</a>";
       }
 
       function renderCard(item) {
@@ -703,6 +791,7 @@
         html += '<div class="plan-main"><strong>' + studentName + '</strong><div class="chips">' + chips(item) + '</div></div>';
         html += '<div class="plan-detail"><div class="line">' + goalsLine(item) + '</div><div class="line">' + materialsLine(item) + '</div></div>';
         html += '<div class="plan-actions">';
+        html += '<button class="btn js-view" type="button">Visualizar</button>';
         html += '<button class="btn primary js-plan-now" type="button">Planejar agora</button>';
         html += '<button class="btn js-edit" type="button">Editar</button>';
         html += '<button class="btn danger js-delete" type="button">Excluir</button>';
@@ -797,8 +886,67 @@
       var sub = $("#planModalSub");
       var form = $("#planModalForm");
       var titleEl = $("#planModalTitle");
+      var isViewMode = false;
+
+      var currentAttachments = [];
+      var pendingUploads = [];
+
+      function setModalViewMode(viewMode) {
+        isViewMode = viewMode;
+        var modalStudent = $("#modalStudent");
+        var modalDate = $("#modalDate");
+        var modalLinks = $("#modalLinks");
+        var modalGoals = $("#modalGoals");
+        var saveBtn = $("#planModalSave");
+        var attachmentsField = $("#attachmentsField");
+        var btnAddAttachment = $("#btnAddAttachment");
+        var cancelBtn = $("#planModalCancel");
+        var closeBtn = $("#planModalClose");
+        
+        // Em modo visualização, usa readonly ao invés de disabled para permitir seleção de texto
+        if (modalStudent) {
+          modalStudent.disabled = viewMode;
+          modalStudent.readOnly = false; // select não tem readonly
+        }
+        if (modalDate) {
+          modalDate.disabled = viewMode;
+          modalDate.readOnly = false; // date input não tem readonly
+        }
+        if (modalLinks) {
+          modalLinks.disabled = viewMode;
+          modalLinks.readOnly = viewMode; // textarea pode usar readonly
+        }
+        if (modalGoals) {
+          modalGoals.disabled = viewMode;
+          modalGoals.readOnly = viewMode; // textarea pode usar readonly
+        }
+        
+        // Esconde o botão de salvar em modo visualização
+        if (saveBtn) saveBtn.style.display = viewMode ? "none" : "";
+        
+        // Mantém os botões sempre funcionais
+        if (cancelBtn) {
+          cancelBtn.disabled = false;
+          cancelBtn.style.pointerEvents = "auto";
+        }
+        if (closeBtn) {
+          closeBtn.disabled = false;
+          closeBtn.style.pointerEvents = "auto";
+        }
+        
+        // NÃO bloqueia pointer-events no form inteiro
+        // Isso permite clicar em botões, links e selecionar texto
+        
+        // Campo de anexos só aparece quando há um planejamento salvo (não em modo novo)
+        if (attachmentsField) {
+          attachmentsField.style.display = (viewMode || currentEditingPlanId) ? "" : "none";
+        }
+        if (btnAddAttachment) btnAddAttachment.disabled = viewMode;
+      }
 
       function openModalForNew() {
+        isViewMode = false;
+        setModalViewMode(false);
         currentEditingPlanId = null;
         if (titleEl) titleEl.textContent = "Novo Planejamento";
         if (sub) sub.textContent = "Criar um novo planejamento de aula";
@@ -816,9 +964,32 @@
         }
       }
 
+      function openModalForView(planId, studentId, studentName, date) {
+        if (!planId) return;
+        currentEditingPlanId = null;
+        currentAttachments = [];
+        pendingUploads = [];
+        setModalViewMode(true);
+        if (titleEl) titleEl.textContent = "Visualizar Planejamento";
+        if (sub) sub.textContent = studentName + " • " + (date || "—");
+        loadPlanDetails(planId, function() {
+          // Após carregar, garantir que está em modo visualização
+          setModalViewMode(true);
+          renderAttachments();
+        });
+        if (overlay) {
+          overlay.classList.add("is-open");
+          overlay.setAttribute("aria-hidden", "false");
+          if (document.documentElement) document.documentElement.style.overflow = "hidden";
+        }
+      }
+
       function openModalForEdit(planId, studentId, date) {
         if (!planId) return;
         currentEditingPlanId = planId;
+        currentAttachments = [];
+        pendingUploads = [];
+        setModalViewMode(false);
         if (titleEl) titleEl.textContent = "Editar Planejamento";
         if (sub) sub.textContent = "ID #" + planId + " • " + (date || "—");
         if (form) {
@@ -829,7 +1000,9 @@
           $("#modalLinks").value = "";
           $("#modalGoals").value = "";
         }
-        loadPlanDetails(planId);
+        loadPlanDetails(planId, function() {
+          renderAttachments();
+        });
         if (overlay) {
           overlay.classList.add("is-open");
           overlay.setAttribute("aria-hidden", "false");
@@ -840,6 +1013,9 @@
       function openModalForPlanNow(planId, studentId, studentName, date) {
         if (!planId) return;
         currentEditingPlanId = planId;
+        currentAttachments = [];
+        pendingUploads = [];
+        setModalViewMode(false);
         if (titleEl) titleEl.textContent = "Planejar agora";
         if (sub) sub.textContent = studentName + " • " + (date || "—");
         if (form) {
@@ -848,7 +1024,9 @@
           if (modalStudent && studentId) modalStudent.value = String(studentId);
           if (modalDate && date) modalDate.value = date;
         }
-        loadPlanDetails(planId);
+        loadPlanDetails(planId, function() {
+          renderAttachments();
+        });
         if (overlay) {
           overlay.classList.add("is-open");
           overlay.setAttribute("aria-hidden", "false");
@@ -856,7 +1034,7 @@
         }
       }
 
-      function loadPlanDetails(planId) {
+      function loadPlanDetails(planId, callback) {
         if (!planId) return;
         var csrf = getCookie("csrftoken");
         fetch(LESSON_PLANS_API + planId + "/", {
@@ -880,10 +1058,150 @@
             }
             if (modalLinks) modalLinks.value = data.links || "";
             if (modalGoals) modalGoals.value = data.goals || "";
+            if (data.attachments) {
+              currentAttachments = data.attachments || [];
+            }
+            if (callback) callback();
           })
           .catch(function (err) {
             console.error("Erro ao carregar detalhes:", err);
           });
+      }
+
+      function renderAttachments() {
+        var container = $("#attachmentsList");
+        if (!container) return;
+        var html = "";
+        currentAttachments.forEach(function (att) {
+          var name = escapeHtml(att.original_filename || "Arquivo");
+          var size = att.file_size_display || (att.file_size ? formatFileSize(att.file_size) : "");
+          var url = att.file_url || "#";
+          var canDelete = !isViewMode;
+          html += '<div class="attachment-item" data-attachment-id="' + att.id + '">';
+          html += '<span class="attachment-item-name">📎 ' + name + '</span>';
+          html += '<span class="attachment-item-size">' + size + '</span>';
+          if (canDelete) {
+            html += '<div class="attachment-item-actions">';
+            html += '<a href="' + escapeHtml(url) + '" target="_blank" class="btn" style="padding: 4px 8px; font-size: 11px;">Ver</a>';
+            html += '<button type="button" class="btn danger js-delete-attachment" style="padding: 4px 8px; font-size: 11px;">Excluir</button>';
+            html += '</div>';
+          } else {
+            html += '<div class="attachment-item-actions">';
+            html += '<a href="' + escapeHtml(url) + '" target="_blank" class="btn" style="padding: 4px 8px; font-size: 11px;">Ver</a>';
+            html += '</div>';
+          }
+          html += '</div>';
+        });
+        pendingUploads.forEach(function (file) {
+          html += '<div class="attachment-item" data-pending-file="' + escapeHtml(file.name) + '">';
+          html += '<span class="attachment-item-name">📎 ' + escapeHtml(file.name) + ' (pendente)</span>';
+          html += '<span class="attachment-item-size">' + formatFileSize(file.size) + '</span>';
+          html += '<div class="attachment-item-actions">';
+          html += '<button type="button" class="btn danger js-remove-pending" style="padding: 4px 8px; font-size: 11px;">Remover</button>';
+          html += '</div>';
+          html += '</div>';
+        });
+        container.innerHTML = html || '<div style="color: var(--muted); font-size: 12px; padding: 8px;">Nenhum anexo</div>';
+      }
+
+      function formatFileSize(bytes) {
+        if (!bytes) return "—";
+        var units = ["B", "KB", "MB", "GB"];
+        var size = bytes;
+        var unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex++;
+        }
+        return size.toFixed(1) + " " + units[unitIndex];
+      }
+
+      function uploadAttachment(planId, file) {
+        var MAX_SIZE = 10 * 1024 * 1024; // 10MB
+        if (file.size > MAX_SIZE) {
+          alert("Arquivo muito grande. Tamanho máximo: 10MB");
+          return Promise.reject(new Error("Arquivo muito grande"));
+        }
+        var csrf = getCookie("csrftoken");
+        var formData = new FormData();
+        formData.append("file", file);
+        return fetch("/api/planning/" + planId + "/attachments/", {
+          method: "POST",
+          headers: { "X-CSRFToken": csrf || "" },
+          credentials: "same-origin",
+          body: formData
+        })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (err) { throw new Error(err.error || "Erro " + r.status); });
+            return r.json();
+          })
+          .then(function (data) {
+            currentAttachments.push(data);
+            renderAttachments();
+            return data;
+          });
+      }
+
+      function deleteAttachment(attachmentId) {
+        var csrf = getCookie("csrftoken");
+        return fetch("/api/planning/attachments/" + attachmentId + "/", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+          credentials: "same-origin"
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Erro " + r.status);
+            currentAttachments = currentAttachments.filter(function (att) { return att.id !== attachmentId; });
+            renderAttachments();
+          });
+      }
+
+      function renderAttachments() {
+        var container = $("#attachmentsList");
+        if (!container) return;
+        var html = "";
+        currentAttachments.forEach(function (att) {
+          var name = escapeHtml(att.original_filename || "Arquivo");
+          var size = att.file_size_display || (att.file_size ? formatFileSize(att.file_size) : "");
+          var url = att.file_url || "#";
+          var canDelete = !isViewMode;
+          html += '<div class="attachment-item" data-attachment-id="' + att.id + '">';
+          html += '<span class="attachment-item-name">📎 ' + name + '</span>';
+          html += '<span class="attachment-item-size">' + size + '</span>';
+          if (canDelete) {
+            html += '<div class="attachment-item-actions">';
+            html += '<a href="' + escapeHtml(url) + '" target="_blank" class="btn" style="padding: 4px 8px; font-size: 11px;">Ver</a>';
+            html += '<button type="button" class="btn danger js-delete-attachment" style="padding: 4px 8px; font-size: 11px;">Excluir</button>';
+            html += '</div>';
+          } else {
+            html += '<div class="attachment-item-actions">';
+            html += '<a href="' + escapeHtml(url) + '" target="_blank" class="btn" style="padding: 4px 8px; font-size: 11px;">Ver</a>';
+            html += '</div>';
+          }
+          html += '</div>';
+        });
+        pendingUploads.forEach(function (file) {
+          html += '<div class="attachment-item" data-pending-file="' + escapeHtml(file.name) + '">';
+          html += '<span class="attachment-item-name">📎 ' + escapeHtml(file.name) + ' (pendente)</span>';
+          html += '<span class="attachment-item-size">' + formatFileSize(file.size) + '</span>';
+          html += '<div class="attachment-item-actions">';
+          html += '<button type="button" class="btn danger js-remove-pending" style="padding: 4px 8px; font-size: 11px;">Remover</button>';
+          html += '</div>';
+          html += '</div>';
+        });
+        container.innerHTML = html || '<div style="color: var(--muted); font-size: 12px; padding: 8px;">Nenhum anexo</div>';
+      }
+
+      function formatFileSize(bytes) {
+        if (!bytes) return "—";
+        var units = ["B", "KB", "MB", "GB"];
+        var size = bytes;
+        var unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex++;
+        }
+        return size.toFixed(1) + " " + units[unitIndex];
       }
 
       function closeModal() {
@@ -892,7 +1210,12 @@
         overlay.setAttribute("aria-hidden", "true");
         if (document.documentElement) document.documentElement.style.overflow = "";
         currentEditingPlanId = null;
+        isViewMode = false;
+        currentAttachments = [];
+        pendingUploads = [];
+        setModalViewMode(false);
         if (form) form.reset();
+        renderAttachments();
       }
       $("#planModalClose") && $("#planModalClose").addEventListener("click", closeModal);
       $("#planModalCancel") && $("#planModalCancel").addEventListener("click", closeModal);
@@ -902,10 +1225,21 @@
       document.addEventListener("click", function (e) {
         var t = e.target;
         if (!t || !t.closest) return;
+        var viewBtn = t.closest(".js-view");
         var planNow = t.closest(".js-plan-now");
         var editBtn = t.closest(".js-edit");
         var delBtn = t.closest(".js-delete");
         var card = t.closest(".plan-card");
+        if (viewBtn && card) {
+          e.preventDefault();
+          var id = card.getAttribute("data-plan-id") || "";
+          var studentId = card.getAttribute("data-student-id") || "";
+          var strong = $(".plan-main strong", card);
+          var name = strong ? strong.textContent.trim() : "";
+          var date = card.getAttribute("data-date") || "";
+          openModalForView(id, studentId, name, date);
+          return;
+        }
         if (planNow && card) {
           e.preventDefault();
           var id = card.getAttribute("data-plan-id") || "";
@@ -932,7 +1266,54 @@
           if (!confirm("Excluir o planejamento de " + name + " (ID " + id + ")?")) return;
           deletePlan(id, card);
         }
+        var deleteAttBtn = t.closest(".js-delete-attachment");
+        if (deleteAttBtn) {
+          e.preventDefault();
+          var item = deleteAttBtn.closest(".attachment-item");
+          var attId = item ? item.getAttribute("data-attachment-id") : null;
+          if (attId && confirm("Excluir este anexo?")) {
+            deleteAttachment(parseInt(attId))
+              .catch(function (err) {
+                alert("Erro ao excluir anexo: " + (err.message || "Erro desconhecido"));
+              });
+          }
+        }
+        var removePendingBtn = t.closest(".js-remove-pending");
+        if (removePendingBtn) {
+          e.preventDefault();
+          var item = removePendingBtn.closest(".attachment-item");
+          var fileName = item ? item.getAttribute("data-pending-file") : null;
+          if (fileName) {
+            pendingUploads = pendingUploads.filter(function (f) { return f.name !== fileName; });
+            renderAttachments();
+          }
+        }
       });
+
+      // Event listener para botão de adicionar anexo
+      var btnAddAttachment = $("#btnAddAttachment");
+      var attachmentInput = $("#modalAttachmentInput");
+      if (btnAddAttachment && attachmentInput) {
+        btnAddAttachment.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          attachmentInput.click();
+        });
+        attachmentInput.addEventListener("change", function (e) {
+          var files = Array.from(e.target.files || []);
+          if (!files.length) return;
+          var MAX_SIZE = 10 * 1024 * 1024; // 10MB
+          files.forEach(function (file) {
+            if (file.size > MAX_SIZE) {
+              alert("Arquivo '" + file.name + "' muito grande. Tamanho máximo: 10MB");
+              return;
+            }
+            pendingUploads.push(file);
+          });
+          renderAttachments();
+          e.target.value = ""; // Limpa o input
+        });
+      }
 
       function deletePlan(planId, cardEl) {
         if (!planId) return;
@@ -955,6 +1336,10 @@
 
       if (form) {
         form.addEventListener("submit", function (e) {
+          if (isViewMode) {
+            e.preventDefault();
+            return; // Não permite submit em modo visualização
+          }
           e.preventDefault();
           var modalStudent = $("#modalStudent");
           var modalDate = $("#modalDate");
@@ -994,9 +1379,30 @@
               }
               return r.json();
             })
-            .then(function () {
-              closeModal();
-              fetchList();
+            .then(function (data) {
+              // Após salvar, fazer upload dos anexos pendentes
+              var planId = currentEditingPlanId || (data && data.id);
+              if (planId && pendingUploads.length > 0) {
+                var uploadPromises = pendingUploads.map(function (file) {
+                  return uploadAttachment(planId, file);
+                });
+                return Promise.all(uploadPromises)
+                  .then(function () {
+                    pendingUploads = [];
+                    closeModal();
+                    fetchList();
+                  })
+                  .catch(function (err) {
+                    console.error("Erro ao fazer upload de anexos:", err);
+                    alert("Planejamento salvo, mas houve erro ao fazer upload de alguns anexos: " + (err.message || "Erro desconhecido"));
+                    closeModal();
+                    fetchList();
+                  });
+              } else {
+                // Se não havia anexos pendentes, apenas fecha e recarrega
+                closeModal();
+                fetchList();
+              }
             })
             .catch(function (err) {
               console.error("Erro ao salvar:", err);

@@ -390,6 +390,45 @@ class LessonPlan(models.Model):
         return [link.strip() for link in self.links.split('\n') if link.strip()]
 
 
+class LessonPlanAttachment(models.Model):
+    """Anexos de documentos para planejamentos de aulas"""
+    lesson_plan = models.ForeignKey(
+        LessonPlan,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+        help_text="Planejamento ao qual este anexo pertence"
+    )
+    file = models.FileField(
+        upload_to="lesson_plan_attachments/%Y/%m/",
+        help_text="Arquivo anexado (PDF, Word, Excel, etc.)"
+    )
+    original_filename = models.CharField(
+        max_length=255,
+        help_text="Nome original do arquivo"
+    )
+    file_size = models.PositiveIntegerField(
+        help_text="Tamanho do arquivo em bytes"
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+        verbose_name = "Anexo de Planejamento"
+        verbose_name_plural = "Anexos de Planejamentos"
+
+    def __str__(self):
+        return f"{self.lesson_plan.student.name} - {self.original_filename}"
+
+    def get_file_size_display(self):
+        """Retorna o tamanho do arquivo formatado"""
+        size = self.file_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} TB"
+
+
 class UserProfile(models.Model):
     """Perfil estendido do usuário"""
     PROFILE_TEACHER = "professor"
