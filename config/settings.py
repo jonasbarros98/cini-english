@@ -228,6 +228,10 @@ if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
     EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@educaflowone.com')
+    print(f"✅ EMAIL: Configurado para SMTP real")
+    print(f"   Host: {EMAIL_HOST}:{EMAIL_PORT}")
+    print(f"   From: {DEFAULT_FROM_EMAIL}")
+    print(f"   TLS: {EMAIL_USE_TLS}")
 else:
     # Desenvolvimento: usar console backend (imprime no terminal)
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
