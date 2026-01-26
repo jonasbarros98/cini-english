@@ -3064,6 +3064,7 @@ Este é um email automático do sistema EDUCAflowOne.
 """
         
         # Tentar enviar email (não falha o endpoint se der erro)
+        # IMPORTANTE: Usar fail_silently=True para evitar que timeout de email cause erro 500
         email_sent = False
         email_error_msg = ""
         print(f"\n{'='*60}")
@@ -3078,19 +3079,31 @@ Este é um email automático do sistema EDUCAflowOne.
         print(f"{'='*60}\n")
         
         try:
-            send_mail(
+            # Usar fail_silently=True para evitar que timeout cause erro 500
+            # O email será enviado em background se possível, mas não bloqueia a resposta
+            result = send_mail(
                 subject=subject,
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[support_email],
-                fail_silently=False,
+                fail_silently=True,  # MUDANÇA: True para não causar erro 500 em caso de timeout
             )
-            email_sent = True
-            # Atualizar ticket com sucesso do email
-            ticket.email_sent = True
-            ticket.save(update_fields=['email_sent', 'email_error'])
-            print(f"✅ Email enviado com sucesso para {support_email} (Ticket #{ticket_id})")
-            print(f"   Verifique a caixa de entrada e spam do email: {support_email}\n")
+            if result:
+                email_sent = True
+                # Atualizar ticket com sucesso do email
+                ticket.email_sent = True
+                ticket.save(update_fields=['email_sent', 'email_error'])
+                print(f"✅ Email enviado com sucesso para {support_email} (Ticket #{ticket_id})")
+                print(f"   Verifique a caixa de entrada e spam do email: {support_email}\n")
+            else:
+                # send_mail retornou False (falhou silenciosamente)
+                email_error_msg = "Email backend retornou False (possível timeout ou erro de conexão)"
+                ticket.email_sent = False
+                ticket.email_error = email_error_msg[:500]
+                ticket.save(update_fields=['email_sent', 'email_error'])
+                print(f"⚠️  Email NÃO foi enviado (backend retornou False)")
+                print(f"   Ticket #{ticket_id} foi salvo no banco de dados.")
+                print(f"   Verifique a configuração de email no Railway.\n")
         except Exception as email_error:
             # Log do erro mas não falha o endpoint
             import traceback
@@ -3130,7 +3143,23 @@ Este é um email automático do sistema EDUCAflowOne.
             'message': 'Ticket criado com sucesso' + (' e email enviado' if email_sent else ' (email não enviado - verifique logs)')
         }, status=status.HTTP_201_CREATED)
     
+    except ValueError as e:
+        # Erro de validação
+        return Response(
+            {'error': f'Erro de validação: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     except Exception as e:
+        # Capturar TODOS os erros possíveis e retornar JSON válido
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"\n{'='*60}")
+        print(f"❌ ERRO CRÍTICO AO CRIAR TICKET DE SUPORTE")
+        print(f"{'='*60}")
+        print(f"Erro: {str(e)}")
+        print(f"\nTraceback completo:")
+        print(error_traceback)
+        print(f"{'='*60}\n")
         return Response(
             {'error': f'Erro ao criar ticket: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
