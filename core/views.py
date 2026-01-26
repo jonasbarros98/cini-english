@@ -2039,6 +2039,27 @@ def dashboard_summary_view(request):
             status=Student.STATUS_ACTIVE
         ).count()
         
+        # ===== Contagens do Calendário (para Visão Rápida) =====
+        # Todas as aulas do usuário (sem filtro de data)
+        all_lessons = Lesson.objects.filter(user_id__in=user_ids)
+        
+        # Aulas confirmadas (status="confirmed" e não realizadas)
+        calendar_confirmed = all_lessons.filter(
+            status='confirmed',
+            realized=False
+        ).count()
+        
+        # Pendências do mês (status="pending" e não realizadas, do mês atual)
+        calendar_pending_month = all_lessons.filter(
+            date__gte=current_month_start,
+            date__lte=current_month_end,
+            status='pending',
+            realized=False
+        ).count()
+        
+        # Aulas realizadas (realized=True)
+        calendar_realized = all_lessons.filter(realized=True).count()
+        
         # Financeiro - vencendo hoje
         # Filtrar por beneficiary_user_id OU user_id
         due_today_entries = FinancialEntry.objects.filter(
@@ -2193,7 +2214,11 @@ def dashboard_summary_view(request):
                 'active_students': active_students,
                 'due_today_amount': float(due_today_amount),
                 'overdue_amount': float(overdue_amount),
-                'paid_month_amount': float(paid_month_amount)
+                'paid_month_amount': float(paid_month_amount),
+                # Contagens do calendário (para Visão Rápida)
+                'calendar_confirmed': calendar_confirmed,
+                'calendar_pending_month': calendar_pending_month,
+                'calendar_realized': calendar_realized
             },
             'today': {
                 'items': today_items

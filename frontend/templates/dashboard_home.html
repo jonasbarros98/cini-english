@@ -639,10 +639,11 @@
         </div>
       </nav>
       <div class="sidebar-card">
-        <p class="sidebar-title">Visão rápida</p>
+        <p class="sidebar-title">Visão rápida (mês)</p>
         <ul class="sidebar-highlights">
           <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
           <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarRealized">0</strong> realizadas</li>
           <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
         </ul>
         <a href="/calendar/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Calendário</a>
@@ -691,7 +692,7 @@
         <div class="icon info">📅</div>
         <div class="meta">
           <div class="label">Aulas hoje</div>
-          <div class="value" id="kpiTodayClasses">2</div>
+          <div class="value" id="kpiTodayClasses">0</div>
           <div class="hint">clique para ver o dia</div>
         </div>
       </div>
@@ -700,7 +701,7 @@
         <div class="icon warn">⏳</div>
         <div class="meta">
           <div class="label">Pendentes hoje</div>
-          <div class="value" id="kpiTodayPending">1</div>
+          <div class="value" id="kpiTodayPending">0</div>
           <div class="hint">confirmações faltando</div>
         </div>
       </div>
@@ -718,7 +719,7 @@
         <div class="icon info">🧑‍🎓</div>
         <div class="meta">
           <div class="label">Alunos ativos</div>
-          <div class="value" id="kpiActiveStudents">11</div>
+          <div class="value" id="kpiActiveStudents">0</div>
           <div class="hint">em andamento</div>
         </div>
       </div>
@@ -727,7 +728,7 @@
         <div class="icon warn">💰</div>
         <div class="meta">
           <div class="label">A receber hoje</div>
-          <div class="value" id="kpiDueToday">R$ 500</div>
+          <div class="value" id="kpiDueToday">R$ 0,00</div>
           <div class="hint">vencimentos do dia</div>
         </div>
       </div>
@@ -736,7 +737,7 @@
         <div class="icon bad">⚠</div>
         <div class="meta">
           <div class="label">Em atraso</div>
-          <div class="value" id="kpiOverdue">R$ 777</div>
+          <div class="value" id="kpiOverdue">R$ 0,00</div>
           <div class="hint">cobranças pendentes</div>
         </div>
       </div>
@@ -745,7 +746,7 @@
         <div class="icon good">✅</div>
         <div class="meta">
           <div class="label">Recebido no mês</div>
-          <div class="value" id="kpiPaidMonth">R$ 1.200</div>
+          <div class="value" id="kpiPaidMonth">R$ 0,00</div>
           <div class="hint">saúde do caixa</div>
         </div>
       </div>
@@ -768,38 +769,10 @@
 
         <div class="list" id="todayList">
           <div class="item">
-            <div class="time">09:00</div>
-            <div class="content">
-              <p class="title">Aula • Lucia Frances</p>
-              <p class="sub">
-                <span class="badge good">Confirmado</span>
-                <span>📍 Online</span>
-                <span>📘 Conversação</span>
-              </p>
-            </div>
-          </div>
-
-          <div class="item">
-            <div class="time">14:00</div>
-            <div class="content">
-              <p class="title">Aula • João Pedro</p>
-              <p class="sub">
-                <span class="badge warn">Pendente</span>
-                <span>📍 Presencial</span>
-                <span>🧠 Revisão</span>
-              </p>
-            </div>
-          </div>
-
-          <div class="item">
             <div class="time">—</div>
             <div class="content">
-              <p class="title">Cobrança • Luana Piovani</p>
-              <p class="sub">
-                <span class="badge warn">Vence hoje</span>
-                <span>💳 R$ 777</span>
-                <span>📲 WhatsApp</span>
-              </p>
+              <p class="title">Carregando...</p>
+              <p class="sub">Aguarde enquanto buscamos os dados.</p>
             </div>
           </div>
         </div>
@@ -1108,12 +1081,14 @@
         if (kpiOverdue) kpiOverdue.textContent = formatBRL(kpis.overdue_amount || 0);
         if (kpiPaidMonth) kpiPaidMonth.textContent = formatBRL(kpis.paid_month_amount || 0);
 
-        // Atualizar sidebar card
+        // Atualizar sidebar card (baseado no calendário)
         const sidebarConfirmed = document.getElementById("sidebarConfirmed");
         const sidebarPending = document.getElementById("sidebarPending");
+        const sidebarRealized = document.getElementById("sidebarRealized");
         const sidebarStudents = document.getElementById("sidebarStudents");
-        if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.today_classes || 0;
-        if (sidebarPending) sidebarPending.textContent = kpis.today_pending || 0;
+        if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.calendar_confirmed || 0;
+          if (sidebarPending) sidebarPending.textContent = kpis.calendar_pending_month || 0;
+        if (sidebarRealized) sidebarRealized.textContent = kpis.calendar_realized || 0;
         if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
 
         // Lista "Hoje"

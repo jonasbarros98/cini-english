@@ -297,6 +297,8 @@ async function loadLessonsForCurrentMonth() {
       realized: lesson.realized || false,
     });
   });
+  // Atualizar sidebar após carregar aulas
+  updateSidebarStats();
 }
 
 function toDateKey(d) {
@@ -339,6 +341,8 @@ async function loadLessonsForWeek(weekStart) {
       realized: lesson.realized || false,
     });
   });
+  // Atualizar sidebar após carregar aulas
+  updateSidebarStats();
 }
 
 async function loadFinancesForCurrentMonth() {
@@ -399,7 +403,7 @@ async function loadInitialData() {
     loadFinancialEntries()
   ]);
   // Atualizar sidebar após carregar dados iniciais
-  await updateSidebarStats();
+  updateSidebarStats();
 }
 
 
@@ -432,29 +436,75 @@ function renderStats() {
 }
 
 // ==========================
-// Atualizar Visão Rápida (Sidebar)
+// Atualizar Visão Rápida (Sidebar) - Baseado no Calendário
 // ==========================
 
-async function updateSidebarStats() {
-  try {
-    const response = await fetch('/api/dashboard/summary/', {
-      credentials: 'same-origin',
+function updateSidebarStats() {
+  // Contar do calendário (state.notes)
+  let confirmed = 0;
+  let pending = 0;
+  let realized = 0;
+  
+  // Data atual para filtrar pendências do mês
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  // Iterar sobre todas as datas e suas notas
+  Object.keys(state.notes).forEach((dateKey) => {
+    // Verificar se a data está no mês atual
+    const [year, month, day] = dateKey.split('-').map(Number);
+    const isCurrentMonth = year === currentYear && (month - 1) === currentMonth;
+    
+    const noteList = state.notes[dateKey];
+    noteList.forEach((note) => {
+      const isRealized = note.realized === true || note.realized === "true";
+      
+      // Aulas confirmadas: status === "confirmed" e não realizadas
+      if (note.status === "confirmed" && !isRealized) {
+        confirmed += 1;
+      }
+      // Pendências: status === "pending" e não realizadas, do mês atual
+      if (note.status === "pending" && !isRealized && isCurrentMonth) {
+        pending += 1;
+      }
+      // Realizadas: realized === true
+      if (isRealized) {
+        realized += 1;
+      }
     });
-    if (!response.ok) return;
-    
-    const data = await response.json();
-    const kpis = data.kpis || {};
-    
-    const sidebarConfirmed = document.getElementById('sidebarConfirmed');
-    const sidebarPending = document.getElementById('sidebarPending');
-    const sidebarStudents = document.getElementById('sidebarStudents');
-    
-    if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.today_classes || 0;
-    if (sidebarPending) sidebarPending.textContent = kpis.today_pending || 0;
-    if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
-  } catch (error) {
-    console.error('Erro ao atualizar visão rápida:', error);
-  }
+  });
+  
+  // Atualizar elementos da sidebar
+  const sidebarConfirmed = document.getElementById('sidebarConfirmed');
+  const sidebarPending = document.getElementById('sidebarPending');
+  const sidebarStudents = document.getElementById('sidebarStudents');
+  const sidebarRealized = document.getElementById('sidebarRealized');
+  
+  if (sidebarConfirmed) sidebarConfirmed.textContent = confirmed;
+  if (sidebarPending) sidebarPending.textContent = pending;
+  if (sidebarRealized) sidebarRealized.textContent = realized;
+  
+  // Buscar alunos ativos do dashboard (mantém como está)
+  fetch('/api/dashboard/summary/', {
+    credentials: 'same-origin',
+  })
+    .then(response => {
+      if (!response.ok) return;
+      return response.json();
+    })
+    .then(data => {
+      if (data && data.kpis) {
+        if (sidebarStudents) sidebarStudents.textContent = data.kpis.active_students || 0;
+        // Atualizar também com dados do calendário do backend (para sincronização)
+        if (sidebarConfirmed) sidebarConfirmed.textContent = data.kpis.calendar_confirmed || confirmed;
+        if (sidebarPending) sidebarPending.textContent = data.kpis.calendar_pending_month || pending;
+        if (sidebarRealized) sidebarRealized.textContent = data.kpis.calendar_realized || realized;
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao buscar alunos ativos:', error);
+    });
 }
 
 
@@ -962,6 +1012,7 @@ async function deleteLesson(note, dateKey) {
     renderStats();
     renderCalendar();
     renderDayDetails();
+    updateSidebarStats(); // Atualizar sidebar após deletar aula
   } catch (error) {
     console.error(error);
     alert("Não foi possível excluir a aula.");
@@ -995,6 +1046,7 @@ async function toggleLessonRealized(note) {
     renderStats();
     renderCalendar();
     renderDayDetails();
+    updateSidebarStats(); // Atualizar sidebar após marcar como realizado
     
     // Log para debug (pode remover em produção)
     console.log(`Aula ${note.id} marcada como ${newRealized ? 'realizada' : 'não realizada'} - Salvo no banco de dados`);
@@ -1019,6 +1071,7 @@ async function updateLessonStatus(note, newStatus) {
     renderStats();
     renderCalendar();
     renderDayDetails();
+    updateSidebarStats(); // Atualizar sidebar após mudar status
   } catch (error) {
     console.error(error);
     alert("Não foi possível atualizar o status da aula.");
@@ -2832,7 +2885,7 @@ async function showView(viewId) {
   }
 
   // Sempre atualizar sidebar ao mudar de view
-  await updateSidebarStats();
+  updateSidebarStats();
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -2966,6 +3019,7 @@ function attachForms() {
       renderStats();
       renderCalendar();
       renderDayDetails();
+      updateSidebarStats(); // Atualizar sidebar após criar/editar aula
     } catch (error) {
       console.error(error);
       alert("Não foi possível salvar a aula.");
@@ -3880,7 +3934,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setTimeout(initContaGroupCollapse, 100);
 
   // Atualizar sidebar ao carregar a página
-  await updateSidebarStats();
+  updateSidebarStats();
 
   // Se for admin, inicializa UI de usuários
   if (state.currentUser && state.currentUser.is_admin) {

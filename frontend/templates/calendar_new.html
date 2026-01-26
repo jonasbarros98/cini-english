@@ -892,10 +892,11 @@
         </div>
       </nav>
       <div class="sidebar-card">
-        <p class="sidebar-title">Visão rápida</p>
+        <p class="sidebar-title">Visão rápida (mês)</p>
         <ul class="sidebar-highlights">
           <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
           <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarRealized">0</strong> realizadas</li>
           <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
         </ul>
         <a href="/dashboard/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Dashboard</a>
@@ -2394,10 +2395,12 @@
           
           const sidebarConfirmed = document.getElementById('sidebarConfirmed');
           const sidebarPending = document.getElementById('sidebarPending');
+          const sidebarRealized = document.getElementById('sidebarRealized');
           const sidebarStudents = document.getElementById('sidebarStudents');
           
-          if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.today_classes || 0;
-          if (sidebarPending) sidebarPending.textContent = kpis.today_pending || 0;
+          if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.calendar_confirmed || 0;
+          if (sidebarPending) sidebarPending.textContent = kpis.calendar_pending_month || 0;
+          if (sidebarRealized) sidebarRealized.textContent = kpis.calendar_realized || 0;
           if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
         } catch (error) {
           console.error('Erro ao atualizar visão rápida:', error);
