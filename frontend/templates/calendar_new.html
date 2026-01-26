@@ -837,26 +837,69 @@
           <span class="nav-emoji">💵</span>
           <div>
             <p class="nav-title">Financeiro</p>
-            <p class="nav-subtitle">Controle financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
           </div>
         </a>
+        
+        <div class="nav-divider"></div>
+        
         <a href="/?view=view-billing" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
             <p class="nav-title">Cobrança</p>
-            <p class="nav-subtitle">Enviar cobranças</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
-        <a href="/perfil/" class="nav-item">
-          <span class="nav-emoji">👤</span>
-          <div>
-            <p class="nav-title">Perfil</p>
-            <p class="nav-subtitle">Configurações</p>
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+            <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+              <span class="nav-emoji">👥</span>
+              <div>
+                <p class="nav-title">Usuários</p>
+                <p class="nav-subtitle">Gerenciar usuários</p>
+              </div>
+            </a>
+            <a href="/perfil/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">👤</span>
+              <div>
+                <p class="nav-title">Perfil</p>
+                <p class="nav-subtitle">Dados da conta</p>
+              </div>
+            </a>
+            <a href="/planos/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">💳</span>
+              <div>
+                <p class="nav-title">Plano e Faturamento</p>
+                <p class="nav-subtitle">Gerenciar assinatura</p>
+              </div>
+            </a>
+            <a href="/tutorial/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">🎬</span>
+              <div>
+                <p class="nav-title">Tutorial</p>
+                <p class="nav-subtitle">Vídeos rápidos</p>
+              </div>
+            </a>
           </div>
-        </a>
+        </div>
       </nav>
-      <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);">
-        <button class="primary ghost" id="logoutBtn" style="width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <a href="/dashboard/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Dashboard</a>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
       </div>
     </aside>
     
@@ -2294,6 +2337,75 @@
           }
         });
       }
+
+      // ====== Colapso do grupo Conta ======
+      function initContaGroupCollapse() {
+        const STORAGE_KEY = "educaflowone_sidebar_conta_expanded";
+        const group = document.getElementById("navGroupConta");
+        const btn = document.getElementById("navGroupContaBtn");
+        if (!group || !btn) {
+          console.warn("initContaGroupCollapse: elementos não encontrados");
+          return;
+        }
+
+        function setExpanded(expanded) {
+          if (expanded) {
+            group.classList.remove("nav-group--collapsed");
+            group.classList.add("nav-group--expanded");
+            btn.setAttribute("aria-expanded", "true");
+            try { localStorage.setItem(STORAGE_KEY, "1"); } catch (_) {}
+          } else {
+            group.classList.add("nav-group--collapsed");
+            group.classList.remove("nav-group--expanded");
+            btn.setAttribute("aria-expanded", "false");
+            try { localStorage.setItem(STORAGE_KEY, "0"); } catch (_) {}
+          }
+        }
+
+        // Restaurar estado salvo
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved === "1") {
+            setExpanded(true);
+          }
+        } catch (_) {}
+
+        // Toggle ao clicar
+        btn.addEventListener("click", () => {
+          const isExpanded = group.classList.contains("nav-group--expanded");
+          setExpanded(!isExpanded);
+        });
+      }
+
+      // Inicializar colapso do grupo Conta
+      setTimeout(initContaGroupCollapse, 100);
+
+      // ====== Atualizar Visão Rápida ======
+      async function updateSidebarStats() {
+        try {
+          // Buscar dados do dashboard summary
+          const response = await fetch('/api/dashboard/summary/', {
+            credentials: 'same-origin',
+          });
+          if (!response.ok) return;
+          
+          const data = await response.json();
+          const kpis = data.kpis || {};
+          
+          const sidebarConfirmed = document.getElementById('sidebarConfirmed');
+          const sidebarPending = document.getElementById('sidebarPending');
+          const sidebarStudents = document.getElementById('sidebarStudents');
+          
+          if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.today_classes || 0;
+          if (sidebarPending) sidebarPending.textContent = kpis.today_pending || 0;
+          if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
+        } catch (error) {
+          console.error('Erro ao atualizar visão rápida:', error);
+        }
+      }
+
+      // Atualizar visão rápida ao carregar
+      updateSidebarStats();
     })();
   </script>
 </body>

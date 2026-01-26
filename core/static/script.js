@@ -398,6 +398,8 @@ async function loadInitialData() {
     loadFinancesForCurrentMonth(),
     loadFinancialEntries()
   ]);
+  // Atualizar sidebar após carregar dados iniciais
+  await updateSidebarStats();
 }
 
 
@@ -425,9 +427,34 @@ function renderStats() {
   document.getElementById("statCanceled").textContent = canceled;
   document.getElementById("statStudents").textContent = studentsCount;
 
-  document.getElementById("sidebarConfirmed").textContent = confirmed;
-  document.getElementById("sidebarPending").textContent = pending;
-  document.getElementById("sidebarStudents").textContent = studentsCount;
+  // NÃO atualizar sidebar aqui - usar updateSidebarStats() que busca de /api/dashboard/summary/
+  // A sidebar deve sempre mostrar os dados do dashboard, não do mês atual do calendário
+}
+
+// ==========================
+// Atualizar Visão Rápida (Sidebar)
+// ==========================
+
+async function updateSidebarStats() {
+  try {
+    const response = await fetch('/api/dashboard/summary/', {
+      credentials: 'same-origin',
+    });
+    if (!response.ok) return;
+    
+    const data = await response.json();
+    const kpis = data.kpis || {};
+    
+    const sidebarConfirmed = document.getElementById('sidebarConfirmed');
+    const sidebarPending = document.getElementById('sidebarPending');
+    const sidebarStudents = document.getElementById('sidebarStudents');
+    
+    if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.today_classes || 0;
+    if (sidebarPending) sidebarPending.textContent = kpis.today_pending || 0;
+    if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
+  } catch (error) {
+    console.error('Erro ao atualizar visão rápida:', error);
+  }
 }
 
 
@@ -2804,6 +2831,9 @@ async function showView(viewId) {
     });
   }
 
+  // Sempre atualizar sidebar ao mudar de view
+  await updateSidebarStats();
+
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -3848,6 +3878,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Colapso do grupo Conta na sidebar (com pequeno delay para garantir DOM)
   setTimeout(initContaGroupCollapse, 100);
+
+  // Atualizar sidebar ao carregar a página
+  await updateSidebarStats();
 
   // Se for admin, inicializa UI de usuários
   if (state.currentUser && state.currentUser.is_admin) {

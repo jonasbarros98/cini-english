@@ -779,6 +779,32 @@
       
       // Inicializar colapso do grupo Conta (com pequeno delay para garantir DOM)
       setTimeout(initContaGroupCollapse, 100);
+
+      // ====== Atualizar Visão Rápida ======
+      async function updateSidebarStats() {
+        try {
+          const response = await fetch('/api/dashboard/summary/', {
+            credentials: 'same-origin',
+          });
+          if (!response.ok) return;
+          
+          const data = await response.json();
+          const kpis = data.kpis || {};
+          
+          const sidebarConfirmed = document.getElementById('sidebarConfirmed');
+          const sidebarPending = document.getElementById('sidebarPending');
+          const sidebarStudents = document.getElementById('sidebarStudents');
+          
+          if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.today_classes || 0;
+          if (sidebarPending) sidebarPending.textContent = kpis.today_pending || 0;
+          if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
+        } catch (error) {
+          console.error('Erro ao atualizar visão rápida:', error);
+        }
+      }
+
+      // Atualizar visão rápida ao carregar
+      updateSidebarStats();
     });
   </script>
 </body>
