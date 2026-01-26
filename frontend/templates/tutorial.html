@@ -91,7 +91,7 @@
     }
   </style>
 </head>
-<body>
+<body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -328,5 +328,6 @@
     });
   })();
   </script>
+  {% include '_support_widget.html' %}
 </body>
 </html>

@@ -647,3 +647,117 @@ class StripeEvent(models.Model):
     
     def __str__(self):
         return f"{self.event_type} - {self.event_id} - {'Processado' if self.processed else 'Pendente'}"
+
+
+class SupportTicket(models.Model):
+    """Tickets de suporte enviados pelos usuários"""
+    
+    CATEGORY_BUG = "bug"
+    CATEGORY_UX = "ux"
+    CATEGORY_PAYMENT = "payment"
+    CATEGORY_FEATURE = "feature"
+    CATEGORY_OTHER = "other"
+    
+    CATEGORY_CHOICES = [
+        (CATEGORY_BUG, "Bug / Erro"),
+        (CATEGORY_UX, "UX / Layout"),
+        (CATEGORY_PAYMENT, "Pagamento / Assinatura"),
+        (CATEGORY_FEATURE, "Sugestão"),
+        (CATEGORY_OTHER, "Outro"),
+    ]
+    
+    IMPACT_LOW = "low"
+    IMPACT_MEDIUM = "medium"
+    IMPACT_HIGH = "high"
+    
+    IMPACT_CHOICES = [
+        (IMPACT_LOW, "Baixo (incômodo)"),
+        (IMPACT_MEDIUM, "Médio (atrapalha)"),
+        (IMPACT_HIGH, "Alto (bloqueia uso)"),
+    ]
+    
+    ticket_id = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text="ID único do ticket (gerado automaticamente)"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="support_tickets",
+        help_text="Usuário que criou o ticket"
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        help_text="Categoria do problema"
+    )
+    impact = models.CharField(
+        max_length=20,
+        choices=IMPACT_CHOICES,
+        help_text="Impacto do problema"
+    )
+    title = models.CharField(
+        max_length=80,
+        help_text="Título curto do problema"
+    )
+    description = models.TextField(
+        max_length=2000,
+        help_text="Descrição detalhada do problema"
+    )
+    
+    # Contexto da página
+    page = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Página onde o problema foi reportado"
+    )
+    query = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Query string da URL"
+    )
+    url = models.URLField(
+        max_length=500,
+        blank=True,
+        help_text="URL completa onde o problema foi reportado"
+    )
+    
+    # Timestamps
+    created_at_local = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Timestamp local do cliente (string)"
+    )
+    timezone = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Timezone do cliente"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp do servidor (timezone aware)"
+    )
+    
+    # Status do email
+    email_sent = models.BooleanField(
+        default=False,
+        help_text="Se o email foi enviado com sucesso"
+    )
+    email_error = models.TextField(
+        blank=True,
+        help_text="Erro ao enviar email (se houver)"
+    )
+    
+    class Meta:
+        verbose_name = "Ticket de Suporte"
+        verbose_name_plural = "Tickets de Suporte"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["ticket_id"]),
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["category", "impact"]),
+        ]
+    
+    def __str__(self):
+        return f"#{self.ticket_id} - {self.title} - {self.user.username}"

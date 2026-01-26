@@ -16,11 +16,14 @@ from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse, HttpResponse
 from django.views.generic import TemplateView
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 import stripe
 import json
 import os
+import uuid
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
-from .models import Student, Lesson, Task, Subscription, StripeEvent, DayNote
+from .models import Student, Lesson, Task, Subscription, StripeEvent, DayNote, SupportTicket
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
 
@@ -2917,3 +2920,185 @@ class CalendarNewView(TemplateView):
             from django.shortcuts import redirect
             return redirect("login")
         return super().dispatch(request, *args, **kwargs)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def support_ticket_create(request):
+    """
+    POST /api/support/tickets/
+    Cria um ticket de suporte e envia email para o suporte.
+    Body JSON: {category, impact, title, description, page, query, url, created_at_local, timezone, user: {id, name, email}}
+    """
+    try:
+        # Validações
+        category = request.data.get('category', '').strip()
+        impact = request.data.get('impact', '').strip()
+        title = request.data.get('title', '').strip()
+        description = request.data.get('description', '').strip()
+        
+        # Allowlists
+        ALLOWED_CATEGORIES = ['bug', 'ux', 'payment', 'feature', 'other']
+        ALLOWED_IMPACTS = ['low', 'medium', 'high']
+        
+        # Validações de tamanho e valores permitidos
+        if not title or len(title) > 80:
+            return Response(
+                {'error': 'Título é obrigatório e deve ter no máximo 80 caracteres'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not description or len(description) > 2000:
+            return Response(
+                {'error': 'Descrição é obrigatória e deve ter no máximo 2000 caracteres'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if category not in ALLOWED_CATEGORIES:
+            return Response(
+                {'error': f'Categoria inválida. Permitidas: {", ".join(ALLOWED_CATEGORIES)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if impact not in ALLOWED_IMPACTS:
+            return Response(
+                {'error': f'Impacto inválido. Permitidos: {", ".join(ALLOWED_IMPACTS)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Dados do usuário (usar dados do request.user, não confiar no payload)
+        user = request.user
+        user_data = {
+            'id': user.id,
+            'name': user.get_full_name() or user.username,
+            'email': user.email or '',
+        }
+        
+        # Dados do contexto
+        page = request.data.get('page', '')
+        query = request.data.get('query', '')
+        url = request.data.get('url', '')
+        created_at_local = request.data.get('created_at_local', '')
+        timezone_str = request.data.get('timezone', '')
+        
+        # Gerar ticket_id (UUID curto)
+        ticket_id = str(uuid.uuid4())[:8].upper()
+        
+        # Timestamp server-side (timezone aware)
+        server_timestamp = timezone.now()
+        
+        # Salvar ticket no banco de dados
+        ticket = SupportTicket.objects.create(
+            ticket_id=ticket_id,
+            user=user,
+            category=category,
+            impact=impact,
+            title=title,
+            description=description,
+            page=page,
+            query=query,
+            url=url,
+            created_at_local=created_at_local,
+            timezone=timezone_str,
+            email_sent=False,
+        )
+        
+        # Enviar email
+        support_email = getattr(settings, 'SUPPORT_EMAIL', 'jonasbarros98@gmail.com')
+        
+        # Mapear categorias e impactos para labels
+        category_labels = {
+            'bug': 'Bug / Erro',
+            'ux': 'UX / Layout',
+            'payment': 'Pagamento / Assinatura',
+            'feature': 'Sugestão',
+            'other': 'Outro'
+        }
+        impact_labels = {
+            'low': 'Baixo (incômodo)',
+            'medium': 'Médio (atrapalha)',
+            'high': 'Alto (bloqueia uso)'
+        }
+        
+        subject = f'[Ticket #{ticket_id}] {title}'
+        
+        message = f"""
+Novo ticket de suporte recebido:
+
+Ticket ID: {ticket_id}
+Data/Hora (servidor): {server_timestamp.strftime('%Y-%m-%d %H:%M:%S %Z')}
+Data/Hora (cliente): {created_at_local} (Timezone: {timezone_str})
+
+Usuário:
+- ID: {user_data['id']}
+- Nome: {user_data['name']}
+- Email: {user_data['email']}
+
+Contexto:
+- Página: {page}
+- Query: {query}
+- URL completa: {url}
+
+Categoria: {category_labels.get(category, category)}
+Impacto: {impact_labels.get(impact, impact)}
+
+Título: {title}
+
+Descrição:
+{description}
+
+---
+Este é um email automático do sistema EDUCAflowOne.
+"""
+        
+        # Tentar enviar email (não falha o endpoint se der erro)
+        email_sent = False
+        email_error_msg = ""
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[support_email],
+                fail_silently=False,
+            )
+            email_sent = True
+            # Atualizar ticket com sucesso do email
+            ticket.email_sent = True
+            ticket.save(update_fields=['email_sent', 'email_error'])
+        except Exception as email_error:
+            # Log do erro mas não falha o endpoint
+            import traceback
+            error_msg = str(email_error)
+            email_error_msg = error_msg
+            print(f"\n{'='*60}")
+            print(f"⚠️  ERRO AO ENVIAR EMAIL DE SUPORTE")
+            print(f"{'='*60}")
+            print(f"Ticket ID: {ticket_id}")
+            print(f"Erro: {error_msg}")
+            print(f"\nPara configurar envio de email via Gmail:")
+            print(f"1. Ative 'Verificação em 2 etapas' na sua conta Google")
+            print(f"2. Gere uma 'Senha de app' em: https://myaccount.google.com/apppasswords")
+            print(f"3. Configure no .env ou variáveis de ambiente:")
+            print(f"   EMAIL_HOST_USER=seu-email@gmail.com")
+            print(f"   EMAIL_HOST_PASSWORD=sua-senha-de-app-gerada")
+            print(f"   EMAIL_HOST=smtp.gmail.com (padrão)")
+            print(f"   EMAIL_PORT=587 (padrão)")
+            print(f"   EMAIL_USE_TLS=True (padrão)")
+            print(f"\nEm desenvolvimento, o email será exibido no console.")
+            print(f"{'='*60}\n")
+            # Atualizar ticket com erro do email
+            ticket.email_sent = False
+            ticket.email_error = email_error_msg[:500]  # Limitar tamanho
+            ticket.save(update_fields=['email_sent', 'email_error'])
+            # Continuar mesmo se o email falhar - o ticket foi criado
+        
+        return Response({
+            'ticket_id': ticket_id
+        }, status=status.HTTP_201_CREATED)
+    
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao criar ticket: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

@@ -1,0 +1,556 @@
+<!--
+WIDGET: "Encontrou um problema? Reporte agora" (floating help bubble)
+- Single-file HTML/CSS/JS
+- Frontend only (mock submit). Integração via POST /api/support/tickets/ (você ajusta no Django)
+- Pega userId/userName/userEmail do <body data-...> ou window.CINI_USER (fallback)
+- Não quebra DOM (init em DOMContentLoaded + checagens)
+-->
+
+<style>
+  :root{
+    --sb-bg: rgba(255,255,255,.92);
+    --sb-border: rgba(15,23,42,.12);
+    --sb-text: #0f172a;
+    --sb-muted: #64748b;
+    --sb-primary: #2563eb;
+    --sb-primary2: #3b82f6;
+    --sb-danger: #ef4444;
+    --sb-shadow: 0 18px 48px rgba(2,6,23,.16);
+    --sb-soft: 0 12px 26px rgba(2,6,23,.08);
+    --sb-radius: 18px;
+    --sb-font: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  }
+
+  /* Floating button */
+  .support-fab{
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 99999;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    user-select:none;
+    font-family: var(--sb-font);
+  }
+
+  .support-pill{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding: 10px 12px;
+    border-radius: 999px;
+    background: rgba(15,23,42,.82);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: var(--sb-shadow);
+    cursor:pointer;
+    transition: .15s ease;
+    max-width: 280px;
+  }
+  .support-pill:hover{ transform: translateY(-1px); }
+  .support-pill:active{ transform: translateY(0px); }
+
+  .support-dot{
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 30% 30%, #fff, rgba(255,255,255,.35));
+    box-shadow: 0 0 0 6px rgba(37,99,235,.25);
+    animation: supportPulse 2.2s ease-in-out infinite;
+    flex: 0 0 auto;
+  }
+  @keyframes supportPulse{
+    0%,100%{ box-shadow: 0 0 0 6px rgba(37,99,235,.20); }
+    50%{ box-shadow: 0 0 0 10px rgba(37,99,235,.08); }
+  }
+
+  .support-text{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    line-height:1.15;
+    min-width:0;
+  }
+  .support-text b{
+    font-size: 12.5px;
+    letter-spacing: -.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .support-text span{
+    font-size: 11px;
+    color: rgba(255,255,255,.75);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .support-icon{
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display:grid;
+    place-items:center;
+    background: linear-gradient(135deg, rgba(37,99,235,.95), rgba(59,130,246,.90));
+    box-shadow: 0 12px 24px rgba(37,99,235,.26);
+    flex:0 0 auto;
+  }
+  .support-icon svg{ width:18px; height:18px; fill:none; stroke:#fff; stroke-width:2; }
+
+  /* Panel */
+  .support-panel{
+    position: fixed;
+    right: 18px;
+    bottom: 72px;
+    width: min(420px, calc(100vw - 36px));
+    background: var(--sb-bg);
+    border: 1px solid var(--sb-border);
+    border-radius: var(--sb-radius);
+    box-shadow: var(--sb-shadow);
+    z-index: 99999;
+    overflow: hidden;
+
+    transform: translateY(10px) scale(.98);
+    opacity: 0;
+    pointer-events: none;
+    transition: .16s ease;
+    font-family: var(--sb-font);
+  }
+  .support-panel.open{
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .support-head{
+    padding: 12px 12px 10px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    border-bottom: 1px solid rgba(15,23,42,.07);
+    background:
+      radial-gradient(700px 220px at 15% 0%, rgba(37,99,235,.10), transparent 60%),
+      rgba(255,255,255,.92);
+  }
+  .support-head h3{
+    margin:0;
+    font-size: 13px;
+    font-weight: 900;
+    color: var(--sb-text);
+    letter-spacing:-.01em;
+  }
+  .support-head p{
+    margin:4px 0 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--sb-muted);
+    line-height:1.35;
+  }
+  .support-x{
+    border:1px solid rgba(15,23,42,.10);
+    background: rgba(255,255,255,.92);
+    width: 34px; height: 34px;
+    border-radius: 12px;
+    cursor:pointer;
+    display:grid; place-items:center;
+    transition: .15s ease;
+    box-shadow: var(--sb-soft);
+  }
+  .support-x:hover{ transform: translateY(-1px); }
+  .support-x svg{ width:18px;height:18px; stroke: rgba(15,23,42,.75); stroke-width:2; fill:none; }
+
+  .support-body{ padding: 12px; display:grid; gap:10px; }
+
+  .support-row{ display:grid; gap:6px; }
+  .support-row label{
+    font-size: 11px;
+    font-weight: 900;
+    color: rgba(15,23,42,.78);
+    letter-spacing:.02em;
+  }
+  .support-row input,
+  .support-row select,
+  .support-row textarea{
+    width:100%;
+    border: 1px solid rgba(15,23,42,.12);
+    background: rgba(255,255,255,.92);
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-weight: 700;
+    color: var(--sb-text);
+    outline: none;
+    box-shadow: 0 10px 22px rgba(2,6,23,.05);
+    font-family: var(--sb-font);
+  }
+  .support-row textarea{ min-height: 96px; resize: vertical; }
+  .support-row input:focus,
+  .support-row select:focus,
+  .support-row textarea:focus{
+    border-color: rgba(37,99,235,.28);
+    box-shadow: 0 16px 34px rgba(37,99,235,.10);
+  }
+
+  .support-meta{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    margin-top: 2px;
+  }
+  .support-hint{
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--sb-muted);
+  }
+  .support-badge{
+    font-size: 10.5px;
+    font-weight: 900;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.10);
+    background: rgba(2,6,23,.02);
+    color: rgba(15,23,42,.72);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .support-actions{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:flex-end;
+    padding: 12px;
+    border-top: 1px solid rgba(15,23,42,.07);
+    background: rgba(255,255,255,.86);
+  }
+  .support-btn{
+    border:1px solid rgba(15,23,42,.12);
+    background: rgba(255,255,255,.92);
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-weight: 900;
+    cursor:pointer;
+    transition:.15s ease;
+    font-family: var(--sb-font);
+  }
+  .support-btn:hover{ transform: translateY(-1px); box-shadow: var(--sb-soft); }
+  .support-btn.primary{
+    border: none;
+    color:#fff;
+    background: linear-gradient(135deg, var(--sb-primary), var(--sb-primary2));
+    box-shadow: 0 14px 30px rgba(37,99,235,.20);
+  }
+  .support-btn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+    transform:none;
+    box-shadow:none;
+  }
+
+  .support-success{
+    padding: 12px;
+    border-top: 1px solid rgba(15,23,42,.07);
+    background: rgba(22,163,74,.06);
+    color: rgba(22,163,74,.95);
+    font-size: 12px;
+    font-weight: 900;
+    display:none;
+  }
+  .support-success.show{ display:block; }
+
+  /* Backdrop (click to close) */
+  .support-backdrop{
+    position: fixed;
+    inset: 0;
+    z-index: 99998;
+    background: rgba(2,6,23,.15);
+    backdrop-filter: blur(3px);
+    opacity:0;
+    pointer-events:none;
+    transition:.16s ease;
+  }
+  .support-backdrop.open{
+    opacity:1;
+    pointer-events:auto;
+  }
+
+  /* Mobile: hide pill text, keep icon */
+  @media (max-width: 520px){
+    .support-text{ display:none; }
+    .support-pill{ padding: 10px; }
+  }
+</style>
+
+<div class="support-backdrop" id="supportBackdrop" aria-hidden="true"></div>
+
+<div class="support-fab" id="supportFab" aria-live="polite">
+  <div class="support-pill" id="supportOpen" role="button" tabindex="0" aria-label="Abrir suporte">
+    <span class="support-dot" aria-hidden="true"></span>
+    <div class="support-text">
+      <b>Encontrou um problema?</b>
+      <span>Reporte agora</span>
+    </div>
+    <div class="support-icon" aria-hidden="true">
+      <!-- chat icon -->
+      <svg viewBox="0 0 24 24">
+        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="support-panel" id="supportPanel" role="dialog" aria-modal="true" aria-label="Reporte um problema">
+  <div class="support-head">
+    <div>
+      <h3>Reporte um problema</h3>
+      <p>Explique em poucas linhas. A gente recebe com seu usuário e a página atual.</p>
+    </div>
+    <button class="support-x" id="supportClose" type="button" aria-label="Fechar">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <form id="supportForm" autocomplete="off">
+    <div class="support-body">
+      <div class="support-row">
+        <label for="supportCategory">Tipo</label>
+        <select id="supportCategory" name="category" required>
+          <option value="bug" selected>Bug / erro</option>
+          <option value="ux">UX / layout</option>
+          <option value="payment">Pagamento / assinatura</option>
+          <option value="feature">Sugestão</option>
+          <option value="other">Outro</option>
+        </select>
+      </div>
+
+      <div class="support-row">
+        <label for="supportTitle">Título (curto)</label>
+        <input id="supportTitle" name="title" placeholder="Ex.: Calendário mostrou dia errado" maxlength="80" required />
+      </div>
+
+      <div class="support-row">
+        <label for="supportDesc">Descrição</label>
+        <textarea id="supportDesc" name="description" placeholder="O que aconteceu? O que você esperava? Passos rápidos para reproduzir…" required></textarea>
+      </div>
+
+      <div class="support-row">
+        <label for="supportImpact">Impacto</label>
+        <select id="supportImpact" name="impact" required>
+          <option value="low">Baixo (incômodo)</option>
+          <option value="medium" selected>Médio (atrapalha)</option>
+          <option value="high">Alto (bloqueia uso)</option>
+        </select>
+      </div>
+
+      <div class="support-meta">
+        <span class="support-hint">Anexo? Por enquanto não. (sem bagunça)</span>
+        <span class="support-badge" id="supportContextBadge">Página: —</span>
+      </div>
+      <div class="support-meta" style="margin-top:-6px;">
+        <span class="support-hint" id="supportUserHint">Usuário: —</span>
+        <span class="support-badge" id="supportTimeBadge">Agora: —</span>
+      </div>
+    </div>
+
+    <div class="support-actions">
+      <button class="support-btn" id="supportCancel" type="button">Cancelar</button>
+      <button class="support-btn primary" id="supportSubmit" type="submit">Enviar</button>
+    </div>
+
+    <div class="support-success" id="supportSuccess">
+      Solicitação enviada ✅ Já disparamos para a equipe técnica.
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  const $ = (s, r=document) => r.querySelector(s);
+
+  // ====== CONFIG ======
+  // Troque para seu endpoint real no Django
+  const SUPPORT_ENDPOINT = "/api/support/tickets/";
+  // Se quiser "silencioso", deixe true (não exibe alert), só o success.
+  const QUIET_MODE = true;
+
+  // ====== Helpers ======
+  function safe(fn){ try{ return fn(); } catch(e){ return null; } }
+  function nowLocalISO(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function getCSRFToken(){
+    // Django default cookie name: csrftoken
+    const m = document.cookie.match(/(^|;\s*)csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[2]) : "";
+  }
+  function getUserContext(){
+    // Prefer: <body data-user-id=".." data-user-name=".." data-user-email="..">
+    const b = document.body;
+    const fromBody = b ? {
+      id: b.getAttribute("data-user-id"),
+      name: b.getAttribute("data-user-name"),
+      email: b.getAttribute("data-user-email"),
+    } : {};
+
+    // Fallback: window.CINI_USER = {id,name,email}
+    const fromWindow = (window.CINI_USER && typeof window.CINI_USER === "object") ? window.CINI_USER : {};
+
+    return {
+      id: fromBody.id || fromWindow.id || null,
+      name: fromBody.name || fromWindow.name || "Usuário",
+      email: fromBody.email || fromWindow.email || null,
+    };
+  }
+
+  // ====== Elements ======
+  const openBtn = $("#supportOpen");
+  const closeBtn = $("#supportClose");
+  const cancelBtn = $("#supportCancel");
+  const backdrop = $("#supportBackdrop");
+  const panel = $("#supportPanel");
+  const form = $("#supportForm");
+  const submitBtn = $("#supportSubmit");
+  const success = $("#supportSuccess");
+
+  const ctxBadge = $("#supportContextBadge");
+  const timeBadge = $("#supportTimeBadge");
+  const userHint = $("#supportUserHint");
+
+  if(!openBtn || !panel || !form) return; // robust
+
+  // ====== Open/Close ======
+  function open(){
+    panel.classList.add("open");
+    backdrop?.classList.add("open");
+    success?.classList.remove("show");
+
+    // context
+    const user = getUserContext();
+    const page = safe(()=>location.pathname) || "/";
+    const qs = safe(()=>location.search) || "";
+    const href = page + qs;
+
+    if(ctxBadge) ctxBadge.textContent = `Página: ${href}`;
+    if(timeBadge) timeBadge.textContent = `Agora: ${nowLocalISO()}`;
+    if(userHint) userHint.textContent = `Usuário: ${user.name}${user.email ? " ("+user.email+")" : ""}`;
+
+    // foco no primeiro campo
+    setTimeout(()=> $("#supportCategory")?.focus(), 50);
+  }
+
+  function close(){
+    panel.classList.remove("open");
+    backdrop?.classList.remove("open");
+  }
+
+  openBtn.addEventListener("click", open);
+  openBtn.addEventListener("keydown", (e)=>{ if(e.key==="Enter" || e.key===" "){ e.preventDefault(); open(); } });
+  closeBtn?.addEventListener("click", close);
+  cancelBtn?.addEventListener("click", close);
+  backdrop?.addEventListener("click", close);
+  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") close(); });
+
+  // ====== Submit ======
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+
+    const category = $("#supportCategory")?.value || "bug";
+    const title = ($("#supportTitle")?.value || "").trim();
+    const description = ($("#supportDesc")?.value || "").trim();
+    const impact = $("#supportImpact")?.value || "medium";
+
+    if(!title || !description){
+      if(!QUIET_MODE) alert("Preencha Título e Descrição.");
+      $("#supportTitle")?.focus();
+      return;
+    }
+
+    const user = getUserContext();
+    const payload = {
+      category,
+      impact,
+      title,
+      description,
+      page: safe(()=>location.pathname) || "/",
+      query: safe(()=>location.search) || "",
+      url: safe(()=>location.href) || "",
+      created_at_local: nowLocalISO(),   // útil p/ log
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      }
+    };
+
+    // UI lock
+    if(submitBtn){
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Enviando…";
+    }
+
+    try{
+      const res = await fetch(SUPPORT_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken(),
+        },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+
+      if(!res.ok){
+        // fallback: tentar ler msg
+        let msg = "";
+        try{ msg = await res.text(); } catch(_){}
+        throw new Error(msg || ("HTTP " + res.status));
+      }
+
+      // opcional: se backend retornar {ticket_id:"..."}
+      let data = null;
+      try{ data = await res.json(); } catch(_){}
+
+      // Success UI
+      success?.classList.add("show");
+      if(data && data.ticket_id){
+        success.textContent = `Solicitação enviada ✅ Ticket: ${data.ticket_id}`;
+      } else {
+        success.textContent = "Solicitação enviada ✅ Já disparamos para a equipe técnica.";
+      }
+
+      // limpar form (mantém select)
+      $("#supportTitle").value = "";
+      $("#supportDesc").value = "";
+
+      // fecha sozinho depois de um tempo (bem "desfarçado")
+      setTimeout(()=>{ close(); }, 1600);
+
+    } catch(err){
+      console.error("Support ticket error:", err);
+      if(!QUIET_MODE) alert("Falha ao enviar. Tente novamente.");
+      // Se quiser, dá um feedback sutil:
+      if(success){
+        success.classList.add("show");
+        success.style.background = "rgba(239,68,68,.08)";
+        success.style.color = "rgba(185,28,28,.95)";
+        success.textContent = "Não conseguimos enviar agora. Tente novamente em instantes.";
+      }
+    } finally{
+      if(submitBtn){
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Enviar";
+      }
+    }
+  });
+})();
+</script>

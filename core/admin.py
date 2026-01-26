@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent, DayNote
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent, DayNote, SupportTicket
 
 
 @admin.register(Student)
@@ -101,3 +101,26 @@ class DayNoteAdmin(admin.ModelAdmin):
     def text_preview(self, obj):
         return obj.text[:50] + "..." if len(obj.text) > 50 else obj.text
     text_preview.short_description = "Texto"
+
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ("ticket_id", "user", "title", "category", "impact", "email_sent", "created_at")
+    list_filter = ("category", "impact", "email_sent", "created_at", "user")
+    search_fields = ("ticket_id", "title", "description", "user__username", "user__email", "page", "url")
+    readonly_fields = ("ticket_id", "created_at", "user", "created_at_local", "timezone")
+    fieldsets = (
+        ("Informações Básicas", {
+            "fields": ("ticket_id", "user", "created_at")
+        }),
+        ("Problema", {
+            "fields": ("category", "impact", "title", "description")
+        }),
+        ("Contexto", {
+            "fields": ("page", "query", "url", "created_at_local", "timezone")
+        }),
+        ("Email", {
+            "fields": ("email_sent", "email_error")
+        }),
+    )
+    date_hierarchy = "created_at"

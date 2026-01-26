@@ -15,6 +15,7 @@ from .views import (
     AlunosView, CalendarNewView,
     calendar_events, calendar_event_status, calendar_event_create, calendar_event_update,
     calendar_day_note, calendar_day_note_update,
+    support_ticket_create,
 )
 
 router = DefaultRouter()
@@ -65,4 +66,6 @@ urlpatterns = [
     path("api/calendar/events/<int:event_id>/", calendar_event_update, name="api-calendar-event-update"),
     path("api/calendar/day-note/", calendar_day_note, name="api-calendar-day-note"),
     path("api/calendar/day-note/update/", calendar_day_note_update, name="api-calendar-day-note-update"),
+    # Support ticket endpoint
+    path("api/support/tickets/", support_ticket_create, name="api-support-tickets"),
 ]

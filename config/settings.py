@@ -177,3 +177,24 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True
 
+# Email configuration
+# Se não houver credenciais configuradas, usa console backend (para desenvolvimento)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    # Produção: usar SMTP real
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@educaflowone.com')
+else:
+    # Desenvolvimento: usar console backend (imprime no terminal)
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@educaflowone.com')
+    print("⚠️  EMAIL: Usando console backend (desenvolvimento). Configure EMAIL_HOST_USER e EMAIL_HOST_PASSWORD para envio real.")
+
+# Support email
+SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'jonasbarros98@gmail.com')
+
