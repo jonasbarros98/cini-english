@@ -498,8 +498,8 @@
         <p>Lista à esquerda + cadastro rápido em modal. Menos rolagem. Mais controle.</p>
         <div class="tabs" role="tablist" aria-label="Visão">
           <button class="tab active" type="button">📋 Lista</button>
-          <button class="tab" type="button">📈 Insights (futuro)</button>
-          <button class="tab" type="button">⚙️ Preferências (futuro)</button>
+          <!-- <button class="tab" type="button">📈 Insights (futuro)</button> -->
+          <!-- <button class="tab" type="button">⚙️ Preferências (futuro)</button> -->
         </div>
       </div>
       <button class="btn-primary" type="button" id="btnNew">+ Novo aluno</button>
@@ -526,8 +526,8 @@
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
-        <div style="color:var(--muted);font-weight:900;font-size:12px;">
-          1 aluno(s) • clique em um aluno para editar
+        <div style="color:var(--muted);font-weight:900;font-size:12px;" id="studentCount">
+          Carregando...
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn ghost" type="button" id="btnSort">Ordenar</button>
@@ -1284,10 +1284,16 @@
       }
 
       function updateCount() {
-        const countEl = $('.filters + div [style*="color:var(--muted)"]');
+        const countEl = document.getElementById('studentCount');
         if (countEl) {
+          // Garantir que allStudents foi carregado
+          if (!allStudents || allStudents.length === 0) {
+            countEl.textContent = 'Carregando...';
+            return;
+          }
           const filtered = getFilteredStudents();
-          countEl.textContent = `${filtered.length} aluno(s) • clique em um aluno para editar`;
+          const count = filtered ? filtered.length : 0;
+          countEl.textContent = `${count} aluno(s) • clique em um aluno para editar`;
         }
       }
 
