@@ -3078,15 +3078,15 @@ Este é um email automático do sistema EDUCAflowOne.
         print(f"Host: {getattr(settings, 'EMAIL_HOST', 'N/A')}:{getattr(settings, 'EMAIL_PORT', 'N/A')}")
         print(f"{'='*60}\n")
         
+        # Tentar com fail_silently=False primeiro para capturar o erro real
+        # Se der timeout, capturamos a exceção e tratamos
         try:
-            # Usar fail_silently=True para evitar que timeout cause erro 500
-            # O email será enviado em background se possível, mas não bloqueia a resposta
             result = send_mail(
                 subject=subject,
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[support_email],
-                fail_silently=True,  # MUDANÇA: True para não causar erro 500 em caso de timeout
+                fail_silently=False,  # False para capturar o erro real
             )
             if result:
                 email_sent = True
@@ -3096,25 +3096,34 @@ Este é um email automático do sistema EDUCAflowOne.
                 print(f"✅ Email enviado com sucesso para {support_email} (Ticket #{ticket_id})")
                 print(f"   Verifique a caixa de entrada e spam do email: {support_email}\n")
             else:
-                # send_mail retornou False (falhou silenciosamente)
-                email_error_msg = "Email backend retornou False (possível timeout ou erro de conexão)"
+                # send_mail retornou False (não deveria acontecer com fail_silently=False)
+                email_error_msg = "Email backend retornou False (erro desconhecido)"
                 ticket.email_sent = False
                 ticket.email_error = email_error_msg[:500]
                 ticket.save(update_fields=['email_sent', 'email_error'])
                 print(f"⚠️  Email NÃO foi enviado (backend retornou False)")
-                print(f"   Ticket #{ticket_id} foi salvo no banco de dados.")
-                print(f"   Verifique a configuração de email no Railway.\n")
+                print(f"   Ticket #{ticket_id} foi salvo no banco de dados.\n")
         except Exception as email_error:
-            # Log do erro mas não falha o endpoint
+            # Capturar o erro real (timeout, autenticação, etc.)
             import traceback
             error_msg = str(email_error)
             email_error_msg = error_msg
             error_traceback = traceback.format_exc()
+            
+            # Verificar se é timeout
+            is_timeout = 'timeout' in error_msg.lower() or 'timed out' in error_msg.lower()
+            
+            ticket.email_sent = False
+            ticket.email_error = email_error_msg[:500]  # Limitar tamanho
+            ticket.save(update_fields=['email_sent', 'email_error'])
+            
             print(f"\n{'='*60}")
             print(f"⚠️  ERRO AO ENVIAR EMAIL DE SUPORTE")
             print(f"{'='*60}")
             print(f"Ticket ID: {ticket_id}")
             print(f"Erro: {error_msg}")
+            if is_timeout:
+                print(f"⚠️  TIMEOUT detectado - verifique conectividade SMTP no Railway")
             print(f"\nTraceback completo:")
             print(error_traceback)
             print(f"\nConfiguração atual:")
@@ -3122,18 +3131,15 @@ Este é um email automático do sistema EDUCAflowOne.
             print(f"  EMAIL_HOST: {getattr(settings, 'EMAIL_HOST', 'N/A')}")
             print(f"  EMAIL_PORT: {getattr(settings, 'EMAIL_PORT', 'N/A')}")
             print(f"  EMAIL_USE_TLS: {getattr(settings, 'EMAIL_USE_TLS', 'N/A')}")
+            print(f"  EMAIL_TIMEOUT: {getattr(settings, 'EMAIL_TIMEOUT', 'N/A')}")
             print(f"  EMAIL_HOST_USER: {getattr(settings, 'EMAIL_HOST_USER', 'N/A')}")
             print(f"  EMAIL_HOST_PASSWORD: {'***' if getattr(settings, 'EMAIL_HOST_PASSWORD', '') else 'N/A'}")
             print(f"  DEFAULT_FROM_EMAIL: {getattr(settings, 'DEFAULT_FROM_EMAIL', 'N/A')}")
             print(f"  SUPPORT_EMAIL: {support_email}")
             print(f"{'='*60}\n")
-            # Atualizar ticket com erro do email
-            ticket.email_sent = False
-            ticket.email_error = email_error_msg[:500]  # Limitar tamanho
-            ticket.save(update_fields=['email_sent', 'email_error'])
-            # Continuar mesmo se o email falhar - o ticket foi criado
             print(f"ℹ️  Ticket #{ticket_id} criado, mas email NÃO foi enviado.")
             print(f"   O ticket foi salvo no banco de dados e pode ser visualizado no Django Admin.")
+            # Não re-raise a exceção - continuar e retornar sucesso para o ticket
         
         # SEMPRE retornar sucesso, mesmo se o email falhar
         # O ticket foi criado com sucesso no banco
