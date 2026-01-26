@@ -632,10 +632,15 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
 # Autenticação
 # ==========================
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def login_view(request):
     """View para fazer login"""
+    # GET: apenas retorna sucesso para obter CSRF token
+    if request.method == 'GET':
+        return Response({'message': 'CSRF token disponível'}, status=status.HTTP_200_OK)
+    
+    # POST: processa login
     username = request.data.get('username')
     password = request.data.get('password')
     

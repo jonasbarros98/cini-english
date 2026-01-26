@@ -32,10 +32,44 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]  # por enquanto, depois afinamos
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://*.railway.app",
-    "https://cini-english-cini-english.up.railway.app/"
-]
+# CSRF_TRUSTED_ORIGINS - permite domínios específicos para CSRF
+# IMPORTANTE: Django não suporta wildcards (*), precisa ser domínio completo
+# No Railway, o domínio pode variar, então vamos usar variável de ambiente
+csrf_origins_str = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if csrf_origins_str:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_str.split(',') if origin.strip()]
+else:
+    # Domínios padrão (sem wildcards - Django não suporta)
+    CSRF_TRUSTED_ORIGINS = [
+        "https://cini-english-cini-english.up.railway.app",
+        "https://www.educaflowone.com.br",
+        "https://educaflowone.com.br",  # Sem www também
+    ]
+
+# Se estiver no Railway, adicionar o domínio atual automaticamente
+railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN') or os.environ.get('RAILWAY_STATIC_URL')
+if railway_domain:
+    # Remove protocolo se presente e adiciona https://
+    railway_domain = railway_domain.replace('https://', '').replace('http://', '')
+    railway_origin = f"https://{railway_domain}"
+    if railway_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(railway_origin)
+
+# Adicionar também o domínio customizado do Railway se configurado
+# O Railway pode ter múltiplos domínios, então adicionamos o customizado também
+custom_domain = os.environ.get('RAILWAY_CUSTOM_DOMAIN') or os.environ.get('CUSTOM_DOMAIN')
+if custom_domain:
+    # Remove protocolo se presente e adiciona https://
+    custom_domain = custom_domain.replace('https://', '').replace('http://', '')
+    custom_origin = f"https://{custom_domain}"
+    if custom_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(custom_origin)
+    # Adicionar também versão sem www se for www
+    if custom_domain.startswith('www.'):
+        domain_without_www = custom_domain.replace('www.', '')
+        origin_without_www = f"https://{domain_without_www}"
+        if origin_without_www not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(origin_without_www)
 
 # Application definition
 
@@ -58,9 +92,14 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
+
+# Configurações de CSRF
+CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'False').lower() == 'true'  # True em produção HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Permite acesso via JavaScript
+CSRF_COOKIE_SAMESITE = 'Lax'  # Compatível com requisições cross-site controladas
+CSRF_USE_SESSIONS = False  # Usa cookies (padrão)
 
 ROOT_URLCONF = 'config.urls'
 

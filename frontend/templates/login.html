@@ -201,7 +201,24 @@
         errorMessage.textContent = "";
 
         try {
-          const csrf = getCookie("csrftoken");
+          // Obter CSRF token do cookie
+          let csrf = getCookie("csrftoken");
+          
+          // Se não houver CSRF token, fazer uma requisição GET para obter um
+          if (!csrf) {
+            try {
+              // Fazer uma requisição GET para qualquer endpoint que retorne o CSRF token
+              await fetch("/", {
+                method: "GET",
+                credentials: "same-origin",
+              });
+              // O Django define o cookie csrftoken na resposta
+              csrf = getCookie("csrftoken");
+            } catch (e) {
+              console.warn("Não foi possível obter CSRF token:", e);
+            }
+          }
+          
           const response = await fetch("/api/auth/login/", {
             method: "POST",
             headers: {
@@ -211,6 +228,45 @@
             credentials: "same-origin",
             body: JSON.stringify({ username, password }),
           });
+          
+          // Se receber 403, pode ser problema de CSRF - tentar novamente com novo token
+          if (response.status === 403) {
+            // Tentar obter CSRF token novamente
+            await fetch("/", { method: "GET", credentials: "same-origin" });
+            const newCsrf = getCookie("csrftoken");
+            if (newCsrf) {
+              // Tentar login novamente com novo token
+              const retryResponse = await fetch("/api/auth/login/", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": newCsrf,
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({ username, password }),
+              });
+              
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json();
+                if (retryData.success) {
+                  console.log("Login bem-sucedido após retry, redirecionando...");
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                  window.location.replace("/dashboard/");
+                  return;
+                }
+              } else {
+                // Se ainda der erro, mostrar mensagem
+                try {
+                  const retryError = await retryResponse.json();
+                  errorMessage.textContent = retryError.error || "Erro ao fazer login";
+                } catch {
+                  errorMessage.textContent = "Erro ao fazer login (403 Forbidden)";
+                }
+                errorMessage.classList.add("show");
+                return;
+              }
+            }
+          }
 
           const data = await response.json();
 
