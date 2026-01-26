@@ -509,21 +509,34 @@ WIDGET: "Encontrou um problema? Reporte agora" (floating help bubble)
         body: JSON.stringify(payload),
       });
 
-      if(!res.ok){
-        // fallback: tentar ler msg
-        let msg = "";
-        try{ msg = await res.text(); } catch(_){}
-        throw new Error(msg || ("HTTP " + res.status));
+      // Tentar ler resposta mesmo se não for ok
+      let data = null;
+      let responseText = "";
+      try{ 
+        responseText = await res.text();
+        data = JSON.parse(responseText);
+      } catch(_){
+        // Se não conseguir parsear JSON, usar texto
+        if(responseText) data = { error: responseText };
       }
 
-      // opcional: se backend retornar {ticket_id:"..."}
-      let data = null;
-      try{ data = await res.json(); } catch(_){}
+      if(!res.ok){
+        // Se não for ok, mostrar erro mais detalhado
+        const errorMsg = (data && data.error) || responseText || `Erro HTTP ${res.status}`;
+        console.error("Support ticket error:", {
+          status: res.status,
+          statusText: res.statusText,
+          error: errorMsg,
+          data: data
+        });
+        throw new Error(errorMsg);
+      }
 
       // Success UI
       success?.classList.add("show");
       if(data && data.ticket_id){
-        success.textContent = `Solicitação enviada ✅ Ticket: ${data.ticket_id}`;
+        const emailStatus = data.email_sent ? "" : " (email em processamento)";
+        success.textContent = `Solicitação enviada ✅ Ticket: ${data.ticket_id}${emailStatus}`;
       } else {
         success.textContent = "Solicitação enviada ✅ Já disparamos para a equipe técnica.";
       }
@@ -532,18 +545,32 @@ WIDGET: "Encontrou um problema? Reporte agora" (floating help bubble)
       $("#supportTitle").value = "";
       $("#supportDesc").value = "";
 
-      // fecha sozinho depois de um tempo (bem "desfarçado")
-      setTimeout(()=>{ close(); }, 1600);
+      // NÃO fecha automaticamente - usuário fecha manualmente
+      // Removido: setTimeout(()=>{ close(); }, 1600);
 
     } catch(err){
       console.error("Support ticket error:", err);
-      if(!QUIET_MODE) alert("Falha ao enviar. Tente novamente.");
-      // Se quiser, dá um feedback sutil:
+      const errorMessage = err.message || "Erro desconhecido";
+      console.error("Detalhes do erro:", errorMessage);
+      
+      if(!QUIET_MODE) {
+        // Mostrar erro mais específico
+        const userMessage = errorMessage.includes("403") 
+          ? "Erro de permissão (403). Verifique se está logado."
+          : errorMessage.includes("500")
+          ? "Erro no servidor. Verifique os logs do Railway."
+          : errorMessage.includes("Network") || errorMessage.includes("Failed to fetch")
+          ? "Erro de conexão. Verifique sua internet."
+          : "Falha ao enviar. Tente novamente.";
+        alert(userMessage);
+      }
+      
+      // Feedback visual
       if(success){
         success.classList.add("show");
         success.style.background = "rgba(239,68,68,.08)";
         success.style.color = "rgba(185,28,28,.95)";
-        success.textContent = "Não conseguimos enviar agora. Tente novamente em instantes.";
+        success.textContent = `Erro: ${errorMessage.substring(0, 80)}${errorMessage.length > 80 ? '...' : ''}`;
       }
     } finally{
       if(submitBtn){

@@ -22,6 +22,7 @@ import stripe
 import json
 import os
 import uuid
+import threading
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
 from .models import Student, Lesson, Task, Subscription, StripeEvent, DayNote, SupportTicket
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
@@ -204,7 +205,13 @@ class AlunosView(TemplateView):
 
 
 class DashboardView(TemplateView):
-    template_name = "index.html"
+    """View para rota raiz - redireciona para dashboard"""
+    def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
+        if request.user.is_authenticated:
+            return redirect('dashboard-home')
+        else:
+            return redirect('login')
 
 class DashboardHomeView(TemplateView):
     template_name = "dashboard_home.html"
@@ -3059,6 +3066,17 @@ Este é um email automático do sistema EDUCAflowOne.
         # Tentar enviar email (não falha o endpoint se der erro)
         email_sent = False
         email_error_msg = ""
+        print(f"\n{'='*60}")
+        print(f"📧 TENTANDO ENVIAR EMAIL DE SUPORTE")
+        print(f"{'='*60}")
+        print(f"Ticket ID: {ticket_id}")
+        print(f"Para: {support_email}")
+        print(f"De: {settings.DEFAULT_FROM_EMAIL}")
+        print(f"Assunto: {subject}")
+        print(f"Backend: {settings.EMAIL_BACKEND}")
+        print(f"Host: {getattr(settings, 'EMAIL_HOST', 'N/A')}:{getattr(settings, 'EMAIL_PORT', 'N/A')}")
+        print(f"{'='*60}\n")
+        
         try:
             send_mail(
                 subject=subject,
@@ -3071,6 +3089,8 @@ Este é um email automático do sistema EDUCAflowOne.
             # Atualizar ticket com sucesso do email
             ticket.email_sent = True
             ticket.save(update_fields=['email_sent', 'email_error'])
+            print(f"✅ Email enviado com sucesso para {support_email} (Ticket #{ticket_id})")
+            print(f"   Verifique a caixa de entrada e spam do email: {support_email}\n")
         except Exception as email_error:
             # Log do erro mas não falha o endpoint
             import traceback
@@ -3093,25 +3113,21 @@ Este é um email automático do sistema EDUCAflowOne.
             print(f"  EMAIL_HOST_PASSWORD: {'***' if getattr(settings, 'EMAIL_HOST_PASSWORD', '') else 'N/A'}")
             print(f"  DEFAULT_FROM_EMAIL: {getattr(settings, 'DEFAULT_FROM_EMAIL', 'N/A')}")
             print(f"  SUPPORT_EMAIL: {support_email}")
-            print(f"\nPara configurar envio de email via Gmail:")
-            print(f"1. Ative 'Verificação em 2 etapas' na sua conta Google")
-            print(f"2. Gere uma 'Senha de app' em: https://myaccount.google.com/apppasswords")
-            print(f"3. Configure no .env ou variáveis de ambiente:")
-            print(f"   EMAIL_HOST_USER=seu-email@gmail.com")
-            print(f"   EMAIL_HOST_PASSWORD=sua-senha-de-app-gerada")
-            print(f"   EMAIL_HOST=smtp.gmail.com (padrão)")
-            print(f"   EMAIL_PORT=587 (padrão)")
-            print(f"   EMAIL_USE_TLS=True (padrão)")
-            print(f"\nEm desenvolvimento, o email será exibido no console.")
             print(f"{'='*60}\n")
             # Atualizar ticket com erro do email
             ticket.email_sent = False
             ticket.email_error = email_error_msg[:500]  # Limitar tamanho
             ticket.save(update_fields=['email_sent', 'email_error'])
             # Continuar mesmo se o email falhar - o ticket foi criado
+            print(f"ℹ️  Ticket #{ticket_id} criado, mas email NÃO foi enviado.")
+            print(f"   O ticket foi salvo no banco de dados e pode ser visualizado no Django Admin.")
         
+        # SEMPRE retornar sucesso, mesmo se o email falhar
+        # O ticket foi criado com sucesso no banco
         return Response({
-            'ticket_id': ticket_id
+            'ticket_id': ticket_id,
+            'email_sent': email_sent,
+            'message': 'Ticket criado com sucesso' + (' e email enviado' if email_sent else ' (email não enviado - verifique logs)')
         }, status=status.HTTP_201_CREATED)
     
     except Exception as e:
