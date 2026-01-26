@@ -12,7 +12,9 @@ from .views import (
     PlanningListView, planning_list_api,
     planning_edit_redirect, planning_new_redirect,
     upload_planning_attachment, delete_planning_attachment,
-    AlunosView,
+    AlunosView, CalendarNewView,
+    calendar_events, calendar_event_status, calendar_event_create, calendar_event_update,
+    calendar_day_note, calendar_day_note_update,
 )
 
 router = DefaultRouter()
@@ -55,4 +57,12 @@ urlpatterns = [
     path("api/planning/list/", planning_list_api, name="api-planning-list"),
     path("api/planning/<int:plan_id>/attachments/", upload_planning_attachment, name="api-planning-upload-attachment"),
     path("api/planning/attachments/<int:attachment_id>/", delete_planning_attachment, name="api-planning-delete-attachment"),
+    # Calendar endpoints
+    path("calendar/", CalendarNewView.as_view(), name="calendar-new"),
+    path("api/calendar/events/", calendar_events, name="api-calendar-events"),
+    path("api/calendar/events/<int:event_id>/status/", calendar_event_status, name="api-calendar-event-status"),
+    path("api/calendar/events/create/", calendar_event_create, name="api-calendar-event-create"),
+    path("api/calendar/events/<int:event_id>/", calendar_event_update, name="api-calendar-event-update"),
+    path("api/calendar/day-note/", calendar_day_note, name="api-calendar-day-note"),
+    path("api/calendar/day-note/update/", calendar_day_note_update, name="api-calendar-day-note-update"),
 ]

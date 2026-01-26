@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import date
 
@@ -567,6 +568,30 @@ class Subscription(models.Model):
     
     class Meta:
         verbose_name = "Assinatura"
+
+
+class DayNote(models.Model):
+    """Notas/observações do dia para o calendário"""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="day_notes",
+        help_text="Professor responsável pela nota"
+    )
+    date = models.DateField(help_text="Data da nota (YYYY-MM-DD)")
+    text = models.TextField(blank=True, help_text="Texto da observação do dia")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [['user', 'date']]
+        ordering = ['-date']
+        verbose_name = "Nota do Dia"
+        verbose_name_plural = "Notas do Dia"
+
+    def __str__(self):
+        return f"{self.date} - {self.user.username}"
         verbose_name_plural = "Assinaturas"
         ordering = ["-created_at"]
     

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent, DayNote
 
 
 @admin.register(Student)
@@ -68,11 +68,17 @@ class BillingLogAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ("user", "plan", "status", "is_active", "current_period_end", "created_at")
+    list_display = ("user", "plan", "status", "is_active_display", "current_period_end", "created_at")
     list_filter = ("plan", "status", "created_at")
     search_fields = ("user__username", "user__email", "stripe_customer_id", "stripe_subscription_id")
     readonly_fields = ("stripe_customer_id", "stripe_subscription_id", "created_at", "updated_at")
     date_hierarchy = "created_at"
+    
+    def is_active_display(self, obj):
+        """Retorna True se o status for 'active'"""
+        return obj.status == "active"
+    is_active_display.boolean = True
+    is_active_display.short_description = "Ativa"
 
 
 @admin.register(StripeEvent)
@@ -82,3 +88,16 @@ class StripeEventAdmin(admin.ModelAdmin):
     search_fields = ("event_id", "event_type")
     readonly_fields = ("event_id", "event_type", "event_data", "created_at", "processed_at")
     date_hierarchy = "created_at"
+
+
+@admin.register(DayNote)
+class DayNoteAdmin(admin.ModelAdmin):
+    list_display = ("user", "date", "text_preview", "created_at", "updated_at")
+    list_filter = ("date", "user", "created_at")
+    search_fields = ("user__username", "text")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "date"
+    
+    def text_preview(self, obj):
+        return obj.text[:50] + "..." if len(obj.text) > 50 else obj.text
+    text_preview.short_description = "Texto"

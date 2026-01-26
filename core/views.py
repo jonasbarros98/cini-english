@@ -8,6 +8,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
@@ -19,7 +20,7 @@ import stripe
 import json
 import os
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
-from .models import Student, Lesson, Task, Subscription, StripeEvent
+from .models import Student, Lesson, Task, Subscription, StripeEvent, DayNote
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
 
@@ -27,6 +28,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.select_related("user").all().order_by("name")
     serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Suporta FormData e JSON
     
     def get_queryset(self):
         qs = super().get_queryset()
@@ -2387,3 +2389,506 @@ def profile_update_view(request):
             {'error': f'Erro ao atualizar perfil: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+# ==========
+# Calendar API Endpoints
+# ==========
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def calendar_events(request):
+    """
+    GET /api/calendar/events/?start=YYYY-MM-DD&end=YYYY-MM-DD
+    Retorna eventos (lessons) no período especificado.
+    Formato de retorno: [{id, date:"YYYY-MM-DD", time:"HH:MM", student:"Nome", status:"confirmed|pending|cancelled|done", note:""}]
+    """
+    try:
+        start_str = request.query_params.get('start')
+        end_str = request.query_params.get('end')
+        
+        if not start_str or not end_str:
+            return Response(
+                {'error': 'Parâmetros start e end são obrigatórios (formato: YYYY-MM-DD)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+        
+        # Filtrar lessons do usuário no período
+        qs = Lesson.objects.filter(
+            user=request.user,
+            date__gte=start_date,
+            date__lte=end_date
+        ).select_related('student').order_by('date', 'time')
+        
+        # Verificar se é admin ou professor principal (ver outras lessons)
+        try:
+            is_admin = request.user.profile.is_admin
+            user_profile = request.user.profile.user_profile
+            if not is_admin and user_profile == UserProfile.PROFILE_TEACHER:
+                # Prof. Principal vê suas lessons + lessons dos parceiros vinculados
+                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                partner_ids.append(request.user.id)
+                qs = Lesson.objects.filter(
+                    user_id__in=partner_ids,
+                    date__gte=start_date,
+                    date__lte=end_date
+                ).select_related('student').order_by('date', 'time')
+        except UserProfile.DoesNotExist:
+            pass
+        
+        events = []
+        for lesson in qs:
+            # Determinar status: se realized=True, status é "done", senão usa o status normal
+            lesson_status = "done" if lesson.realized else lesson.status
+            # Mapear status do modelo para o formato esperado pelo frontend
+            status_map = {
+                "confirmed": "confirmed",
+                "pending": "pending",
+                "canceled": "cancelled",  # Note: modelo usa "canceled", frontend espera "cancelled"
+            }
+            if lesson_status == "done":
+                final_status = "done"
+            else:
+                final_status = status_map.get(lesson_status, "pending")
+            
+            time_str = lesson.time.strftime('%H:%M') if lesson.time else ""
+            
+            events.append({
+                'id': lesson.id,
+                'date': lesson.date.strftime('%Y-%m-%d'),
+                'time': time_str,
+                'student': lesson.student.name,
+                'student_id': lesson.student.id,
+                'status': final_status,
+                'realized': lesson.realized,
+                'note': lesson.info or ""
+            })
+        
+        return Response(events)
+    
+    except ValueError as e:
+        return Response(
+            {'error': f'Formato de data inválido: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao buscar eventos: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def calendar_event_status(request, event_id):
+    """
+    PATCH /api/calendar/events/{id}/status/
+    Body: {status:"confirmed|pending|cancelled|done"}
+    Atualiza status de uma aula (lesson).
+    """
+    try:
+        lesson = Lesson.objects.get(id=event_id, user=request.user)
+        
+        # Verificar permissão (admin ou professor principal pode ver outras)
+        try:
+            is_admin = request.user.profile.is_admin
+            user_profile = request.user.profile.user_profile
+            if not is_admin and user_profile == UserProfile.PROFILE_TEACHER:
+                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                partner_ids.append(request.user.id)
+                if lesson.user_id not in partner_ids:
+                    return Response(
+                        {'error': 'Sem permissão para editar esta aula'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            elif not is_admin:
+                if lesson.user_id != request.user.id:
+                    return Response(
+                        {'error': 'Sem permissão para editar esta aula'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+        except UserProfile.DoesNotExist:
+            if lesson.user_id != request.user.id:
+                return Response(
+                    {'error': 'Sem permissão para editar esta aula'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        new_status = request.data.get('status')
+        if not new_status:
+            return Response(
+                {'error': 'Campo status é obrigatório'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Mapear status do frontend para o modelo
+        # Frontend: "done" -> realized=True, outros -> status normal
+        if new_status == "done":
+            lesson.realized = True
+            # Manter o status original (confirmed/pending/canceled)
+        else:
+            lesson.realized = False
+            # Mapear "cancelled" (frontend) para "canceled" (modelo)
+            status_map = {
+                "confirmed": "confirmed",
+                "pending": "pending",
+                "cancelled": "canceled",
+            }
+            lesson.status = status_map.get(new_status, "pending")
+        
+        lesson.save()
+        
+        # Retornar evento atualizado
+        time_str = lesson.time.strftime('%H:%M') if lesson.time else ""
+        final_status = "done" if lesson.realized else lesson.status
+        status_map_back = {
+            "confirmed": "confirmed",
+            "pending": "pending",
+            "canceled": "cancelled",
+        }
+        if final_status == "done":
+            response_status = "done"
+        else:
+            response_status = status_map_back.get(final_status, "pending")
+        
+        return Response({
+            'id': lesson.id,
+            'date': lesson.date.strftime('%Y-%m-%d'),
+            'time': time_str,
+            'student': lesson.student.name,
+            'student_id': lesson.student.id,
+            'status': response_status,
+            'realized': lesson.realized,
+            'status': response_status,
+            'note': lesson.info or ""
+        })
+    
+    except Lesson.DoesNotExist:
+        return Response(
+            {'error': 'Aula não encontrada'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao atualizar status: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calendar_event_create(request):
+    """
+    POST /api/calendar/events/
+    Body: {date:"YYYY-MM-DD", time:"HH:MM", student_id:123, status:"confirmed|pending|cancelled|done", note:""}
+    Cria uma nova aula (lesson).
+    """
+    try:
+        date_str = request.data.get('date')
+        time_str = request.data.get('time', '')
+        student_id = request.data.get('student_id')
+        status_val = request.data.get('status', 'pending')
+        note = request.data.get('note', '')
+        
+        if not date_str or not student_id:
+            return Response(
+                {'error': 'Campos date e student_id são obrigatórios'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            student = Student.objects.get(id=student_id, user=request.user)
+        except Student.DoesNotExist:
+            return Response(
+                {'error': 'Aluno não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        lesson_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        lesson_time = None
+        if time_str:
+            try:
+                lesson_time = datetime.strptime(time_str, '%H:%M').time()
+            except ValueError:
+                return Response(
+                    {'error': 'Formato de horário inválido (use HH:MM)'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Mapear status
+        realized = False
+        lesson_status = "pending"
+        if status_val == "done":
+            realized = True
+            lesson_status = "pending"  # Status padrão quando marcado como realizado
+        else:
+            status_map = {
+                "confirmed": "confirmed",
+                "pending": "pending",
+                "cancelled": "canceled",
+            }
+            lesson_status = status_map.get(status_val, "pending")
+        
+        # Criar lesson
+        lesson = Lesson.objects.create(
+            student=student,
+            user=request.user,
+            date=lesson_date,
+            time=lesson_time,
+            title=f"Aula {student.name}",
+            info=note,
+            status=lesson_status,
+            realized=realized
+        )
+        
+        # Retornar evento criado
+        time_str_resp = lesson.time.strftime('%H:%M') if lesson.time else ""
+        response_status = "done" if lesson.realized else status_val
+        
+        return Response({
+            'id': lesson.id,
+            'date': lesson.date.strftime('%Y-%m-%d'),
+            'time': time_str_resp,
+            'student': lesson.student.name,
+            'student_id': lesson.student.id,
+            'status': response_status,
+            'note': lesson.info or ""
+        }, status=status.HTTP_201_CREATED)
+    
+    except ValueError as e:
+        return Response(
+            {'error': f'Formato de data inválido: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao criar aula: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def calendar_event_update(request, event_id):
+    """
+    PUT/PATCH /api/calendar/events/{id}/
+    Body: {date:"YYYY-MM-DD", time:"HH:MM", student_id:123, status:"confirmed|pending|cancelled|done", note:""}
+    Atualiza uma aula (lesson).
+    """
+    try:
+        lesson = Lesson.objects.get(id=event_id, user=request.user)
+        
+        # Verificar permissão (admin ou professor principal pode ver outras)
+        try:
+            is_admin = request.user.profile.is_admin
+            user_profile = request.user.profile.user_profile
+            if not is_admin and user_profile == UserProfile.PROFILE_TEACHER:
+                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
+                partner_ids.append(request.user.id)
+                if lesson.user_id not in partner_ids:
+                    return Response(
+                        {'error': 'Sem permissão para editar esta aula'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            elif not is_admin:
+                if lesson.user_id != request.user.id:
+                    return Response(
+                        {'error': 'Sem permissão para editar esta aula'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+        except UserProfile.DoesNotExist:
+            if lesson.user_id != request.user.id:
+                return Response(
+                    {'error': 'Sem permissão para editar esta aula'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Atualizar campos se fornecidos
+        date_str = request.data.get('date')
+        time_str = request.data.get('time')
+        student_id = request.data.get('student_id')
+        status_val = request.data.get('status')
+        note = request.data.get('note')
+        
+        if date_str:
+            lesson.date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        if time_str is not None:
+            if time_str:
+                try:
+                    lesson.time = datetime.strptime(time_str, '%H:%M').time()
+                except ValueError:
+                    return Response(
+                        {'error': 'Formato de horário inválido (use HH:MM)'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                lesson.time = None
+        
+        if student_id:
+            try:
+                student = Student.objects.get(id=student_id, user=request.user)
+                lesson.student = student
+            except Student.DoesNotExist:
+                return Response(
+                    {'error': 'Aluno não encontrado'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        if status_val:
+            # Mapear status
+            if status_val == "done":
+                lesson.realized = True
+                # Manter status original
+            else:
+                lesson.realized = False
+                status_map = {
+                    "confirmed": "confirmed",
+                    "pending": "pending",
+                    "cancelled": "canceled",
+                }
+                lesson.status = status_map.get(status_val, "pending")
+        
+        if note is not None:
+            lesson.info = note
+        
+        lesson.save()
+        
+        # Retornar evento atualizado
+        time_str_resp = lesson.time.strftime('%H:%M') if lesson.time else ""
+        final_status = "done" if lesson.realized else lesson.status
+        status_map_back = {
+            "confirmed": "confirmed",
+            "pending": "pending",
+            "canceled": "cancelled",
+        }
+        if final_status == "done":
+            response_status = "done"
+        else:
+            response_status = status_map_back.get(final_status, "pending")
+        
+        return Response({
+            'id': lesson.id,
+            'date': lesson.date.strftime('%Y-%m-%d'),
+            'time': time_str_resp,
+            'student': lesson.student.name,
+            'student_id': lesson.student.id,
+            'status': response_status,
+            'realized': lesson.realized,
+            'note': lesson.info or ""
+        })
+    
+    except Lesson.DoesNotExist:
+        return Response(
+            {'error': 'Aula não encontrada'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except ValueError as e:
+        return Response(
+            {'error': f'Formato de data inválido: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao atualizar aula: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def calendar_day_note(request):
+    """
+    GET /api/calendar/day-note/?date=YYYY-MM-DD
+    Retorna a nota do dia para a data especificada.
+    """
+    try:
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response(
+                {'error': 'Parâmetro date é obrigatório (formato: YYYY-MM-DD)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        note_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        try:
+            day_note = DayNote.objects.get(user=request.user, date=note_date)
+            return Response({
+                'date': day_note.date.strftime('%Y-%m-%d'),
+                'text': day_note.text
+            })
+        except DayNote.DoesNotExist:
+            return Response({
+                'date': date_str,
+                'text': ''
+            })
+    
+    except ValueError as e:
+        return Response(
+            {'error': f'Formato de data inválido: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao buscar nota: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def calendar_day_note_update(request):
+    """
+    PUT /api/calendar/day-note/
+    Body: {date:"YYYY-MM-DD", text:"..."}
+    Cria ou atualiza a nota do dia.
+    """
+    try:
+        date_str = request.data.get('date')
+        text = request.data.get('text', '')
+        
+        if not date_str:
+            return Response(
+                {'error': 'Campo date é obrigatório'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        note_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        day_note, created = DayNote.objects.update_or_create(
+            user=request.user,
+            date=note_date,
+            defaults={'text': text}
+        )
+        
+        return Response({
+            'date': day_note.date.strftime('%Y-%m-%d'),
+            'text': day_note.text
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    
+    except ValueError as e:
+        return Response(
+            {'error': f'Formato de data inválido: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao salvar nota: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class CalendarNewView(TemplateView):
+    """View para renderizar o novo calendário"""
+    template_name = "calendar_new.html"
+    login_required = True
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect("login")
+        return super().dispatch(request, *args, **kwargs)

@@ -48,7 +48,11 @@ class StudentSerializer(serializers.ModelSerializer):
         if 'contract_pdf' in validated_data:
             contract_value = validated_data.get('contract_pdf')
             # Se for string vazia, arquivo vazio, ou None, remove o arquivo
-            if contract_value == "" or contract_value is None or (hasattr(contract_value, 'size') and contract_value.size == 0):
+            # FormData pode enviar como string vazia ou como arquivo vazio
+            if (contract_value == "" or 
+                contract_value is None or 
+                (hasattr(contract_value, 'size') and contract_value.size == 0) or
+                (isinstance(contract_value, str) and contract_value.strip() == "")):
                 if instance.contract_pdf:
                     instance.contract_pdf.delete(save=False)
                 validated_data['contract_pdf'] = None

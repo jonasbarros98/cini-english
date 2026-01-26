@@ -396,7 +396,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
-        <a href="/?view=view-calendar" class="nav-item">
+        <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
             <p class="nav-title">Calendário</p>
@@ -670,8 +670,18 @@
               </div>
               <div class="field">
                 <label>Contrato PDF</label>
-                <input type="file" accept="application/pdf"/>
+                <input id="f_contract" type="file" accept="application/pdf"/>
                 <div style="margin-top:6px;color:var(--muted);font-weight:700;font-size:12px;">Somente PDF.</div>
+                <div id="f_contract_display" style="margin-top:8px;display:none;">
+                  <div style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(2,6,23,.02);border-radius:8px;border:1px solid var(--border);">
+                    <span style="font-size:18px;">📄</span>
+                    <div style="flex:1;">
+                      <div style="font-weight:800;font-size:12px;color:var(--text);">Contrato anexado</div>
+                      <a id="f_contract_link" href="#" target="_blank" style="font-size:11px;color:var(--primary);text-decoration:none;font-weight:700;">Ver PDF</a>
+                    </div>
+                    <button type="button" id="f_contract_remove" style="padding:4px 8px;font-size:11px;background:rgba(239,68,68,.1);color:rgba(185,28,28,.95);border:1px solid rgba(239,68,68,.2);border-radius:6px;cursor:pointer;font-weight:800;">Remover</button>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -875,6 +885,24 @@
             'Content-Type': 'application/json',
             'X-CSRFToken': csrf || '',
             ...options.headers,
+          },
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+          throw new Error(error.error || error.detail || `Erro ${response.status}`);
+        }
+        return response.json();
+      }
+
+      // Função para enviar dados com arquivos (FormData)
+      async function fetchWithFiles(url, formData, method = 'POST') {
+        const csrf = getCookie('csrftoken');
+        const response = await fetch(url, {
+          method: method,
+          body: formData,
+          headers: {
+            'X-CSRFToken': csrf || '',
           },
           credentials: 'same-origin',
         });
@@ -1384,9 +1412,76 @@
         $('#f_payment').value = student.preferred_payment_method || '';
         $('#f_pix').value = student.pix_key || '';
         
+        // Exibir contrato se existir
+        const contractDisplay = $('#f_contract_display');
+        const contractLink = $('#f_contract_link');
+        if (student.contract_pdf_url) {
+          if (contractDisplay) contractDisplay.style.display = 'block';
+          if (contractLink) {
+            contractLink.href = student.contract_pdf_url;
+            contractLink.textContent = 'Ver PDF';
+          }
+        } else {
+          if (contractDisplay) contractDisplay.style.display = 'none';
+        }
+        
+        // Limpar input de arquivo ao carregar aluno
+        if ($('#f_contract')) $('#f_contract').value = '';
+        
+        // Anexar listener do botão remover
+        attachContractRemoveListener();
+        
         const meta = $('#editorMeta');
         if (meta) meta.textContent = `Editando: ${student.name}`;
         currentEditingId = student.id;
+      }
+      
+      // Remover contrato - listener será adicionado dinamicamente
+      function attachContractRemoveListener() {
+        const removeBtn = $('#f_contract_remove');
+        if (removeBtn) {
+          // Remover listener anterior se existir
+          const newBtn = removeBtn.cloneNode(true);
+          removeBtn.parentNode.replaceChild(newBtn, removeBtn);
+          // Adicionar novo listener
+          newBtn.addEventListener('click', async () => {
+            if (!currentEditingId) return;
+            
+            if (!confirm('Deseja remover o contrato PDF deste aluno?')) return;
+            
+            try {
+              // Buscar aluno atual para manter outros campos
+              const student = allStudents.find(s => s.id === currentEditingId);
+              if (!student) return;
+              
+              // Criar FormData com todos os dados do aluno, mas sem o contrato
+              const formData = new FormData();
+              formData.append('name', student.name || '');
+              formData.append('guardians', student.guardians || 'Responsável próprio');
+              formData.append('phone', student.phone || '');
+              formData.append('email', student.email || '');
+              formData.append('address', student.address || '');
+              formData.append('status', student.status || 'active');
+              formData.append('plan_name', student.plan_name || '');
+              formData.append('lessons_total', student.lessons_total || 0);
+              if (student.plan_start_date) formData.append('plan_start_date', student.plan_start_date);
+              if (student.default_due_day) formData.append('default_due_day', student.default_due_day);
+              if (student.preferred_payment_method) formData.append('preferred_payment_method', student.preferred_payment_method);
+              if (student.pix_key) formData.append('pix_key', student.pix_key);
+              // Enviar string vazia para remover o arquivo
+              formData.append('contract_pdf', '');
+              
+              const updatedStudent = await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PUT');
+              showToast('Contrato removido com sucesso!');
+              await loadStudents();
+              // Recarregar aluno no editor
+              const updated = allStudents.find(s => s.id === currentEditingId);
+              if (updated) loadStudentIntoEditor(updated);
+            } catch (error) {
+              showToast(`Erro ao remover contrato: ${error.message}`, true);
+            }
+          });
+        }
       }
 
       // Salvar aluno (criar ou editar)
@@ -1431,24 +1526,92 @@
             if ('default_due_day' in data && data.default_due_day === '') delete data.default_due_day;
           }
 
+        // Verificar se há arquivo de contrato
+        const contractFile = $('#n_contract')?.files?.[0];
+        const hasContractFile = contractFile && contractFile.size > 0;
+
         try {
           btnSave.disabled = true;
           btnSave.textContent = 'Salvando...';
           
-          if (currentEditingId) {
-            // Editar
-            await fetchJSON(`${API_BASE}${currentEditingId}/`, {
-              method: 'PUT',
-              body: JSON.stringify(data),
-            });
-            showToast('Aluno atualizado com sucesso!');
+          if (hasContractFile) {
+            // Usar FormData para enviar arquivo
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('guardians', ($('#n_responsible')?.value || '').trim() || 'Responsável próprio');
+            formData.append('phone', ($('#n_phone')?.value || '').trim() || '');
+            formData.append('email', ($('#n_email')?.value || '').trim() || '');
+            formData.append('address', ($('#n_address')?.value || '').trim() || '');
+            formData.append('status', $('#n_status')?.value || 'active');
+            formData.append('plan_name', planValue === 'none' ? '' : planValue);
+            formData.append('lessons_total', parseInt(($('#n_total')?.value || '0'), 10) || 0);
+            if ($('#n_start')?.value) formData.append('plan_start_date', $('#n_start').value);
+            if ($('#n_due')?.value) formData.append('default_due_day', parseInt($('#n_due').value, 10));
+            if ($('#n_payment')?.value) formData.append('preferred_payment_method', $('#n_payment').value);
+            if (($('#n_pix')?.value || '').trim()) formData.append('pix_key', ($('#n_pix').value || '').trim());
+            formData.append('contract_pdf', contractFile);
+            
+            if (currentEditingId) {
+              // Editar
+              await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PUT');
+              showToast('Aluno atualizado com sucesso!');
+              // Se estava editando, atualizar a lista e recarregar no editor
+              await loadStudents();
+              const student = allStudents.find(s => s.id === currentEditingId);
+              if (student) loadStudentIntoEditor(student);
+            } else {
+              // Criar
+              await fetchWithFiles(API_BASE, formData, 'POST');
+              showToast('Aluno criado com sucesso!');
+              // Se criou novo aluno, recarregar lista
+              await loadStudents();
+            }
           } else {
-            // Criar
-            await fetchJSON(API_BASE, {
-              method: 'POST',
-              body: JSON.stringify(data),
+            // Sem arquivo, usar JSON normal
+            const data = {
+              name,
+              guardians: ($('#n_responsible')?.value || '').trim() || 'Responsável próprio',
+              phone: ($('#n_phone')?.value || '').trim() || '',
+              email: ($('#n_email')?.value || '').trim() || '',
+              address: ($('#n_address')?.value || '').trim() || '',
+              status: $('#n_status')?.value || 'active',
+              plan_name: planValue === 'none' ? '' : planValue,
+              lessons_total: parseInt(($('#n_total')?.value || '0'), 10) || 0,
+              plan_start_date: $('#n_start')?.value || null,
+              default_due_day: $('#n_due')?.value ? parseInt($('#n_due')?.value, 10) : null,
+              preferred_payment_method: $('#n_payment')?.value || '',
+              pix_key: ($('#n_pix')?.value || '').trim() || '',
+            };
+
+            // Limpar campos vazios (manter campos obrigatórios)
+            const optionalFields = ['phone', 'email', 'address', 'plan_name', 'pix_key', 'preferred_payment_method'];
+            optionalFields.forEach(key => {
+              if (data[key] === '') {
+                delete data[key];
+              }
             });
-            showToast('Aluno criado com sucesso!');
+            
+            // Converter string vazia para null em campos opcionais
+            if (data.plan_start_date === '') data.plan_start_date = null;
+            if (data.default_due_day === '' || data.default_due_day === null) {
+              if ('default_due_day' in data && data.default_due_day === '') delete data.default_due_day;
+            }
+            
+            if (currentEditingId) {
+              // Editar
+              await fetchJSON(`${API_BASE}${currentEditingId}/`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+              });
+              showToast('Aluno atualizado com sucesso!');
+            } else {
+              // Criar
+              await fetchJSON(API_BASE, {
+                method: 'POST',
+                body: JSON.stringify(data),
+              });
+              showToast('Aluno criado com sucesso!');
+            }
           }
           
           closeModal();
@@ -1479,33 +1642,70 @@
         const student = allStudents.find(s => s.id === currentEditingId);
         if (!student) return;
 
-        const data = {
-          ...student,
-          name,
-          guardians: ($('#f_responsible')?.value || '').trim() || 'Responsável próprio',
-          phone: ($('#f_phone')?.value || '').trim() || '',
-          email: ($('#f_email')?.value || '').trim() || '',
-          address: ($('#f_address')?.value || '').trim() || '',
-          status: $('#f_status')?.value || 'active',
-          plan_name: ($('#f_plan')?.value || '').trim() || '',
-          lessons_total: parseInt(($('#f_total')?.value || '0'), 10) || 0,
-          // lessons_done será calculado automaticamente no backend, não enviar
-          // lessons_done: parseInt(($('#f_done')?.value || '0'), 10) || 0,
-          plan_start_date: $('#f_start')?.value || null,
-          default_due_day: $('#f_due')?.value ? parseInt($('#f_due')?.value, 10) : null,
-          preferred_payment_method: $('#f_payment')?.value || '',
-          pix_key: ($('#f_pix')?.value || '').trim() || '',
-        };
+        // Verificar se há arquivo de contrato
+        const contractFile = $('#f_contract')?.files?.[0];
+        const hasContractFile = contractFile && contractFile.size > 0;
 
-        try {
-          await fetchJSON(`${API_BASE}${currentEditingId}/`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-          });
-          showToast('Aluno atualizado com sucesso!');
-          await loadStudents();
-        } catch (error) {
-          showToast(`Erro ao atualizar: ${error.message}`, true);
+        if (hasContractFile) {
+          // Usar FormData para enviar arquivo
+          const formData = new FormData();
+          formData.append('name', name);
+          formData.append('guardians', ($('#f_responsible')?.value || '').trim() || 'Responsável próprio');
+          formData.append('phone', ($('#f_phone')?.value || '').trim() || '');
+          formData.append('email', ($('#f_email')?.value || '').trim() || '');
+          formData.append('address', ($('#f_address')?.value || '').trim() || '');
+          formData.append('status', $('#f_status')?.value || 'active');
+          formData.append('plan_name', ($('#f_plan')?.value || '').trim() || '');
+          formData.append('lessons_total', parseInt(($('#f_total')?.value || '0'), 10) || 0);
+          if ($('#f_start')?.value) formData.append('plan_start_date', $('#f_start').value);
+          if ($('#f_due')?.value) formData.append('default_due_day', parseInt($('#f_due').value, 10));
+          if ($('#f_payment')?.value) formData.append('preferred_payment_method', $('#f_payment').value);
+          if (($('#f_pix')?.value || '').trim()) formData.append('pix_key', ($('#f_pix').value || '').trim());
+          formData.append('contract_pdf', contractFile);
+
+          try {
+            await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PUT');
+            showToast('Aluno atualizado com sucesso!');
+            // Limpar o input de arquivo
+            if ($('#f_contract')) $('#f_contract').value = '';
+            // Recarregar lista de alunos para obter dados atualizados
+            await loadStudents();
+            // Recarregar aluno no editor para atualizar todos os dados incluindo o contrato
+            const student = allStudents.find(s => s.id === currentEditingId);
+            if (student) {
+              loadStudentIntoEditor(student);
+            }
+          } catch (error) {
+            showToast(`Erro ao atualizar: ${error.message}`, true);
+          }
+        } else {
+          // Sem arquivo, usar JSON normal
+          const data = {
+            ...student,
+            name,
+            guardians: ($('#f_responsible')?.value || '').trim() || 'Responsável próprio',
+            phone: ($('#f_phone')?.value || '').trim() || '',
+            email: ($('#f_email')?.value || '').trim() || '',
+            address: ($('#f_address')?.value || '').trim() || '',
+            status: $('#f_status')?.value || 'active',
+            plan_name: ($('#f_plan')?.value || '').trim() || '',
+            lessons_total: parseInt(($('#f_total')?.value || '0'), 10) || 0,
+            plan_start_date: $('#f_start')?.value || null,
+            default_due_day: $('#f_due')?.value ? parseInt($('#f_due')?.value, 10) : null,
+            preferred_payment_method: $('#f_payment')?.value || '',
+            pix_key: ($('#f_pix')?.value || '').trim() || '',
+          };
+
+          try {
+            await fetchJSON(`${API_BASE}${currentEditingId}/`, {
+              method: 'PUT',
+              body: JSON.stringify(data),
+            });
+            showToast('Aluno atualizado com sucesso!');
+            await loadStudents();
+          } catch (error) {
+            showToast(`Erro ao atualizar: ${error.message}`, true);
+          }
         }
       });
 

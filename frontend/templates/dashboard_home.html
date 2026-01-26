@@ -552,7 +552,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
-        <a href="/?view=view-calendar" class="nav-item">
+        <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
             <p class="nav-title">Calendário</p>
@@ -645,7 +645,7 @@
           <li><strong id="sidebarPending">0</strong> pendências</li>
           <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
         </ul>
-        <a href="/?view=view-calendar" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Calendário</a>
+        <a href="/calendar/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Calendário</a>
         <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
       </div>
     </aside>
@@ -1292,9 +1292,14 @@
           return;
         }
         
-        // Mapear para views do sistema
+        // Mapear para views do sistema ou URLs
+        // 'calendar' agora redireciona para a nova tela de calendário
+        if (where === 'calendar') {
+          window.location.href = '/calendar/';
+          return;
+        }
+        
         const viewMap = {
-          'calendar': 'view-calendar',
           'finance': 'view-finance',
           'billing': 'view-billing',
           'tasks': 'view-tasks'
