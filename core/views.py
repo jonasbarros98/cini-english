@@ -205,13 +205,22 @@ class AlunosView(TemplateView):
 
 
 class DashboardView(TemplateView):
-    """View para rota raiz - redireciona para dashboard"""
+    """View para rota raiz - renderiza index.html se houver parâmetro view, senão redireciona para dashboard"""
+    template_name = "index.html"
+    
     def dispatch(self, request, *args, **kwargs):
-        from django.shortcuts import redirect
-        if request.user.is_authenticated:
-            return redirect('dashboard-home')
-        else:
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
             return redirect('login')
+        
+        # Se houver parâmetro view na URL, renderizar index.html (para view-tasks, view-finance, etc)
+        view_param = request.GET.get('view')
+        if view_param:
+            return super().dispatch(request, *args, **kwargs)
+        
+        # Caso contrário, redirecionar para dashboard
+        from django.shortcuts import redirect
+        return redirect('dashboard-home')
 
 class DashboardHomeView(TemplateView):
     template_name = "dashboard_home.html"
@@ -222,6 +231,15 @@ class DashboardHomeView(TemplateView):
             from django.shortcuts import redirect
             return redirect('login')
         return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Adicionar flag de admin no contexto
+        try:
+            context['user_is_admin'] = self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+        return context
 
 class PerfilView(TemplateView):
     template_name = "perfil_user.html"
@@ -2932,6 +2950,134 @@ class CalendarNewView(TemplateView):
             from django.shortcuts import redirect
             return redirect("login")
         return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Adicionar flag de admin no contexto
+        try:
+            context['user_is_admin'] = self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+        return context
+
+
+class TicketsView(TemplateView):
+    """View para renderizar a tela de tickets de suporte (apenas admin)"""
+    template_name = "tickets.html"
+    login_required = True
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect("login")
+        # Verificar se é admin
+        try:
+            is_admin = request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        if not is_admin:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Acesso negado. Apenas administradores podem acessar esta página.")
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Adicionar flag de admin no contexto para uso no template
+        try:
+            context['user_is_admin'] = self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+        return context
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def support_tickets_list(request):
+    """
+    GET /api/support/tickets/list/
+    Lista todos os tickets de suporte (apenas admin).
+    Query params: category, impact, email_sent, search
+    """
+    try:
+        # Verificar se é admin
+        try:
+            is_admin = request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            is_admin = False
+        
+        if not is_admin:
+            return Response(
+                {'error': 'Apenas administradores podem acessar esta página'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Buscar todos os tickets
+        tickets = SupportTicket.objects.select_related('user').all().order_by('-created_at')
+        
+        # Filtros
+        category = request.query_params.get('category')
+        if category:
+            tickets = tickets.filter(category=category)
+        
+        impact = request.query_params.get('impact')
+        if impact:
+            tickets = tickets.filter(impact=impact)
+        
+        email_sent = request.query_params.get('email_sent')
+        if email_sent is not None:
+            tickets = tickets.filter(email_sent=email_sent.lower() == 'true')
+        
+        search = request.query_params.get('search')
+        if search:
+            tickets = tickets.filter(
+                Q(ticket_id__icontains=search) |
+                Q(title__icontains=search) |
+                Q(description__icontains=search) |
+                Q(user__username__icontains=search) |
+                Q(user__email__icontains=search)
+            )
+        
+        # Serializar
+        tickets_data = []
+        for ticket in tickets:
+            tickets_data.append({
+                'id': ticket.id,
+                'ticket_id': ticket.ticket_id,
+                'user': {
+                    'id': ticket.user.id,
+                    'username': ticket.user.username,
+                    'email': ticket.user.email,
+                    'full_name': ticket.user.get_full_name() or ticket.user.username,
+                },
+                'category': ticket.category,
+                'category_display': ticket.get_category_display(),
+                'impact': ticket.impact,
+                'impact_display': ticket.get_impact_display(),
+                'title': ticket.title,
+                'description': ticket.description,
+                'page': ticket.page,
+                'query': ticket.query,
+                'url': ticket.url,
+                'created_at_local': ticket.created_at_local,
+                'timezone': ticket.timezone,
+                'created_at': ticket.created_at.isoformat(),
+                'email_sent': ticket.email_sent,
+                'email_error': ticket.email_error,
+            })
+        
+        return Response({
+            'count': len(tickets_data),
+            'tickets': tickets_data
+        }, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        import traceback
+        print(f"Erro ao listar tickets: {str(e)}")
+        print(traceback.format_exc())
+        return Response(
+            {'error': f'Erro ao listar tickets: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['POST'])

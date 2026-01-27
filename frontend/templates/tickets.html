@@ -1,0 +1,527 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Tickets de Suporte • EDUCAflowOne</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --muted2:#94a3b8;
+      --border: rgba(15,23,42,.10);
+      --shadow-soft: 0 10px 24px rgba(2,6,23,.06);
+      --shadow: 0 16px 40px rgba(2,6,23,.10);
+
+      --primary:#2563eb;
+      --primary2:#3b82f6;
+
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+
+      --radius: 18px;
+      --radius-sm: 14px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(900px 500px at 15% 0%, rgba(37,99,235,.10), transparent 60%),
+                  radial-gradient(700px 450px at 90% 15%, rgba(59,130,246,.10), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    .wrap{max-width:100%;margin:0;padding:26px 18px 90px;width:100%;}
+
+    /* Header */
+    .page-head{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px;
+    }
+    .title h1{margin:0;font-size:22px;letter-spacing:-.02em}
+    .title p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
+
+    /* Filters */
+    .filters{
+      display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:var(--card);
+      border-radius:var(--radius-sm);border:1px solid var(--border);box-shadow:var(--shadow-soft);
+    }
+    .filter-group{
+      display:flex;flex-direction:column;gap:6px;min-width:150px;
+    }
+    .filter-group label{
+      font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+    }
+    .filter-group select,
+    .filter-group input{
+      padding:10px 12px;border:1px solid var(--border);border-radius:12px;font-size:13px;
+      background:var(--card);color:var(--text);font-family:inherit;
+    }
+    .filter-group input{flex:1;min-width:200px;}
+
+    /* Tickets List */
+    .tickets-list{
+      display:flex;flex-direction:column;gap:12px;
+    }
+    .ticket-card{
+      background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:18px;box-shadow:var(--shadow-soft);transition:.15s;
+    }
+    .ticket-card:hover{box-shadow:var(--shadow);transform:translateY(-1px);}
+    .ticket-header{
+      display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;
+    }
+    .ticket-id{
+      font-weight:900;font-size:14px;color:var(--primary);letter-spacing:.02em;
+    }
+    .ticket-meta{
+      display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    }
+    .badge{
+      padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+    .badge.category-bug{background:rgba(239,68,68,.1);color:#dc2626;}
+    .badge.category-ux{background:rgba(59,130,246,.1);color:#2563eb;}
+    .badge.category-payment{background:rgba(245,158,11,.1);color:#d97706;}
+    .badge.category-feature{background:rgba(16,185,129,.1);color:#059669;}
+    .badge.category-other{background:rgba(100,116,139,.1);color:#475569;}
+    .badge.impact-low{background:rgba(16,185,129,.1);color:#059669;}
+    .badge.impact-medium{background:rgba(245,158,11,.1);color:#d97706;}
+    .badge.impact-high{background:rgba(239,68,68,.1);color:#dc2626;}
+    .badge.email-sent{background:rgba(16,185,129,.1);color:#059669;}
+    .badge.email-error{background:rgba(239,68,68,.1);color:#dc2626;}
+    .ticket-title{
+      font-size:16px;font-weight:700;margin:8px 0;color:var(--text);
+    }
+    .ticket-description{
+      color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:12px;
+      white-space:pre-wrap;word-break:break-word;
+    }
+    .ticket-user{
+      display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;color:var(--muted);
+    }
+    .ticket-context{
+      display:flex;flex-direction:column;gap:4px;margin-top:12px;padding-top:12px;
+      border-top:1px solid var(--border);font-size:12px;color:var(--muted2);
+    }
+    .ticket-context a{
+      color:var(--primary);text-decoration:none;
+    }
+    .ticket-context a:hover{text-decoration:underline;}
+    .ticket-footer{
+      display:flex;justify-content:space-between;align-items:center;margin-top:12px;
+      padding-top:12px;border-top:1px solid var(--border);font-size:11px;color:var(--muted2);
+    }
+    .empty-state{
+      text-align:center;padding:60px 20px;color:var(--muted);
+    }
+    .empty-state h3{margin:0 0 8px;font-size:16px;color:var(--text);}
+    .empty-state p{margin:0;font-size:13px;}
+    .loading{
+      text-align:center;padding:40px;color:var(--muted);
+    }
+  </style>
+</head>
+<body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
+        <div>
+          <p class="brand-kicker">Dashboard</p>
+          <p class="brand-name">EDUCAflowOne</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/dashboard/" class="nav-item">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        <a href="/calendar/" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/alunos/" class="nav-item">
+          <span class="nav-emoji">🧑‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/planejamento/" class="nav-item">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        <a href="/?view=view-tasks" class="nav-item">
+          <span class="nav-emoji">✅</span>
+          <div>
+            <p class="nav-title">Tarefas</p>
+            <p class="nav-subtitle">Planejamento rápido</p>
+          </div>
+        </a>
+        <a href="/?view=view-finance" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+            {% if user_is_admin %}
+              <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
+                <span class="nav-emoji">👥</span>
+                <div>
+                  <p class="nav-title">Usuários</p>
+                  <p class="nav-subtitle">Gerenciar usuários</p>
+                </div>
+              </a>
+              <a href="/tickets/" class="nav-item nav-item-nested active" id="navTickets">
+                <span class="nav-emoji">🎫</span>
+                <div>
+                  <p class="nav-title">Tickets</p>
+                  <p class="nav-subtitle">Suporte e feedback</p>
+                </div>
+              </a>
+            {% endif %}
+            <a href="/perfil/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">👤</span>
+              <div>
+                <p class="nav-title">Perfil</p>
+                <p class="nav-subtitle">Dados da conta</p>
+              </div>
+            </a>
+            <a href="/planos/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">💳</span>
+              <div>
+                <p class="nav-title">Plano e Faturamento</p>
+                <p class="nav-subtitle">Gerenciar assinatura</p>
+              </div>
+            </a>
+            <a href="/tutorial/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">🎬</span>
+              <div>
+                <p class="nav-title">Tutorial</p>
+                <p class="nav-subtitle">Vídeos rápidos</p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida (mês)</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarRealized">0</strong> realizadas</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <a href="/calendar/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Calendário</a>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      </div>
+    </aside>
+  
+  <main class="page">
+    <div class="wrap">
+      <div class="page-head">
+        <div class="title">
+          <h1>🎫 Tickets de Suporte</h1>
+          <p>Visualize e gerencie todos os tickets de suporte enviados pelos usuários</p>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <div class="filter-group" style="flex:1;">
+          <label>Buscar</label>
+          <input type="text" id="searchInput" placeholder="Buscar por ID, título, descrição, usuário ou email...">
+        </div>
+        <div class="filter-group">
+          <label>Categoria</label>
+          <select id="categoryFilter">
+            <option value="">Todas</option>
+            <option value="bug">Bug / Erro</option>
+            <option value="ux">UX / Layout</option>
+            <option value="payment">Pagamento / Assinatura</option>
+            <option value="feature">Sugestão</option>
+            <option value="other">Outro</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Impacto</label>
+          <select id="impactFilter">
+            <option value="">Todos</option>
+            <option value="low">Baixo</option>
+            <option value="medium">Médio</option>
+            <option value="high">Alto</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Email</label>
+          <select id="emailFilter">
+            <option value="">Todos</option>
+            <option value="true">Enviado</option>
+            <option value="false">Não enviado</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tickets List -->
+      <div id="ticketsList" class="tickets-list">
+        <div class="loading">Carregando tickets...</div>
+      </div>
+    </div>
+  </main>
+
+  {% include '_support_widget.html' %}
+
+  <script>
+    let allTickets = [];
+    let filteredTickets = [];
+
+    async function loadTickets() {
+      try {
+        const response = await fetch('/api/support/tickets/list/', {
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            document.getElementById('ticketsList').innerHTML = `
+              <div class="empty-state">
+                <h3>⚠️ Acesso Negado</h3>
+                <p>Apenas administradores podem acessar esta página.</p>
+              </div>
+            `;
+            return;
+          }
+          throw new Error(`Erro ${response.status}`);
+        }
+
+        const data = await response.json();
+        allTickets = data.tickets || [];
+        applyFilters();
+      } catch (error) {
+        console.error('Erro ao carregar tickets:', error);
+        document.getElementById('ticketsList').innerHTML = `
+          <div class="empty-state">
+            <h3>❌ Erro ao carregar tickets</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function applyFilters() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const category = document.getElementById('categoryFilter').value;
+      const impact = document.getElementById('impactFilter').value;
+      const emailSent = document.getElementById('emailFilter').value;
+
+      filteredTickets = allTickets.filter(ticket => {
+        if (search && !(
+          ticket.ticket_id.toLowerCase().includes(search) ||
+          ticket.title.toLowerCase().includes(search) ||
+          ticket.description.toLowerCase().includes(search) ||
+          ticket.user.username.toLowerCase().includes(search) ||
+          ticket.user.email.toLowerCase().includes(search)
+        )) return false;
+
+        if (category && ticket.category !== category) return false;
+        if (impact && ticket.impact !== impact) return false;
+        if (emailSent !== '' && String(ticket.email_sent) !== emailSent) return false;
+
+        return true;
+      });
+
+      renderTickets();
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function renderTickets() {
+      const container = document.getElementById('ticketsList');
+      
+      if (filteredTickets.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>📭 Nenhum ticket encontrado</h3>
+            <p>Tente ajustar os filtros de busca.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filteredTickets.map(ticket => `
+        <div class="ticket-card">
+          <div class="ticket-header">
+            <div>
+              <div class="ticket-id">#${ticket.ticket_id}</div>
+              <div class="ticket-meta" style="margin-top:6px;">
+                <span class="badge category-${ticket.category}">${ticket.category_display}</span>
+                <span class="badge impact-${ticket.impact}">${ticket.impact_display}</span>
+                ${ticket.email_sent 
+                  ? '<span class="badge email-sent">✓ Email enviado</span>'
+                  : '<span class="badge email-error">✗ Email não enviado</span>'
+                }
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--muted2);">${formatDate(ticket.created_at)}</div>
+          </div>
+          <div class="ticket-title">${escapeHtml(ticket.title)}</div>
+          <div class="ticket-description">${escapeHtml(ticket.description)}</div>
+          <div class="ticket-user">
+            <strong>Usuário:</strong> ${escapeHtml(ticket.user.full_name)} (${escapeHtml(ticket.user.email)})
+          </div>
+          ${ticket.url || ticket.page ? `
+            <div class="ticket-context">
+              ${ticket.page ? `<div><strong>Página:</strong> ${escapeHtml(ticket.page)}</div>` : ''}
+              ${ticket.url ? `<div><strong>URL:</strong> <a href="${escapeHtml(ticket.url)}" target="_blank">${escapeHtml(ticket.url)}</a></div>` : ''}
+            </div>
+          ` : ''}
+          ${ticket.email_error ? `
+            <div class="ticket-footer" style="color:var(--bad);">
+              <strong>Erro no email:</strong> ${escapeHtml(ticket.email_error)}
+            </div>
+          ` : `
+            <div class="ticket-footer">
+              <span>Criado em ${formatDate(ticket.created_at)}</span>
+              ${ticket.created_at_local ? `<span>Cliente: ${escapeHtml(ticket.created_at_local)} (${escapeHtml(ticket.timezone || 'N/A')})</span>` : ''}
+            </div>
+          `}
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Event listeners
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+    document.getElementById('impactFilter').addEventListener('change', applyFilters);
+    document.getElementById('emailFilter').addEventListener('change', applyFilters);
+
+    // Load tickets on page load
+    loadTickets();
+
+    // Sidebar functionality
+    (function() {
+      // Toggle nav group
+      const navGroupBtn = document.getElementById('navGroupContaBtn');
+      const navGroupItems = document.getElementById('navGroupContaItems');
+      const STORAGE_KEY = "educaflowone_sidebar_conta_expanded";
+      
+      if (navGroupBtn && navGroupItems) {
+        const isExpanded = localStorage.getItem(STORAGE_KEY) === 'true';
+        if (isExpanded) {
+          navGroupBtn.setAttribute('aria-expanded', 'true');
+          navGroupBtn.closest('.nav-group').classList.remove('nav-group--collapsed');
+        }
+        
+        navGroupBtn.addEventListener('click', () => {
+          const isCurrentlyExpanded = navGroupBtn.getAttribute('aria-expanded') === 'true';
+          navGroupBtn.setAttribute('aria-expanded', String(!isCurrentlyExpanded));
+          navGroupBtn.closest('.nav-group').classList.toggle('nav-group--collapsed');
+          localStorage.setItem(STORAGE_KEY, String(!isCurrentlyExpanded));
+        });
+      }
+
+      // navUsers e navTickets agora são renderizados condicionalmente no servidor
+      // Não precisamos mais verificar permissões via JavaScript
+
+      // Logout
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await fetch('/api/auth/logout/', { method: 'POST', credentials: 'same-origin' });
+            window.location.href = '/login/';
+          } catch (error) {
+            console.error('Erro ao fazer logout:', error);
+            window.location.href = '/login/';
+          }
+        });
+      }
+
+      // Update sidebar stats
+      async function updateSidebarStats() {
+        try {
+          const response = await fetch('/api/dashboard/summary/', { credentials: 'same-origin' });
+          if (response.ok) {
+            const kpis = await response.json();
+            const sidebarConfirmed = document.getElementById('sidebarConfirmed');
+            const sidebarPending = document.getElementById('sidebarPending');
+            const sidebarRealized = document.getElementById('sidebarRealized');
+            const sidebarStudents = document.getElementById('sidebarStudents');
+            
+            if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.calendar_confirmed || 0;
+            if (sidebarPending) sidebarPending.textContent = kpis.calendar_pending_month || 0;
+            if (sidebarRealized) sidebarRealized.textContent = kpis.calendar_realized || 0;
+            if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
+          }
+        } catch (error) {
+          console.error('Erro ao atualizar visão rápida:', error);
+        }
+      }
+      updateSidebarStats();
+    })();
+  </script>
+</body>
+</html>

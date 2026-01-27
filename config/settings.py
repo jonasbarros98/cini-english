@@ -225,15 +225,24 @@ if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     # Produção: usar SMTP real
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
-    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+    # Tentar porta 465 (SSL) primeiro, que é mais compatível com cloud providers
+    # Se não funcionar, pode tentar 587 (TLS) via variável de ambiente
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '465'))
+    # Porta 465 usa SSL, porta 587 usa TLS
+    if EMAIL_PORT == 465:
+        EMAIL_USE_SSL = True
+        EMAIL_USE_TLS = False
+    else:
+        EMAIL_USE_SSL = False
+        EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@educaflowone.com')
     # Timeout de 10 segundos para evitar que email bloqueie a resposta HTTP
     EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
     print(f"✅ EMAIL: Configurado para SMTP real")
     print(f"   Host: {EMAIL_HOST}:{EMAIL_PORT}")
     print(f"   From: {DEFAULT_FROM_EMAIL}")
-    print(f"   TLS: {EMAIL_USE_TLS}")
+    print(f"   SSL: {EMAIL_USE_SSL if EMAIL_PORT == 465 else False}")
+    print(f"   TLS: {EMAIL_USE_TLS if EMAIL_PORT != 465 else False}")
     print(f"   Timeout: {EMAIL_TIMEOUT}s")
 else:
     # Desenvolvimento: usar console backend (imprime no terminal)

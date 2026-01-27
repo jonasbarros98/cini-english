@@ -607,13 +607,22 @@
             <span class="nav-group-chevron" aria-hidden="true">›</span>
           </button>
           <div class="nav-group-items" id="navGroupContaItems">
-          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
-            <span class="nav-emoji">👥</span>
-            <div>
-              <p class="nav-title">Usuários</p>
-              <p class="nav-subtitle">Gerenciar usuários</p>
-            </div>
-          </a>
+          {% if user_is_admin %}
+            <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
+              <span class="nav-emoji">👥</span>
+              <div>
+                <p class="nav-title">Usuários</p>
+                <p class="nav-subtitle">Gerenciar usuários</p>
+              </div>
+            </a>
+            <a href="/tickets/" class="nav-item nav-item-nested" id="navTickets">
+              <span class="nav-emoji">🎫</span>
+              <div>
+                <p class="nav-title">Tickets</p>
+                <p class="nav-subtitle">Suporte e feedback</p>
+              </div>
+            </a>
+          {% endif %}
           <a href="/perfil/" class="nav-item nav-item-nested">
             <span class="nav-emoji">👤</span>
             <div>
@@ -1334,9 +1343,8 @@
           if (response.ok) {
             const user = await response.json();
             const navUsers = document.getElementById("navUsers");
-            if (navUsers && user && user.is_admin) {
-              navUsers.style.display = "flex";
-            }
+            // navTickets e navUsers agora são renderizados condicionalmente no servidor
+            // Não precisamos mais mostrar/esconder via JavaScript
           }
         } catch (error) {
           console.error("Erro ao verificar permissões de admin:", error);
