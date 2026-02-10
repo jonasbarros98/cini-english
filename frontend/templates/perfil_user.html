@@ -38,14 +38,13 @@
 
     .profile-grid{
       display:grid;
-      grid-template-columns: 1.05fr .95fr;
-      gap:16px;
+      grid-template-columns: 1fr 1fr;
+      gap:20px;
       align-items:start;
       margin-top: 16px;
+      max-width: 100%;
     }
-    @media (max-width: 980px){
-      .profile-grid{grid-template-columns:1fr;}
-    }
+    @media (max-width: 900px){ .profile-grid{ grid-template-columns: 1fr; } }
 
     .panel{padding:16px;}
     .panel-header{
@@ -182,6 +181,47 @@
       display:none;
       z-index: 9999;
     }
+
+    .collapsible-trigger{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      width:100%;padding:10px 12px;margin:0;cursor:pointer;text-align:left;
+      border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.6);
+      font-weight:700;font-size:13px;color:var(--text);
+    }
+    .collapsible-trigger:hover{background:rgba(255,255,255,.85);}
+    .collapsible-trigger .chevron{transition:transform .2s ease;}
+    .collapsible-trigger[aria-expanded="true"] .chevron{transform:rotate(180deg);}
+    .collapsible-body{overflow:hidden;}
+    .collapsible-body.collapsed{display:none;}
+
+    .partners-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+    .partners-section h3{margin:0 0 8px;font-size:14px;font-weight:800;}
+    .partners-section .hint{margin-bottom:10px;font-size:12px;color:var(--muted);}
+    .partners-add{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+    .partners-add input{flex:1;min-width:160px;}
+    .partners-list{display:flex;flex-direction:column;gap:8px;}
+    .partner-chip{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
+      border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.72);
+      font-size:13px;
+    }
+    .partner-chip .name{font-weight:700;}
+    .partner-chip .email{color:var(--muted);font-size:12px;}
+    .partner-chip .btn-remove{padding:4px 8px;font-size:12px;}
+    .modal-overlay{position:fixed;inset:0;background:rgba(2,6,23,.4);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9998;padding:16px;}
+    .modal-overlay.is-open{display:flex;}
+    .modal{width:min(440px,96vw);max-height:90vh;background:#fff;border-radius:16px;box-shadow:0 24px 48px rgba(2,6,23,.2);overflow:hidden;display:flex;flex-direction:column;}
+    .modal-head{padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);}
+    .modal-head h3{margin:0;font-size:16px;font-weight:800;}
+    .modal-head p{margin:4px 0 0;color:var(--muted);font-size:12px;}
+    .modal-close{width:36px;height:36px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.8);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;}
+    .modal-body{padding:16px;overflow-y:auto;}
+    .modal-actions{padding:14px 16px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--border);}
+    .partners-table{width:100%;border-collapse:collapse;font-size:13px;}
+    .partners-table th{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);font-weight:800;color:var(--muted);}
+    .partners-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+    .partners-table .login-code{font-family:monospace;font-size:12px;background:rgba(0,0,0,.06);padding:2px 6px;border-radius:6px;}
+    .partners-table .row-acts{display:flex;gap:8px;}
   </style>
 </head>
 
@@ -198,6 +238,7 @@
       </div>
 
       <nav class="nav">
+        {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item">
           <span class="nav-emoji">🏠</span>
           <div>
@@ -205,6 +246,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
+        {% endif %}
         <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
@@ -226,6 +268,7 @@
             <p class="nav-subtitle">Planejar aulas por aluno</p>
           </div>
         </a>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-tasks" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
@@ -233,6 +276,7 @@
             <p class="nav-subtitle">Planejamento rápido</p>
           </div>
         </a>
+        {% endif %}
         <a href="/?view=view-finance" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
@@ -243,6 +287,7 @@
         
         <div class="nav-divider"></div>
         
+        {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
@@ -250,9 +295,10 @@
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
+        {% endif %}
         
         <div class="nav-divider"></div>
-
+        {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -260,13 +306,15 @@
             <span class="nav-group-chevron" aria-hidden="true">›</span>
           </button>
           <div class="nav-group-items" id="navGroupContaItems">
-          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+          {% if user_is_admin %}
+          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
             <span class="nav-emoji">👥</span>
             <div>
               <p class="nav-title">Usuários</p>
               <p class="nav-subtitle">Gerenciar usuários</p>
             </div>
           </a>
+          {% endif %}
           <a href="/perfil/" class="nav-item nav-item-nested active">
             <span class="nav-emoji">👤</span>
             <div>
@@ -290,6 +338,7 @@
           </a>
           </div>
         </div>
+        {% endif %}
       </nav>
 
       <div class="sidebar-card">
@@ -348,69 +397,51 @@
           <form id="profileForm" autocomplete="off">
             <div class="form">
               <div class="field">
-                <label for="username">Nome de usuário</label>
-                <input id="username" name="username" type="text" placeholder="ex: profbianca" />
-                <div class="hint">Usado pra login e URLs internas (se você quiser no futuro).</div>
-              </div>
-
-              <div class="field">
                 <label for="email">E-mail</label>
-                <input id="email" name="email" type="email" placeholder="ex: bianca@email.com" />
-                <div class="hint">Se mudar, você decide depois se exige revalidação.</div>
+                <input id="email" name="email" type="email" placeholder="seu@email.com" />
               </div>
-
               <div class="field">
                 <label for="first_name">Primeiro nome</label>
                 <input id="first_name" name="first_name" type="text" placeholder="Bianca" />
               </div>
-
               <div class="field">
                 <label for="last_name">Sobrenome</label>
                 <input id="last_name" name="last_name" type="text" placeholder="Cini" />
               </div>
-
+              <div class="field">
+                <label for="username">Nome de usuário</label>
+                <input id="username" name="username" type="text" placeholder="ex: profbianca" />
+              </div>
               <div class="field">
                 <label for="password">Nova senha</label>
-                <input id="password" name="password" type="password" placeholder="deixe em branco para manter" />
-                <div class="hint">Não mostramos a senha atual. Se preencher, troca.</div>
+                <input id="password" name="password" type="password" placeholder="Deixe em branco para manter" />
               </div>
-
               <div class="field">
                 <label for="password2">Confirmar nova senha</label>
-                <input id="password2" name="password2" type="password" placeholder="repita a nova senha" />
-              </div>
-
-              <div class="field">
-                <label for="photo">Foto (opcional)</label>
-                <input id="photo" name="photo" type="file" accept="image/*" />
-                <div class="hint">Preview local. Upload você liga depois no backend.</div>
-              </div>
-
-              <div class="field">
-                <label for="role">Permissão</label>
-                <input id="role" name="role" type="text" value="ADMIN" disabled />
-                <div class="hint">Somente leitura.</div>
+                <input id="password2" name="password2" type="password" placeholder="Repita a nova senha" />
               </div>
             </div>
 
             <div class="divider"></div>
 
-            <div class="panel-header" style="margin:0 0 10px;">
-              <div class="panel-title">
-                <h2>Dados opcionais</h2>
-                <p>Deixe completo (e pronto pra emissão/financeiro no futuro).</p>
-              </div>
-              <span class="pill warn" title="Opcional">
-                <span class="dot"></span>
-                <span>Opcional</span>
-              </span>
-            </div>
-
-            <div class="form">
-              <div class="field">
-                <label for="cpf_cnpj">CPF/CNPJ</label>
-                <input id="cpf_cnpj" name="cpf_cnpj" type="text" placeholder="000.000.000-00 / 00.000.000/0001-00" />
-              </div>
+            <button type="button" class="collapsible-trigger" id="btnToggleOptional" aria-expanded="false" aria-controls="optionalBody">
+              <span>Mais dados (opcional)</span>
+              <span class="chevron" aria-hidden="true">&#9660;</span>
+            </button>
+            <div id="optionalBody" class="collapsible-body collapsed" role="region">
+              <div class="form" style="margin-top:12px;">
+                <div class="field">
+                  <label for="photo">Foto</label>
+                  <input id="photo" name="photo" type="file" accept="image/*" />
+                </div>
+                <div class="field">
+                  <label for="role">Permissão</label>
+                  <input id="role" name="role" type="text" value="USER" disabled />
+                </div>
+                <div class="field">
+                  <label for="cpf_cnpj">CPF/CNPJ</label>
+                  <input id="cpf_cnpj" name="cpf_cnpj" type="text" placeholder="000.000.000-00" />
+                </div>
 
               <div class="field">
                 <label for="phone">Telefone/WhatsApp</label>
@@ -453,68 +484,158 @@
                   <option value="en">en</option>
                 </select>
               </div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="danger-note" id="securityNote">
+              <strong>Senha:</strong> se você preencher, ela será atualizada. Se deixar em branco, fica como está.
+            </div>
+            <div class="row-actions">
+              <button class="btn" type="button" id="btnReset" disabled>Desfazer</button>
+              <button class="btn primary" type="button" id="btnSave2" disabled>Salvar</button>
+            </div>
+            <div style="margin-top:12px;">
+              <a class="btn" href="/planos/">Plano e Faturamento</a>
             </div>
           </form>
         </section>
 
-        <!-- DIREITA: Resumo/Segurança -->
-        <aside class="card panel">
+        {% if not is_partner_teacher %}
+        <section class="card panel" id="partnersSection">
           <div class="panel-header">
             <div class="panel-title">
-              <h2>Resumo</h2>
-              <p>O que vai ser salvo.</p>
+              <h2>Professores parceiros</h2>
+              <p>Cadastre, vincule ou remova. Eles podem ser atribuídos a alunos e aulas.</p>
             </div>
-            <span class="pill" title="Checklist">
-              <span class="dot"></span>
-              <span id="summaryOk">OK</span>
-            </span>
+            <button type="button" class="btn primary" id="btnNewPartner">+ Novo Prof Parceiro</button>
           </div>
-
-          <div class="kv" id="summaryBox">
-            <div class="item">
-              <div class="k">Nome exibido</div>
-              <div class="v" id="sumName">—</div>
-            </div>
-            <div class="item">
-              <div class="k">Login</div>
-              <div class="v" id="sumLogin">—</div>
-            </div>
-            <div class="item">
-              <div class="k">Timezone</div>
-              <div class="v" id="sumTZ">—</div>
-            </div>
+          <p class="hint" style="margin:0 0 12px;">Para o parceiro entrar no sistema: use o <strong>Login</strong> (não o e-mail) e a senha que você definiu.</p>
+          <button type="button" class="btn" id="btnLinkExisting" style="margin-bottom:14px;">Vincular professor parceiro existente por e-mail</button>
+          <div class="partners-list-wrap">
+            <table class="partners-table" id="partnersTable">
+              <thead>
+                <tr><th>Nome</th><th>E-mail</th><th>Login</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="partnersList"></tbody>
+            </table>
+            <p class="hint" id="partnersEmpty" style="margin:12px 0 0;display:none;">Nenhum professor parceiro vinculado. Clique em &quot;Novo Prof Parceiro&quot; para cadastrar.</p>
           </div>
-
-          <div class="divider"></div>
-
-          <div class="danger-note" id="securityNote">
-            <strong>Senha:</strong> se você preencher, ela será atualizada. Se deixar em branco, fica como está.
-          </div>
-
-          <div class="row-actions">
-            <button class="btn" type="button" id="btnReset" disabled>Desfazer</button>
-            <button class="btn primary" type="button" id="btnSave2" disabled>Salvar</button>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="kv">
-            <div class="item">
-              <div class="k">Assinatura</div>
-              <div class="v" id="subLabel">—</div>
-            </div>
-            <div class="item">
-              <div class="k">Customer (Stripe)</div>
-              <div class="v" id="stripeCustomer">—</div>
-            </div>
-          </div>
-
-          <div class="row-actions" style="margin-top:12px;">
-            <a class="btn" href="/planos/">💳 Plano e Faturamento</a>
-          </div>
-        </aside>
+        </section>
+        {% endif %}
       </section>
     </main>
+  </div>
+
+  <!-- Modal: Novo Prof Parceiro -->
+  <div class="modal-overlay" id="modalNewPartner" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <h3>Novo Prof Parceiro</h3>
+          <p>O login será o nome de usuário (ou gerado do e-mail). Senha: a que você definir.</p>
+        </div>
+        <button type="button" class="modal-close" id="modalNewPartnerClose" aria-label="Fechar">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="newPartnerEmail">E-mail *</label>
+          <input type="email" id="newPartnerEmail" placeholder="parceiro@email.com" />
+        </div>
+        <div class="field">
+          <label for="newPartnerFirst">Nome</label>
+          <input type="text" id="newPartnerFirst" placeholder="Nome" />
+        </div>
+        <div class="field">
+          <label for="newPartnerLast">Sobrenome</label>
+          <input type="text" id="newPartnerLast" placeholder="Sobrenome" />
+        </div>
+        <div class="field">
+          <label for="newPartnerUsername">Nome de usuário (Login)</label>
+          <input type="text" id="newPartnerUsername" placeholder="Opcional: deixe em branco para gerar do e-mail (ex: parceiro_email.com)" />
+          <div class="hint">Para entrar no sistema o parceiro usa este Login e a senha que você definir.</div>
+        </div>
+        <div class="field">
+          <label for="newPartnerPassword">Senha * (mín. 8 caracteres)</label>
+          <input type="password" id="newPartnerPassword" placeholder="Senha de acesso" />
+        </div>
+        <div class="field">
+          <label for="newPartnerPassword2">Confirmar senha *</label>
+          <input type="password" id="newPartnerPassword2" placeholder="Repita a senha" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="modalNewPartnerCancel">Cancelar</button>
+        <button type="button" class="btn primary" id="btnPartnerCreate">Cadastrar e vincular</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Vincular existente -->
+  <div class="modal-overlay" id="modalLinkExisting" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <h3>Vincular professor parceiro existente</h3>
+          <p>Informe o e-mail de quem já é Prof. Parceiro no sistema.</p>
+        </div>
+        <button type="button" class="modal-close" id="modalLinkExistingClose" aria-label="Fechar">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="partnerEmail">E-mail</label>
+          <input type="email" id="partnerEmail" placeholder="parceiro@email.com" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="modalLinkExistingCancel">Cancelar</button>
+        <button type="button" class="btn primary" id="btnPartnerLookup">Buscar e adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Editar parceiro -->
+  <div class="modal-overlay" id="modalEditPartner" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <h3>Editar professor parceiro</h3>
+          <p id="editPartnerLoginHint">Login não pode ser alterado aqui.</p>
+        </div>
+        <button type="button" class="modal-close" id="modalEditPartnerClose" aria-label="Fechar">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editPartnerId" />
+        <div class="field">
+          <label>Login (somente leitura)</label>
+          <input type="text" id="editPartnerUsername" disabled />
+        </div>
+        <div class="field">
+          <label for="editPartnerFirst">Nome</label>
+          <input type="text" id="editPartnerFirst" placeholder="Nome" />
+        </div>
+        <div class="field">
+          <label for="editPartnerLast">Sobrenome</label>
+          <input type="text" id="editPartnerLast" placeholder="Sobrenome" />
+        </div>
+        <div class="field">
+          <label for="editPartnerEmail">E-mail</label>
+          <input type="email" id="editPartnerEmail" placeholder="e-mail@exemplo.com" />
+        </div>
+        <div class="field">
+          <label for="editPartnerPassword">Nova senha (deixe em branco para manter)</label>
+          <input type="password" id="editPartnerPassword" placeholder="Mín. 8 caracteres" />
+        </div>
+        <div class="field">
+          <label for="editPartnerPassword2">Confirmar nova senha</label>
+          <input type="password" id="editPartnerPassword2" placeholder="Repita" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="modalEditPartnerCancel">Cancelar</button>
+        <button type="button" class="btn primary" id="btnEditPartnerSave">Salvar</button>
+      </div>
+    </div>
   </div>
 
   <div class="toast" id="toast">Salvo</div>
@@ -558,6 +679,204 @@
       console.log("Campos do formulário encontrados:", fields.map(f => f.id));
 
       let initialState = null;
+      let partnerTeachersIds = [];
+      let initialPartnerIds = [];
+      let partnerNames = {};
+
+      function renderPartnersList(list) {
+        const tbody = $('partnersList');
+        const emptyEl = $('partnersEmpty');
+        const tableEl = $('partnersTable');
+        if (!tbody) return;
+        if (!list || list.length === 0) {
+          tbody.innerHTML = '';
+          if (emptyEl) emptyEl.style.display = 'block';
+          if (tableEl) tableEl.style.visibility = 'hidden';
+          return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (tableEl) tableEl.style.visibility = 'visible';
+        tbody.innerHTML = list.map(p => {
+          const id = p.id;
+          const name = (p.name || '').trim() || '—';
+          const email = (p.email || '').trim() || '';
+          const login = (p.username || '').trim() || '—';
+          return '<tr data-partner-id="' + id + '">' +
+            '<td>' + escapeHtml(name) + '</td>' +
+            '<td>' + escapeHtml(email) + '</td>' +
+            '<td><span class="login-code">' + escapeHtml(login) + '</span></td>' +
+            '<td><div class="row-acts"><button type="button" class="btn btn-edit" data-id="' + id + '">Editar</button><button type="button" class="btn btn-remove" data-id="' + id + '">Remover</button></div></td></tr>';
+        }).join('');
+        tbody.querySelectorAll('.btn-remove').forEach(btn => {
+          btn.addEventListener('click', function() { removePartnerById(parseInt(this.getAttribute('data-id'), 10)); });
+        });
+        tbody.querySelectorAll('.btn-edit').forEach(btn => {
+          btn.addEventListener('click', function() { openEditPartnerModal(parseInt(this.getAttribute('data-id'), 10)); });
+        });
+      }
+      function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
+      async function removePartnerById(id) {
+        if (!confirm('Desvincular este professor parceiro? O acesso dele aos seus alunos e aulas será cortado imediatamente.')) return;
+        const csrf = getCookie('csrftoken');
+        try {
+          const res = await fetch('/api/profile/partner-teachers/' + id + '/remove/', {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': csrf || '', 'Content-Type': 'application/json' },
+            credentials: 'same-origin'
+          });
+          const data = res.ok ? await res.json().catch(() => ({})) : await res.json().catch(() => ({ error: 'Erro ao desvincular' }));
+          if (!res.ok) {
+            alert(data.error || 'Erro ao desvincular.');
+            return;
+          }
+          partnerTeachersIds = partnerTeachersIds.filter(x => x !== id);
+          delete partnerNames[id];
+          initialPartnerIds = partnerTeachersIds.slice();
+          const list = partnerTeachersIds.map(pid => ({
+            id: pid,
+            name: (partnerNames[pid] && partnerNames[pid].name) || '—',
+            email: (partnerNames[pid] && partnerNames[pid].email) || '',
+            username: (partnerNames[pid] && partnerNames[pid].username) || ''
+          }));
+          renderPartnersList(list);
+          setDirty(false);
+          showToast('Professor parceiro desvinculado. Acesso cortado.');
+        } catch (e) {
+          alert('Erro ao desvincular. Tente novamente.');
+        }
+      }
+      async function createPartner() {
+        const email = ($('newPartnerEmail') && $('newPartnerEmail').value || '').trim();
+        const first = ($('newPartnerFirst') && $('newPartnerFirst').value || '').trim();
+        const last = ($('newPartnerLast') && $('newPartnerLast').value || '').trim();
+        const username = ($('newPartnerUsername') && $('newPartnerUsername').value || '').trim();
+        const pwd = $('newPartnerPassword') && $('newPartnerPassword').value;
+        const pwd2 = $('newPartnerPassword2') && $('newPartnerPassword2').value;
+        if (!email) {
+          alert('Informe o e-mail do novo professor parceiro.');
+          return;
+        }
+        if (!pwd || pwd.length < 8) {
+          alert('A senha deve ter pelo menos 8 caracteres.');
+          return;
+        }
+        if (pwd !== pwd2) {
+          alert('As senhas não coincidem.');
+          return;
+        }
+        const btn = $('btnPartnerCreate');
+        if (btn) btn.disabled = true;
+        try {
+          const csrf = getCookie('csrftoken');
+          const body = { email: email, first_name: first, last_name: last, password: pwd, password_confirm: pwd2 };
+          if (username) body.username = username;
+          const res = await fetch('/api/profile/partner-teachers/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf || '', 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            alert(data.error || 'Erro ao cadastrar.');
+            return;
+          }
+          if (partnerTeachersIds.indexOf(data.id) >= 0) {
+            showToast('Já vinculado.');
+            return;
+          }
+          partnerTeachersIds.push(data.id);
+          partnerNames[data.id] = { name: data.name || '', email: data.email || '', username: data.username || '' };
+          initialPartnerIds = partnerTeachersIds.slice();
+          const list = partnerTeachersIds.map(pid => ({
+            id: pid,
+            name: (partnerNames[pid] && partnerNames[pid].name) || '—',
+            email: (partnerNames[pid] && partnerNames[pid].email) || '',
+            username: (partnerNames[pid] && partnerNames[pid].username) || ''
+          }));
+          renderPartnersList(list);
+          setDirty(false);
+          closeModal('modalNewPartner');
+          if ($('newPartnerEmail')) $('newPartnerEmail').value = '';
+          if ($('newPartnerFirst')) $('newPartnerFirst').value = '';
+          if ($('newPartnerLast')) $('newPartnerLast').value = '';
+          if ($('newPartnerUsername')) $('newPartnerUsername').value = '';
+          if ($('newPartnerPassword')) $('newPartnerPassword').value = '';
+          if ($('newPartnerPassword2')) $('newPartnerPassword2').value = '';
+          var loginMsg = (data.username ? ' Login: ' + data.username + '.' : '') + ' Senha: a que você definiu.';
+          showToast('Cadastrado e vinculado.' + loginMsg);
+        } catch (e) {
+          alert('Erro ao cadastrar. Tente novamente.');
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+      function openModal(id) {
+        var el = document.getElementById(id);
+        if (el) { el.classList.add('is-open'); el.setAttribute('aria-hidden', 'false'); }
+      }
+      function closeModal(id) {
+        var el = document.getElementById(id);
+        if (el) { el.classList.remove('is-open'); el.setAttribute('aria-hidden', 'true'); }
+      }
+      function openEditPartnerModal(id) {
+        var p = partnerNames[id];
+        if (!p) return;
+        if ($('editPartnerId')) $('editPartnerId').value = id;
+        if ($('editPartnerUsername')) $('editPartnerUsername').value = p.username || '—';
+        if ($('editPartnerFirst')) $('editPartnerFirst').value = p.name ? p.name.split(' ')[0] : '';
+        if ($('editPartnerLast')) $('editPartnerLast').value = p.name ? p.name.split(' ').slice(1).join(' ') : '';
+        if ($('editPartnerEmail')) $('editPartnerEmail').value = p.email || '';
+        if ($('editPartnerPassword')) $('editPartnerPassword').value = '';
+        if ($('editPartnerPassword2')) $('editPartnerPassword2').value = '';
+        openModal('modalEditPartner');
+      }
+      async function saveEditPartner() {
+        var id = $('editPartnerId') && parseInt($('editPartnerId').value, 10);
+        if (!id) return;
+        var first = ($('editPartnerFirst') && $('editPartnerFirst').value || '').trim();
+        var last = ($('editPartnerLast') && $('editPartnerLast').value || '').trim();
+        var email = ($('editPartnerEmail') && $('editPartnerEmail').value || '').trim();
+        var pwd = $('editPartnerPassword') && $('editPartnerPassword').value;
+        var pwd2 = $('editPartnerPassword2') && $('editPartnerPassword2').value;
+        if (pwd || pwd2) {
+          if (pwd.length < 8) { alert('A senha deve ter pelo menos 8 caracteres.'); return; }
+          if (pwd !== pwd2) { alert('As senhas não coincidem.'); return; }
+        }
+        var btn = $('btnEditPartnerSave');
+        if (btn) btn.disabled = true;
+        try {
+          var csrf = getCookie('csrftoken');
+          var body = { first_name: first, last_name: last, email: email };
+          if (pwd) { body.password = pwd; body.password_confirm = pwd2; }
+          var res = await fetch('/api/profile/partner-teachers/' + id + '/', {
+            method: 'PATCH',
+            headers: { 'X-CSRFToken': csrf || '', 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(body)
+          });
+          var data = await res.json();
+          if (!res.ok) { alert(data.error || 'Erro ao salvar.'); return; }
+          partnerNames[id] = { name: data.name || '', email: data.email || '', username: data.username || (partnerNames[id] && partnerNames[id].username) || '' };
+          var list = partnerTeachersIds.map(pid => ({
+            id: pid,
+            name: (partnerNames[pid] && partnerNames[pid].name) || '—',
+            email: (partnerNames[pid] && partnerNames[pid].email) || '',
+            username: (partnerNames[pid] && partnerNames[pid].username) || ''
+          }));
+          renderPartnersList(list);
+          closeModal('modalEditPartner');
+          showToast('Alterações salvas.');
+        } catch (e) {
+          alert('Erro ao salvar. Tente novamente.');
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
 
       function getState(){
         const data = {};
@@ -581,6 +900,9 @@
           if(currentVal !== initialVal) {
             return true;
           }
+        }
+        if(JSON.stringify(partnerTeachersIds.slice().sort()) !== JSON.stringify(initialPartnerIds.slice().sort())) {
+          return true;
         }
         return false;
       }
@@ -715,9 +1037,7 @@
           
           if(res.ok){
             const u = await res.json();
-            if($('navUsers') && u && u.is_admin) {
-              $('navUsers').style.display = "flex";
-            }
+            // navUsers é exibido apenas para admin (renderizado no servidor)
             if($('role')) {
               $('role').value = u && u.is_admin ? "ADMIN" : "USER";
             }
@@ -769,6 +1089,21 @@
           }
 
           const data = await res.json();
+          
+          if ($('partnersSection')) {
+            if (data.partner_teachers && Array.isArray(data.partner_teachers)) {
+              partnerTeachersIds = data.partner_teachers.map(p => p.id);
+              initialPartnerIds = partnerTeachersIds.slice();
+              partnerNames = {};
+              data.partner_teachers.forEach(p => { partnerNames[p.id] = { name: p.name, email: p.email, username: p.username || '' }; });
+              renderPartnersList(data.partner_teachers);
+            } else {
+              partnerTeachersIds = [];
+              initialPartnerIds = [];
+              partnerNames = {};
+              renderPartnersList([]);
+            }
+          }
           
           // Preencher campos do formulário
           if ($('username')) $('username').value = data.username || '';
@@ -876,6 +1211,9 @@
         // Log do payload antes de processar
         console.log("Payload original:", payload);
 
+        if ($('partnersSection')) {
+          payload.partner_teachers_ids = partnerTeachersIds.slice();
+        }
         // regra: senha vazia => não manda
         if(!payload.password || payload.password.trim() === '') {
           delete payload.password;
@@ -908,14 +1246,15 @@
           // Usar FormData para enviar arquivo
           const formData = new FormData();
           
-          // Adicionar todos os campos do payload ao FormData
           for (const key in payload) {
-            if (payload[key] !== undefined && payload[key] !== null) {
+            if (payload[key] === undefined || payload[key] === null) continue;
+            if (key === 'partner_teachers_ids' && Array.isArray(payload[key])) {
+              payload[key].forEach(id => formData.append('partner_teachers_ids', id));
+            } else {
               formData.append(key, payload[key]);
             }
           }
           
-          // Adicionar a foto
           formData.append('photo', photoFile);
           
           requestBody = formData;
@@ -982,10 +1321,8 @@
             console.log("Foto enviada, recarregando do servidor...");
           }
           
-          // Recarregar dados atualizados antes de resetar estado
           await loadProfile();
-          
-          // Resetar estado após recarregar
+          initialPartnerIds = partnerTeachersIds.slice();
           setInitialState();
           
           // Mostrar alert de confirmação após um pequeno delay
@@ -1031,11 +1368,76 @@
         }catch(_){}
       }
 
+      function toggleOptionalSection() {
+        const btn = $('btnToggleOptional');
+        const body = $('optionalBody');
+        if (!btn || !body) return;
+        const isExpanded = body.classList.toggle('collapsed');
+        btn.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+      }
+      async function addPartnerByEmail() {
+        const input = $('partnerEmail');
+        const email = (input && input.value || '').trim();
+        if (!email) {
+          alert('Informe o e-mail do professor parceiro.');
+          return;
+        }
+        const btn = $('btnPartnerLookup');
+        if (btn) btn.disabled = true;
+        try {
+          const csrf = getCookie('csrftoken');
+          const res = await fetch('/api/profile/partner-teachers/lookup/?email=' + encodeURIComponent(email), {
+            method: 'GET',
+            headers: { 'X-CSRFToken': csrf || '', 'Content-Type': 'application/json' },
+            credentials: 'same-origin'
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            alert(data.error || 'Não foi possível buscar o usuário.');
+            return;
+          }
+          if (partnerTeachersIds.indexOf(data.id) >= 0) {
+            alert('Este professor já está vinculado.');
+            return;
+          }
+          partnerTeachersIds.push(data.id);
+          partnerNames[data.id] = { name: data.name || '', email: data.email || '', username: data.username || '' };
+          const list = partnerTeachersIds.map(pid => ({
+            id: pid,
+            name: (partnerNames[pid] && partnerNames[pid].name) || '—',
+            email: (partnerNames[pid] && partnerNames[pid].email) || '',
+            username: (partnerNames[pid] && partnerNames[pid].username) || ''
+          }));
+          renderPartnersList(list);
+          setDirty(true);
+          if (input) input.value = '';
+          closeModal('modalLinkExisting');
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
       // ===== Events =====
       document.addEventListener('DOMContentLoaded', async ()=>{
         await checkAdminAndShowUsersMenu();
         await loadProfile();
         setTimeout(initContaGroupCollapse, 100);
+
+        const btnToggle = $('btnToggleOptional');
+        if (btnToggle) btnToggle.addEventListener('click', toggleOptionalSection);
+        const btnLookup = $('btnPartnerLookup');
+        if (btnLookup) btnLookup.addEventListener('click', addPartnerByEmail);
+        const btnCreate = $('btnPartnerCreate');
+        if (btnCreate) btnCreate.addEventListener('click', createPartner);
+        if ($('btnNewPartner')) $('btnNewPartner').addEventListener('click', function() { openModal('modalNewPartner'); });
+        if ($('modalNewPartnerClose')) $('modalNewPartnerClose').addEventListener('click', function() { closeModal('modalNewPartner'); });
+        if ($('modalNewPartnerCancel')) $('modalNewPartnerCancel').addEventListener('click', function() { closeModal('modalNewPartner'); });
+        if ($('btnLinkExisting')) $('btnLinkExisting').addEventListener('click', function() { openModal('modalLinkExisting'); });
+        if ($('modalLinkExistingClose')) $('modalLinkExistingClose').addEventListener('click', function() { closeModal('modalLinkExisting'); });
+        if ($('modalLinkExistingCancel')) $('modalLinkExistingCancel').addEventListener('click', function() { closeModal('modalLinkExisting'); });
+        if ($('modalEditPartnerClose')) $('modalEditPartnerClose').addEventListener('click', function() { closeModal('modalEditPartner'); });
+        if ($('modalEditPartnerCancel')) $('modalEditPartnerCancel').addEventListener('click', function() { closeModal('modalEditPartner'); });
+        if ($('btnEditPartnerSave')) $('btnEditPartnerSave').addEventListener('click', saveEditPartner);
 
         for(const el of fields){
           el.addEventListener('input', ()=>{
@@ -1075,6 +1477,11 @@
           if(!initialState) return;
           for(const el of fields){
             if(initialState[el.id] !== undefined) el.value = initialState[el.id];
+          }
+          if($('partnersSection')) {
+            partnerTeachersIds = initialPartnerIds.slice();
+            const list = partnerTeachersIds.map(id => ({ id, name: (partnerNames[id] && partnerNames[id].name) || '—', email: (partnerNames[id] && partnerNames[id].email) || '' }));
+            renderPartnersList(list);
           }
           if(avatarImg){ avatarImg.style.display = 'none'; avatarImg.src = ''; }
           if(avatarInitials){ avatarInitials.style.display = 'inline'; }

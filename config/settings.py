@@ -207,7 +207,8 @@ REST_FRAMEWORK = {
 
 # Redireciona para login quando não autenticado
 LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/dashboard/"
+# Redirecionamento pós-login: / leva à DashboardView que redireciona Prof. Parceiro para calendário e demais para /dashboard/
+LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"
 
 # Session configuration

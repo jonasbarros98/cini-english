@@ -102,6 +102,7 @@
         </div>
       </div>
       <nav class="nav">
+        {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item">
           <span class="nav-emoji">🏠</span>
           <div>
@@ -109,6 +110,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
+        {% endif %}
         <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
@@ -130,6 +132,7 @@
             <p class="nav-subtitle">Planejar aulas por aluno</p>
           </div>
         </a>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-tasks" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
@@ -137,6 +140,7 @@
             <p class="nav-subtitle">Planejamento rápido</p>
           </div>
         </a>
+        {% endif %}
         <a href="/?view=view-finance" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
@@ -145,6 +149,7 @@
           </div>
         </a>
         <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
@@ -152,7 +157,9 @@
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
+        {% endif %}
         <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -160,13 +167,15 @@
             <span class="nav-group-chevron" aria-hidden="true">›</span>
           </button>
           <div class="nav-group-items" id="navGroupContaItems">
-          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+          {% if user_is_admin %}
+          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
             <span class="nav-emoji">👥</span>
             <div>
               <p class="nav-title">Usuários</p>
               <p class="nav-subtitle">Gerenciar usuários</p>
             </div>
           </a>
+          {% endif %}
           <a href="/perfil/" class="nav-item nav-item-nested">
             <span class="nav-emoji">👤</span>
             <div>
@@ -190,6 +199,7 @@
           </a>
           </div>
         </div>
+        {% endif %}
       </nav>
       <div class="sidebar-card">
         <p class="sidebar-title">Visão rápida</p>
@@ -272,15 +282,7 @@
       const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
       return v ? v[2] : null;
     }
-    async function checkAdmin() {
-      try {
-        const r = await fetch("/api/auth/current-user/", { method: "GET", headers: { "Content-Type": "application/json" }, credentials: "same-origin" });
-        if (!r.ok) return;
-        const u = await r.json();
-        const el = document.getElementById("navUsers");
-        if (el && u && u.is_admin) el.style.display = "flex";
-      } catch (_) {}
-    }
+    // Menu Usuários é exibido apenas para admin (renderizado no servidor)
     function initContaGroupCollapse() {
       const STORAGE_KEY = "educaflowone_sidebar_conta_expanded";
       const group = document.getElementById("navGroupConta");
@@ -323,7 +325,6 @@
       window.location.href = "/login/";
     });
     document.addEventListener("DOMContentLoaded", function() {
-      checkAdmin();
       setTimeout(initContaGroupCollapse, 100);
     });
   })();

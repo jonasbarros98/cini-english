@@ -68,6 +68,7 @@
           </div>
         </div>
         <nav class="nav">
+          {% if not is_partner_teacher %}
           <a href="/dashboard/" class="nav-item active">
             <span class="nav-emoji">🏠</span>
             <div>
@@ -75,6 +76,7 @@
               <p class="nav-subtitle">Visão geral</p>
             </div>
           </a>
+          {% endif %}
           <a href="/calendar/" class="nav-item">
             <span class="nav-emoji">📅</span>
             <div>
@@ -96,6 +98,7 @@
               <p class="nav-subtitle">Planejar aulas por aluno</p>
             </div>
           </a>
+          {% if not is_partner_teacher %}
           <button class="nav-item" data-view="view-tasks">
             <span class="nav-emoji">✅</span>
             <div>
@@ -103,6 +106,7 @@
               <p class="nav-subtitle">Planejamento rápido</p>
             </div>
           </button>
+          {% endif %}
           <button class="nav-item" data-view="view-finance">
             <span class="nav-emoji">💵</span>
             <div>
@@ -112,7 +116,7 @@
           </button>
           
           <div class="nav-divider"></div>
-          
+          {% if not is_partner_teacher %}
           <button class="nav-item" data-view="view-billing">
             <span class="nav-emoji">💬</span>
             <div>
@@ -120,9 +124,10 @@
               <p class="nav-subtitle">WhatsApp + Pix</p>
             </div>
           </button>
+          {% endif %}
           
           <div class="nav-divider"></div>
-          
+          {% if not is_partner_teacher %}
           <div class="nav-group nav-group--collapsed" id="navGroupConta">
             <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
               <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -130,13 +135,15 @@
               <span class="nav-group-chevron" aria-hidden="true">›</span>
             </button>
             <div class="nav-group-items" id="navGroupContaItems">
-            <button class="nav-item nav-item-nested" data-view="view-users" id="navUsers" style="display: none;">
+            {% if user_is_admin %}
+            <button class="nav-item nav-item-nested" data-view="view-users" id="navUsers">
               <span class="nav-emoji">👥</span>
               <div>
                 <p class="nav-title">Usuários</p>
                 <p class="nav-subtitle">Gerenciar usuários</p>
               </div>
             </button>
+            {% endif %}
             <a href="/perfil/" class="nav-item nav-item-nested">
               <span class="nav-emoji">👤</span>
               <div>
@@ -160,6 +167,7 @@
             </a>
             </div>
           </div>
+          {% endif %}
           
           <div class="nav-divider"></div>
 
@@ -845,6 +853,7 @@
           .mb-24{ margin-bottom: 24px; }
         </style>
 
+        {% if not is_partner_teacher %}
         <section class="view" id="view-billing">
           <!-- Cabeçalho contextual -->
           <header class="topbar">
@@ -1032,6 +1041,7 @@
 
           </div>
         </section>
+        {% endif %}
 
         <script>
           // UX bônus: contador de caracteres para mensagem de cobrança
@@ -1046,6 +1056,7 @@
           })();
         </script>
 
+        {% if not is_partner_teacher %}
         <section class="view" id="view-tasks">
           <header class="topbar">
             <div>
@@ -1183,6 +1194,7 @@
             </form>
           </section>
         </section>
+        {% endif %}
         <section class="view" id="view-finance">
   <header class="topbar">
     <div>
@@ -1240,13 +1252,17 @@
         <label for="feStudent">Aluno</label>
         <select id="feStudent" name="feStudent" required></select>
       </div>
-      <div class="form-row" id="feBeneficiaryRow" style="display: none;">
-        <label for="feBeneficiary">Beneficiário</label>
-        <select id="feBeneficiary" name="feBeneficiary">
-          <option value="">Selecione o beneficiário</option>
+      {% if assignable_teachers %}
+      <div class="form-row">
+        <label for="feUser">Professor responsável</label>
+        <select id="feUser" name="feUser">
+          {% for t in assignable_teachers %}
+          <option value="{{ t.id }}">{{ t.name }}</option>
+          {% endfor %}
         </select>
-        <small class="muted">Escolha para quem será o lançamento financeiro (você ou um professor parceiro)</small>
+        <small class="muted">Delegue ao professor parceiro que ficará responsável por este lançamento (e que receberá o valor), ou deixe você mesmo.</small>
       </div>
+      {% endif %}
       <div class="form-row">
         <label for="feDescription">Descrição</label>
         <input type="text" id="feDescription" name="feDescription" placeholder="Ex.: Mensalidade Janeiro, Plano Intensivo" required />

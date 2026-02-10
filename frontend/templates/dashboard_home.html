@@ -545,6 +545,7 @@
         </div>
       </div>
       <nav class="nav">
+        {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item active">
           <span class="nav-emoji">🏠</span>
           <div>
@@ -552,6 +553,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
+        {% endif %}
         <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
@@ -573,6 +575,7 @@
             <p class="nav-subtitle">Planejar aulas por aluno</p>
           </div>
         </a>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-tasks" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
@@ -580,6 +583,7 @@
             <p class="nav-subtitle">Planejamento rápido</p>
           </div>
         </a>
+        {% endif %}
         <a href="/?view=view-finance" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
@@ -590,6 +594,7 @@
         
         <div class="nav-divider"></div>
         
+        {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
@@ -597,9 +602,10 @@
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
+        {% endif %}
         
         <div class="nav-divider"></div>
-        
+        {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -646,6 +652,7 @@
           </a>
           </div>
         </div>
+        {% endif %}
       </nav>
       <div class="sidebar-card">
         <p class="sidebar-title">Visão rápida (mês)</p>
@@ -742,6 +749,7 @@
         </div>
       </div>
 
+      {% if not is_partner_teacher %}
       <div class="kpi span-4" data-go="billing" role="button" tabindex="0">
         <div class="icon bad">⚠</div>
         <div class="meta">
@@ -750,6 +758,7 @@
           <div class="hint">cobranças pendentes</div>
         </div>
       </div>
+      {% endif %}
 
       <div class="kpi span-4" data-go="finance" role="button" tabindex="0">
         <div class="icon good">✅</div>
@@ -807,6 +816,7 @@
             <div class="arrow">›</div>
           </button>
 
+          {% if not is_partner_teacher %}
           <button class="qbtn" type="button" data-go="billing">
             <div class="left">
               <div class="qicon" style="background: rgba(225,29,72,.10); color: var(--bad);">💬</div>
@@ -817,6 +827,7 @@
             </div>
             <div class="arrow">›</div>
           </button>
+          {% endif %}
 
           <button class="qbtn" type="button" data-go="students">
             <div class="left">

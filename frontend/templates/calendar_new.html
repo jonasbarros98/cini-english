@@ -798,6 +798,7 @@
         </div>
       </div>
       <nav class="nav">
+        {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item">
           <span class="nav-emoji">🏠</span>
           <div>
@@ -805,6 +806,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
+        {% endif %}
         <a href="/calendar/" class="nav-item active">
           <span class="nav-emoji">📅</span>
           <div>
@@ -826,6 +828,7 @@
             <p class="nav-subtitle">Planejar aulas por aluno</p>
           </div>
         </a>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-tasks" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
@@ -833,6 +836,7 @@
             <p class="nav-subtitle">Planejamento rápido</p>
           </div>
         </a>
+        {% endif %}
         <a href="/?view=view-finance" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
@@ -843,6 +847,7 @@
         
         <div class="nav-divider"></div>
         
+        {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
@@ -850,9 +855,10 @@
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
+        {% endif %}
         
         <div class="nav-divider"></div>
-        
+        {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -899,6 +905,7 @@
             </a>
           </div>
         </div>
+        {% endif %}
       </nav>
       <div class="sidebar-card">
         <p class="sidebar-title">Visão rápida (mês)</p>
@@ -908,7 +915,9 @@
           <li><strong id="sidebarRealized">0</strong> realizadas</li>
           <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
         </ul>
+        {% if not is_partner_teacher %}
         <a href="/dashboard/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Dashboard</a>
+        {% endif %}
         <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
       </div>
     </aside>
@@ -936,7 +945,7 @@
           <button id="tabWeek" type="button">Semanal</button>
         </div>
 
-        <button class="btn primary" id="btnNew" type="button">+ Nova aula</button>
+        {% if not is_partner_teacher %}<button class="btn primary" id="btnNew" type="button">+ Nova aula</button>{% endif %}
       </div>
     </div>
 
@@ -999,7 +1008,7 @@
               </div>
               <div class="day-actions">
                 <button class="mini-btn" id="btnJumpNow" type="button">Agora</button>
-                <button class="mini-btn primary" id="btnAddInline" type="button">+ Aula</button>
+                {% if not is_partner_teacher %}<button class="mini-btn primary" id="btnAddInline" type="button">+ Aula</button>{% endif %}
               </div>
             </div>
 
@@ -1041,6 +1050,16 @@
         <button class="modal-close" id="modalClose" type="button" aria-label="Fechar">×</button>
       </div>
       <form id="formNewLesson" class="modal-body">
+        {% if assignable_teachers|length > 1 %}
+        <div class="form-group">
+          <label for="newLessonTeacher">Professor</label>
+          <select id="newLessonTeacher" name="user_id">
+            {% for t in assignable_teachers %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
         <div class="form-group">
           <label for="newLessonStudent">Aluno *</label>
           <select id="newLessonStudent" name="student_id" required>
@@ -1907,7 +1926,7 @@
       // New/Edit lesson Modal
       // ==========
       let modalNewLesson, modalOverlay, modalClose, btnCancelLesson, formNewLesson;
-      let newLessonStudent, newLessonDate, newLessonTime, newLessonStatus, newLessonNote;
+      let newLessonStudent, newLessonDate, newLessonTime, newLessonStatus, newLessonNote, newLessonTeacher;
       let modalTitle, btnSubmitLesson;
       let editingLessonId = null; // ID da aula sendo editada (null = criar nova)
       
@@ -1923,6 +1942,7 @@
         newLessonTime = $('#newLessonTime');
         newLessonStatus = $('#newLessonStatus');
         newLessonNote = $('#newLessonNote');
+        newLessonTeacher = $('#newLessonTeacher');
         modalTitle = $('#modalTitle');
         btnSubmitLesson = $('#btnSubmitLesson');
       }
@@ -2205,15 +2225,19 @@
             showToast(`Aula atualizada para ${studentName}.`);
           } else {
             // Criar nova aula
+            const createPayload = {
+              date: date,
+              time: time,
+              student_id: parseInt(studentId, 10),
+              status: status,
+              note: note
+            };
+            if (newLessonTeacher && newLessonTeacher.value) {
+              createPayload.user_id = parseInt(newLessonTeacher.value, 10);
+            }
             const newEvent = await fetchJSON('/api/calendar/events/create/', {
               method: 'POST',
-              body: JSON.stringify({
-                date: date,
-                time: time,
-                student_id: parseInt(studentId, 10),
-                status: status,
-                note: note
-              })
+              body: JSON.stringify(createPayload)
             });
             
             // Invalidar cache para recarregar

@@ -251,7 +251,7 @@
                 if (retryData.success) {
                   console.log("Login bem-sucedido após retry, redirecionando...");
                   await new Promise(resolve => setTimeout(resolve, 200));
-                  window.location.replace("/dashboard/");
+                  window.location.replace("/");
                   return;
                 }
               } else {
@@ -275,7 +275,7 @@
             // Aguarda um pouco para garantir que a sessão foi estabelecida
             await new Promise(resolve => setTimeout(resolve, 200));
             // Redireciona para o dashboard (visão geral), não para o calendário
-            window.location.replace("/dashboard/");
+            window.location.replace("/");
           } else {
             errorMessage.textContent = data.error || "Erro ao fazer login";
             errorMessage.classList.add("show");

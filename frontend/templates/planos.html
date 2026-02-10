@@ -384,6 +384,7 @@
         </div>
       </div>
       <nav class="nav">
+        {% if not is_partner_teacher %}
         <a href="/" class="nav-item">
           <span class="nav-emoji">🏠</span>
           <div>
@@ -391,6 +392,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
+        {% endif %}
         <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
@@ -412,6 +414,7 @@
             <p class="nav-subtitle">Planejar aulas por aluno</p>
           </div>
         </a>
+        {% if not is_partner_teacher %}
         <a href="/" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
@@ -419,6 +422,7 @@
             <p class="nav-subtitle">Planejamento rápido</p>
           </div>
         </a>
+        {% endif %}
         <a href="/" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
@@ -428,7 +432,7 @@
         </a>
         
         <div class="nav-divider"></div>
-        
+        {% if not is_partner_teacher %}
         <a href="/" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
@@ -436,9 +440,10 @@
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
+        {% endif %}
         
         <div class="nav-divider"></div>
-        
+        {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -446,13 +451,15 @@
             <span class="nav-group-chevron" aria-hidden="true">›</span>
           </button>
           <div class="nav-group-items" id="navGroupContaItems">
-          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+          {% if user_is_admin %}
+          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
             <span class="nav-emoji">👥</span>
             <div>
               <p class="nav-title">Usuários</p>
               <p class="nav-subtitle">Gerenciar usuários</p>
             </div>
           </a>
+          {% endif %}
           <a href="/perfil/" class="nav-item nav-item-nested">
             <span class="nav-emoji">👤</span>
             <div>
@@ -476,6 +483,7 @@
           </a>
           </div>
         </div>
+        {% endif %}
       </nav>
       <div class="sidebar-card">
         <p class="sidebar-title">Visão rápida (mês)</p>
@@ -698,37 +706,7 @@
       }
     }
 
-    // Função para verificar se é admin e mostrar menu Usuários
-    function getCookie(name) {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(";").shift();
-      return null;
-    }
-
-    async function checkAdminAndShowUsersMenu() {
-      try {
-        const csrf = getCookie("csrftoken");
-        const response = await fetch("/api/auth/current-user/", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrf || "",
-          },
-          credentials: "same-origin",
-        });
-
-        if (response.ok) {
-          const user = await response.json();
-          const navUsers = document.getElementById("navUsers");
-          if (navUsers && user && user.is_admin) {
-            navUsers.style.display = "flex";
-          }
-        }
-      } catch (error) {
-        console.error("Erro ao verificar permissões de admin:", error);
-      }
-    }
+    // Menu Usuários é exibido apenas para admin (renderizado condicionalmente no servidor)
 
     // Colapso do grupo Conta
     function initContaGroupCollapse() {
@@ -775,9 +753,6 @@
         btn2.addEventListener("click", createPortalSession);
       }
 
-      // Verificar se é admin e mostrar menu Usuários
-      checkAdminAndShowUsersMenu();
-      
       // Inicializar colapso do grupo Conta (com pequeno delay para garantir DOM)
       setTimeout(initContaGroupCollapse, 100);
 

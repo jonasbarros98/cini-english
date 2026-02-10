@@ -73,7 +73,15 @@ class Student(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name="students",
-        help_text="Professor responsável pelo aluno"
+        help_text="Professor dono da conta (responsável pelo cadastro do aluno)"
+    )
+    assigned_teacher = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_students",
+        help_text="Professor parceiro que dará as aulas (opcional). Definido pelo dono da conta.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

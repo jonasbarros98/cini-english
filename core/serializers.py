@@ -4,10 +4,30 @@ from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile,
 from rest_framework import serializers as drf_serializers
 
 
+def _assignable_teacher_ids(request):
+    """IDs de usuários que o dono da conta pode atribuir como professor do aluno (ele + parceiros)."""
+    if not request or not request.user.is_authenticated:
+        return []
+    try:
+        if request.user.profile.user_profile != UserProfile.PROFILE_TEACHER:
+            return [request.user.id]
+        partner_ids = list(request.user.profile.partner_teachers.values_list("user_id", flat=True))
+        partner_ids.append(request.user.id)
+        return partner_ids
+    except UserProfile.DoesNotExist:
+        return [request.user.id]
+
+
 class StudentSerializer(serializers.ModelSerializer):
     contract_pdf_url = serializers.SerializerMethodField()
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     user_username = serializers.CharField(source="user.username", read_only=True)
+    assigned_teacher_name = serializers.SerializerMethodField()
+    assigned_teacher = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     
     class Meta:
         model = Student
@@ -30,10 +50,35 @@ class StudentSerializer(serializers.ModelSerializer):
             "contract_pdf_url",
             "user",
             "user_username",
+            "assigned_teacher",
+            "assigned_teacher_name",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["contract_pdf_url", "user"]
+        read_only_fields = ["contract_pdf_url", "user", "user_username", "assigned_teacher_name"]
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        allowed_ids = _assignable_teacher_ids(request)
+        if allowed_ids:
+            self.fields["assigned_teacher"].queryset = User.objects.filter(id__in=allowed_ids)
+    
+    def get_assigned_teacher_name(self, obj):
+        if not obj.assigned_teacher_id:
+            return None
+        u = obj.assigned_teacher
+        return u.get_full_name() or u.username
+    
+    def validate_assigned_teacher(self, value):
+        if value is None or value == "" or (isinstance(value, str) and value.strip() == ""):
+            return None
+        request = self.context.get("request")
+        allowed = _assignable_teacher_ids(request)
+        pk = getattr(value, "id", value)
+        if allowed and pk not in allowed:
+            raise serializers.ValidationError("Professor selecionado não é permitido para esta conta.")
+        return value
     
     def get_contract_pdf_url(self, obj):
         if obj.contract_pdf:
@@ -121,12 +166,31 @@ class InvoiceSerializer(serializers.ModelSerializer):
         ]
 
 
+def _financial_assignable_user_ids(request):
+    """IDs de usuários que o dono da conta pode atribuir como professor do lançamento (ele + parceiros)."""
+    if not request or not request.user.is_authenticated:
+        return []
+    try:
+        if request.user.profile.user_profile != UserProfile.PROFILE_TEACHER:
+            return [request.user.id]
+        partner_ids = list(request.user.profile.partner_teachers.values_list("user_id", flat=True))
+        partner_ids.append(request.user.id)
+        return partner_ids
+    except UserProfile.DoesNotExist:
+        return [request.user.id]
+
+
 class FinancialEntrySerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        required=False,
+        help_text="Professor responsável pelo lançamento (dono da conta pode delegar ao parceiro)"
+    )
     user_username = serializers.CharField(source="user.username", read_only=True)
+    user_display_name = serializers.SerializerMethodField()
     beneficiary_user = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),  # Queryset inicial, será filtrado no __init__
+        queryset=User.objects.all(),
         required=False,
         help_text="Professor que receberá o lançamento"
     )
@@ -150,30 +214,40 @@ class FinancialEntrySerializer(serializers.ModelSerializer):
             "notes",
             "user",
             "user_username",
+            "user_display_name",
             "beneficiary_user",
             "beneficiary_username",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["user"]
+
+    def get_user_display_name(self, obj):
+        if not obj.user_id:
+            return None
+        u = obj.user
+        return u.get_full_name() or u.username
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Define o queryset do beneficiary_user baseado no request
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             user = request.user
             try:
                 if user.profile.user_profile == UserProfile.PROFILE_TEACHER:
-                    # Professor pode escolher ele mesmo ou seus parceiros
                     partner_ids = list(user.profile.partner_teachers.values_list('user_id', flat=True))
                     partner_ids.append(user.id)
-                    self.fields['beneficiary_user'].queryset = User.objects.filter(id__in=partner_ids)
+                    qs = User.objects.filter(id__in=partner_ids)
+                    self.fields['beneficiary_user'].queryset = qs
+                    self.fields['user'].queryset = qs
                 else:
-                    # Prof. Parceiro só pode escolher ele mesmo
-                    self.fields['beneficiary_user'].queryset = User.objects.filter(id=user.id)
+                    qs = User.objects.filter(id=user.id)
+                    self.fields['beneficiary_user'].queryset = qs
+                    self.fields['user'].read_only = True
+                    self.fields['user'].queryset = qs
             except UserProfile.DoesNotExist:
                 self.fields['beneficiary_user'].queryset = User.objects.filter(id=user.id)
+                self.fields['user'].read_only = True
+                self.fields['user'].queryset = User.objects.filter(id=user.id)
 
 
 class LessonPlanAttachmentSerializer(serializers.ModelSerializer):
@@ -452,6 +526,13 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
     role = drf_serializers.SerializerMethodField()
     subscription_status = drf_serializers.SerializerMethodField()
     stripe_customer_id = drf_serializers.SerializerMethodField()
+    partner_teachers = drf_serializers.SerializerMethodField()
+    partner_teachers_ids = drf_serializers.ListField(
+        child=drf_serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
     
     class Meta:
         model = UserProfile
@@ -461,7 +542,8 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
             'cpf_cnpj', 'phone', 'cep', 'address', 'city', 'state',
             'timezone', 'language', 'photo',
             'is_admin', 'user_profile', 'role',
-            'subscription_status', 'stripe_customer_id'
+            'subscription_status', 'stripe_customer_id',
+            'partner_teachers', 'partner_teachers_ids',
         ]
         read_only_fields = ['is_admin', 'user_profile', 'username']
     
@@ -506,6 +588,22 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
         except:
             return None
     
+    def get_partner_teachers(self, obj):
+        """Lista de professores parceiros vinculados (só para perfil Professor)."""
+        try:
+            partners = obj.partner_teachers.select_related('user').all()
+            return [
+                {
+                    'id': p.user.id,
+                    'username': p.user.username,
+                    'name': p.user.get_full_name() or p.user.username,
+                    'email': p.user.email or '',
+                }
+                for p in partners
+            ]
+        except Exception:
+            return []
+    
     def validate(self, data):
         password = data.get('password', '')
         password_confirm = data.get('password_confirm', '')
@@ -534,6 +632,15 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         password_confirm = validated_data.pop('password_confirm', None)
         photo = validated_data.pop('photo', None)
+        partner_teachers_ids = validated_data.pop('partner_teachers_ids', None)
+        
+        # Atualizar vínculo de professores parceiros (apenas para perfil Professor)
+        if instance.user_profile == UserProfile.PROFILE_TEACHER and partner_teachers_ids is not None:
+            partner_profiles = UserProfile.objects.filter(
+                user_id__in=partner_teachers_ids,
+                user_profile=UserProfile.PROFILE_PARTNER_TEACHER,
+            )
+            instance.partner_teachers.set(partner_profiles)
         
         # Log para debug
         print(f"[DEBUG Serializer] validated_data recebido: {validated_data}")

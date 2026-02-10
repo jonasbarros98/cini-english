@@ -146,6 +146,7 @@
         </div>
       </div>
       <nav class="nav">
+        {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item">
           <span class="nav-emoji">🏠</span>
           <div>
@@ -153,6 +154,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
+        {% endif %}
         <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
@@ -174,6 +176,7 @@
             <p class="nav-subtitle">Planejar aulas por aluno</p>
           </div>
         </a>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-tasks" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
@@ -181,6 +184,7 @@
             <p class="nav-subtitle">Planejamento rápido</p>
           </div>
         </a>
+        {% endif %}
         <a href="/?view=view-finance" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
@@ -191,6 +195,7 @@
         
         <div class="nav-divider"></div>
         
+        {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
@@ -198,9 +203,10 @@
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
+        {% endif %}
         
         <div class="nav-divider"></div>
-        
+        {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -247,6 +253,7 @@
             </a>
           </div>
         </div>
+        {% endif %}
       </nav>
       <div class="sidebar-card">
         <p class="sidebar-title">Visão rápida (mês)</p>

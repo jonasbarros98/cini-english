@@ -404,6 +404,7 @@
         </div>
       </div>
       <nav class="nav">
+        {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item">
           <span class="nav-emoji">🏠</span>
           <div>
@@ -411,6 +412,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
+        {% endif %}
         <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
@@ -432,6 +434,7 @@
             <p class="nav-subtitle">Planejar aulas por aluno</p>
           </div>
         </a>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-tasks" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
@@ -439,6 +442,7 @@
             <p class="nav-subtitle">Planejamento rápido</p>
           </div>
         </a>
+        {% endif %}
         <a href="/?view=view-finance" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
@@ -449,6 +453,7 @@
         
         <div class="nav-divider"></div>
         
+        {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
@@ -456,9 +461,10 @@
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
+        {% endif %}
         
         <div class="nav-divider"></div>
-        
+        {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -489,6 +495,7 @@
             </a>
           </div>
         </div>
+        {% endif %}
         
         <div class="nav-divider"></div>
       </nav>
@@ -517,7 +524,7 @@
           <!-- <button class="tab" type="button">⚙️ Preferências (futuro)</button> -->
         </div>
       </div>
-      <button class="btn-primary" type="button" id="btnNew">+ Novo aluno</button>
+      {% if not is_partner_teacher %}<button class="btn-primary" type="button" id="btnNew">+ Novo aluno</button>{% endif %}
     </div>
 
     <div class="filters">
@@ -571,13 +578,13 @@
       <aside class="panel" aria-label="Editar aluno">
         <div class="panel-head">
           <div>
-            <h2>Edição rápida</h2>
+            <h2>{% if is_partner_teacher %}Detalhes do aluno{% else %}Edição rápida{% endif %}</h2>
             <div class="meta" id="editorMeta">Selecione um aluno</div>
           </div>
-          <div class="meta">Sem rolagem infinita</div>
+          {% if not is_partner_teacher %}<div class="meta">Sem rolagem infinita</div>{% endif %}
         </div>
 
-        <div class="editor">
+        <div class="editor" id="studentEditor">
           <!-- Section: Identity -->
           <section class="section" data-open="true">
             <button class="section-head" type="button">
@@ -607,6 +614,18 @@
                 <label>Endereço</label>
                 <input type="text" id="f_address" placeholder="Cidade / bairro (ou endereço completo)"/>
               </div>
+              {% if not is_partner_teacher and assignable_teachers %}
+              <div class="field">
+                <label for="f_assigned_teacher">Professor que dará aula</label>
+                <select id="f_assigned_teacher">
+                  <option value="">Nenhum (dono da conta)</option>
+                  {% for t in assignable_teachers %}
+                  <option value="{{ t.id }}">{{ t.name }}</option>
+                  {% endfor %}
+                </select>
+                <small style="display:block;margin-top:4px;color:var(--muted);font-size:11px;">Atribua a um prof. parceiro para ele dar as aulas deste aluno.</small>
+              </div>
+              {% endif %}
             </div>
           </section>
 
@@ -702,16 +721,18 @@
             </div>
           </section>
 
+          {% if not is_partner_teacher %}
           <div class="footer-actions">
             <button class="btn" type="button" id="btnCancel">Cancelar</button>
             <button class="btn primary" type="button" id="btnSave">Salvar</button>
           </div>
+          {% endif %}
         </div>
       </aside>
     </div>
   </div>
 
-  <button class="fab" type="button" title="Novo aluno" id="fabNew">+</button>
+  {% if not is_partner_teacher %}<button class="fab" type="button" title="Novo aluno" id="fabNew">+</button>{% endif %}
 
   <!-- MODAL: NOVO ALUNO -->
   <div class="modal-overlay" id="newStudentOverlay" aria-hidden="true">
@@ -785,6 +806,18 @@
               <label for="n_total">Aulas do plano</label>
               <input id="n_total" type="number" min="0" placeholder="Ex: 8, 12, 23"/>
             </div>
+            {% if assignable_teachers %}
+            <div class="field">
+              <label for="n_assigned_teacher">Professor que dará aula</label>
+              <select id="n_assigned_teacher">
+                <option value="">Nenhum (eu mesmo)</option>
+                {% for t in assignable_teachers %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+                {% endfor %}
+              </select>
+              <div class="help">Atribua a um prof. parceiro para ele dar as aulas deste aluno.</div>
+            </div>
+            {% endif %}
           </div>
         </section>
 
@@ -839,9 +872,13 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    window.IS_PARTNER_TEACHER = {{ is_partner_teacher|yesno:"true,false" }};
+  </script>
+  <script>
     (function(){
       const $ = (s, root=document) => root.querySelector(s);
       const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
+      const isPartnerTeacher = window.IS_PARTNER_TEACHER === true;
 
       const API_BASE = '/api/students/';
       const PLANNING_URL_BASE = "/planejamento/novo";
@@ -1061,8 +1098,7 @@
               </div>
               <div class="quick-actions">
                 <button class="btn primary js-plan" type="button">Criar planejamento</button>
-                <button class="btn js-edit" type="button">Editar</button>
-                <button class="btn danger js-toggle" type="button">${status === 'active' ? 'Inativar' : 'Ativar'}</button>
+                ${!isPartnerTeacher ? `<button class="btn js-edit" type="button">Editar</button><button class="btn danger js-toggle" type="button">${status === 'active' ? 'Inativar' : 'Ativar'}</button>` : ''}
               </div>
             </article>
           `;
@@ -1430,6 +1466,8 @@
         $('#f_due').value = student.default_due_day || '';
         $('#f_payment').value = student.preferred_payment_method || '';
         $('#f_pix').value = student.pix_key || '';
+        const fAssigned = $('#f_assigned_teacher');
+        if (fAssigned) fAssigned.value = student.assigned_teacher || '';
         
         // Exibir contrato se existir
         const contractDisplay = $('#f_contract_display');
@@ -1522,13 +1560,13 @@
             status: $('#n_status')?.value || 'active',
             plan_name: planValue === 'none' ? '' : planValue,
             lessons_total: parseInt(($('#n_total')?.value || '0'), 10) || 0,
-            // lessons_done será calculado automaticamente no backend
-            // lessons_done: 0,
             plan_start_date: $('#n_start')?.value || null,
             default_due_day: $('#n_due')?.value ? parseInt($('#n_due')?.value, 10) : null,
             preferred_payment_method: $('#n_payment')?.value || '',
             pix_key: ($('#n_pix')?.value || '').trim(),
           };
+          var nAt = $('#n_assigned_teacher');
+          if (nAt && nAt.value) data.assigned_teacher = parseInt(nAt.value, 10);
 
           // Limpar campos vazios (manter campos obrigatórios)
           // Não remover: name, status, guardians (tem default)
@@ -1568,6 +1606,8 @@
             if ($('#n_due')?.value) formData.append('default_due_day', parseInt($('#n_due').value, 10));
             if ($('#n_payment')?.value) formData.append('preferred_payment_method', $('#n_payment').value);
             if (($('#n_pix')?.value || '').trim()) formData.append('pix_key', ($('#n_pix').value || '').trim());
+            var nAt = $('#n_assigned_teacher');
+            if (nAt && nAt.value) formData.append('assigned_teacher', nAt.value);
             formData.append('contract_pdf', contractFile);
             
             if (currentEditingId) {
@@ -1601,6 +1641,8 @@
               preferred_payment_method: $('#n_payment')?.value || '',
               pix_key: ($('#n_pix')?.value || '').trim() || '',
             };
+            var nAt2 = $('#n_assigned_teacher');
+            if (nAt2 && nAt2.value) data.assigned_teacher = parseInt(nAt2.value, 10);
 
             // Limpar campos vazios (manter campos obrigatórios)
             const optionalFields = ['phone', 'email', 'address', 'plan_name', 'pix_key', 'preferred_payment_method'];
@@ -1680,6 +1722,8 @@
           if ($('#f_due')?.value) formData.append('default_due_day', parseInt($('#f_due').value, 10));
           if ($('#f_payment')?.value) formData.append('preferred_payment_method', $('#f_payment').value);
           if (($('#f_pix')?.value || '').trim()) formData.append('pix_key', ($('#f_pix').value || '').trim());
+          var fAt = $('#f_assigned_teacher');
+          if (fAt && fAt.value) formData.append('assigned_teacher', fAt.value);
           formData.append('contract_pdf', contractFile);
 
           try {
@@ -1714,6 +1758,8 @@
             preferred_payment_method: $('#f_payment')?.value || '',
             pix_key: ($('#f_pix')?.value || '').trim() || '',
           };
+          var fAt = $('#f_assigned_teacher');
+          if (fAt) data.assigned_teacher = fAt.value ? parseInt(fAt.value, 10) : null;
 
           try {
             await fetchJSON(`${API_BASE}${currentEditingId}/`, {
@@ -1735,8 +1781,8 @@
         $$('.student-card').forEach(c => c.classList.remove('active'));
       });
 
-      function clearNewForm(){
-        ['n_name','n_phone','n_email','n_responsible','n_address','n_total','n_start','n_due','n_pix'].forEach(id=>{
+        function clearNewForm(){
+        ['n_name','n_phone','n_email','n_responsible','n_address','n_total','n_start','n_due','n_pix','n_assigned_teacher'].forEach(id=>{
           const el = document.getElementById(id);
           if(el) el.value = '';
         });

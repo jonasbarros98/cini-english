@@ -29,7 +29,7 @@ from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
-    queryset = Student.objects.select_related("user").all().order_by("name")
+    queryset = Student.objects.select_related("user", "assigned_teacher").all().order_by("name")
     serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]  # Suporta FormData e JSON
@@ -37,25 +37,24 @@ class StudentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         
-        # Admin vê todos os students, usuários normais veem apenas os seus
         try:
             is_admin = self.request.user.profile.is_admin
+            user_profile = self.request.user.profile.user_profile
         except UserProfile.DoesNotExist:
             is_admin = False
+            user_profile = None
         
-        if not is_admin:
-            try:
-                user_profile = self.request.user.profile.user_profile
-                if user_profile == UserProfile.PROFILE_TEACHER:
-                    # Prof. Principal vê seus students + students dos parceiros vinculados
-                    partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                    partner_ids.append(self.request.user.id)
-                    qs = qs.filter(user_id__in=partner_ids)
-                else:
-                    # Outros usuários veem apenas os seus
-                    qs = qs.filter(user=self.request.user)
-            except UserProfile.DoesNotExist:
-                qs = qs.filter(user=self.request.user)
+        if is_admin:
+            return qs
+        
+        if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            # Prof. Parceiro: apenas alunos atribuídos a ele (apenas visualização)
+            qs = qs.filter(assigned_teacher=self.request.user)
+        elif user_profile == UserProfile.PROFILE_TEACHER:
+            # Prof. dono da conta: apenas alunos que ele cadastrou (user=ele)
+            qs = qs.filter(user=self.request.user)
+        else:
+            qs = qs.filter(user=self.request.user)
         
         return qs
     
@@ -64,9 +63,69 @@ class StudentViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
     
+    def _is_partner_teacher(self):
+        try:
+            return self.request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+        except UserProfile.DoesNotExist:
+            return False
+    
     def perform_create(self, serializer):
-        # Preenche automaticamente o usuário logado ao criar um student
-        serializer.save(user=self.request.user)
+        if self._is_partner_teacher():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Apenas o professor dono da conta pode cadastrar alunos.")
+        # assigned_teacher pode vir em validated_data; validar que é parceiro do dono
+        user = self.request.user
+        serializer.save(user=user)
+    
+    def perform_update(self, serializer):
+        if self._is_partner_teacher():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Apenas o professor dono da conta pode editar alunos.")
+        instance = self.get_object()
+        if instance.user_id != self.request.user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Você não pode editar este aluno.")
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        if self._is_partner_teacher():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Apenas o professor dono da conta pode excluir alunos.")
+        if instance.user_id != self.request.user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Você não pode excluir este aluno.")
+        instance.delete()
+    
+    def create(self, request, *args, **kwargs):
+        if self._is_partner_teacher():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Apenas o professor dono da conta pode cadastrar alunos.")
+        return super().create(request, *args, **kwargs)
+    
+    def update(self, request, *args, **kwargs):
+        if self._is_partner_teacher():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Apenas o professor dono da conta pode editar alunos.")
+        partial = kwargs.get('partial', False)
+        instance = self.get_object()
+        if instance.user_id != request.user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Você não pode editar este aluno.")
+        return super().update(request, *args, **kwargs)
+    
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+    
+    def destroy(self, request, *args, **kwargs):
+        if self._is_partner_teacher():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Apenas o professor dono da conta pode excluir alunos.")
+        instance = self.get_object()
+        if instance.user_id != request.user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Você não pode excluir este aluno.")
+        return super().destroy(request, *args, **kwargs)
 
 
 class LessonViewSet(viewsets.ModelViewSet):
@@ -202,11 +261,49 @@ class AlunosView(TemplateView):
             from django.shortcuts import redirect
             return redirect('/login/')
         return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            profile = self.request.user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partners = list(profile.partner_teachers.select_related('user').all())
+                context['assignable_teachers'] = [
+                    {'id': self.request.user.id, 'name': self.request.user.get_full_name() or self.request.user.username}
+                ] + [{'id': p.user.id, 'name': p.user.get_full_name() or p.user.username} for p in partners]
+            else:
+                context['assignable_teachers'] = []
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
+            context['assignable_teachers'] = []
+        return context
 
 
 class DashboardView(TemplateView):
     """View para rota raiz - renderiza index.html se houver parâmetro view, senão redireciona para dashboard"""
     template_name = "index.html"
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            profile = self.request.user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partners = list(profile.partner_teachers.select_related('user').all())
+                context['assignable_teachers'] = [
+                    {'id': self.request.user.id, 'name': self.request.user.get_full_name() or self.request.user.username}
+                ] + [{'id': p.user.id, 'name': p.user.get_full_name() or p.user.username} for p in partners]
+            else:
+                context['assignable_teachers'] = []
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
+            context['assignable_teachers'] = []
+        return context
     
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -218,8 +315,13 @@ class DashboardView(TemplateView):
         if view_param:
             return super().dispatch(request, *args, **kwargs)
         
-        # Caso contrário, redirecionar para dashboard
+        # Caso contrário: Prof. Parceiro vai para calendário; demais para dashboard
         from django.shortcuts import redirect
+        try:
+            if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return redirect('calendar-new')
+        except UserProfile.DoesNotExist:
+            pass
         return redirect('dashboard-home')
 
 class DashboardHomeView(TemplateView):
@@ -234,11 +336,13 @@ class DashboardHomeView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Adicionar flag de admin no contexto
         try:
-            context['user_is_admin'] = self.request.user.profile.is_admin
+            profile = self.request.user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
         except UserProfile.DoesNotExist:
             context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
         return context
 
 class PerfilView(TemplateView):
@@ -250,6 +354,16 @@ class PerfilView(TemplateView):
             from django.shortcuts import redirect
             return redirect('login')
         return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            context['user_is_admin'] = self.request.user.profile.is_admin
+            context['is_partner_teacher'] = self.request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
+        return context
 
 
 class TutorialView(TemplateView):
@@ -261,6 +375,17 @@ class TutorialView(TemplateView):
             from django.shortcuts import redirect
             return redirect("login")
         return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            profile = self.request.user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
+        return context
 
 
 class PlanningListView(TemplateView):
@@ -272,6 +397,25 @@ class PlanningListView(TemplateView):
             from django.shortcuts import redirect
             return redirect("login")
         return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            profile = self.request.user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partners = list(profile.partner_teachers.select_related('user').all())
+                context['assignable_teachers'] = [
+                    {'id': self.request.user.id, 'name': self.request.user.get_full_name() or self.request.user.username}
+                ] + [{'id': p.user.id, 'name': p.user.get_full_name() or p.user.username} for p in partners]
+            else:
+                context['assignable_teachers'] = []
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
+            context['assignable_teachers'] = []
+        return context
 
 
 def planning_edit_redirect(request):
@@ -491,7 +635,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
 
 class FinancialEntryViewSet(viewsets.ModelViewSet):
-    queryset = FinancialEntry.objects.select_related("student", "user").all()
+    queryset = FinancialEntry.objects.select_related("student", "user", "beneficiary_user").all()
     serializer_class = FinancialEntrySerializer
     permission_classes = [IsAuthenticated]
 
@@ -508,8 +652,10 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
         
         if not is_admin:
             if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                # Prof. Parceiro vê apenas lançamentos onde beneficiary_user = ele
-                qs = qs.filter(beneficiary_user=self.request.user)
+                # Prof. Parceiro vê lançamentos designados a ele (responsável ou beneficiário)
+                qs = qs.filter(
+                    Q(user=self.request.user) | Q(beneficiary_user=self.request.user)
+                )
             elif user_profile == UserProfile.PROFILE_TEACHER:
                 # Prof. Principal vê:
                 # 1. Lançamentos criados por ele (user = ele)
@@ -572,12 +718,12 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        # Preenche automaticamente o usuário logado ao criar um financial entry
-        beneficiary_user = serializer.validated_data.get('beneficiary_user')
-        if not beneficiary_user:
-            # Se não especificado, o beneficiário é o próprio criador
-            beneficiary_user = self.request.user
-        serializer.save(user=self.request.user, beneficiary_user=beneficiary_user)
+        # Um único campo "Professor responsável": define quem é responsável e quem recebe o lançamento
+        assigned_user = serializer.validated_data.get('user')
+        if not assigned_user:
+            assigned_user = self.request.user
+        beneficiary_user = serializer.validated_data.get('beneficiary_user') or assigned_user
+        serializer.save(user=assigned_user, beneficiary_user=beneficiary_user)
     
     @action(detail=True, methods=['get'])
     def billing_data(self, request, pk=None):
@@ -886,6 +1032,7 @@ def planning_list_api(request):
     start_date_str = request.GET.get("start_date", "").strip()
     end_date_str = request.GET.get("end_date", "").strip()
     student_id = request.GET.get("student_id", "").strip()
+    teacher_id = request.GET.get("teacher_id", "").strip()  # Filtrar por professor (dono da conta: self ou parceiro)
     status_filter = (request.GET.get("status") or "all").strip().lower()
     q_search = (request.GET.get("q") or "").strip()
 
@@ -905,6 +1052,14 @@ def planning_list_api(request):
     user_ids = _planning_user_ids(request)
     if user_ids is not None:
         qs = qs.filter(user_id__in=user_ids)
+    # Filtro por professor (apenas para dono da conta: ver planejamentos de um parceiro ou os seus)
+    if teacher_id and teacher_id != "all":
+        try:
+            tid = int(teacher_id)
+            if user_ids is not None and tid in user_ids:
+                qs = qs.filter(user_id=tid)
+        except ValueError:
+            pass
     qs = qs.filter(date__gte=start_date, date__lte=end_date)
 
     if student_id and student_id != "all":
@@ -934,9 +1089,18 @@ def planning_list_api(request):
 
     plans = list(qs)
 
+    # Lista de alunos para o filtro: mesmo critério do cadastro (dono vê os seus; parceiro vê os atribuídos a ele)
     students_qs = Student.objects.order_by("name")
-    if user_ids is not None:
-        students_qs = students_qs.filter(user_id__in=user_ids)
+    try:
+        profile = request.user.profile.user_profile
+        if profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            students_qs = students_qs.filter(assigned_teacher=request.user)
+        elif profile == UserProfile.PROFILE_TEACHER:
+            students_qs = students_qs.filter(user=request.user)
+        elif user_ids is not None:
+            students_qs = students_qs.filter(user_id__in=user_ids)
+    except UserProfile.DoesNotExist:
+        students_qs = students_qs.filter(user=request.user)
     students = [{"id": s.id, "name": s.name} for s in students_qs]
 
     def goals_preview(txt, max_len=80):
@@ -987,9 +1151,11 @@ def planning_list_api(request):
         has_goals = bool(p.goals and p.goals.strip())
         has_materials = bool(p.links and p.links.strip())
         materials = links_to_materials(p.links or "")
+        teacher_name = (p.user.get_full_name() or p.user.username) if p.user_id else ""
         by_date[p.date].append({
             "id": p.id,
             "student": {"id": p.student_id, "name": p.student.name},
+            "teacher": {"id": p.user_id, "name": teacher_name},
             "date": p.date.strftime("%Y-%m-%d"),
             "time": None,
             "duration_min": None,
@@ -1785,6 +1951,13 @@ class PlanosView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
+        try:
+            profile = user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
         
         # Obter dados da assinatura
         try:
@@ -2309,6 +2482,260 @@ def profile_get_view(request):
         )
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def profile_partner_teachers_lookup(request):
+    """
+    Busca um usuário por e-mail para vincular como professor parceiro.
+    Apenas usuários com perfil Professor podem usar. Retorna usuários com perfil Prof. Parceiro.
+    GET /api/profile/partner-teachers/lookup/?email=xxx@yy.com
+    """
+    try:
+        profile = request.user.profile
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'Perfil não encontrado'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    if profile.user_profile != UserProfile.PROFILE_TEACHER:
+        return Response(
+            {'error': 'Apenas professores (dono da conta) podem vincular professores parceiros.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    email = (request.GET.get('email') or '').strip().lower()
+    if not email:
+        return Response(
+            {'error': 'Informe o parâmetro email.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        user = User.objects.get(email__iexact=email)
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'Nenhum usuário encontrado com este e-mail.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    try:
+        up = user.profile
+        if up.user_profile != UserProfile.PROFILE_PARTNER_TEACHER:
+            return Response(
+                {'error': 'Este usuário não é um professor parceiro. Apenas perfis "Prof. Parceiro" podem ser vinculados.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'Perfil do usuário não encontrado.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if user.id == request.user.id:
+        return Response(
+            {'error': 'Você não pode se vincular a si mesmo.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    return Response({
+        'id': user.id,
+        'username': user.username,
+        'name': user.get_full_name() or user.username,
+        'email': user.email or '',
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def profile_partner_teachers_create(request):
+    """
+    Cadastra um novo professor parceiro e já vincula ao professor atual.
+    Apenas usuários com perfil Professor podem usar.
+    Body: email, first_name, last_name, password, password_confirm [, username ]
+    """
+    try:
+        profile = request.user.profile
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'Perfil não encontrado'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    if profile.user_profile != UserProfile.PROFILE_TEACHER:
+        return Response(
+            {'error': 'Apenas professores (dono da conta) podem cadastrar professores parceiros.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    data = request.data
+    email = (data.get('email') or '').strip()
+    first_name = (data.get('first_name') or '').strip()
+    last_name = (data.get('last_name') or '').strip()
+    password = data.get('password') or ''
+    password_confirm = data.get('password_confirm') or data.get('password') or ''
+    username = (data.get('username') or '').strip()
+
+    if not email:
+        return Response(
+            {'error': 'E-mail é obrigatório.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if not password or len(password) < 8:
+        return Response(
+            {'error': 'Senha é obrigatória e deve ter pelo menos 8 caracteres.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if password != password_confirm:
+        return Response(
+            {'error': 'As senhas não coincidem.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if User.objects.filter(email__iexact=email).exists():
+        return Response(
+            {'error': 'Já existe um usuário com este e-mail.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if not username:
+        # Username = caracteres antes do @ (ex: jonasbarros99@gmail.com -> jonasbarros99)
+        username = (email.split('@')[0] if '@' in email else email).strip().lower()[:150]
+        if not username:
+            username = 'user'
+    if User.objects.filter(username=username).exists():
+        base = username[:120]
+        for i in range(1, 100):
+            username = base + str(i)
+            if not User.objects.filter(username=username).exists():
+                break
+        else:
+            return Response(
+                {'error': 'Não foi possível gerar um nome de usuário único.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    try:
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        partner_profile = UserProfile.objects.create(
+            user=user,
+            user_profile=UserProfile.PROFILE_PARTNER_TEACHER,
+            is_admin=False,
+        )
+        profile.partner_teachers.add(partner_profile)
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'name': user.get_full_name() or user.username,
+            'email': user.email or '',
+        }, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['DELETE', 'POST'])
+@permission_classes([IsAuthenticated])
+def profile_partner_teachers_remove(request, user_id):
+    """
+    Desvincula um professor parceiro (acesso cortado imediatamente).
+    Apenas perfil Professor. O parceiro deixa de ver alunos/aulas deste professor.
+    DELETE /api/profile/partner-teachers/<user_id>/remove/ ou POST com _method=DELETE
+    """
+    try:
+        profile = request.user.profile
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'Perfil não encontrado'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    if profile.user_profile != UserProfile.PROFILE_TEACHER:
+        return Response(
+            {'error': 'Apenas professores (dono da conta) podem desvincular parceiros.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    try:
+        partner_profile = UserProfile.objects.get(
+            user_id=user_id,
+            user_profile=UserProfile.PROFILE_PARTNER_TEACHER,
+        )
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'Usuário não encontrado ou não é professor parceiro.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    profile.partner_teachers.remove(partner_profile)
+    return Response({'success': True, 'message': 'Professor parceiro desvinculado. Acesso cortado imediatamente.'}, status=status.HTTP_200_OK)
+
+
+@api_view(['PATCH', 'PUT'])
+@permission_classes([IsAuthenticated])
+def profile_partner_teachers_update(request, user_id):
+    """
+    Atualiza dados de um professor parceiro vinculado (nome, e-mail, senha).
+    Apenas perfil Professor pode editar seus parceiros.
+    """
+    try:
+        profile = request.user.profile
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'Perfil não encontrado'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    if profile.user_profile != UserProfile.PROFILE_TEACHER:
+        return Response(
+            {'error': 'Apenas professores (dono da conta) podem editar parceiros.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    if not profile.partner_teachers.filter(user_id=user_id).exists():
+        return Response(
+            {'error': 'Este professor parceiro não está vinculado a você.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'Usuário não encontrado.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    data = request.data
+    first_name = (data.get('first_name') or '').strip()
+    last_name = (data.get('last_name') or '').strip()
+    email = (data.get('email') or '').strip()
+    password = data.get('password') or ''
+    password_confirm = data.get('password_confirm') or data.get('password') or ''
+
+    if email and User.objects.filter(email__iexact=email).exclude(id=user_id).exists():
+        return Response(
+            {'error': 'Já existe outro usuário com este e-mail.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if password or password_confirm:
+        if len(password) < 8:
+            return Response(
+                {'error': 'A senha deve ter pelo menos 8 caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if password != password_confirm:
+            return Response(
+                {'error': 'As senhas não coincidem.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    if first_name is not None:
+        user.first_name = first_name
+    if last_name is not None:
+        user.last_name = last_name
+    if email:
+        user.email = email
+    if password:
+        user.set_password(password)
+    user.save()
+    return Response({
+        'id': user.id,
+        'username': user.username,
+        'name': user.get_full_name() or user.username,
+        'email': user.email or '',
+    }, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def welcome_dismiss_view(request):
@@ -2390,6 +2817,18 @@ def profile_update_view(request):
         if raw_data.get('password') and raw_data.get('password').strip():
             serializer_data['password'] = raw_data.get('password')
             serializer_data['password_confirm'] = raw_data.get('password_confirm', raw_data.get('password'))
+        
+        # Professores parceiros: só para perfil Professor (não prof. parceiro)
+        if profile.user_profile == UserProfile.PROFILE_TEACHER:
+            ids = None
+            if hasattr(request.data, 'getlist'):
+                ids = request.data.getlist('partner_teachers_ids')
+            if ids is None:
+                ids = raw_data.get('partner_teachers_ids', [])
+            if isinstance(ids, list):
+                serializer_data['partner_teachers_ids'] = [int(x) for x in ids if x not in (None, '')]
+            else:
+                serializer_data['partner_teachers_ids'] = []
         
         print(f"[DEBUG] Profile update - serializer data preparado: {serializer_data}")
         print(f"[DEBUG] Profile atual antes: email={user.email}, first_name={user.first_name}, last_name={user.last_name}")
@@ -2641,13 +3080,24 @@ def calendar_event_status(request, event_id):
 def calendar_event_create(request):
     """
     POST /api/calendar/events/
-    Body: {date:"YYYY-MM-DD", time:"HH:MM", student_id:123, status:"confirmed|pending|cancelled|done", note:""}
-    Cria uma nova aula (lesson).
+    Body: {date, time, student_id, status?, note?, user_id?}
+    Cria uma nova aula (lesson). Apenas professor dono da conta pode criar; user_id opcional para atribuir a si ou a um parceiro.
     """
     try:
+        # Prof. Parceiro não pode criar aulas
+        try:
+            if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return Response(
+                    {'error': 'Apenas o professor dono da conta pode agendar aulas.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except UserProfile.DoesNotExist:
+            pass
+
         date_str = request.data.get('date')
         time_str = request.data.get('time', '')
         student_id = request.data.get('student_id')
+        user_id = request.data.get('user_id')  # opcional: professor da aula (self ou parceiro)
         status_val = request.data.get('status', 'pending')
         note = request.data.get('note', '')
         
@@ -2657,13 +3107,54 @@ def calendar_event_create(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Definir professor da aula: user_id válido (self ou parceiro) ou request.user
+        teacher_user = request.user
+        if user_id is not None:
+            try:
+                user_id = int(user_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {'error': 'user_id inválido'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                profile = request.user.profile
+                if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                    partner_ids = list(profile.partner_teachers.values_list('user_id', flat=True))
+                    if user_id == request.user.id or user_id in partner_ids:
+                        teacher_user = User.objects.get(id=user_id)
+                    else:
+                        return Response(
+                            {'error': 'Professor selecionado não é permitido para esta conta.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                elif user_id != request.user.id:
+                    return Response(
+                        {'error': 'Professor selecionado não é permitido.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except User.DoesNotExist:
+                return Response(
+                    {'error': 'Professor não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        # Aluno: deve pertencer ao dono da conta ou a um parceiro (lista já usada em listagem)
         try:
-            student = Student.objects.get(id=student_id, user=request.user)
+            profile = request.user.profile
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partner_ids = list(profile.partner_teachers.values_list('user_id', flat=True))
+                partner_ids.append(request.user.id)
+                student = Student.objects.get(id=student_id, user_id__in=partner_ids)
+            else:
+                student = Student.objects.get(id=student_id, user=request.user)
         except Student.DoesNotExist:
             return Response(
                 {'error': 'Aluno não encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        except UserProfile.DoesNotExist:
+            student = Student.objects.get(id=student_id, user=request.user)
         
         lesson_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         lesson_time = None
@@ -2690,10 +3181,10 @@ def calendar_event_create(request):
             }
             lesson_status = status_map.get(status_val, "pending")
         
-        # Criar lesson
+        # Criar lesson (user = professor da aula)
         lesson = Lesson.objects.create(
             student=student,
-            user=request.user,
+            user=teacher_user,
             date=lesson_date,
             time=lesson_time,
             title=f"Aula {student.name}",
@@ -2953,11 +3444,22 @@ class CalendarNewView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Adicionar flag de admin no contexto
         try:
-            context['user_is_admin'] = self.request.user.profile.is_admin
+            profile = self.request.user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+            # Professores que o dono da conta pode atribuir ao agendar aula (ele + parceiros)
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partners = list(profile.partner_teachers.select_related('user').all())
+                context['assignable_teachers'] = [
+                    {'id': self.request.user.id, 'name': self.request.user.get_full_name() or self.request.user.username}
+                ] + [{'id': p.user.id, 'name': p.user.get_full_name() or p.user.username} for p in partners]
+            else:
+                context['assignable_teachers'] = []
         except UserProfile.DoesNotExist:
             context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
+            context['assignable_teachers'] = []
         return context
 
 
@@ -2982,11 +3484,13 @@ class TicketsView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Adicionar flag de admin no contexto para uso no template
         try:
-            context['user_is_admin'] = self.request.user.profile.is_admin
+            profile = self.request.user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
         except UserProfile.DoesNotExist:
             context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
         return context
 
 

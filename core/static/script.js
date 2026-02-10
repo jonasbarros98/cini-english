@@ -384,6 +384,8 @@ async function loadFinancialEntries() {
       status: e.status,
       paymentMethod: e.payment_method,
       notes: e.notes || "",
+      userId: e.user,
+      userDisplayName: e.user_display_name || e.user_username || "",
       beneficiaryUserId: e.beneficiary_user,
       beneficiaryUsername: e.beneficiary_username,
     }));
@@ -2520,7 +2522,11 @@ function renderFinancialEntries() {
 
     const nameEl = document.createElement("div");
     nameEl.className = "finance-name";
-    nameEl.innerHTML = `<strong>${entry.studentName || "Aluno"}</strong> - ${entry.description}`;
+    let nameHtml = `<strong>${entry.studentName || "Aluno"}</strong> - ${entry.description}`;
+    if (entry.userDisplayName) {
+      nameHtml += `<div class="finance-teacher" style="font-size:11px;color:var(--muted);margin-top:2px;">👤 ${entry.userDisplayName}</div>`;
+    }
+    nameEl.innerHTML = nameHtml;
 
     const infoEl = document.createElement("div");
     infoEl.className = "finance-info";
@@ -2663,43 +2669,14 @@ function openFinancialEntryForm(entry = null) {
     });
   }
 
-  // Configura campo de beneficiário (apenas para professores principais)
-  const feBeneficiaryRow = document.getElementById("feBeneficiaryRow");
-  const feBeneficiary = document.getElementById("feBeneficiary");
-  const isTeacher = state.currentUser && state.currentUser.user_profile === "professor";
-  
-  if (feBeneficiaryRow && feBeneficiary) {
-    if (isTeacher) {
-      feBeneficiaryRow.style.display = "flex";
-      // Popula com o próprio usuário e parceiros vinculados
-      feBeneficiary.innerHTML = '<option value="">Selecione o beneficiário</option>';
-      
-      // Adiciona o próprio usuário
-      const selfOpt = document.createElement("option");
-      selfOpt.value = state.currentUser.id;
-      selfOpt.textContent = `${state.currentUser.username} (Eu)`;
-      feBeneficiary.append(selfOpt);
-      
-      // Carrega parceiros vinculados
-      loadPartnerTeachers().then(partners => {
-        partners.forEach(partner => {
-          const opt = document.createElement("option");
-          opt.value = partner.id;
-          opt.textContent = `${partner.username}${partner.email ? ` (${partner.email})` : ''}`;
-          feBeneficiary.append(opt);
-        });
-      });
-    } else {
-      feBeneficiaryRow.style.display = "none";
-    }
-  }
-
   if (entry) {
     // Modo edição
     editingFinancialEntryId = entry.id;
     titleEl.textContent = "Editar Lançamento";
 
     document.getElementById("feStudent").value = entry.studentId || "";
+    const feUser = document.getElementById("feUser");
+    if (feUser && entry.userId) feUser.value = String(entry.userId);
     document.getElementById("feDescription").value = entry.description || "";
     document.getElementById("feAmount").value = entry.amount || "";
     document.getElementById("feInstallments").value = entry.installments || 1;
@@ -2711,13 +2688,6 @@ function openFinancialEntryForm(entry = null) {
     }
     document.getElementById("feDueDate").value = entry.dueDate || "";
     
-    // Preenche beneficiário se existir
-    if (feBeneficiary && entry.beneficiaryUserId) {
-      feBeneficiary.value = entry.beneficiaryUserId;
-    } else if (feBeneficiary && isTeacher) {
-      // Se não tiver beneficiário, define como o próprio usuário
-      feBeneficiary.value = state.currentUser.id;
-    }
     document.getElementById("feStatus").value = entry.status || "pending";
     document.getElementById("fePaymentMethod").value = entry.paymentMethod || "pix";
     document.getElementById("feNotes").value = entry.notes || "";
@@ -2746,16 +2716,13 @@ function openFinancialEntryForm(entry = null) {
       feDueDate.value = toISO(nextMonth);
     }
 
+    const feUser = document.getElementById("feUser");
+    if (feUser && state.currentUser) feUser.value = String(state.currentUser.id);
+
     const feInstallments = document.getElementById("feInstallments");
     if (feInstallments) {
       feInstallments.value = 1;
       feInstallments.disabled = false;
-    }
-    
-    // Define beneficiário padrão como o próprio usuário (se for professor)
-    const feBeneficiary = document.getElementById("feBeneficiary");
-    if (feBeneficiary && isTeacher) {
-      feBeneficiary.value = state.currentUser.id;
     }
   }
 
@@ -2834,12 +2801,12 @@ async function showView(viewId) {
     navUsers.style.display = state.currentUser.is_admin ? "flex" : "none";
   }
 
-  // Esconde menu de Cobrança para Prof. Parceiro
+  // Esconde menu de Tarefas e Cobrança para Prof. Parceiro
+  const isPartnerTeacher = state.currentUser && state.currentUser.user_profile === "prof_parceiro";
+  const navTasks = document.querySelector('[data-view="view-tasks"]');
+  if (navTasks) navTasks.style.display = isPartnerTeacher ? "none" : "";
   const navBilling = document.querySelector('[data-view="view-billing"]');
-  if (navBilling && state.currentUser) {
-    const isPartnerTeacher = state.currentUser.user_profile === "prof_parceiro";
-    navBilling.style.display = isPartnerTeacher ? "none" : "flex";
-  }
+  if (navBilling) navBilling.style.display = isPartnerTeacher ? "none" : "flex";
 
   // Se abrir a visualização de tarefas
   if (viewId === "view-tasks") {
@@ -3293,7 +3260,7 @@ function attachForms() {
         return;
       }
 
-      const beneficiaryUserId = document.getElementById("feBeneficiary")?.value;
+      const userId = document.getElementById("feUser")?.value;
       
       const payload = {
         student: Number(studentId),
@@ -3308,10 +3275,8 @@ function attachForms() {
         notes,
       };
       
-      // Adiciona beneficiary_user se especificado (apenas para professores principais)
-      if (beneficiaryUserId) {
-        payload.beneficiary_user = Number(beneficiaryUserId);
-      }
+      // Professor responsável: define quem é responsável e quem recebe (um único campo)
+      if (userId) payload.user = Number(userId);
 
       // Se o status for "paid" e não tiver payment_date, define como hoje
       if (status === "paid" && !payload.payment_date) {

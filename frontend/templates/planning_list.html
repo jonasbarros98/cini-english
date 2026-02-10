@@ -586,6 +586,7 @@
         </div>
       </div>
       <nav class="nav">
+        {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item">
           <span class="nav-emoji">🏠</span>
           <div>
@@ -593,6 +594,7 @@
             <p class="nav-subtitle">Visão geral</p>
           </div>
         </a>
+        {% endif %}
         <a href="/calendar/" class="nav-item">
           <span class="nav-emoji">📅</span>
           <div>
@@ -614,6 +616,7 @@
             <p class="nav-subtitle">Planejar aulas por aluno</p>
           </div>
         </a>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-tasks" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
@@ -621,6 +624,7 @@
             <p class="nav-subtitle">Planejamento rápido</p>
           </div>
         </a>
+        {% endif %}
         <a href="/?view=view-finance" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
@@ -629,6 +633,7 @@
           </div>
         </a>
         <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
           <span class="nav-emoji">💬</span>
           <div>
@@ -636,7 +641,9 @@
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
+        {% endif %}
         <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
             <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
@@ -644,13 +651,15 @@
             <span class="nav-group-chevron" aria-hidden="true">›</span>
           </button>
           <div class="nav-group-items" id="navGroupContaItems">
-            <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers" style="display: none;">
+            {% if user_is_admin %}
+            <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
               <span class="nav-emoji">👥</span>
               <div>
                 <p class="nav-title">Usuários</p>
                 <p class="nav-subtitle">Gerenciar usuários</p>
               </div>
             </a>
+            {% endif %}
             <a href="/perfil/" class="nav-item nav-item-nested">
               <span class="nav-emoji">👤</span>
               <div>
@@ -674,6 +683,7 @@
             </a>
           </div>
         </div>
+        {% endif %}
       </nav>
       <div class="sidebar-card">
         <p class="sidebar-title">Visão rápida (mês)</p>
@@ -711,6 +721,17 @@
             <option value="custom">Custom (intervalo)</option>
           </select>
         </div>
+        {% if assignable_teachers|length > 1 %}
+        <div class="field">
+          <label for="teacher">Professor</label>
+          <select id="teacher">
+            <option value="all" selected>Todos</option>
+            {% for t in assignable_teachers %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
         <div class="field">
           <label for="student">Aluno</label>
           <select id="student">
@@ -831,6 +852,8 @@
       function buildParams() {
         var period = ($("select#period") && $("select#period").value) ? $("select#period").value : "next7";
         var params = { period: period };
+        var teacherEl = $("select#teacher");
+        if (teacherEl && teacherEl.value && teacherEl.value !== "all") params.teacher_id = teacherEl.value;
         var studentEl = $("select#student");
         if (studentEl && studentEl.value && studentEl.value !== "all") params.student_id = studentEl.value;
         var statusEl = $("select#status");
@@ -978,10 +1001,13 @@
 
       function renderCard(item) {
         var studentName = (item.student && item.student.name) ? escapeHtml(item.student.name) : "—";
+        var teacherName = (item.teacher && item.teacher.name) ? escapeHtml(item.teacher.name) : "";
         var date = (item && item.date) ? escapeHtml(item.date) : "";
         var id = (item && item.id) ? item.id : "";
         var html = '<article class="plan-card" data-plan-id="' + escapeHtml(String(id)) + '" data-student-id="' + (item.student && item.student.id ? item.student.id : "") + '" data-date="' + date + '">';
-        html += '<div class="plan-main"><strong>' + studentName + '</strong><div class="chips">' + chips(item) + '</div></div>';
+        html += '<div class="plan-main"><strong>' + studentName + '</strong>';
+        if (teacherName) html += '<div class="plan-teacher" style="font-size:12px;color:var(--muted);margin-top:4px;">👤 Professor: ' + teacherName + '</div>';
+        html += '<div class="chips">' + chips(item) + '</div></div>';
         html += '<div class="plan-detail"><div class="line">' + goalsLine(item) + '</div><div class="line">' + materialsLine(item) + '</div></div>';
         html += '<div class="plan-actions">';
         html += '<button class="btn js-view" type="button">Visualizar</button>';
@@ -1051,6 +1077,8 @@
             fetchList();
           });
         }
+        var teacher = $("#teacher");
+        if (teacher) teacher.addEventListener("change", fetchList);
         var student = $("#student");
         if (student) student.addEventListener("change", fetchList);
         var status = $("#status");
@@ -1682,32 +1710,7 @@
       }
       setTimeout(initContaGroupCollapse, 100);
 
-      // Sidebar: checkAdmin e mostrar menu Usuários
-      function getCookie(name) {
-        var value = "; " + document.cookie;
-        var parts = value.split("; " + name + "=");
-        if (parts.length === 2) return parts.pop().split(";").shift();
-        return null;
-      }
-      function checkAdminAndShowUsersMenu() {
-        try {
-          var csrf = getCookie("csrftoken");
-          fetch("/api/auth/current-user/", {
-            method: "GET",
-            headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
-            credentials: "same-origin"
-          })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-              if (data && data.is_admin) {
-                var navUsers = document.getElementById("navUsers");
-                if (navUsers) navUsers.style.display = "";
-              }
-            })
-            .catch(function () {});
-        } catch (e) {}
-      }
-      checkAdminAndShowUsersMenu();
+      // navUsers é exibido apenas para admin (renderizado condicionalmente no servidor)
 
       // ====== Atualizar Visão Rápida ======
       async function updateSidebarStats() {
