@@ -48,8 +48,8 @@ class StudentViewSet(viewsets.ModelViewSet):
             return qs
         
         if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-            # Prof. Parceiro: apenas alunos atribuídos a ele (apenas visualização)
-            qs = qs.filter(assigned_teacher=self.request.user)
+            # Prof. Parceiro: apenas alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
+            qs = qs.filter(user__profile__partner_teachers=self.request.user.profile)
         elif user_profile == UserProfile.PROFILE_TEACHER:
             # Prof. dono da conta: apenas alunos que ele cadastrou (user=ele)
             qs = qs.filter(user=self.request.user)
@@ -150,6 +150,9 @@ class LessonViewSet(viewsets.ModelViewSet):
                     partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
                     partner_ids.append(self.request.user.id)
                     qs = qs.filter(user_id__in=partner_ids)
+                elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                    # Parceiro só vê aulas de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
+                    qs = qs.filter(student__user__profile__partner_teachers=self.request.user.profile)
                 else:
                     # Outros usuários veem apenas as suas
                     qs = qs.filter(user=self.request.user)
@@ -652,10 +655,10 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
         
         if not is_admin:
             if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                # Prof. Parceiro vê lançamentos designados a ele (responsável ou beneficiário)
-                qs = qs.filter(
+                # Parceiro só vê lançamentos de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
+                qs = qs.filter(student__user__profile__partner_teachers=self.request.user.profile).filter(
                     Q(user=self.request.user) | Q(beneficiary_user=self.request.user)
-                )
+                ).distinct()
             elif user_profile == UserProfile.PROFILE_TEACHER:
                 # Prof. Principal vê:
                 # 1. Lançamentos criados por ele (user = ele)
@@ -922,6 +925,9 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
                     partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
                     partner_ids.append(self.request.user.id)
                     queryset = queryset.filter(user_id__in=partner_ids)
+                elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                    # Parceiro só vê planejamentos de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
+                    queryset = queryset.filter(student__user__profile__partner_teachers=self.request.user.profile)
                 else:
                     # Outros usuários veem apenas os seus
                     queryset = queryset.filter(user=self.request.user)
@@ -1052,6 +1058,12 @@ def planning_list_api(request):
     user_ids = _planning_user_ids(request)
     if user_ids is not None:
         qs = qs.filter(user_id__in=user_ids)
+    # Parceiro: só ver planejamentos de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
+    try:
+        if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            qs = qs.filter(student__user__profile__partner_teachers=request.user.profile)
+    except UserProfile.DoesNotExist:
+        pass
     # Filtro por professor (apenas para dono da conta: ver planejamentos de um parceiro ou os seus)
     if teacher_id and teacher_id != "all":
         try:
@@ -1089,12 +1101,12 @@ def planning_list_api(request):
 
     plans = list(qs)
 
-    # Lista de alunos para o filtro: mesmo critério do cadastro (dono vê os seus; parceiro vê os atribuídos a ele)
+    # Lista de alunos para o filtro: mesmo critério do cadastro (dono vê os seus; parceiro só vê de donos que ainda o têm vinculado)
     students_qs = Student.objects.order_by("name")
     try:
         profile = request.user.profile.user_profile
         if profile == UserProfile.PROFILE_PARTNER_TEACHER:
-            students_qs = students_qs.filter(assigned_teacher=request.user)
+            students_qs = students_qs.filter(user__profile__partner_teachers=request.user.profile)
         elif profile == UserProfile.PROFILE_TEACHER:
             students_qs = students_qs.filter(user=request.user)
         elif user_ids is not None:
@@ -3001,13 +3013,19 @@ def calendar_event_status(request, event_id):
     Atualiza status de uma aula (lesson).
     """
     try:
-        lesson = Lesson.objects.get(id=event_id, user=request.user)
-        
-        # Verificar permissão (admin ou professor principal pode ver outras; parceiro só se ainda vinculado)
+        lesson = Lesson.objects.select_related('student', 'student__user__profile').filter(id=event_id).first()
+        if not lesson:
+            return Response(
+                {'error': 'Aula não encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        # Verificar permissão (admin ou professor principal pode editar suas e dos parceiros; parceiro só se ainda vinculado)
         try:
             is_admin = request.user.profile.is_admin
             user_profile = request.user.profile.user_profile
-            if not is_admin and user_profile == UserProfile.PROFILE_TEACHER:
+            if is_admin:
+                pass
+            elif user_profile == UserProfile.PROFILE_TEACHER:
                 partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
                 partner_ids.append(request.user.id)
                 if lesson.user_id not in partner_ids:
@@ -3015,13 +3033,13 @@ def calendar_event_status(request, event_id):
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
                     )
-            elif not is_admin and user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
                 if not lesson.student.user.profile.partner_teachers.filter(user=request.user).exists():
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
                     )
-            elif not is_admin:
+            else:
                 if lesson.user_id != request.user.id:
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
@@ -3083,11 +3101,6 @@ def calendar_event_status(request, event_id):
             'note': lesson.info or ""
         })
     
-    except Lesson.DoesNotExist:
-        return Response(
-            {'error': 'Aula não encontrada'},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except Exception as e:
         return Response(
             {'error': f'Erro ao atualizar status: {str(e)}'},
@@ -3248,13 +3261,19 @@ def calendar_event_update(request, event_id):
     Atualiza uma aula (lesson).
     """
     try:
-        lesson = Lesson.objects.get(id=event_id, user=request.user)
-        
-        # Verificar permissão (admin ou professor principal pode ver outras; parceiro só se ainda vinculado)
+        lesson = Lesson.objects.select_related('student', 'student__user__profile').filter(id=event_id).first()
+        if not lesson:
+            return Response(
+                {'error': 'Aula não encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        # Verificar permissão (admin ou professor principal pode editar suas e dos parceiros; parceiro só se ainda vinculado)
         try:
             is_admin = request.user.profile.is_admin
             user_profile = request.user.profile.user_profile
-            if not is_admin and user_profile == UserProfile.PROFILE_TEACHER:
+            if is_admin:
+                pass
+            elif user_profile == UserProfile.PROFILE_TEACHER:
                 partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
                 partner_ids.append(request.user.id)
                 if lesson.user_id not in partner_ids:
@@ -3262,13 +3281,13 @@ def calendar_event_update(request, event_id):
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
                     )
-            elif not is_admin and user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
                 if not lesson.student.user.profile.partner_teachers.filter(user=request.user).exists():
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
                     )
-            elif not is_admin:
+            else:
                 if lesson.user_id != request.user.id:
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
@@ -3305,7 +3324,20 @@ def calendar_event_update(request, event_id):
         
         if student_id:
             try:
-                student = Student.objects.get(id=student_id, user=request.user)
+                # Professor dono: aluno deve ser dele; parceiro: aluno do dono que o tem vinculado
+                try:
+                    is_partner = request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+                except UserProfile.DoesNotExist:
+                    is_partner = False
+                if is_partner:
+                    student = Student.objects.select_related('user__profile').get(id=student_id)
+                    if not student.user.profile.partner_teachers.filter(user=request.user).exists():
+                        return Response(
+                            {'error': 'Aluno não encontrado'},
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+                else:
+                    student = Student.objects.get(id=student_id, user=request.user)
                 lesson.student = student
             except Student.DoesNotExist:
                 return Response(
@@ -3356,11 +3388,6 @@ def calendar_event_update(request, event_id):
             'note': lesson.info or ""
         })
     
-    except Lesson.DoesNotExist:
-        return Response(
-            {'error': 'Aula não encontrada'},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except ValueError as e:
         return Response(
             {'error': f'Formato de data inválido: {str(e)}'},
