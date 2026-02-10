@@ -548,6 +548,11 @@
             <div class="planPrice">
               <p class="value">{{ plan_price }}</p>
               <p class="period">{% if subscription.plan == 'monthly' %}por mês{% elif subscription.plan == 'semestral' %}a cada 6 meses{% elif subscription.plan == 'annual' %}por ano{% else %}—{% endif %}</p>
+              {% if subscription.tier %}
+              <p class="hint" style="margin-top: 4px; font-size: 12px; color: var(--muted);">
+                {% if subscription.tier == 'basic' %}Até 15 alunos{% elif subscription.tier == 'premium' %}Alunos ilimitados • Até 2 parceiros{% elif subscription.tier == 'platinum' %}Alunos e parceiros ilimitados{% endif %}
+              </p>
+              {% endif %}
             </div>
           </div>
 

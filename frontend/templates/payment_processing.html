@@ -139,6 +139,13 @@
     </div>
 
     <script>
+      function getCookie(name) {
+        const value = "; " + document.cookie;
+        const parts = value.split("; " + name + "=");
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+      
       // Verificar status da assinatura periodicamente
       let checkCount = 0;
       const maxChecks = 30; // 30 tentativas (5 minutos)
@@ -148,9 +155,48 @@
       const sessionId = urlParams.get('session_id');
       console.log("Session ID:", sessionId);
       
+      async function verifySessionWithStripe() {
+        // Se temos session_id, tentar verificar diretamente no Stripe
+        if (sessionId && sessionId.startsWith('cs_')) {
+          try {
+            console.log("Tentando verificar sessão diretamente no Stripe...");
+            const csrf = getCookie("csrftoken");
+            const verifyResponse = await fetch("/api/subscription/verify-session/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrf || "",
+              },
+              credentials: "same-origin",
+              body: JSON.stringify({ session_id: sessionId }),
+            });
+            
+            if (verifyResponse.ok) {
+              const verifyData = await verifyResponse.json();
+              console.log("Verificação direta do Stripe:", verifyData);
+              
+              if (verifyData.is_active) {
+                console.log("✅ Assinatura ativada via verificação direta! Redirecionando...");
+                window.location.replace("/");
+                return true;
+              }
+            }
+          } catch (error) {
+            console.error("Erro ao verificar sessão diretamente:", error);
+          }
+        }
+        return false;
+      }
+      
       async function checkSubscriptionStatus() {
         try {
           console.log(`Verificando status da assinatura (tentativa ${checkCount + 1}/${maxChecks})...`);
+          
+          // Primeiro, tentar verificar diretamente no Stripe se temos session_id
+          if (checkCount === 0 && sessionId) {
+            const verified = await verifySessionWithStripe();
+            if (verified) return;
+          }
           
           const response = await fetch("/api/subscription/status/", {
             credentials: "same-origin",
@@ -170,7 +216,12 @@
             } else if (data.has_subscription) {
               console.log(`Assinatura encontrada, mas status: ${data.status}, ativa: ${data.is_active}`);
             } else {
-              console.log("Ainda não há assinatura criada. Aguardando webhook...");
+              console.log("Ainda não há assinatura criada. Tentando verificar diretamente no Stripe...");
+              // Se não há subscription ainda, tentar verificar diretamente no Stripe
+              if (sessionId && checkCount < 3) {
+                const verified = await verifySessionWithStripe();
+                if (verified) return;
+              }
             }
           } else {
             const errorData = await response.json().catch(() => ({}));
@@ -191,6 +242,13 @@
             console.log(`Aguardando 10 segundos antes da próxima verificação...`);
             setTimeout(checkSubscriptionStatus, 10000);
           } else {
+            // Timeout - tentar uma última vez verificar diretamente no Stripe
+            if (sessionId) {
+              console.log("Tentando última verificação direta no Stripe...");
+              const verified = await verifySessionWithStripe();
+              if (verified) return;
+            }
+            
             // Timeout - redirecionar mesmo assim
             console.warn("⏱️ Timeout ao verificar status após 5 minutos. Redirecionando...");
             alert("O processamento está demorando mais que o esperado. Você será redirecionado para o dashboard. Se sua assinatura não foi ativada, entre em contato com o suporte.");
@@ -209,9 +267,9 @@
         }
       }
       
-      // Começar a verificar após 5 segundos
-      console.log("Iniciando verificação de status em 5 segundos...");
-      setTimeout(checkSubscriptionStatus, 5000);
+      // Começar a verificar após 3 segundos (mais rápido)
+      console.log("Iniciando verificação de status em 3 segundos...");
+      setTimeout(checkSubscriptionStatus, 3000);
     </script>
   </body>
 </html>

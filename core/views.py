@@ -73,8 +73,24 @@ class StudentViewSet(viewsets.ModelViewSet):
         if self._is_partner_teacher():
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Apenas o professor dono da conta pode cadastrar alunos.")
-        # assigned_teacher pode vir em validated_data; validar que é parceiro do dono
+        # Verificar limite de alunos do plano
         user = self.request.user
+        try:
+            subscription = user.subscription
+            if subscription.is_active:
+                max_students = subscription.get_max_students()
+                if max_students is not None:
+                    current_count = Student.objects.filter(user=user).count()
+                    if current_count >= max_students:
+                        from rest_framework.exceptions import PermissionDenied
+                        raise PermissionDenied(
+                            f"Limite de {max_students} alunos atingido no plano {subscription.get_tier_display()}. "
+                            f"Faça upgrade para Premium ou Platinum para alunos ilimitados."
+                        )
+        except Subscription.DoesNotExist:
+            # Sem assinatura ativa - permitir criação (pode estar em trial ou sem plano ainda)
+            pass
+        # assigned_teacher pode vir em validated_data; validar que é parceiro do dono
         serializer.save(user=user)
     
     def perform_update(self, serializer):
@@ -1348,27 +1364,45 @@ def create_checkout_session(request):
     """
     Cria uma Stripe Checkout Session para assinatura.
     Requer autenticação e plano válido.
+    Formato esperado: {'tier': 'basic|premium|platinum', 'plan': 'monthly|semestral|annual'}
     """
-    plan = request.data.get('plan')
+    tier = request.data.get('tier', '').strip().lower()
+    plan = request.data.get('plan', '').strip().lower()
     
+    # Validar tier
+    if tier not in [Subscription.TIER_BASIC, Subscription.TIER_PREMIUM, Subscription.TIER_PLATINUM]:
+        return Response(
+            {'error': 'Tier inválido. Use: basic, premium ou platinum'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Validar periodicidade
     if plan not in [Subscription.PLAN_MONTHLY, Subscription.PLAN_SEMESTRAL, Subscription.PLAN_ANNUAL]:
         return Response(
-            {'error': 'Plano inválido. Use: monthly, semestral ou annual'},
+            {'error': 'Periodicidade inválida. Use: monthly, semestral ou annual'},
             status=status.HTTP_400_BAD_REQUEST
         )
     
     # Mapeamento de planos para price IDs do Stripe
     # IMPORTANTE: Configure estes IDs no seu painel do Stripe
+    # Formato: STRIPE_PRICE_ID_{TIER}_{PLAN} (ex: STRIPE_PRICE_ID_BASIC_MONTHLY)
     PLAN_PRICE_IDS = {
-        Subscription.PLAN_MONTHLY: os.environ.get("STRIPE_PRICE_ID_MONTHLY", ""),
-        Subscription.PLAN_SEMESTRAL: os.environ.get("STRIPE_PRICE_ID_SEMESTRAL", ""),
-        Subscription.PLAN_ANNUAL: os.environ.get("STRIPE_PRICE_ID_ANNUAL", ""),
+        f"{Subscription.TIER_BASIC}_{Subscription.PLAN_MONTHLY}": os.environ.get("STRIPE_PRICE_ID_BASIC_MONTHLY", ""),
+        f"{Subscription.TIER_BASIC}_{Subscription.PLAN_SEMESTRAL}": os.environ.get("STRIPE_PRICE_ID_BASIC_SEMESTRAL", ""),
+        f"{Subscription.TIER_BASIC}_{Subscription.PLAN_ANNUAL}": os.environ.get("STRIPE_PRICE_ID_BASIC_ANNUAL", ""),
+        f"{Subscription.TIER_PREMIUM}_{Subscription.PLAN_MONTHLY}": os.environ.get("STRIPE_PRICE_ID_PREMIUM_MONTHLY", ""),
+        f"{Subscription.TIER_PREMIUM}_{Subscription.PLAN_SEMESTRAL}": os.environ.get("STRIPE_PRICE_ID_PREMIUM_SEMESTRAL", ""),
+        f"{Subscription.TIER_PREMIUM}_{Subscription.PLAN_ANNUAL}": os.environ.get("STRIPE_PRICE_ID_PREMIUM_ANNUAL", ""),
+        f"{Subscription.TIER_PLATINUM}_{Subscription.PLAN_MONTHLY}": os.environ.get("STRIPE_PRICE_ID_PLATINUM_MONTHLY", ""),
+        f"{Subscription.TIER_PLATINUM}_{Subscription.PLAN_SEMESTRAL}": os.environ.get("STRIPE_PRICE_ID_PLATINUM_SEMESTRAL", ""),
+        f"{Subscription.TIER_PLATINUM}_{Subscription.PLAN_ANNUAL}": os.environ.get("STRIPE_PRICE_ID_PLATINUM_ANNUAL", ""),
     }
     
-    price_id = PLAN_PRICE_IDS.get(plan)
+    plan_key = f"{tier}_{plan}"
+    price_id = PLAN_PRICE_IDS.get(plan_key)
     if not price_id:
         return Response(
-            {'error': 'Price ID não configurado para este plano'},
+            {'error': f'Price ID não configurado para o plano {tier} {plan}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
@@ -1398,15 +1432,18 @@ def create_checkout_session(request):
             if not subscription:
                 subscription = Subscription.objects.create(
                     user=request.user,
+                    tier=tier,
                     plan=plan,
                     status=Subscription.STATUS_PENDING,
                     stripe_customer_id=customer_id
                 )
             else:
+                subscription.tier = tier
+                subscription.plan = plan
                 subscription.stripe_customer_id = customer_id
                 subscription.save()
         
-        # Criar Checkout Session
+        # Criar Checkout Session com trial de 7 dias
         checkout_session = stripe.checkout.Session.create(
             customer=customer_id,
             payment_method_types=['card'],
@@ -1420,11 +1457,14 @@ def create_checkout_session(request):
             client_reference_id=str(request.user.id),  # Liga a sessão ao usuário
             metadata={
                 'user_id': str(request.user.id),
+                'tier': tier,
                 'plan': plan,
             },
             subscription_data={
+                'trial_period_days': 7,  # Trial de 7 dias
                 'metadata': {
                     'user_id': str(request.user.id),
+                    'tier': tier,
                     'plan': plan,
                 }
             }
@@ -1595,10 +1635,11 @@ def handle_checkout_session_completed(session):
                 # Obter dados da subscription do Stripe
                 stripe_sub = stripe.Subscription.retrieve(subscription_id)
                 price_id = stripe_sub['items']['data'][0]['price']['id']
-                plan = determine_plan_from_price_id(price_id)
+                tier, plan = determine_plan_from_price_id(price_id)
                 
                 subscription = Subscription(
                     user=user,
+                    tier=tier,
                     plan=plan,
                     status=Subscription.STATUS_ACTIVE,
                     stripe_customer_id=customer_id or stripe_sub.get('customer'),
@@ -1698,16 +1739,19 @@ def handle_subscription_created(subscription_obj):
                 if user_id:
                     user = User.objects.get(id=int(user_id))
                     price_id = subscription_obj['items']['data'][0]['price']['id']
-                    plan = determine_plan_from_price_id(price_id)
+                    tier, plan = determine_plan_from_price_id(price_id)
                     
                     # Verificar se já existe subscription para este usuário
                     try:
                         subscription = Subscription.objects.get(user=user)
+                        subscription.tier = tier
+                        subscription.plan = plan
                         subscription.stripe_subscription_id = subscription_id
                         subscription.stripe_customer_id = customer_id
                     except Subscription.DoesNotExist:
                         subscription = Subscription(
                             user=user,
+                            tier=tier,
                             plan=plan,
                             status=Subscription.STATUS_ACTIVE,
                             stripe_customer_id=customer_id,
@@ -1773,16 +1817,19 @@ def handle_invoice_paid(invoice):
                     
                     # Determinar plano a partir do price_id
                     price_id = stripe_sub['items']['data'][0]['price']['id']
-                    plan = determine_plan_from_price_id(price_id)
+                    tier, plan = determine_plan_from_price_id(price_id)
                     
                     # Verificar se já existe subscription para este usuário
                     try:
                         subscription = Subscription.objects.get(user=user)
+                        subscription.tier = tier
+                        subscription.plan = plan
                         subscription.stripe_subscription_id = subscription_id
                         subscription.stripe_customer_id = customer_id
                     except Subscription.DoesNotExist:
                         subscription = Subscription(
                             user=user,
+                            tier=tier,
                             plan=plan,
                             status=Subscription.STATUS_ACTIVE,
                             stripe_customer_id=customer_id,
@@ -1874,20 +1921,143 @@ def handle_subscription_updated(subscription_obj):
 
 
 def determine_plan_from_price_id(price_id):
-    """Determina o plano a partir do price_id do Stripe"""
+    """Determina o tier e periodicidade a partir do price_id do Stripe"""
+    # Mapeamento completo de price_ids para (tier, plan)
+    price_mapping = {
+        os.environ.get("STRIPE_PRICE_ID_BASIC_MONTHLY", ""): (Subscription.TIER_BASIC, Subscription.PLAN_MONTHLY),
+        os.environ.get("STRIPE_PRICE_ID_BASIC_SEMESTRAL", ""): (Subscription.TIER_BASIC, Subscription.PLAN_SEMESTRAL),
+        os.environ.get("STRIPE_PRICE_ID_BASIC_ANNUAL", ""): (Subscription.TIER_BASIC, Subscription.PLAN_ANNUAL),
+        os.environ.get("STRIPE_PRICE_ID_PREMIUM_MONTHLY", ""): (Subscription.TIER_PREMIUM, Subscription.PLAN_MONTHLY),
+        os.environ.get("STRIPE_PRICE_ID_PREMIUM_SEMESTRAL", ""): (Subscription.TIER_PREMIUM, Subscription.PLAN_SEMESTRAL),
+        os.environ.get("STRIPE_PRICE_ID_PREMIUM_ANNUAL", ""): (Subscription.TIER_PREMIUM, Subscription.PLAN_ANNUAL),
+        os.environ.get("STRIPE_PRICE_ID_PLATINUM_MONTHLY", ""): (Subscription.TIER_PLATINUM, Subscription.PLAN_MONTHLY),
+        os.environ.get("STRIPE_PRICE_ID_PLATINUM_SEMESTRAL", ""): (Subscription.TIER_PLATINUM, Subscription.PLAN_SEMESTRAL),
+        os.environ.get("STRIPE_PRICE_ID_PLATINUM_ANNUAL", ""): (Subscription.TIER_PLATINUM, Subscription.PLAN_ANNUAL),
+    }
+    
+    result = price_mapping.get(price_id)
+    if result:
+        return result  # Retorna (tier, plan)
+    
+    # Fallback para compatibilidade com planos antigos (se houver)
     monthly_id = os.environ.get("STRIPE_PRICE_ID_MONTHLY", "")
     semestral_id = os.environ.get("STRIPE_PRICE_ID_SEMESTRAL", "")
     annual_id = os.environ.get("STRIPE_PRICE_ID_ANNUAL", "")
     
     if price_id == monthly_id:
-        return Subscription.PLAN_MONTHLY
+        return (Subscription.TIER_BASIC, Subscription.PLAN_MONTHLY)  # Default para basic
     elif price_id == semestral_id:
-        return Subscription.PLAN_SEMESTRAL
+        return (Subscription.TIER_BASIC, Subscription.PLAN_SEMESTRAL)
     elif price_id == annual_id:
-        return Subscription.PLAN_ANNUAL
+        return (Subscription.TIER_BASIC, Subscription.PLAN_ANNUAL)
     
     # Default
-    return Subscription.PLAN_MONTHLY
+    return (Subscription.TIER_BASIC, Subscription.PLAN_MONTHLY)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verify_checkout_session(request):
+    """
+    Verifica e processa uma checkout session do Stripe diretamente.
+    Útil quando o webhook não chegou a tempo.
+    Body: {session_id: "cs_test_..."}
+    """
+    session_id = request.data.get('session_id')
+    if not session_id:
+        return Response(
+            {'error': 'session_id é obrigatório'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Buscar a session do Stripe
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+        
+        allowed_statuses = ('paid', 'unpaid', 'no_payment_required')
+        if checkout_session.payment_status not in allowed_statuses:
+            return Response(
+                {'error': 'Sessão de checkout ainda não foi concluída'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        subscription_id = checkout_session.subscription
+        
+        if not subscription_id:
+            return Response(
+                {'error': 'Nenhuma subscription encontrada nesta sessão'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Buscar ou atualizar subscription localmente
+        stripe_sub = stripe.Subscription.retrieve(subscription_id)
+        price_id = stripe_sub['items']['data'][0]['price']['id']
+        tier, plan = determine_plan_from_price_id(price_id)
+        
+        try:
+            subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+        except Subscription.DoesNotExist:
+            # Pode ser a subscription criada no início do checkout (sem stripe_subscription_id ainda)
+            try:
+                subscription = Subscription.objects.get(user=request.user)
+                # Atualizar com dados do Stripe e ativar
+                subscription.stripe_subscription_id = subscription_id
+                subscription.stripe_customer_id = subscription.stripe_customer_id or checkout_session.customer
+                subscription.tier = tier
+                subscription.plan = plan
+                subscription.status = Subscription.STATUS_ACTIVE
+            except Subscription.DoesNotExist:
+                # Criar nova subscription
+                subscription = Subscription.objects.create(
+                    user=request.user,
+                    tier=tier,
+                    plan=plan,
+                    status=Subscription.STATUS_ACTIVE,
+                    stripe_customer_id=checkout_session.customer,
+                    stripe_subscription_id=subscription_id,
+                )
+        
+        # Garantir que está ativa e com períodos atualizados (tanto para existente quanto para recém-encontrada)
+        if subscription.status != Subscription.STATUS_ACTIVE:
+            subscription.status = Subscription.STATUS_ACTIVE
+        subscription.stripe_subscription_id = subscription_id
+        subscription.tier = tier
+        subscription.plan = plan
+        subscription.stripe_customer_id = subscription.stripe_customer_id or checkout_session.customer
+        try:
+            period_start = stripe_sub.get('current_period_start')
+            period_end = stripe_sub.get('current_period_end')
+            if period_start:
+                subscription.current_period_start = timezone.make_aware(
+                    datetime.fromtimestamp(period_start)
+                )
+            if period_end:
+                subscription.current_period_end = timezone.make_aware(
+                    datetime.fromtimestamp(period_end)
+                )
+        except Exception as e:
+            print(f"Erro ao atualizar períodos: {e}")
+        subscription.save()
+        
+        return Response({
+            'success': True,
+            'has_subscription': True,
+            'tier': subscription.tier,
+            'plan': subscription.plan,
+            'status': subscription.status,
+            'is_active': subscription.is_active,
+        })
+        
+    except stripe.error.StripeError as e:
+        return Response(
+            {'error': f'Erro ao verificar sessão no Stripe: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Erro inesperado: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['GET'])
@@ -1898,6 +2068,7 @@ def subscription_status(request):
         subscription = request.user.subscription
         return Response({
             'has_subscription': True,
+            'tier': subscription.tier,
             'plan': subscription.plan,
             'status': subscription.status,
             'is_active': subscription.is_active,
@@ -1988,21 +2159,35 @@ class PlanosView(TemplateView):
             context['has_subscription'] = True
             context['is_active'] = subscription.is_active
             
-            # Formatar nome do plano
-            plan_names = {
-                'monthly': 'Plano Mensal',
-                'semestral': 'Plano Semestral',
-                'annual': 'Plano Anual'
+            # Formatar nome do plano (tier + periodicidade)
+            tier_names = {
+                'basic': 'Basic',
+                'premium': 'Premium',
+                'platinum': 'Platinum'
             }
-            context['plan_name'] = plan_names.get(subscription.plan, subscription.get_plan_display())
+            plan_names = {
+                'monthly': 'Mensal',
+                'semestral': 'Semestral',
+                'annual': 'Anual'
+            }
+            tier_display = tier_names.get(subscription.tier, subscription.get_tier_display())
+            plan_display = plan_names.get(subscription.plan, subscription.get_plan_display())
+            context['plan_name'] = f'{tier_display} - {plan_display}'
+            context['tier'] = subscription.tier
             
             # Formatar preço (buscar do Stripe se necessário)
             plan_prices = {
-                'monthly': 'R$ 49,90',
-                'semestral': 'R$ 269,00',
-                'annual': 'R$ 479,00'
+                ('basic', 'monthly'): 'R$ 49,90',
+                ('basic', 'semestral'): 'R$ 269,40',
+                ('basic', 'annual'): 'R$ 479,00',
+                ('premium', 'monthly'): 'R$ 69,90',
+                ('premium', 'semestral'): 'R$ 377,40',
+                ('premium', 'annual'): 'R$ 699,00',
+                ('platinum', 'monthly'): 'R$ 89,90',
+                ('platinum', 'semestral'): 'R$ 485,40',
+                ('platinum', 'annual'): 'R$ 899,00',
             }
-            context['plan_price'] = plan_prices.get(subscription.plan, '—')
+            context['plan_price'] = plan_prices.get((subscription.tier, subscription.plan), '—')
             
             # Formatar período
             if subscription.current_period_end:
@@ -2634,6 +2819,25 @@ def profile_partner_teachers_create(request):
             first_name=first_name,
             last_name=last_name,
         )
+        # Verificar limite de professores parceiros do plano
+        try:
+            subscription = request.user.subscription
+            if subscription.is_active:
+                max_partners = subscription.get_max_partner_teachers()
+                if max_partners is not None:
+                    current_count = profile.partner_teachers.count()
+                    if current_count >= max_partners:
+                        # Deletar o usuário criado antes de retornar erro
+                        user.delete()
+                        return Response(
+                            {'error': f'Limite de {max_partners} professores parceiros atingido no plano {subscription.get_tier_display()}. '
+                                     f'Faça upgrade para Platinum para parceiros ilimitados.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+        except Subscription.DoesNotExist:
+            # Sem assinatura ativa - permitir criação (pode estar em trial ou sem plano ainda)
+            pass
+        
         partner_profile = UserProfile.objects.create(
             user=user,
             user_profile=UserProfile.PROFILE_PARTNER_TEACHER,

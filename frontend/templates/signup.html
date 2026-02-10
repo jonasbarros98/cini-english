@@ -308,19 +308,26 @@
         return token;
       }
 
-      // Obter plano da querystring
+      // Obter tier e plan da querystring
       const urlParams = new URLSearchParams(window.location.search);
-      const plan = urlParams.get('plan');
+      const tier = urlParams.get('tier') || 'basic'; // Default para basic se não especificado
+      const plan = urlParams.get('plan') || 'monthly'; // Default para monthly se não especificado
       
-      const planNames = {
-        'monthly': 'Plano Mensal',
-        'semestral': 'Plano Semestral',
-        'annual': 'Plano Anual'
+      const tierNames = {
+        'basic': 'Basic',
+        'premium': 'Premium',
+        'platinum': 'Platinum'
       };
       
-      if (plan && planNames[plan]) {
+      const planNames = {
+        'monthly': 'Mensal',
+        'semestral': 'Semestral',
+        'annual': 'Anual'
+      };
+      
+      if (tier && plan && tierNames[tier] && planNames[plan]) {
         const planBadge = document.getElementById('planBadge');
-        planBadge.textContent = planNames[plan];
+        planBadge.textContent = `${tierNames[tier]} - ${planNames[plan]}`;
         planBadge.style.display = 'inline-block';
       }
 
@@ -424,10 +431,10 @@
           await new Promise(resolve => setTimeout(resolve, 300));
 
           // Se há um plano selecionado, criar checkout session
-          if (plan && ['monthly', 'semestral', 'annual'].includes(plan)) {
+          if (tier && plan && ['basic', 'premium', 'platinum'].includes(tier) && ['monthly', 'semestral', 'annual'].includes(plan)) {
             signupButton.textContent = "Redirecionando para pagamento...";
             
-            console.log("Criando checkout session para plano:", plan);
+            console.log("Criando checkout session para tier:", tier, "plan:", plan);
             
             // Obter novo CSRF token após login (pode ter mudado)
             const newCsrf = await getCSRFToken();
@@ -444,7 +451,7 @@
                 "X-CSRFToken": newCsrf,
               },
               credentials: "same-origin",
-              body: JSON.stringify({ plan }),
+              body: JSON.stringify({ tier, plan }),
             });
 
             console.log("Resposta do checkout:", checkoutResponse.status, checkoutResponse.statusText);

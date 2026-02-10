@@ -498,6 +498,18 @@ class UserProfile(models.Model):
 class Subscription(models.Model):
     """Assinatura do usuário no sistema - controle de billing"""
     
+    # Tiers (níveis de plano)
+    TIER_BASIC = "basic"
+    TIER_PREMIUM = "premium"
+    TIER_PLATINUM = "platinum"
+    
+    TIER_CHOICES = [
+        (TIER_BASIC, "Basic"),
+        (TIER_PREMIUM, "Premium"),
+        (TIER_PLATINUM, "Platinum"),
+    ]
+    
+    # Periodicidade (frequência de cobrança)
     PLAN_MONTHLY = "monthly"
     PLAN_SEMESTRAL = "semestral"
     PLAN_ANNUAL = "annual"
@@ -528,10 +540,16 @@ class Subscription(models.Model):
         related_name="subscription",
         help_text="Usuário da assinatura"
     )
+    tier = models.CharField(
+        max_length=20,
+        choices=TIER_CHOICES,
+        default=TIER_BASIC,
+        help_text="Tier do plano (Basic, Premium, Platinum)"
+    )
     plan = models.CharField(
         max_length=20,
         choices=PLAN_CHOICES,
-        help_text="Plano escolhido"
+        help_text="Periodicidade do plano (Mensal, Semestral, Anual)"
     )
     status = models.CharField(
         max_length=20,
@@ -574,6 +592,25 @@ class Subscription(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    @property
+    def is_active(self):
+        """Retorna True se a assinatura está ativa"""
+        return self.status == self.STATUS_ACTIVE
+    
+    def get_max_students(self):
+        """Retorna o limite máximo de alunos para este tier"""
+        if self.tier == self.TIER_BASIC:
+            return 15
+        return None  # Ilimitado para Premium e Platinum
+    
+    def get_max_partner_teachers(self):
+        """Retorna o limite máximo de professores parceiros para este tier"""
+        if self.tier == self.TIER_BASIC:
+            return 0
+        elif self.tier == self.TIER_PREMIUM:
+            return 2
+        return None  # Ilimitado para Platinum
+    
     class Meta:
         verbose_name = "Assinatura"
 
@@ -604,7 +641,7 @@ class DayNote(models.Model):
         ordering = ["-created_at"]
     
     def __str__(self):
-        return f"{self.user.username} - {self.get_plan_display()} - {self.get_status_display()}"
+        return f"{self.user.username} - {self.get_tier_display()} {self.get_plan_display()} - {self.get_status_display()}"
     
     @property
     def is_active(self):
