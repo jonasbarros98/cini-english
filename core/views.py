@@ -146,10 +146,8 @@ class LessonViewSet(viewsets.ModelViewSet):
             try:
                 user_profile = self.request.user.profile.user_profile
                 if user_profile == UserProfile.PROFILE_TEACHER:
-                    # Prof. Principal vê suas lessons + lessons dos parceiros vinculados
-                    partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                    partner_ids.append(self.request.user.id)
-                    qs = qs.filter(user_id__in=partner_ids)
+                    # Prof. Principal vê todas as aulas dos seus alunos (mantém histórico mesmo após desvincular parceiro)
+                    qs = qs.filter(student__user=self.request.user)
                 elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
                     # Parceiro só vê aulas de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
                     qs = qs.filter(student__user__profile__partner_teachers=self.request.user.profile)
@@ -450,7 +448,7 @@ def upload_planning_attachment(request, plan_id):
     ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.odt', '.ods', '.odp']
     
     try:
-        plan = LessonPlan.objects.get(id=plan_id)
+        plan = LessonPlan.objects.select_related('student', 'student__user', 'student__user__profile').get(id=plan_id)
         
         # Verificar permissão: usuário deve ser dono do planejamento ou admin
         try:
@@ -458,26 +456,35 @@ def upload_planning_attachment(request, plan_id):
         except UserProfile.DoesNotExist:
             is_admin = False
         
-        if not is_admin and plan.user_id != request.user.id:
-            # Verificar se é parceiro vinculado
+        if not is_admin:
             try:
                 user_profile = request.user.profile.user_profile
-                if user_profile != UserProfile.PROFILE_TEACHER:
-                    return Response(
-                        {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                if plan.user_id not in partner_ids and plan.user_id != request.user.id:
-                    return Response(
-                        {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
+                if user_profile == UserProfile.PROFILE_TEACHER:
+                    # Prof. dono pode anexar em qualquer planejamento dos seus alunos (mantém histórico)
+                    if plan.student.user_id != request.user.id:
+                        return Response(
+                            {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                    # Parceiro só pode anexar em planejamentos seus e se ainda estiver vinculado ao dono do aluno
+                    if plan.user_id != request.user.id or not plan.student.user.profile.partner_teachers.filter(user=request.user).exists():
+                        return Response(
+                            {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                else:
+                    if plan.user_id != request.user.id:
+                        return Response(
+                            {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
             except UserProfile.DoesNotExist:
-                return Response(
-                    {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+                if plan.user_id != request.user.id:
+                    return Response(
+                        {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
         
         if 'file' not in request.FILES:
             return Response(
@@ -532,7 +539,9 @@ def upload_planning_attachment(request, plan_id):
 def delete_planning_attachment(request, attachment_id):
     """Deleta um anexo de planejamento"""
     try:
-        attachment = LessonPlanAttachment.objects.select_related('lesson_plan').get(id=attachment_id)
+        attachment = LessonPlanAttachment.objects.select_related(
+            'lesson_plan', 'lesson_plan__student', 'lesson_plan__student__user', 'lesson_plan__student__user__profile'
+        ).get(id=attachment_id)
         plan = attachment.lesson_plan
         
         # Verificar permissão
@@ -541,25 +550,33 @@ def delete_planning_attachment(request, attachment_id):
         except UserProfile.DoesNotExist:
             is_admin = False
         
-        if not is_admin and plan.user_id != request.user.id:
+        if not is_admin:
             try:
                 user_profile = request.user.profile.user_profile
-                if user_profile != UserProfile.PROFILE_TEACHER:
-                    return Response(
-                        {'error': 'Você não tem permissão para excluir este anexo.'},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                if plan.user_id not in partner_ids and plan.user_id != request.user.id:
-                    return Response(
-                        {'error': 'Você não tem permissão para excluir este anexo.'},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
+                if user_profile == UserProfile.PROFILE_TEACHER:
+                    if plan.student.user_id != request.user.id:
+                        return Response(
+                            {'error': 'Você não tem permissão para excluir este anexo.'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                    if plan.user_id != request.user.id or not plan.student.user.profile.partner_teachers.filter(user=request.user).exists():
+                        return Response(
+                            {'error': 'Você não tem permissão para excluir este anexo.'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                else:
+                    if plan.user_id != request.user.id:
+                        return Response(
+                            {'error': 'Você não tem permissão para excluir este anexo.'},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
             except UserProfile.DoesNotExist:
-                return Response(
-                    {'error': 'Você não tem permissão para excluir este anexo.'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+                if plan.user_id != request.user.id:
+                    return Response(
+                        {'error': 'Você não tem permissão para excluir este anexo.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
         
         # Deletar arquivo físico
         if attachment.file:
@@ -660,17 +677,8 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
                     Q(user=self.request.user) | Q(beneficiary_user=self.request.user)
                 ).distinct()
             elif user_profile == UserProfile.PROFILE_TEACHER:
-                # Prof. Principal vê:
-                # 1. Lançamentos criados por ele (user = ele)
-                # 2. Lançamentos atribuídos a ele (beneficiary_user = ele)
-                # 3. Lançamentos dos parceiros vinculados (user IN parceiros OU beneficiary_user IN parceiros)
-                partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                qs = qs.filter(
-                    Q(user=self.request.user) |
-                    Q(beneficiary_user=self.request.user) |
-                    Q(user_id__in=partner_ids) |
-                    Q(beneficiary_user_id__in=partner_ids)
-                ).distinct()
+                # Prof. Principal vê todos os lançamentos dos seus alunos (mantém histórico: quanto pagou ao parceiro, etc., mesmo após desvincular)
+                qs = qs.filter(student__user=self.request.user)
             else:
                 # Usuário sem perfil definido vê apenas os seus
                 qs = qs.filter(user=self.request.user)
@@ -921,10 +929,8 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
             try:
                 user_profile = self.request.user.profile.user_profile
                 if user_profile == UserProfile.PROFILE_TEACHER:
-                    # Prof. Principal vê seus lesson plans + lesson plans dos parceiros vinculados
-                    partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                    partner_ids.append(self.request.user.id)
-                    queryset = queryset.filter(user_id__in=partner_ids)
+                    # Prof. Principal vê todos os planejamentos dos seus alunos (mantém histórico mesmo após desvincular parceiro)
+                    queryset = queryset.filter(student__user=self.request.user)
                 elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
                     # Parceiro só vê planejamentos de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
                     queryset = queryset.filter(student__user__profile__partner_teachers=self.request.user.profile)
@@ -1056,15 +1062,19 @@ def planning_list_api(request):
 
     qs = LessonPlan.objects.select_related("student", "user").order_by("date", "student__name")
     user_ids = _planning_user_ids(request)
-    if user_ids is not None:
-        qs = qs.filter(user_id__in=user_ids)
-    # Parceiro: só ver planejamentos de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
     try:
-        if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+        profile = request.user.profile.user_profile
+        if profile == UserProfile.PROFILE_TEACHER:
+            # Prof. Principal vê todos os planejamentos dos seus alunos (mantém histórico mesmo após desvincular parceiro)
+            qs = qs.filter(student__user=request.user)
+        elif profile == UserProfile.PROFILE_PARTNER_TEACHER:
             qs = qs.filter(student__user__profile__partner_teachers=request.user.profile)
+        elif user_ids is not None:
+            qs = qs.filter(user_id__in=user_ids)
     except UserProfile.DoesNotExist:
-        pass
-    # Filtro por professor (apenas para dono da conta: ver planejamentos de um parceiro ou os seus)
+        if user_ids is not None:
+            qs = qs.filter(user_id__in=user_ids)
+    # Filtro por professor (dono da conta: filtrar por "eu" ou "parceiro X" para ver só planejamentos de um responsável)
     if teacher_id and teacher_id != "all":
         try:
             tid = int(teacher_id)
@@ -2679,12 +2689,14 @@ def profile_partner_teachers_remove(request, user_id):
         user=request.user,
         assigned_teacher_id=user_id
     ).update(assigned_teacher=None)
-    # Reatribuir ao professor os lançamentos financeiros em que o parceiro era user ou beneficiary (parceiro deixa de vê-los)
-    FinancialEntry.objects.filter(
-        student__user=request.user
-    ).filter(
-        Q(user_id=user_id) | Q(beneficiary_user_id=user_id)
-    ).update(user=request.user, beneficiary_user=request.user)
+    # Não alterar lançamentos financeiros: manter user/beneficiary como estão para o professor dono conservar o histórico (quanto pagou ao parceiro, etc.). O parceiro deixa de vê-los por filtro (partner_teachers).
+    # Inativar o usuário do parceiro se não estiver vinculado a nenhum outro professor (não consegue mais logar)
+    still_linked = UserProfile.objects.filter(
+        user_profile=UserProfile.PROFILE_TEACHER,
+        partner_teachers=partner_profile,
+    ).exists()
+    if not still_linked:
+        User.objects.filter(id=user_id).update(is_active=False)
     return Response({'success': True, 'message': 'Professor parceiro desvinculado. Acesso cortado imediatamente.'}, status=status.HTTP_200_OK)
 
 
@@ -2948,11 +2960,9 @@ def calendar_events(request):
             is_admin = request.user.profile.is_admin
             user_profile = request.user.profile.user_profile
             if not is_admin and user_profile == UserProfile.PROFILE_TEACHER:
-                # Prof. Principal vê suas lessons + lessons dos parceiros vinculados
-                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                partner_ids.append(request.user.id)
+                # Prof. Principal vê todas as aulas dos seus alunos (mantém histórico mesmo após desvincular parceiro)
                 qs = Lesson.objects.filter(
-                    user_id__in=partner_ids,
+                    student__user=request.user,
                     date__gte=start_date,
                     date__lte=end_date
                 ).select_related('student').order_by('date', 'time')
@@ -3026,9 +3036,8 @@ def calendar_event_status(request, event_id):
             if is_admin:
                 pass
             elif user_profile == UserProfile.PROFILE_TEACHER:
-                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                partner_ids.append(request.user.id)
-                if lesson.user_id not in partner_ids:
+                # Prof. dono pode editar qualquer aula dos seus alunos (mantém histórico)
+                if lesson.student.user_id != request.user.id:
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
@@ -3274,9 +3283,8 @@ def calendar_event_update(request, event_id):
             if is_admin:
                 pass
             elif user_profile == UserProfile.PROFILE_TEACHER:
-                partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                partner_ids.append(request.user.id)
-                if lesson.user_id not in partner_ids:
+                # Prof. dono pode editar qualquer aula dos seus alunos (mantém histórico)
+                if lesson.student.user_id != request.user.id:
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
