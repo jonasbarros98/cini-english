@@ -2662,6 +2662,17 @@ def profile_partner_teachers_remove(request, user_id):
             status=status.HTTP_404_NOT_FOUND
         )
     profile.partner_teachers.remove(partner_profile)
+    # Cortar acesso: tirar o parceiro dos alunos que ele estava atribuído (dono = request.user)
+    Student.objects.filter(
+        user=request.user,
+        assigned_teacher_id=user_id
+    ).update(assigned_teacher=None)
+    # Reatribuir ao professor os lançamentos financeiros em que o parceiro era user ou beneficiary (parceiro deixa de vê-los)
+    FinancialEntry.objects.filter(
+        student__user=request.user
+    ).filter(
+        Q(user_id=user_id) | Q(beneficiary_user_id=user_id)
+    ).update(user=request.user, beneficiary_user=request.user)
     return Response({'success': True, 'message': 'Professor parceiro desvinculado. Acesso cortado imediatamente.'}, status=status.HTTP_200_OK)
 
 
@@ -2933,6 +2944,9 @@ def calendar_events(request):
                     date__gte=start_date,
                     date__lte=end_date
                 ).select_related('student').order_by('date', 'time')
+            elif not is_admin and user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                # Parceiro só vê aulas de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
+                qs = qs.filter(student__user__profile__partner_teachers=request.user.profile)
         except UserProfile.DoesNotExist:
             pass
         
@@ -2989,7 +3003,7 @@ def calendar_event_status(request, event_id):
     try:
         lesson = Lesson.objects.get(id=event_id, user=request.user)
         
-        # Verificar permissão (admin ou professor principal pode ver outras)
+        # Verificar permissão (admin ou professor principal pode ver outras; parceiro só se ainda vinculado)
         try:
             is_admin = request.user.profile.is_admin
             user_profile = request.user.profile.user_profile
@@ -2997,6 +3011,12 @@ def calendar_event_status(request, event_id):
                 partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
                 partner_ids.append(request.user.id)
                 if lesson.user_id not in partner_ids:
+                    return Response(
+                        {'error': 'Sem permissão para editar esta aula'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            elif not is_admin and user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                if not lesson.student.user.profile.partner_teachers.filter(user=request.user).exists():
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
@@ -3230,7 +3250,7 @@ def calendar_event_update(request, event_id):
     try:
         lesson = Lesson.objects.get(id=event_id, user=request.user)
         
-        # Verificar permissão (admin ou professor principal pode ver outras)
+        # Verificar permissão (admin ou professor principal pode ver outras; parceiro só se ainda vinculado)
         try:
             is_admin = request.user.profile.is_admin
             user_profile = request.user.profile.user_profile
@@ -3238,6 +3258,12 @@ def calendar_event_update(request, event_id):
                 partner_ids = list(request.user.profile.partner_teachers.values_list('user_id', flat=True))
                 partner_ids.append(request.user.id)
                 if lesson.user_id not in partner_ids:
+                    return Response(
+                        {'error': 'Sem permissão para editar esta aula'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            elif not is_admin and user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                if not lesson.student.user.profile.partner_teachers.filter(user=request.user).exists():
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN

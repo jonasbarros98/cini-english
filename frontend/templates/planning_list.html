@@ -849,6 +849,13 @@
         return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       }
 
+      function getCookie(name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+
       function buildParams() {
         var period = ($("select#period") && $("select#period").value) ? $("select#period").value : "next7";
         var params = { period: period };
@@ -1010,10 +1017,10 @@
         html += '<div class="chips">' + chips(item) + '</div></div>';
         html += '<div class="plan-detail"><div class="line">' + goalsLine(item) + '</div><div class="line">' + materialsLine(item) + '</div></div>';
         html += '<div class="plan-actions">';
-        html += '<button class="btn js-view" type="button">Visualizar</button>';
-        html += '<button class="btn primary js-plan-now" type="button">Planejar agora</button>';
-        html += '<button class="btn js-edit" type="button">Editar</button>';
-        html += '<button class="btn danger js-delete" type="button">Excluir</button>';
+        html += '<button class="btn js-view" type="button" data-action="view" data-plan-id="' + escapeHtml(String(id)) + '">Visualizar</button>';
+        html += '<button class="btn primary js-plan-now" type="button" data-action="plan-now" data-plan-id="' + escapeHtml(String(id)) + '">Planejar agora</button>';
+        html += '<button class="btn js-edit" type="button" data-action="edit" data-plan-id="' + escapeHtml(String(id)) + '">Editar</button>';
+        html += '<button class="btn danger js-delete" type="button" data-action="delete" data-plan-id="' + escapeHtml(String(id)) + '">Excluir</button>';
         html += "</div></article>";
         return html;
       }
@@ -1202,7 +1209,10 @@
       }
 
       function openModalForView(planId, studentId, studentName, date) {
-        if (!planId) return;
+        if (!planId) {
+          console.warn("openModalForView: planId vazio", {planId, studentId, studentName, date});
+          return;
+        }
         currentEditingPlanId = null;
         currentAttachments = [];
         pendingUploads = [];
@@ -1218,6 +1228,8 @@
           overlay.classList.add("is-open");
           overlay.setAttribute("aria-hidden", "false");
           if (document.documentElement) document.documentElement.style.overflow = "hidden";
+        } else {
+          console.error("Modal overlay não encontrado!");
         }
       }
 
@@ -1466,42 +1478,75 @@
         var planNow = t.closest(".js-plan-now");
         var editBtn = t.closest(".js-edit");
         var delBtn = t.closest(".js-delete");
-        var card = t.closest(".plan-card");
-        if (viewBtn && card) {
+        
+        // Usar data-plan-id diretamente do botão como fallback
+        if (viewBtn) {
           e.preventDefault();
-          var id = card.getAttribute("data-plan-id") || "";
-          var studentId = card.getAttribute("data-student-id") || "";
-          var strong = $(".plan-main strong", card);
+          e.stopPropagation();
+          var card = viewBtn.closest(".plan-card");
+          var id = viewBtn.getAttribute("data-plan-id") || (card ? card.getAttribute("data-plan-id") : "") || "";
+          var studentId = card ? card.getAttribute("data-student-id") : "";
+          var strong = card ? $(".plan-main strong", card) : null;
           var name = strong ? strong.textContent.trim() : "";
-          var date = card.getAttribute("data-date") || "";
+          var date = card ? card.getAttribute("data-date") : "";
+          if (!id) {
+            console.error("Botão Visualizar: ID não encontrado", {viewBtn, card, id});
+            alert("Erro: ID do planejamento não encontrado.");
+            return;
+          }
+          console.log("Abrindo modal Visualizar", {id, studentId, name, date});
           openModalForView(id, studentId, name, date);
           return;
         }
-        if (planNow && card) {
+        if (planNow) {
           e.preventDefault();
-          var id = card.getAttribute("data-plan-id") || "";
-          var studentId = card.getAttribute("data-student-id") || "";
-          var strong = $(".plan-main strong", card);
+          e.stopPropagation();
+          var card = planNow.closest(".plan-card");
+          var id = planNow.getAttribute("data-plan-id") || (card ? card.getAttribute("data-plan-id") : "") || "";
+          var studentId = card ? card.getAttribute("data-student-id") : "";
+          var strong = card ? $(".plan-main strong", card) : null;
           var name = strong ? strong.textContent.trim() : "";
-          var date = card.getAttribute("data-date") || "";
+          var date = card ? card.getAttribute("data-date") : "";
+          if (!id) {
+            console.error("Botão Planejar agora: ID não encontrado", {planNow, card, id});
+            alert("Erro: ID do planejamento não encontrado.");
+            return;
+          }
+          console.log("Abrindo modal Planejar agora", {id, studentId, name, date});
           openModalForPlanNow(id, studentId, name, date);
           return;
         }
-        if (editBtn && card) {
+        if (editBtn) {
           e.preventDefault();
-          var id = card.getAttribute("data-plan-id") || "";
-          var studentId = card.getAttribute("data-student-id") || "";
-          var date = card.getAttribute("data-date") || "";
+          e.stopPropagation();
+          var card = editBtn.closest(".plan-card");
+          var id = editBtn.getAttribute("data-plan-id") || (card ? card.getAttribute("data-plan-id") : "") || "";
+          var studentId = card ? card.getAttribute("data-student-id") : "";
+          var date = card ? card.getAttribute("data-date") : "";
+          if (!id) {
+            console.error("Botão Editar: ID não encontrado", {editBtn, card, id});
+            alert("Erro: ID do planejamento não encontrado.");
+            return;
+          }
+          console.log("Abrindo modal Editar", {id, studentId, date});
           openModalForEdit(id, studentId, date);
           return;
         }
-        if (delBtn && card) {
+        if (delBtn) {
           e.preventDefault();
-          var strong = $(".plan-main strong", card);
+          e.stopPropagation();
+          var card = delBtn.closest(".plan-card");
+          var id = delBtn.getAttribute("data-plan-id") || (card ? card.getAttribute("data-plan-id") : "") || "";
+          var strong = card ? $(".plan-main strong", card) : null;
           var name = strong ? strong.textContent.trim() : "este planejamento";
-          var id = card.getAttribute("data-plan-id") || "";
+          if (!id) {
+            console.error("Botão Excluir: ID não encontrado", {delBtn, card, id});
+            alert("Erro: ID do planejamento não encontrado.");
+            return;
+          }
           if (!confirm("Excluir o planejamento de " + name + " (ID " + id + ")?")) return;
           deletePlan(id, card);
+          return;
         }
         var deleteAttBtn = t.closest(".js-delete-attachment");
         if (deleteAttBtn) {
@@ -1526,6 +1571,9 @@
           }
         }
       });
+      
+      // Debug: verificar se o event listener foi registrado
+      console.log("Event listener de planejamento registrado");
 
       // Event listener para botão de adicionar anexo
       var btnAddAttachment = $("#btnAddAttachment");
