@@ -1372,13 +1372,10 @@
             const student = allStudents.find(s => s.id === parseInt(c.dataset.studentId));
             if (!student) return;
             
-            // Criar payload com todos os campos do aluno, apenas mudando o status
-            const payload = { ...student };
-            payload.status = newStatus;
-            
+            // PATCH apenas o status para evitar 400 (PUT com objeto completo pode enviar contract_pdf/url que o backend rejeita)
             await fetchJSON(`${API_BASE}${student.id}/`, {
-              method: 'PUT',
-              body: JSON.stringify(payload),
+              method: 'PATCH',
+              body: JSON.stringify({ status: newStatus }),
             });
             
             showToast(`${name}: ${newStatus === 'active' ? 'ativado' : 'pausado'}.`);
