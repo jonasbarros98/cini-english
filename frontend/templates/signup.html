@@ -308,10 +308,10 @@
         return token;
       }
 
-      // Obter tier e plan da querystring
+      // Obter tier e plan da querystring (normalizar para minúsculas para evitar falha na checagem)
       const urlParams = new URLSearchParams(window.location.search);
-      const tier = urlParams.get('tier') || 'basic'; // Default para basic se não especificado
-      const plan = urlParams.get('plan') || 'monthly'; // Default para monthly se não especificado
+      const tier = ((urlParams.get('tier') || 'basic') + '').trim().toLowerCase();
+      const plan = ((urlParams.get('plan') || 'monthly') + '').trim().toLowerCase();
       
       const tierNames = {
         'basic': 'Basic',
@@ -470,9 +470,9 @@
               throw new Error(errorMsg);
             }
           } else {
-            // Sem plano, redireciona para dashboard
-            console.log("Nenhum plano selecionado, redirecionando para dashboard");
-            window.location.replace("/");
+            // Sem plano válido: redireciona para página de planos (nunca para o dashboard)
+            console.log("Nenhum plano selecionado, redirecionando para planos");
+            window.location.replace("/planos/");
           }
         } catch (error) {
           errorMessage.textContent = error.message || "Erro ao criar conta. Tente novamente.";

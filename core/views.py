@@ -48,8 +48,8 @@ class StudentViewSet(viewsets.ModelViewSet):
             return qs
         
         if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-            # Prof. Parceiro: apenas alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
-            qs = qs.filter(user__profile__partner_teachers=self.request.user.profile)
+            # Prof. Parceiro: apenas alunos ATRIBUÍDOS a ele (assigned_teacher). Alunos sem professor ou com prof. principal não aparecem.
+            qs = qs.filter(user__profile__partner_teachers=self.request.user.profile).filter(assigned_teacher=self.request.user)
         elif user_profile == UserProfile.PROFILE_TEACHER:
             # Prof. dono da conta: apenas alunos que ele cadastrou (user=ele)
             qs = qs.filter(user=self.request.user)
@@ -165,8 +165,8 @@ class LessonViewSet(viewsets.ModelViewSet):
                     # Prof. Principal vê todas as aulas dos seus alunos (mantém histórico mesmo após desvincular parceiro)
                     qs = qs.filter(student__user=self.request.user)
                 elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                    # Parceiro só vê aulas de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
-                    qs = qs.filter(student__user__profile__partner_teachers=self.request.user.profile)
+                    # Parceiro só vê aulas de alunos ATRIBUÍDOS a ele (assigned_teacher)
+                    qs = qs.filter(student__user__profile__partner_teachers=self.request.user.profile).filter(student__assigned_teacher=self.request.user)
                 else:
                     # Outros usuários veem apenas as suas
                     qs = qs.filter(user=self.request.user)
@@ -268,15 +268,25 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 from django.views.generic import TemplateView
 
+
+def _user_has_active_subscription(user):
+    """Retorna True se o usuário tem assinatura ativa (após pagamento/trial confirmado)."""
+    try:
+        return user.subscription.is_active
+    except Subscription.DoesNotExist:
+        return False
+
+
 class AlunosView(TemplateView):
     """View para renderizar a página de alunos"""
     template_name = "alunos_new.html"
     
     def dispatch(self, request, *args, **kwargs):
-        # Garantir que o usuário está autenticado
+        from django.shortcuts import redirect
         if not request.user.is_authenticated:
-            from django.shortcuts import redirect
             return redirect('/login/')
+        if not _user_has_active_subscription(request.user):
+            return redirect('planos')
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
@@ -323,9 +333,11 @@ class DashboardView(TemplateView):
         return context
     
     def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
         if not request.user.is_authenticated:
-            from django.shortcuts import redirect
             return redirect('login')
+        if not _user_has_active_subscription(request.user):
+            return redirect('planos')
         
         # Se houver parâmetro view na URL, renderizar index.html (para view-tasks, view-finance, etc)
         view_param = request.GET.get('view')
@@ -333,7 +345,6 @@ class DashboardView(TemplateView):
             return super().dispatch(request, *args, **kwargs)
         
         # Caso contrário: Prof. Parceiro vai para calendário; demais para dashboard
-        from django.shortcuts import redirect
         try:
             if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
                 return redirect('calendar-new')
@@ -346,9 +357,11 @@ class DashboardHomeView(TemplateView):
     login_required = True
     
     def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
         if not request.user.is_authenticated:
-            from django.shortcuts import redirect
             return redirect('login')
+        if not _user_has_active_subscription(request.user):
+            return redirect('planos')
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
@@ -367,9 +380,11 @@ class PerfilView(TemplateView):
     login_required = True
     
     def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
         if not request.user.is_authenticated:
-            from django.shortcuts import redirect
             return redirect('login')
+        if not _user_has_active_subscription(request.user):
+            return redirect('planos')
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
@@ -388,9 +403,11 @@ class TutorialView(TemplateView):
     login_required = True
 
     def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
         if not request.user.is_authenticated:
-            from django.shortcuts import redirect
             return redirect("login")
+        if not _user_has_active_subscription(request.user):
+            return redirect("planos")
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
@@ -410,9 +427,11 @@ class PlanningListView(TemplateView):
     login_required = True
 
     def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
         if not request.user.is_authenticated:
-            from django.shortcuts import redirect
             return redirect("login")
+        if not _user_has_active_subscription(request.user):
+            return redirect("planos")
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
@@ -483,8 +502,12 @@ def upload_planning_attachment(request, plan_id):
                             status=status.HTTP_403_FORBIDDEN
                         )
                 elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                    # Parceiro só pode anexar em planejamentos seus e se ainda estiver vinculado ao dono do aluno
-                    if plan.user_id != request.user.id or not plan.student.user.profile.partner_teachers.filter(user=request.user).exists():
+                    # Parceiro só pode anexar em planejamentos seus OU de alunos atribuídos a ele
+                    can_attach = (
+                        (plan.user_id == request.user.id or plan.student.assigned_teacher_id == request.user.id) and
+                        plan.student.user.profile.partner_teachers.filter(user=request.user).exists()
+                    )
+                    if not can_attach:
                         return Response(
                             {'error': 'Você não tem permissão para anexar arquivos neste planejamento.'},
                             status=status.HTTP_403_FORBIDDEN
@@ -576,7 +599,11 @@ def delete_planning_attachment(request, attachment_id):
                             status=status.HTTP_403_FORBIDDEN
                         )
                 elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                    if plan.user_id != request.user.id or not plan.student.user.profile.partner_teachers.filter(user=request.user).exists():
+                    can_delete = (
+                        (plan.user_id == request.user.id or plan.student.assigned_teacher_id == request.user.id) and
+                        plan.student.user.profile.partner_teachers.filter(user=request.user).exists()
+                    )
+                    if not can_delete:
                         return Response(
                             {'error': 'Você não tem permissão para excluir este anexo.'},
                             status=status.HTTP_403_FORBIDDEN
@@ -688,10 +715,10 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
         
         if not is_admin:
             if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                # Parceiro só vê lançamentos de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
+                # Parceiro só vê lançamentos de alunos ATRIBUÍDOS a ele (assigned_teacher)
                 qs = qs.filter(student__user__profile__partner_teachers=self.request.user.profile).filter(
-                    Q(user=self.request.user) | Q(beneficiary_user=self.request.user)
-                ).distinct()
+                    student__assigned_teacher=self.request.user
+                ).filter(Q(user=self.request.user) | Q(beneficiary_user=self.request.user)).distinct()
             elif user_profile == UserProfile.PROFILE_TEACHER:
                 # Prof. Principal vê todos os lançamentos dos seus alunos (mantém histórico: quanto pagou ao parceiro, etc., mesmo após desvincular)
                 qs = qs.filter(student__user=self.request.user)
@@ -948,8 +975,10 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
                     # Prof. Principal vê todos os planejamentos dos seus alunos (mantém histórico mesmo após desvincular parceiro)
                     queryset = queryset.filter(student__user=self.request.user)
                 elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                    # Parceiro só vê planejamentos de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
-                    queryset = queryset.filter(student__user__profile__partner_teachers=self.request.user.profile)
+                    # Parceiro só vê: (1) planejamentos que ele criou OU (2) planejamentos feitos para alunos atribuídos a ele
+                    queryset = queryset.filter(student__user__profile__partner_teachers=self.request.user.profile).filter(
+                        Q(user=self.request.user) | Q(student__assigned_teacher=self.request.user)
+                    )
                 else:
                     # Outros usuários veem apenas os seus
                     queryset = queryset.filter(user=self.request.user)
@@ -962,7 +991,15 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        # Preenche automaticamente o usuário logado ao criar um lesson plan
+        # Prof. Parceiro só pode criar planejamento para alunos atribuídos a ele
+        try:
+            if self.request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                student = serializer.validated_data.get('student')
+                if student and student.assigned_teacher_id != self.request.user.id:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied("Você só pode criar planejamento para alunos atribuídos a você.")
+        except UserProfile.DoesNotExist:
+            pass
         serializer.save(user=self.request.user)
     
     def get_serializer_context(self):
@@ -1084,7 +1121,10 @@ def planning_list_api(request):
             # Prof. Principal vê todos os planejamentos dos seus alunos (mantém histórico mesmo após desvincular parceiro)
             qs = qs.filter(student__user=request.user)
         elif profile == UserProfile.PROFILE_PARTNER_TEACHER:
-            qs = qs.filter(student__user__profile__partner_teachers=request.user.profile)
+            # Parceiro só vê planejamentos que criou OU feitos para alunos atribuídos a ele
+            qs = qs.filter(student__user__profile__partner_teachers=request.user.profile).filter(
+                Q(user=request.user) | Q(student__assigned_teacher=request.user)
+            )
         elif user_ids is not None:
             qs = qs.filter(user_id__in=user_ids)
     except UserProfile.DoesNotExist:
@@ -1132,7 +1172,7 @@ def planning_list_api(request):
     try:
         profile = request.user.profile.user_profile
         if profile == UserProfile.PROFILE_PARTNER_TEACHER:
-            students_qs = students_qs.filter(user__profile__partner_teachers=request.user.profile)
+            students_qs = students_qs.filter(user__profile__partner_teachers=request.user.profile).filter(assigned_teacher=request.user)
         elif profile == UserProfile.PROFILE_TEACHER:
             students_qs = students_qs.filter(user=request.user)
         elif user_ids is not None:
@@ -1265,8 +1305,10 @@ class BillingLogViewSet(viewsets.ModelViewSet):
 
         if not is_admin:
             if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                # Prof. Parceiro vê apenas logs de seus próprios lançamentos
-                qs = qs.filter(financial_entry__beneficiary_user=user)
+                # Prof. Parceiro vê apenas logs de lançamentos de alunos ATRIBUÍDOS a ele
+                qs = qs.filter(financial_entry__student__assigned_teacher=user).filter(
+                    Q(financial_entry__beneficiary_user=user) | Q(financial_entry__user=user)
+                )
             elif user_profile == UserProfile.PROFILE_TEACHER:
                 # Prof. Principal vê logs de seus lançamentos e dos parceiros
                 partner_ids = list(user.profile.partner_teachers.values_list('user_id', flat=True))
@@ -3171,8 +3213,8 @@ def calendar_events(request):
                     date__lte=end_date
                 ).select_related('student').order_by('date', 'time')
             elif not is_admin and user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                # Parceiro só vê aulas de alunos cujo dono ainda o tem em partner_teachers (acesso cortado ao desvincular)
-                qs = qs.filter(student__user__profile__partner_teachers=request.user.profile)
+                # Parceiro só vê aulas de alunos ATRIBUÍDOS a ele (assigned_teacher)
+                qs = qs.filter(student__user__profile__partner_teachers=request.user.profile).filter(student__assigned_teacher=request.user)
         except UserProfile.DoesNotExist:
             pass
         
@@ -3247,7 +3289,7 @@ def calendar_event_status(request, event_id):
                         status=status.HTTP_403_FORBIDDEN
                     )
             elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                if not lesson.student.user.profile.partner_teachers.filter(user=request.user).exists():
+                if lesson.student.assigned_teacher_id != request.user.id or not lesson.student.user.profile.partner_teachers.filter(user=request.user).exists():
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
@@ -3494,7 +3536,7 @@ def calendar_event_update(request, event_id):
                         status=status.HTTP_403_FORBIDDEN
                     )
             elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                if not lesson.student.user.profile.partner_teachers.filter(user=request.user).exists():
+                if lesson.student.assigned_teacher_id != request.user.id or not lesson.student.user.profile.partner_teachers.filter(user=request.user).exists():
                     return Response(
                         {'error': 'Sem permissão para editar esta aula'},
                         status=status.HTTP_403_FORBIDDEN
@@ -3543,7 +3585,7 @@ def calendar_event_update(request, event_id):
                     is_partner = False
                 if is_partner:
                     student = Student.objects.select_related('user__profile').get(id=student_id)
-                    if not student.user.profile.partner_teachers.filter(user=request.user).exists():
+                    if student.assigned_teacher_id != request.user.id or not student.user.profile.partner_teachers.filter(user=request.user).exists():
                         return Response(
                             {'error': 'Aluno não encontrado'},
                             status=status.HTTP_404_NOT_FOUND
@@ -3702,9 +3744,11 @@ class CalendarNewView(TemplateView):
     login_required = True
 
     def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
         if not request.user.is_authenticated:
-            from django.shortcuts import redirect
             return redirect("login")
+        if not _user_has_active_subscription(request.user):
+            return redirect("planos")
         return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
