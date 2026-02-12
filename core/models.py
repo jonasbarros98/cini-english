@@ -482,6 +482,10 @@ class UserProfile(models.Model):
         default=False,
         help_text="Se True, o popup de boas-vindas não é exibido novamente"
     )
+    subscription_exempt = models.BooleanField(
+        default=False,
+        help_text="Se True, o usuário não precisa de assinatura ativa para acessar o sistema (ex: admin, contas internas)"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

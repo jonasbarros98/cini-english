@@ -432,6 +432,117 @@
       border-color: rgba(239,68,68,.18);
       color: #b91c1c;
     }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      border-radius: 14px;
+      background: rgba(15,23,42,.92);
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      z-index: 10000;
+      display: none;
+      box-shadow: 0 12px 28px rgba(0,0,0,.2);
+      transition: opacity .2s;
+    }
+    .toast.show {
+      display: block;
+      animation: toastPop .2s ease;
+    }
+    @keyframes toastPop {
+      from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .modal-no-students {
+      padding: 12px 14px;
+      background: rgba(245,158,11,.12);
+      border: 1px solid rgba(245,158,11,.25);
+      border-radius: 12px;
+      font-size: 13px;
+      color: #92400e;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .modal-no-students.visible { display: block; }
+    .modal-student-assignment {
+      position: fixed;
+      inset: 0;
+      z-index: 10002;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15,23,42,.4);
+      padding: 20px;
+    }
+    .modal-student-assignment.is-open { display: flex; }
+    .modal-student-assignment .inner {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: 0 24px 48px rgba(0,0,0,.15);
+      max-width: 420px;
+      width: 100%;
+      padding: 24px;
+      text-align: center;
+      animation: modalSlideIn .25s ease;
+    }
+    @keyframes modalSlideIn {
+      from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .modal-student-assignment .icon-wrap {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: rgba(245,158,11,.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+    .modal-student-assignment h4 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      color: var(--text);
+    }
+    .modal-student-assignment p {
+      margin: 0 0 20px;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .modal-student-assignment .btn-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .modal-student-assignment .btn-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(37,99,235,.25);
+    }
+    .modal-student-assignment .btn-close {
+      margin-top: 16px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .modal-student-assignment .btn-close:hover { color: var(--text); }
     .fab {
       position: fixed;
       right: 18px;
@@ -714,10 +825,11 @@
           <label for="period">Período</label>
           <select id="period">
             <option value="next7" selected>Próximos 7 dias</option>
+            <option value="month">Este mês</option>
+            <option value="last90">Últimos 90 dias</option>
             <option value="today">Hoje</option>
             <option value="week">Esta semana</option>
             <option value="nextweek">Próxima semana</option>
-            <option value="month">Este mês</option>
             <option value="custom">Custom (intervalo)</option>
           </select>
         </div>
@@ -789,6 +901,18 @@
       </div>
       <form id="planModalForm">
         <div class="modal-body">
+          <div class="modal-no-students" id="modalNoStudents">Cadastre pelo menos um aluno antes de criar um planejamento.</div>
+          {% if assignable_teachers|length > 1 %}
+          <div class="field" id="modalProfessorField">
+            <label for="modalProfessor">Professor responsável</label>
+            <select id="modalProfessor">
+              {% for t in assignable_teachers %}
+              <option value="{{ t.id }}">{{ t.name }}</option>
+              {% endfor %}
+            </select>
+            <small class="help">Planejamento será registrado em nome do professor selecionado.</small>
+          </div>
+          {% endif %}
           <div class="field">
             <label for="modalStudent">Aluno *</label>
             <select id="modalStudent" required>
@@ -854,6 +978,35 @@
         var parts = value.split("; " + name + "=");
         if (parts.length === 2) return parts.pop().split(";").shift();
         return null;
+      }
+
+      function showToast(msg) {
+        var el = $("#planningToast");
+        if (!el) return;
+        el.textContent = msg || "Salvo";
+        el.classList.add("show");
+        if (showToast._t) clearTimeout(showToast._t);
+        showToast._t = setTimeout(function () { el.classList.remove("show"); }, 2500);
+      }
+
+      function showStudentAssignmentErrorModal(opts) {
+        var modal = $("#studentAssignmentModal");
+        var msg = $("#studentAssignmentMessage");
+        if (!modal || !msg) return;
+        var text = opts && opts.message ? opts.message : "O aluno não está vinculado a este professor parceiro. Atribua o aluno ao professor na tela de Alunos antes de criar o planejamento.";
+        if (opts && opts.studentName) text = "O aluno \u00ab" + opts.studentName + "\u00bb não está vinculado ao professor \u00ab" + (opts.teacherName || "parceiro") + "\u00bb. Vá em Alunos, edite o aluno e atribua-o ao professor parceiro antes de criar o planejamento.";
+        msg.textContent = text;
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+        if (document.documentElement) document.documentElement.style.overflow = "hidden";
+      }
+
+      function closeStudentAssignmentModal() {
+        var modal = $("#studentAssignmentModal");
+        if (!modal) return;
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        if (document.documentElement) document.documentElement.style.overflow = "";
       }
 
       function buildParams() {
@@ -960,6 +1113,17 @@
           });
         }
         if (cur) sel.value = cur;
+        updateModalNoStudentsHint();
+      }
+
+      function updateModalNoStudentsHint() {
+        var hint = $("#modalNoStudents");
+        var saveBtn = $("#planModalSave");
+        if (hint) hint.classList.toggle("visible", !currentEditingPlanId && allStudents.length === 0);
+        if (saveBtn) {
+          if (currentEditingPlanId) saveBtn.disabled = false;
+          else saveBtn.disabled = allStudents.length === 0;
+        }
       }
 
       function chips(item) {
@@ -1123,6 +1287,7 @@
         isViewMode = viewMode;
         var modalStudent = $("#modalStudent");
         var modalDate = $("#modalDate");
+        var modalProfessor = $("#modalProfessor");
         var modalLinks = $("#modalLinks");
         var modalGoals = $("#modalGoals");
         var saveBtn = $("#planModalSave");
@@ -1136,6 +1301,7 @@
           modalStudent.disabled = viewMode;
           modalStudent.readOnly = false; // select não tem readonly
         }
+        if (modalProfessor) modalProfessor.disabled = viewMode;
         if (modalDate) {
           modalDate.disabled = viewMode;
           modalDate.readOnly = false; // date input não tem readonly
@@ -1184,6 +1350,7 @@
           var y = today.getFullYear(), m = String(today.getMonth() + 1).padStart(2, "0"), d = String(today.getDate()).padStart(2, "0");
           var modalDate = $("#modalDate");
           if (modalDate) modalDate.value = y + "-" + m + "-" + d;
+          updateModalNoStudentsHint();
           
           // Se studentId foi passado, pré-selecionar o aluno
           if (studentId) {
@@ -1239,6 +1406,7 @@
         currentAttachments = [];
         pendingUploads = [];
         setModalViewMode(false);
+        updateModalNoStudentsHint();
         if (titleEl) titleEl.textContent = "Editar Planejamento";
         if (sub) sub.textContent = "ID #" + planId + " • " + (date || "—");
         if (form) {
@@ -1265,6 +1433,7 @@
         currentAttachments = [];
         pendingUploads = [];
         setModalViewMode(false);
+        updateModalNoStudentsHint();
         if (titleEl) titleEl.textContent = "Planejar agora";
         if (sub) sub.textContent = studentName + " • " + (date || "—");
         if (form) {
@@ -1301,6 +1470,8 @@
             var modalLinks = $("#modalLinks");
             var modalGoals = $("#modalGoals");
             if (modalStudent && data.student) modalStudent.value = String(data.student);
+            var modalProfessor = $("#modalProfessor");
+            if (modalProfessor && data.user) modalProfessor.value = String(data.user);
             if (modalDate && data.date) {
               var dateOnly = String(data.date).split("T")[0].split(" ")[0];
               modalDate.value = dateOnly;
@@ -1641,6 +1812,8 @@
             links: (modalLinks ? modalLinks.value.trim() : "") || "",
             goals: (modalGoals ? modalGoals.value.trim() : "") || "",
           };
+          var modalProfessor = $("#modalProfessor");
+          if (modalProfessor && modalProfessor.value) payload.user = parseInt(modalProfessor.value);
           if (saveBtn) {
             saveBtn.disabled = true;
             saveBtn.textContent = "Salvando…";
@@ -1660,13 +1833,29 @@
           })
             .then(function (r) {
               if (!r.ok) {
-                return r.json().then(function (err) { throw new Error(err.detail || err.error || "Erro " + r.status); }).catch(function () { throw new Error("Erro " + r.status); });
+                return r.json()
+                  .then(function (data) {
+                    if (data && data.student_assignment) {
+                      var e = new Error(data.student_assignment);
+                      e.isStudentAssignment = true;
+                      e.studentName = data.student_name || "";
+                      e.teacherName = data.teacher_name || "";
+                      throw e;
+                    }
+                    var msg = data.detail || (data.student && Array.isArray(data.student) ? data.student[0] : data.student) || data.error || "Erro " + r.status;
+                    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+                  })
+                  .catch(function (e) {
+                    if (e.isStudentAssignment) throw e;
+                    throw new Error("Erro " + r.status);
+                  });
               }
               return r.json();
             })
             .then(function (data) {
               // Após salvar, fazer upload dos anexos pendentes
               var planId = currentEditingPlanId || (data && data.id);
+              var wasNewPlan = !currentEditingPlanId;
               if (planId && pendingUploads.length > 0) {
                 var uploadPromises = pendingUploads.map(function (file) {
                   return uploadAttachment(planId, file);
@@ -1675,23 +1864,54 @@
                   .then(function () {
                     pendingUploads = [];
                     closeModal();
+                    showToast("Planejamento salvo com sucesso!");
+                    if (wasNewPlan) {
+                      var periodSel = $("#period");
+                      if (periodSel && periodSel.value !== "month") {
+                        periodSel.value = "month";
+                        setupCustomRange();
+                      }
+                    }
                     fetchList();
                   })
                   .catch(function (err) {
                     console.error("Erro ao fazer upload de anexos:", err);
                     alert("Planejamento salvo, mas houve erro ao fazer upload de alguns anexos: " + (err.message || "Erro desconhecido"));
                     closeModal();
+                    showToast("Planejamento salvo!");
+                    if (wasNewPlan) {
+                      var periodSel = $("#period");
+                      if (periodSel && periodSel.value !== "month") {
+                        periodSel.value = "month";
+                        setupCustomRange();
+                      }
+                    }
                     fetchList();
                   });
               } else {
-                // Se não havia anexos pendentes, apenas fecha e recarrega
                 closeModal();
+                showToast("Planejamento salvo com sucesso!");
+                if (wasNewPlan) {
+                  var periodSel = $("#period");
+                  if (periodSel && periodSel.value !== "month") {
+                    periodSel.value = "month";
+                    setupCustomRange();
+                  }
+                }
                 fetchList();
               }
             })
             .catch(function (err) {
               console.error("Erro ao salvar:", err);
-              alert("Não foi possível salvar o planejamento: " + (err.message || "Erro desconhecido"));
+              if (err.isStudentAssignment) {
+                showStudentAssignmentErrorModal({
+                  message: err.message,
+                  studentName: err.studentName,
+                  teacherName: err.teacherName
+                });
+              } else {
+                alert("Não foi possível salvar o planejamento: " + (err.message || "Erro desconhecido"));
+              }
             })
             .finally(function () {
               if (saveBtn) {
@@ -1706,6 +1926,18 @@
       var btnNew = $("#btnNewPlan");
       if (fab) fab.addEventListener("click", function (e) { e.preventDefault(); openModalForNew(); });
       if (btnNew) btnNew.addEventListener("click", function (e) { e.preventDefault(); openModalForNew(); });
+
+      function initStudentAssignmentModal() {
+        var modal = document.getElementById("studentAssignmentModal");
+        var btnClose = document.getElementById("studentAssignmentBtnClose");
+        if (btnClose) btnClose.addEventListener("click", function (e) { e.preventDefault(); closeStudentAssignmentModal(); });
+        if (modal) modal.addEventListener("click", function (e) { if (e.target === modal) closeStudentAssignmentModal(); });
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initStudentAssignmentModal);
+      } else {
+        initStudentAssignmentModal();
+      }
 
       // Verificar se há student_id na URL para abrir modal automaticamente
       (function() {
@@ -1808,6 +2040,19 @@
       }
     })();
   </script>
+  <div class="toast" id="planningToast"></div>
+  <div class="modal-student-assignment" id="studentAssignmentModal" aria-hidden="true">
+    <div class="inner">
+      <div class="icon-wrap">👤</div>
+      <h4>Aluno não vinculado ao professor</h4>
+      <p id="studentAssignmentMessage">O aluno não está vinculado a este professor parceiro. Atribua o aluno ao professor na tela de Alunos antes de criar o planejamento.</p>
+      <a href="/alunos/" class="btn-link" id="studentAssignmentBtnLink">
+        <span>Ir para Alunos</span>
+        <span>→</span>
+      </a>
+      <button type="button" class="btn-close" id="studentAssignmentBtnClose">Fechar</button>
+    </div>
+  </div>
   {% include '_support_widget.html' %}
 </body>
 </html>

@@ -325,6 +325,7 @@ class LessonPlanSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()
+    subscription_exempt = serializers.SerializerMethodField()
     user_profile = serializers.SerializerMethodField()
     partner_teachers = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=False)
@@ -341,6 +342,7 @@ class UserSerializer(serializers.ModelSerializer):
         allow_null=True,
         allow_empty=True
     )
+    subscription_exempt_write = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = User
@@ -353,10 +355,12 @@ class UserSerializer(serializers.ModelSerializer):
             "password",
             "password_confirm",
             "is_admin",
+            "subscription_exempt",
             "user_profile",
             "partner_teachers",
             "user_profile_write",
             "partner_teachers_ids",
+            "subscription_exempt_write",
             "is_active",
             "date_joined",
         ]
@@ -365,6 +369,12 @@ class UserSerializer(serializers.ModelSerializer):
     def get_is_admin(self, obj):
         try:
             return obj.profile.is_admin
+        except UserProfile.DoesNotExist:
+            return False
+
+    def get_subscription_exempt(self, obj):
+        try:
+            return getattr(obj.profile, 'subscription_exempt', False)
         except UserProfile.DoesNotExist:
             return False
 
@@ -392,6 +402,7 @@ class UserSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         password_confirm = validated_data.pop('password_confirm', None)
         is_admin = validated_data.pop('is_admin', False)
+        subscription_exempt = validated_data.pop('subscription_exempt_write', False)
         user_profile = validated_data.pop('user_profile_write', UserProfile.PROFILE_TEACHER)
         partner_teachers_ids = validated_data.pop('partner_teachers_ids', [])
         
@@ -410,6 +421,7 @@ class UserSerializer(serializers.ModelSerializer):
         # Cria ou atualiza o perfil
         profile, created = UserProfile.objects.get_or_create(user=user)
         profile.is_admin = is_admin
+        profile.subscription_exempt = subscription_exempt
         profile.user_profile = user_profile
         profile.save()
         
@@ -426,6 +438,7 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
         is_admin = validated_data.pop('is_admin', None)
+        subscription_exempt = validated_data.pop('subscription_exempt_write', None)
         user_profile = validated_data.pop('user_profile_write', None)
         partner_teachers_ids = validated_data.pop('partner_teachers_ids', None)
         
@@ -441,6 +454,8 @@ class UserSerializer(serializers.ModelSerializer):
         profile, created = UserProfile.objects.get_or_create(user=instance)
         if is_admin is not None:
             profile.is_admin = is_admin
+        if subscription_exempt is not None:
+            profile.subscription_exempt = subscription_exempt
         if user_profile is not None:
             profile.user_profile = user_profile
         profile.save()

@@ -3513,6 +3513,7 @@ function renderUsers() {
         <div class="student-name">
           <strong>${user.username}</strong>
           ${user.is_admin ? '<span class="tag" style="margin-left: 8px;">Admin</span>' : ''}
+          ${user.subscription_exempt ? '<span class="tag" style="margin-left: 8px; background: #d1fae5; color: #065f46;">Sem assinatura</span>' : ''}
           <span class="tag" style="margin-left: 8px; background: #e0e7ff; color: #4338ca;">${profileLabel}</span>
           <span class="tag" style="margin-left: 8px; background: #f3f4f6; color: #6b7280; font-size: 11px;">ID: ${user.id}</span>
         </div>
@@ -3601,6 +3602,8 @@ async function openUserForm(userId = null) {
     document.getElementById("uUserProfile").value = user.user_profile || "professor";
     document.getElementById("uIsAdmin").checked = user.is_admin || false;
     document.getElementById("uIsActive").checked = user.is_active !== false;
+    const uSubExempt = document.getElementById("uSubscriptionExempt");
+    if (uSubExempt) uSubExempt.checked = user.subscription_exempt || false;
     document.getElementById("uPassword").value = "";
     document.getElementById("uPassword").required = false;
     // Oculta campo de confirmação de senha ao editar
@@ -3701,6 +3704,7 @@ async function onUserFormSubmit(event) {
   const userProfile = document.getElementById("uUserProfile")?.value;
   const isAdmin = document.getElementById("uIsAdmin")?.checked || false;
   const isActive = document.getElementById("uIsActive")?.checked !== false;
+  const subscriptionExempt = document.getElementById("uSubscriptionExempt")?.checked || false;
 
   if (!username) {
     alert("Username é obrigatório.");
@@ -3749,6 +3753,7 @@ async function onUserFormSubmit(event) {
     last_name: lastName,
     user_profile_write: userProfile,
     is_admin: isAdmin,
+    subscription_exempt_write: subscriptionExempt,
     is_active: isActive,
   };
 

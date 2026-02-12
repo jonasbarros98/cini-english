@@ -661,6 +661,7 @@
 
     /* Small helper */
     .hide{display:none !important;}
+    .modal-student-assignment.is-open{display:flex !important;}
 
     /* Modal */
     .modal{
@@ -1041,6 +1042,17 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Modal: aluno não vinculado ao professor -->
+  <div class="modal-student-assignment" id="studentAssignmentModal" style="display:none;position:fixed;inset:0;z-index:10002;align-items:center;justify-content:center;background:rgba(15,23,42,.4);padding:20px;">
+    <div style="background:#fff;border-radius:18px;box-shadow:0 24px 48px rgba(0,0,0,.15);max-width:420px;width:100%;padding:24px;text-align:center;">
+      <div style="width:56px;height:56px;margin:0 auto 16px;border-radius:50%;background:rgba(245,158,11,.15);display:flex;align-items:center;justify-content:center;font-size:28px;">👤</div>
+      <h4 style="margin:0 0 10px;font-size:18px;">Aluno não vinculado ao professor</h4>
+      <p id="studentAssignmentMessage" style="margin:0 0 20px;font-size:14px;color:var(--muted);line-height:1.5;">O aluno não está vinculado a este professor parceiro. Atribua o aluno ao professor na tela de Alunos antes de agendar a aula.</p>
+      <a href="/alunos/" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:14px;font-weight:700;font-size:14px;text-decoration:none;">Ir para Alunos →</a>
+      <button type="button" id="studentAssignmentBtnClose" style="margin-top:16px;background:transparent;border:none;color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline;">Fechar</button>
+    </div>
+  </div>
+
   <!-- Modal para criar nova aula -->
   <div class="modal" id="modalNewLesson" style="display: none;">
     <div class="modal-overlay" id="modalOverlay"></div>
@@ -1196,6 +1208,23 @@
         showToast._t = setTimeout(()=>toast.classList.remove('show'), 2200);
       }
 
+      function showStudentAssignmentErrorModal(opts){
+        const modal = document.getElementById('studentAssignmentModal');
+        const msg = document.getElementById('studentAssignmentMessage');
+        if(!modal || !msg) return;
+        let text = opts?.message || 'O aluno não está vinculado a este professor parceiro. Atribua o aluno ao professor na tela de Alunos antes de agendar a aula.';
+        if(opts?.studentName) text = 'O aluno «'+opts.studentName+'» não está vinculado ao professor «'+(opts.teacherName||'parceiro')+'». Vá em Alunos, edite o aluno e atribua-o ao professor parceiro antes de agendar a aula.';
+        msg.textContent = text;
+        modal.classList.add('is-open');
+        modal.style.display = 'flex';
+      }
+      function closeStudentAssignmentModal(){
+        const modal = document.getElementById('studentAssignmentModal');
+        if(!modal) return;
+        modal.classList.remove('is-open');
+        modal.style.display = 'none';
+      }
+
       // ==========
       // API Helpers
       // ==========
@@ -1222,7 +1251,13 @@
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
-          throw new Error(error.error || `HTTP ${response.status}`);
+          const e = new Error(error.error || error.student_assignment || `HTTP ${response.status}`);
+          if (error.student_assignment) {
+            e.isStudentAssignment = true;
+            e.studentName = error.student_name || '';
+            e.teacherName = error.teacher_name || '';
+          }
+          throw e;
         }
 
         return response.json();
@@ -2138,6 +2173,11 @@
       // Anexar listeners uma vez
       attachModalCloseListeners();
 
+      const studentAssignmentBtnClose = document.getElementById('studentAssignmentBtnClose');
+      const studentAssignmentModal = document.getElementById('studentAssignmentModal');
+      if (studentAssignmentBtnClose) studentAssignmentBtnClose.addEventListener('click', closeStudentAssignmentModal);
+      if (studentAssignmentModal) studentAssignmentModal.addEventListener('click', (e) => { if (e.target === studentAssignmentModal) closeStudentAssignmentModal(); });
+
       // Fechar com ESC
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -2255,8 +2295,16 @@
           }
         } catch (error) {
           console.error('Erro ao salvar aula:', error);
-          const action = editingLessonId ? 'atualizar' : 'criar';
-          showToast(`Erro ao ${action} aula: ${error.message}`, true);
+          if (error.isStudentAssignment) {
+            showStudentAssignmentErrorModal({
+              message: error.message,
+              studentName: error.studentName,
+              teacherName: error.teacherName
+            });
+          } else {
+            const action = editingLessonId ? 'atualizar' : 'criar';
+            showToast(`Erro ao ${action} aula: ${error.message}`, true);
+          }
         }
       }
       

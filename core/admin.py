@@ -34,8 +34,8 @@ class FinancialEntryAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "user_profile", "is_admin", "created_at")
-    list_filter = ("is_admin", "user_profile")
+    list_display = ("user", "user_profile", "is_admin", "subscription_exempt", "created_at")
+    list_filter = ("is_admin", "subscription_exempt", "user_profile")
     search_fields = ("user__username", "user__email")
     filter_horizontal = ("partner_teachers",)
 

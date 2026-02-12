@@ -270,10 +270,33 @@ from django.views.generic import TemplateView
 
 
 def _user_has_active_subscription(user):
-    """Retorna True se o usuário tem assinatura ativa (após pagamento/trial confirmado)."""
+    """
+    Retorna True se o usuário pode acessar o sistema sem bloqueio por assinatura.
+    - Django staff/superuser: sempre permite
+    - is_admin ou subscription_exempt no perfil: sempre permite
+    - Prof. parceiro: permite se o dono da conta tiver assinatura ativa
+    - Demais: exige assinatura ativa
+    """
+    # Django admin/staff
+    if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+        return True
     try:
+        profile = user.profile
+        # Flag is_admin ou subscription_exempt: contas internas (admin, sua conta, esposa)
+        if profile.is_admin or getattr(profile, 'subscription_exempt', False):
+            return True
+        # Prof. parceiro: verificar se o dono da conta tem assinatura ativa
+        if profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            owner = UserProfile.objects.filter(partner_teachers=profile).select_related('user').first()
+            if owner:
+                try:
+                    return owner.user.subscription.is_active
+                except Subscription.DoesNotExist:
+                    return False
+            return False
+        # Professor principal: precisa de assinatura ativa
         return user.subscription.is_active
-    except Subscription.DoesNotExist:
+    except (Subscription.DoesNotExist, UserProfile.DoesNotExist):
         return False
 
 
@@ -990,18 +1013,101 @@ class LessonPlanViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(student_id=student_id)
         return queryset
 
-    def perform_create(self, serializer):
-        # Prof. Parceiro só pode criar planejamento para alunos atribuídos a ele
+    def _get_assignable_user_ids(self):
+        """IDs de usuários que o professor principal pode atribuir (ele mesmo ou parceiros)."""
         try:
-            if self.request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                student = serializer.validated_data.get('student')
-                if student and student.assigned_teacher_id != self.request.user.id:
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("Você só pode criar planejamento para alunos atribuídos a você.")
+            profile = self.request.user.profile
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partner_ids = list(profile.partner_teachers.values_list("user_id", flat=True))
+                return [self.request.user.id] + partner_ids
         except UserProfile.DoesNotExist:
             pass
-        serializer.save(user=self.request.user)
-    
+        return [self.request.user.id]
+
+    def perform_create(self, serializer):
+        student = serializer.validated_data.get('student')
+        if not student:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"student": "Selecione um aluno."})
+        try:
+            profile = self.request.user.profile.user_profile
+            if profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                if student.assigned_teacher_id != self.request.user.id:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied("Você só pode criar planejamento para alunos atribuídos a você.")
+                # Parceiro sempre salva como ele mesmo
+                target_user = self.request.user
+            elif profile == UserProfile.PROFILE_TEACHER:
+                if student.user_id != self.request.user.id:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied("Este aluno não pertence à sua conta.")
+                # Dono pode escolher professor (ele ou parceiro) via payload
+                user_id = self.request.data.get("user")
+                if user_id is not None:
+                    try:
+                        uid = int(user_id)
+                        if uid in self._get_assignable_user_ids():
+                            target_user = User.objects.get(pk=uid)
+                            # Dono atribuindo a parceiro: aluno deve estar vinculado ao parceiro
+                            if target_user.id != self.request.user.id:
+                                if student.assigned_teacher_id != target_user.id:
+                                    from rest_framework.exceptions import ValidationError
+                                    raise ValidationError({
+                                        "student_assignment": "O aluno não está vinculado a este professor parceiro. Atribua o aluno ao professor na tela de Alunos antes de criar o planejamento.",
+                                        "student_name": getattr(student, "name", "este aluno"),
+                                        "teacher_name": target_user.get_full_name() or target_user.username,
+                                    })
+                        else:
+                            from rest_framework.exceptions import PermissionDenied
+                            raise PermissionDenied("Só é possível atribuir a você ou a seus professores parceiros.")
+                    except (ValueError, User.DoesNotExist):
+                        target_user = self.request.user
+                else:
+                    target_user = self.request.user
+            else:
+                target_user = self.request.user
+        except UserProfile.DoesNotExist:
+            if student.user_id != self.request.user.id:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Este aluno não pertence à sua conta.")
+            target_user = self.request.user
+        serializer.save(user=target_user)
+
+    def perform_update(self, serializer):
+        """Permite ao dono da conta alterar o professor responsável (ele ou parceiro)."""
+        instance = serializer.instance
+        try:
+            profile = self.request.user.profile.user_profile
+            if profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                # Parceiro não pode alterar o professor - mantém como está
+                serializer.save()
+                return
+            if profile == UserProfile.PROFILE_TEACHER:
+                user_id = self.request.data.get("user")
+                if user_id is not None:
+                    try:
+                        uid = int(user_id)
+                        if uid in self._get_assignable_user_ids():
+                            target_user = User.objects.get(pk=uid)
+                            student = instance.student
+                            if target_user.id != self.request.user.id and student.assigned_teacher_id != target_user.id:
+                                from rest_framework.exceptions import ValidationError
+                                raise ValidationError({
+                                    "student_assignment": "O aluno não está vinculado a este professor parceiro. Atribua o aluno ao professor na tela de Alunos antes de salvar.",
+                                    "student_name": getattr(student, "name", "este aluno"),
+                                    "teacher_name": target_user.get_full_name() or target_user.username,
+                                })
+                            serializer.save(user=target_user)
+                            return
+                        else:
+                            from rest_framework.exceptions import PermissionDenied
+                            raise PermissionDenied("Só é possível atribuir a você ou a seus professores parceiros.")
+                    except (ValueError, User.DoesNotExist):
+                        pass
+        except UserProfile.DoesNotExist:
+            pass
+        serializer.save()
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['request'] = self.request
@@ -1064,6 +1170,10 @@ def _planning_date_range(period, start_date_str, end_date_str, tz_date):
             end = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
         return start, end
 
+    if period == "last90":
+        start = today - timedelta(days=89)
+        return start, today
+
     if period == "custom" and start_date_str and end_date_str:
         try:
             start = datetime.strptime(start_date_str, "%Y-%m-%d").date()
@@ -1080,18 +1190,22 @@ def _planning_date_range(period, start_date_str, end_date_str, tz_date):
 def planning_list_api(request):
     """
     GET /api/planning/list/
-    Params: period (today|next7|week|nextweek|month|custom),
+    Params: period (today|next7|week|nextweek|month|last90|custom),
             start_date, end_date (quando custom),
             student_id, status (all|incomplete|no_goals|no_materials|ok), q (busca).
     Retorna JSON: period_label, total, days[], students[].
     """
     from collections import defaultdict
+    from zoneinfo import ZoneInfo
     now = timezone.now()
+    # Usar timezone do usuário para calcular "hoje" corretamente
+    # Servidor em UTC + usuário no Brasil = "hoje" errado (ex: 22h BR já é dia seguinte em UTC)
     try:
-        tz = timezone.get_current_timezone()
+        tz_str = getattr(request.user.profile, "timezone", None) or "America/Sao_Paulo"
+        user_tz = ZoneInfo(tz_str)
     except Exception:
-        tz = timezone.get_default_timezone()
-    tz_date = now.astimezone(tz).date()
+        user_tz = ZoneInfo("America/Sao_Paulo")
+    tz_date = now.astimezone(user_tz).date()
 
     period = (request.GET.get("period") or "next7").strip().lower()
     start_date_str = request.GET.get("start_date", "").strip()
@@ -1106,6 +1220,7 @@ def planning_list_api(request):
     period_labels = {
         "today": "Hoje",
         "next7": "Próximos 7 dias",
+        "last90": "Últimos 90 dias",
         "week": "Esta semana",
         "nextweek": "Próxima semana",
         "month": "Este mês",
@@ -3443,7 +3558,15 @@ def calendar_event_create(request):
             )
         except UserProfile.DoesNotExist:
             student = Student.objects.get(id=student_id, user=request.user)
-        
+
+        # Dono atribuindo aula a parceiro: aluno deve estar vinculado ao parceiro
+        if teacher_user.id != request.user.id and student.assigned_teacher_id != teacher_user.id:
+            return Response({
+                'student_assignment': 'O aluno não está vinculado a este professor parceiro. Atribua o aluno ao professor na tela de Alunos antes de agendar a aula.',
+                'student_name': student.name,
+                'teacher_name': teacher_user.get_full_name() or teacher_user.username,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         lesson_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         lesson_time = None
         if time_str:
