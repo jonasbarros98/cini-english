@@ -17,31 +17,23 @@
     
     <script>
       // Verificar parâmetro view na URL IMEDIATAMENTE para evitar flash
-      // Este script roda o mais cedo possível quando o DOM estiver disponível
       (function() {
         function setInitialView() {
           try {
             const urlParams = new URLSearchParams(window.location.search);
             const viewParam = urlParams.get('view');
+            if (viewParam === 'view-finance') {
+              window.location.replace('/financeiro/' + (window.location.hash || ''));
+              return;
+            }
             const targetViewId = viewParam || 'view-calendar';
-            
-            // Remover active de todas as views
             const allViews = document.querySelectorAll('.view');
-            allViews.forEach(view => {
-              view.classList.remove('active');
-            });
-            
-            // Adicionar active na view correta
+            allViews.forEach(view => view.classList.remove('active'));
             const targetView = document.getElementById(targetViewId);
-            if (targetView) {
-              targetView.classList.add('active');
-            }
+            if (targetView) targetView.classList.add('active');
           } catch(e) {
-            // Se der erro, garantir que pelo menos o calendário aparece
             const calendarView = document.getElementById('view-calendar');
-            if (calendarView) {
-              calendarView.classList.add('active');
-            }
+            if (calendarView) calendarView.classList.add('active');
           }
         }
         
@@ -107,13 +99,13 @@
             </div>
           </button>
           {% endif %}
-          <button class="nav-item" data-view="view-finance">
+          <a href="/financeiro/" class="nav-item">
             <span class="nav-emoji">💵</span>
             <div>
               <p class="nav-title">Financeiro</p>
               <p class="nav-subtitle">Recebimentos do mês</p>
             </div>
-          </button>
+          </a>
           
           <div class="nav-divider"></div>
           {% if not is_partner_teacher %}
@@ -1195,155 +1187,6 @@
           </section>
         </section>
         {% endif %}
-        <section class="view" id="view-finance">
-  <header class="topbar">
-    <div>
-      <h1>Lançamentos a Receber</h1>
-      <p class="muted">
-        Controle os recebimentos dos alunos, parcelas, vencimentos e status de pagamento.
-      </p>
-    </div>
-    <button class="primary" id="newFinancialEntryBtn">+ Novo Lançamento</button>
-  </header>
-
-  <!-- Card de Resumo -->
-  <section class="grid stats" id="financeStats">
-    <div class="card stat">
-      <div class="stat-icon pending">💰</div>
-      <div>
-        <p class="stat-label">A Receber</p>
-        <p class="stat-value" id="statFinancePending">R$ 0,00</p>
-      </div>
-    </div>
-    <div class="card stat">
-      <div class="stat-icon confirmed">✔</div>
-      <div>
-        <p class="stat-label">Recebido</p>
-        <p class="stat-value" id="statFinancePaid">R$ 0,00</p>
-      </div>
-    </div>
-    <div class="card stat">
-      <div class="stat-icon canceled">⚠</div>
-      <div>
-        <p class="stat-label">Vencido</p>
-        <p class="stat-value" id="statFinanceOverdue">R$ 0,00</p>
-      </div>
-    </div>
-    <div class="card stat">
-      <div class="stat-icon students">📋</div>
-      <div>
-        <p class="stat-label">Total Lançamentos</p>
-        <p class="stat-value" id="statFinanceCount">0</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Formulário de Novo Lançamento (oculto por padrão) -->
-  <section class="card detail-card" id="financialEntryFormCard" style="display: none;">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Novo Lançamento</p>
-        <h3 id="financialEntryFormTitle">Cadastrar Recebimento</h3>
-        <p class="muted">Preencha os dados do lançamento financeiro.</p>
-      </div>
-    </div>
-    <form id="financialEntryForm" class="form">
-      <div class="form-row">
-        <label for="feStudent">Aluno</label>
-        <select id="feStudent" name="feStudent" required></select>
-      </div>
-      {% if assignable_teachers %}
-      <div class="form-row">
-        <label for="feUser">Professor responsável</label>
-        <select id="feUser" name="feUser">
-          {% for t in assignable_teachers %}
-          <option value="{{ t.id }}">{{ t.name }}</option>
-          {% endfor %}
-        </select>
-        <small class="muted">Delegue ao professor parceiro que ficará responsável por este lançamento (e que receberá o valor), ou deixe você mesmo.</small>
-      </div>
-      {% endif %}
-      <div class="form-row">
-        <label for="feDescription">Descrição</label>
-        <input type="text" id="feDescription" name="feDescription" placeholder="Ex.: Mensalidade Janeiro, Plano Intensivo" required />
-      </div>
-      <div class="form-row grid-two">
-        <div>
-          <label for="feAmount">Valor (R$)</label>
-          <input type="number" step="0.01" id="feAmount" name="feAmount" placeholder="0,00" required />
-        </div>
-        <div>
-          <label for="feInstallments">Parcelas</label>
-          <input type="number" id="feInstallments" name="feInstallments" value="1" min="1" />
-        </div>
-      </div>
-      <div class="form-row grid-two">
-        <div>
-          <label for="feIssueDate">Data do Registro</label>
-          <input type="date" id="feIssueDate" name="feIssueDate" readonly style="background-color: #f5f5f5; cursor: not-allowed;" />
-          <small class="muted">Preenchida automaticamente com a data atual</small>
-        </div>
-        <div>
-          <label for="feDueDate">Vencimento da 1ª parcela</label>
-          <input type="date" id="feDueDate" name="feDueDate" required />
-        </div>
-      </div>
-      <div class="form-row grid-two">
-        <div>
-          <label for="feStatus">Status</label>
-          <select id="feStatus" name="feStatus">
-            <option value="pending">Pendente</option>
-            <option value="paid">Pago</option>
-            <option value="overdue">Vencido</option>
-            <option value="cancelled">Cancelado</option>
-          </select>
-        </div>
-        <div>
-          <label for="fePaymentMethod">Forma de Pagamento</label>
-          <select id="fePaymentMethod" name="fePaymentMethod">
-            <option value="pix">PIX</option>
-            <option value="cash">Dinheiro</option>
-            <option value="card">Cartão</option>
-            <option value="transfer">Transferência</option>
-            <option value="other">Outro</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <label for="feNotes">Observações</label>
-        <textarea id="feNotes" name="feNotes" rows="2" placeholder="Observações adicionais..."></textarea>
-      </div>
-      <div class="form-row" style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="submit" class="primary">Salvar Lançamento</button>
-        <button type="button" class="primary ghost" id="cancelFinancialEntryForm">Cancelar</button>
-      </div>
-    </form>
-  </section>
-
-  <!-- Lista de Lançamentos -->
-  <section class="card detail-card">
-    <div class="section-header">
-      <div>
-        <p class="eyebrow">Lançamentos do Mês</p>
-        <h3 id="financeMonthTitle">Mês</h3>
-        <p class="muted">Clique em um lançamento para editar ou alterar o status.</p>
-      </div>
-      <div class="top-actions" style="display: flex; gap: 8px; align-items: center;">
-        <button class="primary ghost" id="financeMonthBack" style="padding: 8px 12px;">← Mês anterior</button>
-        <button class="primary ghost" id="financeMonthForward" style="padding: 8px 12px;">Próximo mês →</button>
-        <select id="financeFilterStatus" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);">
-          <option value="">Todos os status</option>
-          <option value="pending">Pendente</option>
-          <option value="paid">Pago</option>
-          <option value="overdue">Vencido</option>
-          <option value="cancelled">Cancelado</option>
-        </select>
-      </div>
-    </div>
-    <div class="finance-table" id="financialEntriesList"></div>
-  </section>
-</section>
-
         <section class="view" id="view-users">
           <header class="topbar">
             <div>

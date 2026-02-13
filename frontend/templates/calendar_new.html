@@ -419,20 +419,26 @@
       overflow:hidden;
       line-height:1.3;
     }
-    .w-evt .top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-    .w-evt .top .t{color: var(--muted); font-size:9px;font-weight:900;}
     .w-evt .name{
-      white-space:nowrap; 
-      overflow:hidden; 
-      text-overflow:ellipsis;
       font-size:10px;
       font-weight:800;
-      flex:1;
-      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      line-height:1.2;
     }
+    .w-evt .name .t{
+      color: var(--muted);
+      font-size:9px;
+      font-weight:900;
+    }
+    .w-evt .meta{
+      display:flex;align-items:center;justify-content:space-between;gap:6px;
+    }
+    .w-evt .meta .t{color: var(--muted); font-size:9px;font-weight:900;}
     .w-evt .tag{
-      font-size:8.5px;font-weight:900;
-      padding:3px 6px;border-radius:999px;
+      font-size:8px;font-weight:900;
+      padding:2px 5px;border-radius:999px;
       border:1px solid transparent;
       white-space:nowrap;
       flex-shrink:0;
@@ -451,7 +457,7 @@
       padding: 8px 10px;
       font-size: 11px;
     }
-    .grid.expanded .w-evt .top .t{
+    .grid.expanded .w-evt .name .t{
       font-size: 10px;
     }
     .grid.expanded .w-evt .name{
@@ -838,7 +844,7 @@
           </div>
         </a>
         {% endif %}
-        <a href="/?view=view-finance" class="nav-item">
+        <a href="/financeiro/" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
             <p class="nav-title">Financeiro</p>
@@ -928,7 +934,6 @@
         <div class="page-head">
           <div class="title">
             <h1>Calendário do Professor</h1>
-            <p>Menos ruído. Mais clareza. Linha do “agora”. Eventos compactos. Painel do dia com ações rápidas.</p>
           </div>
 
       <div class="right-controls">
@@ -1260,7 +1265,12 @@
           throw e;
         }
 
-        return response.json();
+        if (response.status === 204 || response.headers.get('Content-Length') === '0') {
+          return null;
+        }
+        const text = await response.text();
+        if (!text || !text.trim()) return null;
+        return JSON.parse(text);
       }
 
       // ==========
@@ -1528,55 +1538,86 @@
             return d >= weekStart && d <= weekEnd;
           });
 
+        const slotH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 44;
+        const durationMin = 60;
+
+        // Agrupar por dia e evitar sobreposição: eventos próximos ficam lado a lado
+        const byDay = {};
         weekLessons.forEach(l => {
-          const col = cols.find(c => c.dataset.day === l.date);
-          if(!col) return;
-          const evt = document.createElement('div');
-          // Determinar status para exibição: se realized é true, mostrar como "done"
-          const displayStatus = (l.realized || l.status === "done") ? "done" : l.status;
-          evt.className = `w-evt ${statusClass(displayStatus)}`;
-          evt.dataset.id = String(l.id);
+          if (!byDay[l.date]) byDay[l.date] = [];
+          byDay[l.date].push(l);
+        });
 
-          const [hh,mm] = l.time.split(':').map(Number);
-          // position in px: each hour slot is --slot-h
-          // top offset: (hh - startHour + mm/60) * slotH
-          const slotH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 44;
-          const top = ( (hh - startHour) + (mm/60) ) * slotH + 1;
-
-          // duration mock: 60min
-          const height = slotH - 6;
-
-          evt.style.top = `${top}px`;
-          evt.style.height = `${height}px`;
-
-          // Verificar se está expandido
-          const gridEl = $('.grid');
-          const isExpanded = gridEl && gridEl.classList.contains('expanded');
-          
-          let notePreview = '';
-          if(isExpanded && l.note && l.note.trim()){
-            const noteText = escapeHtml(l.note.trim());
-            const shortNote = noteText.length > 30 ? noteText.substring(0, 28) + '..' : noteText;
-            notePreview = `<div class="note-preview" title="${noteText}">${shortNote}</div>`;
-          }
-          
-          evt.innerHTML = `
-            <div class="top">
-              <span class="name">${escapeHtml(l.student)}</span>
-              <span class="tag">${statusLabel(displayStatus)}</span>
-            </div>
-            <div class="t">${l.time}</div>
-            ${notePreview}
-          `;
-
-          evt.addEventListener('click', (e)=>{
-            e.stopPropagation();
-            selectDay(fromYMD(l.date));
-            // scroll the day list to this lesson (mock highlight could be added)
-            showToast(`Aula ${l.student} (${l.time})`);
+        Object.keys(byDay).forEach(date => {
+          const dayLessons = byDay[date].sort((a, b) => {
+            const [ah, am] = a.time.split(':').map(Number);
+            const [bh, bm] = b.time.split(':').map(Number);
+            return (ah * 60 + am) - (bh * 60 + bm);
           });
 
-          col.appendChild(evt);
+          const columns = [];
+          const assignments = [];
+
+          dayLessons.forEach(l => {
+            const [hh, mm] = l.time.split(':').map(Number);
+            const startMin = hh * 60 + mm;
+            const endMin = startMin + durationMin;
+
+            let colIdx = 0;
+            while (colIdx < columns.length && columns[colIdx] > startMin) colIdx++;
+            if (colIdx >= columns.length) columns.push(0);
+            columns[colIdx] = endMin;
+
+            assignments.push({ lesson: l, column: colIdx });
+          });
+
+          const totalCols = columns.length;
+          const col = cols.find(c => c.dataset.day === date);
+          if (!col) return;
+
+          assignments.forEach(({ lesson: l, column: colIdx }) => {
+            const evt = document.createElement('div');
+            const displayStatus = (l.realized || l.status === "done") ? "done" : l.status;
+            evt.className = `w-evt ${statusClass(displayStatus)}`;
+            evt.dataset.id = String(l.id);
+
+            const [hh, mm] = l.time.split(':').map(Number);
+            const top = ((hh - startHour) + (mm / 60)) * slotH + 1;
+            const height = slotH - 6;
+
+            evt.style.top = `${top}px`;
+            evt.style.height = `${height}px`;
+
+            if (totalCols > 1) {
+              const gap = 4;
+              evt.style.left = `calc(8px + (100% - 16px) * ${colIdx} / ${totalCols} + ${colIdx * gap}px)`;
+              evt.style.right = 'auto';
+              evt.style.width = `calc((100% - 16px) / ${totalCols} - ${gap}px)`;
+            }
+
+            const gridEl = $('.grid');
+            const isExpanded = gridEl && gridEl.classList.contains('expanded');
+            let notePreview = '';
+            if (isExpanded && l.note && l.note.trim()) {
+              const noteText = escapeHtml(l.note.trim());
+              const shortNote = noteText.length > 30 ? noteText.substring(0, 28) + '..' : noteText;
+              notePreview = `<div class="note-preview" title="${noteText}">${shortNote}</div>`;
+            }
+
+            const displayName = shortName(l.student) || l.student;
+            evt.innerHTML = `
+              <div class="name" title="${escapeHtml(l.student)}">${escapeHtml(displayName)} – <span class="t">${l.time}</span></div>
+              ${notePreview}
+            `;
+
+            evt.addEventListener('click', (e) => {
+              e.stopPropagation();
+              selectDay(fromYMD(l.date));
+              showToast(`Aula ${l.student} (${l.time})`);
+            });
+
+            col.appendChild(evt);
+          });
         });
 
         // Now line (only if selected week includes today)
@@ -2329,6 +2370,12 @@
       // ==========
       // Escape
       // ==========
+      function shortName(full){
+        const p = String(full || '').trim().split(/\s+/);
+        if (p.length === 0 || !p[0]) return '';
+        if (p.length === 1) return p[0];
+        return p[0] + ' ' + (p[1]?.charAt(0) || '').toUpperCase() + '.';
+      }
       function escapeHtml(str){
         return String(str)
           .replaceAll('&','&amp;')

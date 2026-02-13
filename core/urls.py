@@ -15,7 +15,7 @@ from .views import (
     PlanningListView, planning_list_api,
     planning_edit_redirect, planning_new_redirect,
     upload_planning_attachment, delete_planning_attachment,
-    AlunosView, CalendarNewView, TicketsView,
+    AlunosView, CalendarNewView, FinanceView, TicketsView,
     calendar_events, calendar_event_status, calendar_event_create, calendar_event_update,
     calendar_day_note, calendar_day_note_update,
     support_ticket_create, support_tickets_list,
@@ -68,6 +68,7 @@ urlpatterns = [
     path("api/planning/attachments/<int:attachment_id>/", delete_planning_attachment, name="api-planning-delete-attachment"),
     # Calendar endpoints
     path("calendar/", CalendarNewView.as_view(), name="calendar-new"),
+    path("financeiro/", FinanceView.as_view(), name="finance"),
     path("api/calendar/events/", calendar_events, name="api-calendar-events"),
     path("api/calendar/events/<int:event_id>/status/", calendar_event_status, name="api-calendar-event-status"),
     path("api/calendar/events/create/", calendar_event_create, name="api-calendar-event-create"),

@@ -46,14 +46,13 @@
     
     /* Ajustes para sidebar - removido, agora padronizado no styles.css */
 
-    .wrap{max-width:100%;margin:0;padding:26px 18px 90px;width:100%;}
+    .wrap{max-width:100%;margin:0;padding:18px 18px 90px;width:100%;}
 
     /* Header */
     .page-head{
-      display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px;
+      display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px;
     }
     .title h1{margin:0;font-size:22px;letter-spacing:-.02em}
-    .title p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
 
     .btn-primary{
       border:none;
@@ -92,35 +91,12 @@
       background: rgba(2,6,23,.02);
     }
 
-    /* Tabs */
-    .tabs{
-      display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;
-    }
-    .tab{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.86);
-      border-radius:999px;
-      padding:9px 12px;
-      font-weight:900;
-      font-size:12px;
-      color: var(--muted);
-      cursor:pointer;
-      transition:.15s;
-    }
-    .tab:hover{transform: translateY(-1px); box-shadow: var(--shadow-soft); color: var(--text);}
-    .tab.active{
-      border:none;
-      background: linear-gradient(135deg, rgba(37,99,235,.16), rgba(59,130,246,.10));
-      color: var(--text);
-      box-shadow: inset 0 0 0 1px rgba(37,99,235,.20);
-    }
-
     /* Sticky Filter Bar */
     .filters{
       position: sticky;
       top: 0;
       z-index: 10;
-      padding: 12px 0 12px;
+      padding: 6px 0 10px;
       background: linear-gradient(180deg, rgba(245,247,251,.96), rgba(245,247,251,.72));
       backdrop-filter: blur(10px);
     }
@@ -443,7 +419,7 @@
           </div>
         </a>
         {% endif %}
-        <a href="/?view=view-finance" class="nav-item">
+        <a href="/financeiro/" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
             <p class="nav-title">Financeiro</p>
@@ -517,12 +493,6 @@
     <div class="page-head">
       <div class="title">
         <h1>Cadastro de Alunos</h1>
-        <p>Lista à esquerda + cadastro rápido em modal. Menos rolagem. Mais controle.</p>
-        <div class="tabs" role="tablist" aria-label="Visão">
-          <button class="tab active" type="button">📋 Lista</button>
-          <!-- <button class="tab" type="button">📈 Insights (futuro)</button> -->
-          <!-- <button class="tab" type="button">⚙️ Preferências (futuro)</button> -->
-        </div>
       </div>
       {% if not is_partner_teacher %}<button class="btn-primary" type="button" id="btnNew">+ Novo aluno</button>{% endif %}
     </div>
@@ -547,7 +517,7 @@
         </div>
       </div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:10px;flex-wrap:wrap;">
         <div style="color:var(--muted);font-weight:900;font-size:12px;" id="studentCount">
           Carregando...
         </div>
@@ -581,7 +551,6 @@
             <h2>{% if is_partner_teacher %}Detalhes do aluno{% else %}Edição rápida{% endif %}</h2>
             <div class="meta" id="editorMeta">Selecione um aluno</div>
           </div>
-          {% if not is_partner_teacher %}<div class="meta">Sem rolagem infinita</div>{% endif %}
         </div>
 
         <div class="editor" id="studentEditor">

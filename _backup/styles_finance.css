@@ -1,0 +1,81 @@
+/* BACKUP: estilos finance removidos do styles.css em integração /financeiro/ */
+
+.finance-table {
+  display: grid;
+  gap: 10px;
+}
+
+.finance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.finance-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.finance-name {
+  font-weight: 600;
+}
+
+.finance-info {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.finance-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* cores por status */
+.finance-row.paid {
+  background: #e1f7ee;
+  border-color: rgba(123, 220, 181, 0.6);
+}
+
+.finance-row.pending {
+  background: #fff4d6;
+  border-color: rgba(255, 231, 173, 0.8);
+}
+
+.finance-row.overdue {
+  background: #ffe1e1;
+  border-color: rgba(255, 160, 160, 0.9);
+}
+
+.finance-row.remind {
+  background: #f4f7fb;
+  border-style: dashed;
+}
+
+.finance-total {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.finance-total strong {
+  margin-left: 4px;
+  font-weight: 700;
+  color: #1f2c3d;
+}
+
+/* Lançamentos financeiros - status cancelled */
+.finance-row.cancelled {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  opacity: 0.7;
+}
+
+.finance-row.cancelled .finance-name {
+  text-decoration: line-through;
+}

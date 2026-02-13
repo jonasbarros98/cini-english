@@ -7,13 +7,11 @@ const API_BASE_URL = "/api";
 const state = {
   today: new Date(),
   currentMonth: new Date(),
-  financeViewMonth: new Date(), // Mês atual da visualização financeira (pode ser diferente do calendário)
   selectedDate: null,
   notes: {},     // { 'YYYY-MM-DD': [ { id, status, title, info, studentId, studentName, time } ] }
   students: [],  // vindo da API
   tasks: [],     // vindo da API
   finances: [],   // lista de cobranças do mês
-  financialEntries: [], // lançamentos financeiros a receber
   currentUser: null,
   users: [],
   lessonPlans: [],
@@ -23,7 +21,6 @@ const state = {
 
 let editingLessonId = null;
 let editingTaskId = null;
-let editingFinancialEntryId = null;
 let editingUserId = null;
 
 
@@ -52,13 +49,6 @@ const financeStatusLabels = {
   paid: "Pago",
   overdue: "Vencido",
   remind: "Lembrar de cobrar",
-};
-
-const financialEntryStatusLabels = {
-  pending: "Pendente",
-  paid: "Pago",
-  overdue: "Vencido",
-  cancelled: "Cancelado",
 };
 
 const paymentMethodLabels = {
@@ -362,47 +352,12 @@ async function loadFinancesForCurrentMonth() {
   }));
 }
 
-async function loadFinancialEntries() {
-  const year = state.financeViewMonth.getFullYear();
-  const month = String(state.financeViewMonth.getMonth() + 1).padStart(2, "0");
-  const url = `/financial-entries/?month=${year}-${month}`;
-  console.log("Carregando lançamentos financeiros:", url);
-  try {
-    const entries = await fetchJSON(url);
-    console.log("Lançamentos recebidos:", entries);
-    state.financialEntries = entries.map((e) => ({
-      id: e.id,
-      studentId: e.student,
-      studentName: e.student_name,
-      description: e.description,
-      amount: e.amount,
-      installments: e.installments,
-      currentInstallment: e.current_installment,
-      issueDate: e.issue_date,
-      dueDate: e.due_date,
-      paymentDate: e.payment_date,
-      status: e.status,
-      paymentMethod: e.payment_method,
-      notes: e.notes || "",
-      userId: e.user,
-      userDisplayName: e.user_display_name || e.user_username || "",
-      beneficiaryUserId: e.beneficiary_user,
-      beneficiaryUsername: e.beneficiary_username,
-    }));
-    console.log("Lançamentos processados:", state.financialEntries.length);
-  } catch (error) {
-    console.error("Erro ao carregar lançamentos financeiros:", error);
-    state.financialEntries = [];
-  }
-}
-
 async function loadInitialData() {
   await Promise.all([
     loadStudents(),
     loadTasks(),
     loadLessonsForCurrentMonth(),
     loadFinancesForCurrentMonth(),
-    loadFinancialEntries()
   ]);
   // Atualizar sidebar após carregar dados iniciais
   updateSidebarStats();
@@ -525,7 +480,6 @@ async function changeMonth(delta) {
   await Promise.all([
     loadLessonsForCurrentMonth(),
     loadFinancesForCurrentMonth(),
-    loadFinancialEntries(),
   ]);
 
   renderCalendar();
@@ -533,8 +487,6 @@ async function changeMonth(delta) {
   renderStats();
   renderFinance();
   renderFinanceTotal();
-  renderFinancialEntries();
-  renderFinancialStats();
   updateCalendarNavTitle();
 }
 
@@ -562,7 +514,6 @@ async function goToToday() {
     await Promise.all([
       loadLessonsForCurrentMonth(),
       loadFinancesForCurrentMonth(),
-      loadFinancialEntries(),
     ]);
   } else {
     await loadLessonsForWeek(state.currentWeekStart);
@@ -573,8 +524,6 @@ async function goToToday() {
   renderStats();
   renderFinance();
   renderFinanceTotal();
-  renderFinancialEntries();
-  renderFinancialStats();
   updateCalendarNavTitle();
 }
 
@@ -2445,332 +2394,11 @@ async function updateInvoiceStatus(invoice, newStatus) {
   }
 }
 
-// ==========================
-// Lançamentos Financeiros
-// ==========================
-
+// formatDateBR usado por cobrança (view-billing)
 function formatDateBR(dateStr) {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
   return `${day}/${month}/${year}`;
-}
-
-function renderFinancialStats() {
-  const pendingEl = document.getElementById("statFinancePending");
-  const paidEl = document.getElementById("statFinancePaid");
-  const overdueEl = document.getElementById("statFinanceOverdue");
-  const countEl = document.getElementById("statFinanceCount");
-
-  if (!pendingEl || !paidEl || !overdueEl || !countEl) return;
-
-  const pending = state.financialEntries
-    .filter((e) => e.status === "pending")
-    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-  const paid = state.financialEntries
-    .filter((e) => e.status === "paid")
-    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-  const overdue = state.financialEntries
-    .filter((e) => e.status === "overdue")
-    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-  pendingEl.textContent = formatBRL(pending);
-  paidEl.textContent = formatBRL(paid);
-  overdueEl.textContent = formatBRL(overdue);
-  countEl.textContent = state.financialEntries.length;
-}
-
-function renderFinancialEntries() {
-  const list = document.getElementById("financialEntriesList");
-  const monthTitleEl = document.getElementById("financeMonthTitle");
-  if (!list) return;
-
-  list.innerHTML = "";
-
-  if (monthTitleEl) {
-    const label = monthName(state.financeViewMonth);
-    monthTitleEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
-  }
-
-  // Filtro de status
-  const filterSelect = document.getElementById("financeFilterStatus");
-  const statusFilter = filterSelect ? filterSelect.value : "";
-
-  let entries = state.financialEntries;
-  if (statusFilter) {
-    entries = entries.filter((e) => e.status === statusFilter);
-  }
-
-  if (entries.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "muted";
-    const isPartnerTeacher = state.currentUser && state.currentUser.user_profile === "prof_parceiro";
-    empty.textContent = isPartnerTeacher 
-      ? "Nenhum lançamento financeiro para este mês."
-      : "Nenhum lançamento financeiro para este mês. Clique em '+ Novo Lançamento' para criar.";
-    list.append(empty);
-    return;
-  }
-
-  entries.forEach((entry) => {
-    const row = document.createElement("div");
-    row.className = `finance-row ${entry.status}`;
-
-    const main = document.createElement("div");
-    main.className = "finance-main";
-
-    const nameEl = document.createElement("div");
-    nameEl.className = "finance-name";
-    let nameHtml = `<strong>${entry.studentName || "Aluno"}</strong> - ${entry.description}`;
-    if (entry.userDisplayName) {
-      nameHtml += `<div class="finance-teacher" style="font-size:11px;color:var(--muted);margin-top:2px;">👤 ${entry.userDisplayName}</div>`;
-    }
-    nameEl.innerHTML = nameHtml;
-
-    const infoEl = document.createElement("div");
-    infoEl.className = "finance-info";
-
-    const statusLabel = financialEntryStatusLabels[entry.status] || entry.status;
-    const dueText = entry.dueDate
-      ? `Venc: ${formatDateBR(entry.dueDate)}`
-      : "Sem vencimento";
-    const installmentText = entry.installments > 1
-      ? `Parcela ${entry.currentInstallment}/${entry.installments}`
-      : "À vista";
-
-    infoEl.textContent = `${formatBRL(entry.amount)} • ${installmentText} • ${statusLabel} • ${dueText}`;
-
-    main.append(nameEl, infoEl);
-
-    const actions = document.createElement("div");
-    actions.className = "finance-actions";
-
-    // Verifica se é Prof. Parceiro (não pode editar/criar)
-    const isPartnerTeacher = state.currentUser && state.currentUser.user_profile === "prof_parceiro";
-
-    if (!isPartnerTeacher) {
-      // Botões de status (apenas para não Prof. Parceiro)
-      ["paid", "pending", "overdue"].forEach((statusKey) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "tag";
-        btn.textContent = financialEntryStatusLabels[statusKey];
-        btn.addEventListener("click", () => updateFinancialEntryStatus(entry, statusKey));
-        actions.append(btn);
-      });
-
-      // Botão Cobrar (apenas para lançamentos pendentes ou vencidos)
-      if (entry.status === "pending" || entry.status === "overdue") {
-        const chargeBtn = document.createElement("button");
-        chargeBtn.type = "button";
-        chargeBtn.className = "tag";
-        chargeBtn.style.background = "var(--accent, #2f7cff)";
-        chargeBtn.style.color = "#fff";
-        chargeBtn.textContent = "💬 Cobrar";
-        chargeBtn.addEventListener("click", () => openBillingForEntry(entry));
-        actions.append(chargeBtn);
-      }
-
-      // Botão editar
-      const editBtn = document.createElement("button");
-      editBtn.type = "button";
-      editBtn.className = "tag";
-      editBtn.textContent = "Editar";
-      editBtn.addEventListener("click", () => openFinancialEntryForm(entry));
-      actions.append(editBtn);
-
-      // Botão excluir
-      const deleteBtn = document.createElement("button");
-      deleteBtn.type = "button";
-      deleteBtn.className = "tag";
-      deleteBtn.style.background = "#fee";
-      deleteBtn.style.color = "#c33";
-      deleteBtn.textContent = "Excluir";
-      deleteBtn.addEventListener("click", () => deleteFinancialEntry(entry));
-      actions.append(deleteBtn);
-    } else {
-      // Prof. Parceiro só pode visualizar
-      const viewOnly = document.createElement("span");
-      viewOnly.className = "muted";
-      viewOnly.textContent = "Somente leitura";
-      viewOnly.style.fontSize = "12px";
-      actions.append(viewOnly);
-    }
-
-    row.append(main, actions);
-    list.append(row);
-  });
-}
-
-async function updateFinancialEntryStatus(entry, newStatus) {
-  try {
-    const payload = { status: newStatus };
-    if (newStatus === "paid") {
-      payload.payment_date = toISO(new Date());
-    }
-    await fetchJSON(`/financial-entries/${entry.id}/`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
-    entry.status = newStatus;
-    if (newStatus === "paid") {
-      entry.paymentDate = toISO(new Date());
-    }
-    await loadFinancialEntries();
-    renderFinancialEntries();
-    renderFinancialStats();
-  } catch (error) {
-    console.error(error);
-    alert("Não foi possível atualizar o status.");
-  }
-}
-
-async function deleteFinancialEntry(entry) {
-  if (!confirm(`Tem certeza que deseja excluir o lançamento "${entry.description}"?`)) {
-    return;
-  }
-
-  try {
-    await fetchJSON(`/financial-entries/${entry.id}/`, {
-      method: "DELETE",
-    });
-    alert("Lançamento excluído com sucesso!");
-    await loadFinancialEntries();
-    renderFinancialEntries();
-    renderFinancialStats();
-  } catch (error) {
-    console.error(error);
-    alert("Não foi possível excluir o lançamento.");
-  }
-}
-
-function openFinancialEntryForm(entry = null) {
-  const card = document.getElementById("financialEntryFormCard");
-  const titleEl = document.getElementById("financialEntryFormTitle");
-  const form = document.getElementById("financialEntryForm");
-
-  if (!card || !form || !titleEl) {
-    console.error("Elementos do formulário financeiro não encontrados");
-    return;
-  }
-
-  // Popula select de alunos
-  const feStudent = document.getElementById("feStudent");
-  if (feStudent && feStudent.options.length <= 1) {
-    feStudent.innerHTML = '<option value="">Selecione um aluno</option>';
-    state.students.forEach((student) => {
-      if (student.active !== false) {
-        const opt = document.createElement("option");
-        opt.value = student.id;
-        opt.textContent = student.name;
-        feStudent.append(opt);
-      }
-    });
-  }
-
-  if (entry) {
-    // Modo edição
-    editingFinancialEntryId = entry.id;
-    titleEl.textContent = "Editar Lançamento";
-
-    document.getElementById("feStudent").value = entry.studentId || "";
-    const feUser = document.getElementById("feUser");
-    if (feUser && entry.userId) feUser.value = String(entry.userId);
-    document.getElementById("feDescription").value = entry.description || "";
-    document.getElementById("feAmount").value = entry.amount || "";
-    document.getElementById("feInstallments").value = entry.installments || 1;
-    // Data do Registro: sempre atual (não editável)
-    const feIssueDate = document.getElementById("feIssueDate");
-    if (feIssueDate) {
-      feIssueDate.value = toISO(new Date());
-      feIssueDate.readOnly = true;
-    }
-    document.getElementById("feDueDate").value = entry.dueDate || "";
-    
-    document.getElementById("feStatus").value = entry.status || "pending";
-    document.getElementById("fePaymentMethod").value = entry.paymentMethod || "pix";
-    document.getElementById("feNotes").value = entry.notes || "";
-
-    // Desabilita parcelas em modo edição (não pode alterar)
-    document.getElementById("feInstallments").disabled = true;
-  } else {
-    // Modo criação
-    editingFinancialEntryId = null;
-    titleEl.textContent = "Cadastrar Recebimento";
-    form.reset();
-
-    // Data do Registro = sempre hoje (não editável)
-    const feIssueDate = document.getElementById("feIssueDate");
-    if (feIssueDate) {
-      feIssueDate.value = toISO(new Date());
-      feIssueDate.readOnly = true;
-    }
-
-    // Data de vencimento = dia 5 do próximo mês
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    nextMonth.setDate(5);
-    const feDueDate = document.getElementById("feDueDate");
-    if (feDueDate) {
-      feDueDate.value = toISO(nextMonth);
-    }
-
-    const feUser = document.getElementById("feUser");
-    if (feUser && state.currentUser) feUser.value = String(state.currentUser.id);
-
-    const feInstallments = document.getElementById("feInstallments");
-    if (feInstallments) {
-      feInstallments.value = 1;
-      feInstallments.disabled = false;
-    }
-  }
-
-  card.style.display = "flex";
-  if (feStudent) feStudent.focus();
-}
-
-async function createInstallments(basePayload, totalInstallments) {
-  // Função helper para criar data local a partir de string YYYY-MM-DD
-  function parseDateLocal(dateString) {
-    const [year, month, day] = dateString.split("-").map(Number);
-    return new Date(year, month - 1, day); // month - 1 porque janeiro = 0
-  }
-
-  // Função helper para formatar data como YYYY-MM-DD
-  function formatDateLocal(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  // Data do registro: sempre a data atual (hoje)
-  const today = new Date();
-  const todayStr = formatDateLocal(today);
-
-  // Data base de vencimento (vencimento da 1ª parcela)
-  const baseDueDate = parseDateLocal(basePayload.due_date);
-
-  // Cria todas as parcelas (1, 2, 3, ...)
-  for (let i = 1; i <= totalInstallments; i++) {
-    const installmentPayload = { ...basePayload };
-    installmentPayload.current_installment = i;
-
-    // Data de vencimento: adiciona (i - 1) meses à data base da 1ª parcela
-    // Exemplo: 1ª parcela vence 05/02/2026, 2ª vence 05/03/2026, 3ª vence 05/04/2026
-    const dueDate = new Date(baseDueDate);
-    dueDate.setMonth(dueDate.getMonth() + (i - 1));
-
-    // Data do registro: sempre a data atual (não muda entre parcelas)
-    installmentPayload.issue_date = todayStr;
-    installmentPayload.due_date = formatDateLocal(dueDate);
-
-    await fetchJSON("/financial-entries/", {
-      method: "POST",
-      body: JSON.stringify(installmentPayload),
-    });
-  }
 }
 
 // antes: usava prompt
@@ -2824,31 +2452,61 @@ async function showView(viewId) {
   
   // Se abrir a visualização de cobrança
   if (viewId === "view-billing") {
+    const urlParams = new URLSearchParams(window.location.search);
+    const entryParam = urlParams.get("entry");
+    const billingStudentFilter = document.getElementById("billingStudentFilter");
+    const billingMonthFilter = document.getElementById("billingMonthFilter");
+
     try {
       // Popula o filtro de alunos
       populateBillingStudentFilter();
+
+      // Se veio do botão Cobrar: busca dados do lançamento para configurar filtros
+      if (entryParam) {
+        try {
+          const data = await fetchJSON(`/financial-entries/${entryParam}/billing_data/`);
+          if (data && data.student && data.entry) {
+            if (billingStudentFilter) billingStudentFilter.value = data.student.id;
+            if (billingMonthFilter && data.entry.due_date) {
+              const [y, m] = data.entry.due_date.split("-");
+              billingMonthFilter.value = `${y}-${m}`;
+            }
+          }
+        } catch (e) {
+          console.warn("Não foi possível obter dados do lançamento para filtros", e);
+          // Fallback: usa params da URL se disponíveis
+          const sp = urlParams.get("student"), mp = urlParams.get("month");
+          if (billingStudentFilter && sp) billingStudentFilter.value = sp;
+          if (billingMonthFilter && mp) billingMonthFilter.value = mp;
+        }
+      } else {
+        // Sem entry: define mês atual como padrão
+        if (billingMonthFilter && !billingMonthFilter.value) {
+          const today = new Date();
+          billingMonthFilter.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        }
+      }
+
       // Carrega os lançamentos com os filtros aplicados
       await loadBillingEntries();
     } catch (error) {
       console.error("Erro ao carregar dados de cobrança:", error);
     }
-  }
 
-  // Se abrir a visualização financeira, garante que o mês está sincronizado
-  if (viewId === "view-finance") {
-    // Se financeViewMonth não foi inicializado ou está muito diferente, usa o mês atual
-    const monthsDiff = Math.abs(
-      (state.financeViewMonth.getFullYear() - state.today.getFullYear()) * 12 +
-      (state.financeViewMonth.getMonth() - state.today.getMonth())
-    );
-    if (monthsDiff > 12) {
-      state.financeViewMonth = new Date(state.today);
+    // Preselecionar e carregar lançamento quando vindo do /financeiro/ (Cobrar)
+    const billingSelect = document.getElementById("billingEntrySelect");
+    if (entryParam && billingSelect) {
+      // Garante que a opção existe; se não, adiciona
+      const opt = billingSelect.querySelector(`option[value="${entryParam}"]`);
+      if (!opt) {
+        const fallback = document.createElement("option");
+        fallback.value = entryParam;
+        fallback.textContent = `Lançamento #${entryParam} (selecionado)`;
+        billingSelect.appendChild(fallback);
+      }
+      billingSelect.value = entryParam;
+      await loadBillingData(entryParam);
     }
-    // Recarrega os dados do mês financeiro
-    loadFinancialEntries().then(() => {
-      renderFinancialEntries();
-      renderFinancialStats();
-    });
   }
 
   // Sempre atualizar sidebar ao mudar de view
@@ -3130,7 +2788,6 @@ function attachForms() {
       await Promise.all([
         loadLessonsForCurrentMonth(),
         loadFinancesForCurrentMonth(),
-        loadFinancialEntries(),
       ]);
       renderCalendar();
       renderDayDetails();
@@ -3171,164 +2828,7 @@ function attachForms() {
   }
 
 
-  // Botão de novo lançamento financeiro
-  const newFinancialEntryBtn = document.getElementById("newFinancialEntryBtn");
-  if (newFinancialEntryBtn) {
-    // Esconde/desabilita para Prof. Parceiro
-    if (state.currentUser && state.currentUser.user_profile === "prof_parceiro") {
-      newFinancialEntryBtn.style.display = "none";
-    } else {
-      newFinancialEntryBtn.addEventListener("click", () => {
-        openFinancialEntryForm(null);
-      });
-    }
-  }
-
-  // Botão cancelar formulário financeiro
-  const cancelFinancialEntryForm = document.getElementById("cancelFinancialEntryForm");
-  if (cancelFinancialEntryForm) {
-    cancelFinancialEntryForm.addEventListener("click", () => {
-      const card = document.getElementById("financialEntryFormCard");
-      if (card) {
-        card.style.display = "none";
-      }
-      editingFinancialEntryId = null;
-      const form = document.getElementById("financialEntryForm");
-      if (form) form.reset();
-    });
-  }
-
-  // Filtro de status dos lançamentos financeiros
-  const financeFilterStatus = document.getElementById("financeFilterStatus");
-  if (financeFilterStatus) {
-    financeFilterStatus.addEventListener("change", () => {
-      renderFinancialEntries();
-    });
-  }
-
-  // Navegação de meses na visualização financeira
-  const financeMonthBack = document.getElementById("financeMonthBack");
-  const financeMonthForward = document.getElementById("financeMonthForward");
-
-  if (financeMonthBack) {
-    financeMonthBack.addEventListener("click", async () => {
-      const current = state.financeViewMonth;
-      state.financeViewMonth = new Date(
-        current.getFullYear(),
-        current.getMonth() - 1,
-        1
-      );
-      await loadFinancialEntries();
-      renderFinancialEntries();
-      renderFinancialStats();
-    });
-  }
-
-  if (financeMonthForward) {
-    financeMonthForward.addEventListener("click", async () => {
-      const current = state.financeViewMonth;
-      state.financeViewMonth = new Date(
-        current.getFullYear(),
-        current.getMonth() + 1,
-        1
-      );
-      await loadFinancialEntries();
-      renderFinancialEntries();
-      renderFinancialStats();
-    });
-  }
-
-  // Submit do formulário financeiro
-  const financialEntryForm = document.getElementById("financialEntryForm");
-  if (financialEntryForm) {
-    financialEntryForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const studentId = document.getElementById("feStudent")?.value;
-      const description = document.getElementById("feDescription")?.value.trim();
-      const amount = document.getElementById("feAmount")?.value;
-      const installments = document.getElementById("feInstallments")?.value || 1;
-      // Data do Registro: sempre a data atual (automática)
-      const issueDate = toISO(new Date());
-      const dueDate = document.getElementById("feDueDate")?.value;
-      const status = document.getElementById("feStatus")?.value || "pending";
-      const paymentMethod = document.getElementById("fePaymentMethod")?.value || "pix";
-      const notes = document.getElementById("feNotes")?.value.trim() || "";
-
-      if (!studentId || !description || !amount || !dueDate) {
-        alert("Preencha todos os campos obrigatórios.");
-        return;
-      }
-
-      const userId = document.getElementById("feUser")?.value;
-      
-      const payload = {
-        student: Number(studentId),
-        description,
-        amount: parseFloat(amount),
-        installments: Number(installments),
-        current_installment: 1,
-        issue_date: issueDate,
-        due_date: dueDate,
-        status,
-        payment_method: paymentMethod,
-        notes,
-      };
-      
-      // Professor responsável: define quem é responsável e quem recebe (um único campo)
-      if (userId) payload.user = Number(userId);
-
-      // Se o status for "paid" e não tiver payment_date, define como hoje
-      if (status === "paid" && !payload.payment_date) {
-        payload.payment_date = toISO(new Date());
-      }
-
-      try {
-        if (editingFinancialEntryId) {
-          // Edição
-          await fetchJSON(`/financial-entries/${editingFinancialEntryId}/`, {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-          });
-          alert("Lançamento atualizado com sucesso!");
-        } else {
-          // Criação - verifica se precisa criar parcelas
-          const installmentsNum = Number(installments);
-          if (installmentsNum > 1) {
-            // Cria todas as parcelas
-            await createInstallments(payload, installmentsNum);
-            alert(`${installmentsNum} parcelas criadas com sucesso!`);
-          } else {
-            // Cria apenas um lançamento
-            await fetchJSON("/financial-entries/", {
-              method: "POST",
-              body: JSON.stringify(payload),
-            });
-            alert("Lançamento salvo com sucesso!");
-          }
-        }
-
-        // Fecha o formulário
-        const card = document.getElementById("financialEntryFormCard");
-        if (card) {
-          card.style.display = "none";
-        }
-
-        // Reseta o formulário
-        financialEntryForm.reset();
-        editingFinancialEntryId = null;
-
-        // Recarrega e renderiza os lançamentos
-        await loadFinancialEntries();
-        renderFinancialEntries();
-        renderFinancialStats();
-      } catch (error) {
-        console.error(error);
-        alert("Não foi possível salvar o lançamento. Verifique o console para mais detalhes.");
-      }
-    });
-  }
-
+  // Lançamentos financeiros movidos para /financeiro/ (finance_refatorado.html)
 }
 
 function parseISODateLocal(iso) {
@@ -3363,8 +2863,6 @@ async function init() {
   renderCalendar();
   renderFinance();
   renderFinanceTotal();
-  renderFinancialEntries();
-  renderFinancialStats();
 
   state.selectedDate = toISO(state.today);
   renderDayDetails();

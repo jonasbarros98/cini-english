@@ -1,0 +1,282 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cobrança • EDUCAflowOne</title>
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+  <style>
+    .wrap{ max-width: 900px; margin: 0 auto; padding: 24px 20px 40px; }
+    .topbar{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:20px; }
+    .topbar h1{ font-size:24px; margin:0; }
+    .topbar .muted{ margin:4px 0 0; color:var(--muted); font-size:14px; }
+    .billing-meta{ display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .meta-pill{ display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; background:rgba(15,23,42,.06); font-size:12px; font-weight:700; }
+    .meta-dot{ width:8px; height:8px; border-radius:50%; background:var(--warn); }
+    .meta-dot.ok{ background:var(--ok); }
+    .meta-dot.bad{ background:var(--bad); }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:20px; }
+    label{ display:block; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px; }
+    select, input[type="month"]{ width:100%; padding:12px; border:1px solid var(--border); border-radius:12px; font-size:14px; margin-bottom:16px; }
+    .billing-grid{ display:grid; grid-template-columns:1.25fr .75fr; gap:18px; }
+    @media(max-width:768px){ .billing-grid{ grid-template-columns:1fr; } }
+    .billing-summary{ display:grid; grid-template-columns:1fr auto; gap:14px; align-items:center; }
+    .billing-amount{ font-size:32px; font-weight:900; margin:0; }
+    .billing-kpis{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    .kpi{ padding:10px 12px; border-radius:12px; border:1px solid var(--border); font-size:12px; }
+    .billing-status{ display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:999px; font-weight:800; font-size:12px; }
+    .status-dot{ width:10px; height:10px; border-radius:50%; background:var(--warn); }
+    .billing-status.ok .status-dot{ background:var(--ok); }
+    .billing-status.bad .status-dot{ background:var(--bad); }
+    .billing-templates{ display:flex; flex-wrap:wrap; gap:10px; }
+    .billing-template-btn{ padding:10px 14px; border:1px solid var(--border); border-radius:12px; background:#fff; font-size:13px; cursor:pointer; }
+    .billing-template-btn.active{ border-color:var(--primary); background:rgba(30,136,255,.08); }
+    .billing-template-btn:hover{ border-color:rgba(30,136,255,.4); }
+    textarea.billing-textarea{ width:100%; min-height:180px; padding:14px; border:1px solid var(--border); border-radius:12px; font-size:14px; resize:vertical; }
+    .billing-actions{ display:flex; flex-wrap:wrap; gap:10px; }
+    .btn{ padding:12px 16px; border-radius:12px; font-weight:700; cursor:pointer; border:1px solid var(--border); }
+    .btn-primary{ background:linear-gradient(135deg,var(--primary),var(--primary2)); color:#fff; border:none; }
+    .btn-ghost{ background:#fff; }
+    .btn-confirm{ background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; border:none; }
+    .history-list{ display:grid; gap:10px; margin-top:12px; }
+    .history-item{ padding:12px; border:1px solid var(--border); border-radius:12px; font-size:13px; }
+  </style>
+</head>
+<body data-user-id="{{ request.user.id }}">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne"></div>
+        <div><p class="brand-kicker">Dashboard</p><p class="brand-name">EDUCAflowOne</p></div>
+      </div>
+      <nav class="nav">
+        {% if not is_partner_teacher %}<a href="/dashboard/" class="nav-item"><span class="nav-emoji">🏠</span><div><p class="nav-title">Dashboard</p></div></a>{% endif %}
+        <a href="/calendar/" class="nav-item"><span class="nav-emoji">📅</span><div><p class="nav-title">Calendário</p></div></a>
+        <a href="/alunos/" class="nav-item"><span class="nav-emoji">🧑‍🎓</span><div><p class="nav-title">Alunos</p></div></a>
+        <a href="/financeiro/" class="nav-item"><span class="nav-emoji">💵</span><div><p class="nav-title">Financeiro</p></div></a>
+        <div class="nav-divider"></div>
+        <a href="/cobranca/" class="nav-item active"><span class="nav-emoji">💬</span><div><p class="nav-title">Cobrança</p><p class="nav-subtitle">WhatsApp + Pix</p></div></a>
+        <div class="nav-divider"></div>
+        <a href="/perfil/" class="nav-item nav-item-nested"><span class="nav-emoji">👤</span><div><p class="nav-title">Perfil</p></div></a>
+        <button class="primary ghost" id="logoutBtn" style="margin-top:12px;width:100%;">Sair</button>
+      </nav>
+    </aside>
+
+    <main class="main page">
+      <div class="wrap">
+        <header class="topbar">
+          <div>
+            <h1 id="billingStudentName">Selecione um lançamento</h1>
+            <p class="muted" id="billingContextInfo">Escolha um lançamento para cobrar via WhatsApp</p>
+            <div class="billing-meta" id="billingMetaChips" style="display:none;">
+              <span class="meta-pill"><span class="meta-dot"></span><span id="metaStatusText">—</span></span>
+              <span class="meta-pill">Venc: <b id="metaDueText">—</b></span>
+              <span class="meta-pill">Parcela: <b id="metaInstallmentText">—</b></span>
+            </div>
+          </div>
+        </header>
+
+        <section class="card" id="billingEntrySelector">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div><label>Filtrar por Aluno</label><select id="billingStudentFilter"><option value="">Todos os alunos</option></select></div>
+            <div><label>Filtrar por Mês</label><input type="month" id="billingMonthFilter" /></div>
+          </div>
+          <label>Lançamento a cobrar</label>
+          <select id="billingEntrySelect"><option value="">Selecione um lançamento...</option></select>
+        </section>
+
+        <div id="billingContent" style="display:none;">
+          <div class="billing-grid">
+            <section class="card" id="billingSummaryCard">
+              <p class="billing-amount">R$ <span id="billingAmountValue">0,00</span></p>
+              <div class="billing-kpis">
+                <div class="kpi">📅 Venc: <b id="billingDueValue">—</b></div>
+                <div class="kpi">📚 Progresso: <b id="billingProgressValue">—</b></div>
+                <div class="kpi">🧾 Parcela: <b id="billingInstallmentValue">—</b></div>
+              </div>
+              <div class="billing-status" id="billingStatusPill" style="margin-top:12px;"><span class="status-dot"></span><span id="billingStatusText">—</span></div>
+            </section>
+            <section class="card">
+              <h4 style="margin:0 0 12px;">Contexto</h4>
+              <p style="margin:0;font-size:13px;"><b>Descrição:</b> <span id="originDesc">—</span></p>
+              <p style="margin:8px 0 0;font-size:13px;"><b>Forma:</b> <span id="originPaymentMethod">—</span></p>
+            </section>
+          </div>
+
+          <section class="card">
+            <h4 style="margin:0 0 12px;">Modelo de cobrança</h4>
+            <div class="billing-templates">
+              <button type="button" class="billing-template-btn" data-template="friendly">😊 Lembrete amigável</button>
+              <button type="button" class="billing-template-btn" data-template="due_today">🟡 Vence hoje</button>
+              <button type="button" class="billing-template-btn" data-template="overdue">🔴 Em atraso</button>
+              <button type="button" class="billing-template-btn" data-template="thank_you">🙏 Agradecimento</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <h4 style="margin:0 0 12px;">Mensagem</h4>
+            <textarea id="billingMessage" class="billing-textarea" placeholder="Selecione um modelo acima..."></textarea>
+            <div class="billing-actions" style="margin-top:12px;">
+              <button type="button" class="btn btn-primary" id="billingOpenWhatsApp">💬 Enviar no WhatsApp</button>
+              <button type="button" class="btn btn-ghost" id="billingCopyMessage">📋 Copiar</button>
+              <button type="button" class="btn btn-confirm" id="billingMarkSent">✅ Marcar como enviada</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <button type="button" id="billingHistoryToggle" style="background:none;border:none;cursor:pointer;font-weight:700;">🕒 Histórico</button>
+            <div id="billingHistoryContent" style="display:none;"><div id="billingHistoryList" class="history-list"></div></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    function getCookie(n){ const v=`; ${document.cookie}`; const p=v.split(`; ${n}=`); return p.length===2?p.pop().split(';').shift():null; }
+    async function fetchAPI(path,opts={}){ const m=(opts.method||'GET').toUpperCase(); const h={'Content-Type':'application/json',...(opts.headers||{})}; if(!['GET','HEAD','OPTIONS'].includes(m)){ const c=getCookie('csrftoken'); if(c)h['X-CSRFToken']=c; } const r=await fetch(API_BASE+path,{...opts,method:m,headers:h,credentials:'same-origin'}); if(!r.ok)throw new Error('API '+r.status); return r.status===204?null:r.json(); }
+    function formatBRL(n){ return Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+    function formatDateBR(s){ if(!s)return''; const[y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }
+
+    let currentBillingData = null;
+    let currentMessageTemplate = 'friendly';
+    let students = [];
+
+    function byId(id){ return document.getElementById(id); }
+
+    async function loadStudents(){
+      try{ const r=await fetchAPI('/students/'); students=r.map(s=>({id:s.id,name:s.name||s.username})); }catch(e){ students=[]; }
+    }
+
+    function populateStudentFilter(){
+      const sel=byId('billingStudentFilter'); if(!sel)return;
+      sel.innerHTML='<option value="">Todos os alunos</option>';
+      [...students].sort((a,b)=>a.name.localeCompare(b.name)).forEach(s=>{ const o=document.createElement('option'); o.value=s.id; o.textContent=s.name; sel.appendChild(o); });
+    }
+
+    async function loadBillingEntries(){
+      const sel=byId('billingEntrySelect'); if(!sel)return;
+      const studentFilter=byId('billingStudentFilter')?.value||'';
+      const monthFilter=byId('billingMonthFilter')?.value||'';
+      const params=new URLSearchParams(); if(studentFilter)params.set('student',studentFilter); if(monthFilter)params.set('month',monthFilter);
+      try{
+        const base=params.toString();
+        const qs=base?base+'&':'';
+        const [pend,over]=await Promise.all([fetchAPI(`/financial-entries/?${qs}status=pending`),fetchAPI(`/financial-entries/?${qs}status=overdue`)]);
+        const all=[...pend,...over]; const uniq=Array.from(new Map(all.map(e=>[e.id,e])).values());
+        uniq.sort((a,b)=>(a.due_date||'').localeCompare(b.due_date||''));
+        sel.innerHTML='<option value="">Selecione um lançamento...</option>';
+        uniq.forEach(e=>{ const o=document.createElement('option'); o.value=e.id; o.textContent=`${e.student_name} - ${formatBRL(e.amount)} - Venc: ${formatDateBR(e.due_date)}`; sel.appendChild(o); });
+      }catch(e){ sel.innerHTML='<option value="">Erro ao carregar</option>'; }
+    }
+
+    function generateMessage(tpl,data){
+      const name=data.student.name.split(' ')[0];
+      const amt=formatBRL(data.entry.amount);
+      const due=data.entry.due_date?formatDateBR(data.entry.due_date):'data não informada';
+      const pix=data.student.pix_key||'Informar no contato';
+      const prog=`${data.student.lessons_done}/${data.student.lessons_total}`;
+      const plan=data.student.plan_name||'seu plano';
+      const parc=data.entry.installments>1?`Parcela: ${data.entry.current_installment}/${data.entry.installments}`:'Parcela: À vista';
+      const tpls={ friendly:`Olá ${name}! 😊\n\nLembrete do ${plan}, vencimento ${due}.\n\nValor: ${amt}\n${parc}\nProgresso: ${prog} aulas\nPix: ${pix}`,
+        due_today:`Olá ${name}! 🟡\n\nO vencimento do ${plan} é hoje (${due}).\n\nValor: ${amt}\n${parc}\nPix: ${pix}`,
+        overdue:`Olá ${name}! 🔴\n\nPagamento em atraso.\n\nValor: ${amt}\n${parc}\nVenc: ${due}\nPix: ${pix}\n\nPor favor regularize.`,
+        thank_you:`Olá ${name}! 🙏\n\nAgradeço pelo pagamento do ${plan}.\n\nValor: ${amt}\n${parc}\n\nObrigada!` };
+      return tpls[tpl]||tpls.friendly;
+    }
+
+    function selectTemplate(tpl){
+      currentMessageTemplate=tpl;
+      document.querySelectorAll('.billing-template-btn').forEach(b=>{ b.classList.toggle('active',b.dataset.template===tpl); });
+      if(currentBillingData){ const msg=generateMessage(tpl,currentBillingData); byId('billingMessage').value=msg; }
+    }
+
+    function renderFromData(data){
+      currentBillingData=data;
+      byId('billingStudentName').textContent='Cobrança • '+data.student.name;
+      byId('billingContextInfo').textContent=data.student.plan_name||'Plano';
+      byId('billingMetaChips').style.display='flex';
+      byId('metaStatusText').textContent=data.status.text;
+      byId('metaDueText').textContent=data.entry.due_date?formatDateBR(data.entry.due_date):'—';
+      byId('metaInstallmentText').textContent=data.entry.installments>1?`${data.entry.current_installment}/${data.entry.installments}`:'À vista';
+      byId('billingAmountValue').textContent=formatBRL(data.entry.amount).replace('R$ ','');
+      byId('billingDueValue').textContent=data.entry.due_date?formatDateBR(data.entry.due_date):'—';
+      byId('billingProgressValue').textContent=`${data.student.lessons_done}/${data.student.lessons_total}`;
+      byId('billingInstallmentValue').textContent=data.entry.installments>1?`${data.entry.current_installment}/${data.entry.installments}`:'À vista';
+      byId('billingStatusText').textContent=data.status.text;
+      const pill=byId('billingStatusPill'); pill.className='billing-status'; if(data.status.color==='🟢')pill.classList.add('ok'); else if(data.status.color==='🔴')pill.classList.add('bad');
+      byId('originDesc').textContent=data.entry.description||'—';
+      const meth={pix:'PIX',card:'Cartão',cash:'Dinheiro',transfer:'Transferência'}; byId('originPaymentMethod').textContent=meth[data.entry.payment_method]||'—';
+      byId('billingHistoryList').innerHTML=(data.billing_logs||[]).length===0?'<p style="color:var(--muted);">Nenhuma cobrança registrada.</p>':data.billing_logs.map(l=>{
+        const d=new Date(l.sent_at); const dt=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+        return `<div class="history-item"><strong>${l.send_method_display}</strong> - ${dt}</div>`;
+      }).join('');
+      if(data.status.text==='Vencido')selectTemplate('overdue'); else if(data.status.text==='Vence hoje')selectTemplate('due_today'); else selectTemplate('friendly');
+      byId('billingContent').style.display='block';
+    }
+
+    async function loadBillingData(entryId){
+      if(!entryId){ byId('billingContent').style.display='none'; return; }
+      try{
+        const data=await fetchAPI(`/financial-entries/${entryId}/billing_data/`);
+        renderFromData(data);
+      }catch(e){ alert('Não foi possível carregar os dados.'); }
+    }
+
+    async function init(){
+      const today=new Date();
+      byId('billingMonthFilter').value=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+
+      await loadStudents();
+      populateStudentFilter();
+      await loadBillingEntries();
+
+      const urlEntry=new URLSearchParams(location.search).get('entry');
+      if(urlEntry){
+        try{
+          const data=await fetchAPI(`/financial-entries/${urlEntry}/billing_data/`);
+          if(data&&data.student&&data.entry){
+            byId('billingStudentFilter').value=data.student.id;
+            if(data.entry.due_date){ const[y,m]=data.entry.due_date.split('-'); byId('billingMonthFilter').value=`${y}-${m}`; }
+            await loadBillingEntries();
+            const sel=byId('billingEntrySelect');
+            if(!sel.querySelector(`option[value="${urlEntry}"]`)){ const o=document.createElement('option'); o.value=urlEntry; o.textContent='Lançamento selecionado'; sel.appendChild(o); }
+            sel.value=urlEntry;
+          }
+        }catch(e){}
+        await loadBillingData(urlEntry);
+      }
+
+      byId('billingStudentFilter').addEventListener('change',()=>{ loadBillingEntries(); byId('billingEntrySelect').value=''; byId('billingContent').style.display='none'; });
+      byId('billingMonthFilter').addEventListener('change',()=>{ loadBillingEntries(); byId('billingEntrySelect').value=''; byId('billingContent').style.display='none'; });
+      byId('billingEntrySelect').addEventListener('change',e=>loadBillingData(e.target.value||null));
+      document.querySelectorAll('.billing-template-btn').forEach(b=>b.addEventListener('click',()=>selectTemplate(b.dataset.template)));
+
+      byId('billingOpenWhatsApp').addEventListener('click',()=>{
+        if(!currentBillingData?.student?.phone){ alert('Telefone não cadastrado.'); return; }
+        const msg=byId('billingMessage').value.trim(); if(!msg){ alert('Mensagem vazia.'); return; }
+        let ph=currentBillingData.student.phone.replace(/\D/g,''); if(ph.length<=11)ph='55'+ph;
+        window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,'_blank');
+      });
+      byId('billingCopyMessage').addEventListener('click',async()=>{
+        const msg=byId('billingMessage').value.trim();
+        try{ await navigator.clipboard.writeText(msg); alert('Copiado!'); }catch(){ alert('Selecione e copie manualmente.'); }
+      });
+      byId('billingMarkSent').addEventListener('click',async()=>{
+        if(!currentBillingData||!currentMessageTemplate){ alert('Selecione um template.'); return; }
+        const msg=byId('billingMessage').value.trim(); if(!msg){ alert('Mensagem vazia.'); return; }
+        try{
+          await fetchAPI('/billing-logs/',{method:'POST',body:JSON.stringify({financial_entry:currentBillingData.entry.id,message_type:currentMessageTemplate,send_method:'whatsapp',message_content:msg})});
+          alert('Registrado!'); await loadBillingData(currentBillingData.entry.id);
+        }catch(e){ alert('Erro ao registrar.'); }
+      });
+      byId('billingHistoryToggle').addEventListener('click',()=>{ const c=byId('billingHistoryContent'); c.style.display=c.style.display==='none'?'block':'none'; });
+      byId('logoutBtn').addEventListener('click',async()=>{ try{ await fetch('/api/auth/logout/',{method:'POST',credentials:'same-origin',headers:{'X-CSRFToken':getCookie('csrftoken')||''}}); }catch(e){} window.location.href='/login/'; });
+    }
+    init();
+  </script>
+  {% include '_support_widget.html' %}
+</body>
+</html>

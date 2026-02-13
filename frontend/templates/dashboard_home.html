@@ -584,7 +584,7 @@
           </div>
         </a>
         {% endif %}
-        <a href="/?view=view-finance" class="nav-item">
+        <a href="/financeiro/" class="nav-item">
           <span class="nav-emoji">💵</span>
           <div>
             <p class="nav-title">Financeiro</p>
@@ -1294,19 +1294,21 @@
           return;
         }
         
+        if (where === 'finance') {
+          window.location.href = '/financeiro/';
+          return;
+        }
+        
         const viewMap = {
-          'finance': 'view-finance',
           'billing': 'view-billing',
           'tasks': 'view-tasks'
         };
 
         const viewId = viewMap[where] || 'view-calendar';
         
-        // Se estiver no index.html (sistema principal), usar showView
         if (typeof showView === 'function') {
           showView(viewId);
         } else {
-          // Redirecionar para a página principal com parâmetro de view
           window.location.href = `/?view=${viewId}`;
         }
       }

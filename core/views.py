@@ -332,6 +332,38 @@ class AlunosView(TemplateView):
         return context
 
 
+class FinanceView(TemplateView):
+    """View para renderizar a página financeira (lançamentos a receber)"""
+    template_name = "finance_refatorado.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        if not _user_has_active_subscription(request.user):
+            return redirect('planos')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            profile = self.request.user.profile
+            context['user_is_admin'] = profile.is_admin
+            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partners = list(profile.partner_teachers.select_related('user').all())
+                context['assignable_teachers'] = [
+                    {'id': self.request.user.id, 'name': self.request.user.get_full_name() or self.request.user.username}
+                ] + [{'id': p.user.id, 'name': p.user.get_full_name() or p.user.username} for p in partners]
+            else:
+                context['assignable_teachers'] = []
+        except UserProfile.DoesNotExist:
+            context['user_is_admin'] = False
+            context['is_partner_teacher'] = False
+            context['assignable_teachers'] = []
+        return context
+
+
 class DashboardView(TemplateView):
     """View para rota raiz - renderiza index.html se houver parâmetro view, senão redireciona para dashboard"""
     template_name = "index.html"
@@ -362,7 +394,7 @@ class DashboardView(TemplateView):
         if not _user_has_active_subscription(request.user):
             return redirect('planos')
         
-        # Se houver parâmetro view na URL, renderizar index.html (para view-tasks, view-finance, etc)
+        # Se houver parâmetro view na URL, renderizar index.html (para view-tasks, view-billing, etc)
         view_param = request.GET.get('view')
         if view_param:
             return super().dispatch(request, *args, **kwargs)
@@ -720,34 +752,38 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
 
+def get_financial_entries_queryset_for_user(request):
+    """
+    Retorna o queryset de FinancialEntry filtrado igual à tela de financeiro.
+    Usado pelo dashboard e outras views para garantir consistência.
+    """
+    qs = FinancialEntry.objects.select_related("student", "user", "beneficiary_user")
+    try:
+        is_admin = request.user.profile.is_admin
+        user_profile = request.user.profile.user_profile
+    except UserProfile.DoesNotExist:
+        is_admin = False
+        user_profile = None
+
+    if not is_admin:
+        if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            qs = qs.filter(student__user__profile__partner_teachers=request.user.profile).filter(
+                student__assigned_teacher=request.user
+            ).filter(Q(user=request.user) | Q(beneficiary_user=request.user)).distinct()
+        elif user_profile == UserProfile.PROFILE_TEACHER:
+            qs = qs.filter(student__user=request.user)
+        else:
+            qs = qs.filter(user=request.user)
+    return qs
+
+
 class FinancialEntryViewSet(viewsets.ModelViewSet):
     queryset = FinancialEntry.objects.select_related("student", "user", "beneficiary_user").all()
     serializer_class = FinancialEntrySerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        
-        # Admin vê todos os financial entries
-        try:
-            is_admin = self.request.user.profile.is_admin
-            user_profile = self.request.user.profile.user_profile
-        except UserProfile.DoesNotExist:
-            is_admin = False
-            user_profile = None
-        
-        if not is_admin:
-            if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                # Parceiro só vê lançamentos de alunos ATRIBUÍDOS a ele (assigned_teacher)
-                qs = qs.filter(student__user__profile__partner_teachers=self.request.user.profile).filter(
-                    student__assigned_teacher=self.request.user
-                ).filter(Q(user=self.request.user) | Q(beneficiary_user=self.request.user)).distinct()
-            elif user_profile == UserProfile.PROFILE_TEACHER:
-                # Prof. Principal vê todos os lançamentos dos seus alunos (mantém histórico: quanto pagou ao parceiro, etc., mesmo após desvincular)
-                qs = qs.filter(student__user=self.request.user)
-            else:
-                # Usuário sem perfil definido vê apenas os seus
-                qs = qs.filter(user=self.request.user)
+        qs = get_financial_entries_queryset_for_user(self.request)
         
         # Filtro por mês - mostra lançamentos com vencimento no mês (baseado na data de vencimento)
         month_param = self.request.query_params.get("month")
@@ -2583,8 +2619,8 @@ def dashboard_summary_view(request):
         #     except:
         #         pass
         
-        # Filtrar APENAS dados do usuário logado - sem correção automática
-        # Se não houver dados, retornará zero/vazio
+        # Base queryset do financeiro (mesma lógica da tela /financeiro/)
+        financial_base = get_financial_entries_queryset_for_user(request)
         
         # ===== KPIs =====
         # Aulas hoje
@@ -2630,10 +2666,9 @@ def dashboard_summary_view(request):
         # Aulas realizadas (realized=True)
         calendar_realized = all_lessons.filter(realized=True).count()
         
-        # Financeiro - vencendo hoje
-        # Filtrar por beneficiary_user_id OU user_id
-        due_today_entries = FinancialEntry.objects.filter(
-            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+        # Financeiro - mesmos critérios da tela /financeiro/
+        # A receber hoje: vencimentos do dia, pendentes ou vencidos
+        due_today_entries = financial_base.filter(
             due_date=today,
             status__in=[FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE]
         )
@@ -2641,10 +2676,10 @@ def dashboard_summary_view(request):
             total=Sum('amount')
         )['total'] or Decimal('0.00')
         
-        # Financeiro - em atraso
-        # Filtrar por beneficiary_user_id OU user_id
-        overdue_entries = FinancialEntry.objects.filter(
-            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+        # Em atraso: vencidos do mês atual (igual ao financeiro - só entradas com vencimento no mês)
+        overdue_entries = financial_base.filter(
+            due_date__gte=current_month_start,
+            due_date__lte=current_month_end,
             due_date__lt=today,
             status__in=[FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE]
         )
@@ -2652,16 +2687,12 @@ def dashboard_summary_view(request):
             total=Sum('amount')
         )['total'] or Decimal('0.00')
         
-        # Financeiro - recebido no mês
-        # IMPORTANTE: Filtrar APENAS por beneficiary_user_id (quem recebe) OU user_id (quem criou)
-        # Mostrar SOMENTE dados do usuário logado - se não tiver, mostrar zero
-        paid_month_entries = FinancialEntry.objects.filter(
-            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
-            payment_date__gte=current_month_start,
-            payment_date__lte=today,
+        # Recebido no mês: parcelas com vencimento no mês que foram pagas (igual ao financeiro)
+        paid_month_entries = financial_base.filter(
+            due_date__gte=current_month_start,
+            due_date__lte=current_month_end,
             status=FinancialEntry.STATUS_PAID
         )
-        
         paid_month_amount = paid_month_entries.aggregate(
             total=Sum('amount')
         )['total'] or Decimal('0.00')
@@ -2711,9 +2742,7 @@ def dashboard_summary_view(request):
             })
         
         # Alerta 2: Vencimentos próximos (próximos 3 dias)
-        # Filtrar por beneficiary_user_id OU user_id
-        upcoming_entries = FinancialEntry.objects.filter(
-            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+        upcoming_entries = financial_base.filter(
             due_date__gt=today,
             due_date__lte=next_3_days,
             status__in=[FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE]
@@ -2738,11 +2767,8 @@ def dashboard_summary_view(request):
         confirmed_month_lessons = month_lessons.filter(status='confirmed').count()
         confirmation_rate = (confirmed_month_lessons / total_month_lessons * 100) if total_month_lessons > 0 else 0
         
-        # Pendente no mês - APENAS do mês atual
-        # Filtrar APENAS por beneficiary_user_id OU user_id do usuário logado
-        # Mostrar SOMENTE dados do usuário logado - se não tiver, mostrar zero
-        pending_month_entries = FinancialEntry.objects.filter(
-            Q(user_id__in=user_ids) | Q(beneficiary_user_id__in=user_ids),
+        # Pendente no mês - mesmos critérios do financeiro
+        pending_month_entries = financial_base.filter(
             due_date__gte=current_month_start,
             due_date__lte=current_month_end,
             status__in=[FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE]
