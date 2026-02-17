@@ -77,6 +77,8 @@ class StudentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         try:
             subscription = user.subscription
+            _sync_subscription_from_stripe(subscription)
+            subscription.refresh_from_db()
             if subscription.is_active:
                 max_students = subscription.get_max_students()
                 if max_students is not None:
@@ -2083,11 +2085,20 @@ def handle_subscription_deleted(subscription_obj):
 
 
 def handle_subscription_updated(subscription_obj):
-    """Processa atualização de assinatura"""
+    """Processa atualização de assinatura (ex.: troca de mensal → semestral no portal Stripe)"""
     subscription_id = subscription_obj.get('id')
     
     try:
         subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+        
+        # Atualizar tier e plan a partir do novo price_id (quando usuário troca plano no portal)
+        items = subscription_obj.get('items', {}).get('data', [])
+        if items:
+            price_id = items[0].get('price', {}).get('id')
+            if price_id:
+                tier, plan = determine_plan_from_price_id(price_id)
+                subscription.tier = tier
+                subscription.plan = plan
         
         # Atualizar período
         subscription.current_period_start = timezone.make_aware(
@@ -2323,6 +2334,107 @@ def create_portal_session(request):
         )
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upgrade_portal_session(request):
+    """
+    Cria sessão do portal Stripe para upgrade de plano (ex.: Basic → Premium).
+    Body: { tier: 'premium'|'platinum', plan: 'monthly'|'semestral'|annual' }
+    Redireciona o cliente direto para a tela de confirmação do novo preço.
+    """
+    tier = request.data.get('tier', '').strip().lower()
+    plan = request.data.get('plan', 'monthly').strip().lower()
+    if tier not in [Subscription.TIER_PREMIUM, Subscription.TIER_PLATINUM]:
+        return Response({'error': 'Para upgrade, escolha Premium ou Platinum'}, status=status.HTTP_400_BAD_REQUEST)
+    if plan not in [Subscription.PLAN_MONTHLY, Subscription.PLAN_SEMESTRAL, Subscription.PLAN_ANNUAL]:
+        return Response({'error': 'Periodicidade inválida'}, status=status.HTTP_400_BAD_REQUEST)
+    plan_key = f"{tier}_{plan}"
+    PLAN_PRICE_IDS = {
+        f"{Subscription.TIER_PREMIUM}_{Subscription.PLAN_MONTHLY}": os.environ.get("STRIPE_PRICE_ID_PREMIUM_MONTHLY", ""),
+        f"{Subscription.TIER_PREMIUM}_{Subscription.PLAN_SEMESTRAL}": os.environ.get("STRIPE_PRICE_ID_PREMIUM_SEMESTRAL", ""),
+        f"{Subscription.TIER_PREMIUM}_{Subscription.PLAN_ANNUAL}": os.environ.get("STRIPE_PRICE_ID_PREMIUM_ANNUAL", ""),
+        f"{Subscription.TIER_PLATINUM}_{Subscription.PLAN_MONTHLY}": os.environ.get("STRIPE_PRICE_ID_PLATINUM_MONTHLY", ""),
+        f"{Subscription.TIER_PLATINUM}_{Subscription.PLAN_SEMESTRAL}": os.environ.get("STRIPE_PRICE_ID_PLATINUM_SEMESTRAL", ""),
+        f"{Subscription.TIER_PLATINUM}_{Subscription.PLAN_ANNUAL}": os.environ.get("STRIPE_PRICE_ID_PLATINUM_ANNUAL", ""),
+    }
+    price_id = PLAN_PRICE_IDS.get(plan_key)
+    if not price_id:
+        return Response({'error': f'Preço não configurado para {tier} {plan}. Configure STRIPE_PRICE_ID_{tier.upper()}_{plan.upper()}.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    try:
+        subscription = request.user.subscription
+        if not subscription.stripe_subscription_id:
+            return Response({'error': 'Assinatura não encontrada no Stripe'}, status=status.HTTP_404_NOT_FOUND)
+        stripe_sub = stripe.Subscription.retrieve(subscription.stripe_subscription_id)
+        items = stripe_sub.get('items', {}).get('data', [])
+        if not items:
+            return Response({'error': 'Assinatura sem itens no Stripe'}, status=status.HTTP_400_BAD_REQUEST)
+        sub_item_id = items[0]['id']
+        base_url = request.build_absolute_uri('/')[:-1]
+        return_url = f"{base_url}/planos/"
+        portal_session = stripe.billing_portal.Session.create(
+            customer=subscription.stripe_customer_id,
+            return_url=return_url,
+            flow_data={
+                'type': 'subscription_update_confirm',
+                'subscription_update_confirm': {
+                    'subscription': subscription.stripe_subscription_id,
+                    'items': [{'id': sub_item_id, 'price': price_id, 'quantity': 1}],
+                },
+                'after_completion': {
+                    'type': 'redirect',
+                    'redirect': {'return_url': return_url},
+                },
+            },
+        )
+        return Response({'url': portal_session.url})
+    except Subscription.DoesNotExist:
+        return Response({'error': 'Assinatura não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+    except stripe.error.StripeError as e:
+        err_msg = str(e)
+        if 'configuration' in err_msg.lower() or 'product' in err_msg.lower():
+            return Response({
+                'error': 'O preço de destino não está configurado no portal do Stripe. Em Stripe Dashboard → Settings → Billing → Customer portal, ative "Switch plan" e inclua os produtos Premium e Platinum.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': err_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def _sync_subscription_from_stripe(subscription):
+    """
+    Atualiza tier/plan/período da Subscription com dados do Stripe.
+    Útil ao retornar do portal Stripe (webhook pode demorar).
+    """
+    if not subscription or not subscription.stripe_subscription_id:
+        return
+    try:
+        stripe_sub = stripe.Subscription.retrieve(subscription.stripe_subscription_id)
+        items = stripe_sub.get('items', {}).get('data', [])
+        if items:
+            price_id = items[0].get('price', {}).get('id')
+            if price_id:
+                tier, plan = determine_plan_from_price_id(price_id)
+                subscription.tier = tier
+                subscription.plan = plan
+        period_start = stripe_sub.get('current_period_start')
+        period_end = stripe_sub.get('current_period_end')
+        if period_start:
+            subscription.current_period_start = timezone.make_aware(datetime.fromtimestamp(period_start))
+        if period_end:
+            subscription.current_period_end = timezone.make_aware(datetime.fromtimestamp(period_end))
+        stripe_status = stripe_sub.get('status', '')
+        if stripe_status == 'active':
+            subscription.status = Subscription.STATUS_ACTIVE
+        elif stripe_status == 'past_due':
+            subscription.status = Subscription.STATUS_PAST_DUE
+        elif stripe_status in ('canceled', 'unpaid'):
+            subscription.status = Subscription.STATUS_CANCELED
+        subscription.cancel_at_period_end = stripe_sub.get('cancel_at_period_end', False)
+        subscription.save()
+    except Exception:
+        pass  # Mantém dados locais em caso de erro
+
+
 class PlanosView(TemplateView):
     """View para exibir página de planos e faturamento"""
     template_name = 'planos.html'
@@ -2348,6 +2460,9 @@ class PlanosView(TemplateView):
         # Obter dados da assinatura
         try:
             subscription = user.subscription
+            # Sincronizar com Stripe ao carregar (garante que alterações no portal apareçam)
+            _sync_subscription_from_stripe(subscription)
+            subscription.refresh_from_db()
             context['subscription'] = subscription
             context['has_subscription'] = True
             context['is_active'] = subscription.is_active
@@ -3005,6 +3120,9 @@ def profile_partner_teachers_create(request):
         # Verificar limite de professores parceiros do plano
         try:
             subscription = request.user.subscription
+            # Sincronizar com Stripe para refletir upgrade de plano (ex.: Basic → Premium)
+            _sync_subscription_from_stripe(subscription)
+            subscription.refresh_from_db()
             if subscription.is_active:
                 max_partners = subscription.get_max_partner_teachers()
                 if max_partners is not None:

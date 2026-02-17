@@ -1028,7 +1028,9 @@
           <button class="btn ghost" id="financeMonthBack" title="Mês anterior">←</button>
           <button class="btn ghost" id="financeMonthForward" title="Próximo mês">→</button>
         </div>
+        {% if not is_partner_teacher %}
         <button class="btn primary" id="newFinancialEntryBtn">+ Novo Lançamento <span class="kbd">N</span></button>
+        {% endif %}
       </div>
     </header>
 

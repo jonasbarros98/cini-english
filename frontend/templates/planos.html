@@ -662,8 +662,28 @@
         </div>
       </div>
 
-      <!-- RIGHT: Ajuda + Segurança -->
+      <!-- RIGHT: Upgrade (quando Basic) + Ajuda + Segurança -->
       <div class="miniList">
+        {% if has_subscription and subscription.tier == 'basic' %}
+        <div class="card" style="border-color: rgba(99,102,241,0.35); background: linear-gradient(180deg, rgba(99,102,241,0.08), transparent);">
+          <div class="cardHeader">
+            <h2>Fazer upgrade</h2>
+          </div>
+          <div class="cardBody supportBox">
+            <p class="mutedSmall">
+              Precisa de mais alunos ou professores parceiros? Faça upgrade para Premium ou Platinum.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <button class="btn upgradePlanBtn" data-tier="premium" data-plan="{{ subscription.plan|default:'monthly' }}">
+                <strong>Premium</strong> — R$ 69,90/mês • Alunos ilimitados, até 2 parceiros
+              </button>
+              <button class="btn upgradePlanBtn" data-tier="platinum" data-plan="{{ subscription.plan|default:'monthly' }}">
+                <strong>Platinum</strong> — R$ 89,90/mês • Tudo ilimitado
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endif %}
         <div class="card">
           <div class="cardHeader">
             <h2>Ajuda rápida</h2>
@@ -817,6 +837,39 @@
       if (btnAction) {
         btnAction.addEventListener("click", createPortalSession);
       }
+
+      // Botões de upgrade (Premium/Platinum)
+      document.querySelectorAll(".upgradePlanBtn").forEach(function(btn) {
+        btn.addEventListener("click", async function() {
+          const tier = this.dataset.tier;
+          const plan = this.dataset.plan || "monthly";
+          const origHtml = this.innerHTML;
+          this.disabled = true;
+          this.innerHTML = "Redirecionando...";
+          try {
+            const csrf = getCookie("csrftoken");
+            const res = await fetch("/api/subscription/upgrade-portal/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+              credentials: "same-origin",
+              body: JSON.stringify({ tier, plan }),
+            });
+            const data = await res.json();
+            if (res.ok && data.url) {
+              window.location.href = data.url;
+            } else {
+              alert(data.error || "Erro ao iniciar upgrade. Tente novamente.");
+              this.disabled = false;
+              this.innerHTML = origHtml;
+            }
+          } catch (err) {
+            console.error(err);
+            alert("Erro de conexão. Tente novamente.");
+            this.disabled = false;
+            this.innerHTML = origHtml;
+          }
+        });
+      });
 
       // Botão Sair (logout)
       const logoutBtn = document.getElementById("logoutBtn");
