@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from django.views.generic import TemplateView
 
 from .views import (
-    StudentViewSet, LessonViewSet, TaskViewSet, DashboardView, DashboardHomeView,
+    StudentViewSet, LessonViewSet, TaskViewSet, HomeView, DashboardView, DashboardHomeView,
     InvoiceViewSet, FinancialEntryViewSet, UserViewSet, LessonPlanViewSet, BillingLogViewSet,
     login_view, logout_view, current_user_view,
     create_checkout_session, stripe_webhook, subscription_status, verify_checkout_session, signup_view,
@@ -35,7 +35,7 @@ urlpatterns = [
     path("landing/", TemplateView.as_view(template_name="landing.html"), name="landing"),
     path("dashboard/", DashboardHomeView.as_view(), name="dashboard-home"),
     path("perfil/", PerfilView.as_view(), name="perfil"),
-    path("", DashboardView.as_view(), name="dashboard"),
+    path("", HomeView.as_view(), name="home"),
     path("alunos/", AlunosView.as_view(), name="alunos"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("signup/", TemplateView.as_view(template_name="signup.html"), name="signup"),

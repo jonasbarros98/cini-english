@@ -15,7 +15,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse, HttpResponse
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, View
+from django.shortcuts import redirect, render
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 import stripe
@@ -366,8 +367,52 @@ class FinanceView(TemplateView):
         return context
 
 
+class HomeView(View):
+    """
+    Rota principal (/): usuário não logado → landing page; logado → dashboard/planos/calendar.
+    Permite usar educaflow.com.br no Instagram levando direto à landing (trilha de venda).
+    """
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return render(request, "landing.html")
+        if not _user_has_active_subscription(request.user):
+            return redirect('planos')
+        view_param = request.GET.get('view')
+        if view_param:
+            context = self._get_index_context(request)
+            return render(request, "index.html", context)
+        try:
+            if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return redirect('calendar-new')
+        except UserProfile.DoesNotExist:
+            pass
+        return redirect('dashboard-home')
+
+    def _get_index_context(self, request):
+        try:
+            profile = request.user.profile
+            user_is_admin = profile.is_admin
+            is_partner_teacher = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partners = list(profile.partner_teachers.select_related('user').all())
+                assignable_teachers = [
+                    {'id': request.user.id, 'name': request.user.get_full_name() or request.user.username}
+                ] + [{'id': p.user.id, 'name': p.user.get_full_name() or p.user.username} for p in partners]
+            else:
+                assignable_teachers = []
+        except UserProfile.DoesNotExist:
+            user_is_admin = False
+            is_partner_teacher = False
+            assignable_teachers = []
+        return {
+            'user_is_admin': user_is_admin,
+            'is_partner_teacher': is_partner_teacher,
+            'assignable_teachers': assignable_teachers,
+        }
+
+
 class DashboardView(TemplateView):
-    """View para rota raiz - renderiza index.html se houver parâmetro view, senão redireciona para dashboard"""
+    """View para rota raiz (quando acessada com ?view=...) - renderiza index.html. Raiz sem view usa HomeView."""
     template_name = "index.html"
     
     def get_context_data(self, **kwargs):
