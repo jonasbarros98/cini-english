@@ -375,6 +375,13 @@ class HomeView(View):
     def get(self, request):
         if not request.user.is_authenticated:
             return render(request, "landing.html")
+        # Sincronizar assinatura com Stripe antes de checar (corrige trial/pendente)
+        try:
+            sub = request.user.subscription
+            _sync_subscription_from_stripe(sub)
+            sub.refresh_from_db()
+        except (Subscription.DoesNotExist, Exception):
+            pass
         if not _user_has_active_subscription(request.user):
             return redirect('planos')
         view_param = request.GET.get('view')
@@ -2153,9 +2160,9 @@ def handle_subscription_updated(subscription_obj):
             datetime.fromtimestamp(subscription_obj.get('current_period_end', 0))
         )
         
-        # Atualizar status baseado no status do Stripe
+        # Atualizar status baseado no status do Stripe (trialing = trial 7 dias = acesso liberado)
         stripe_status = subscription_obj.get('status', '')
-        if stripe_status == 'active':
+        if stripe_status in ('active', 'trialing'):
             subscription.status = Subscription.STATUS_ACTIVE
         elif stripe_status == 'past_due':
             subscription.status = Subscription.STATUS_PAST_DUE
@@ -2223,10 +2230,10 @@ def verify_checkout_session(request):
         # Buscar a session do Stripe
         checkout_session = stripe.checkout.Session.retrieve(session_id)
         
-        allowed_statuses = ('paid', 'unpaid', 'no_payment_required')
-        if checkout_session.payment_status not in allowed_statuses:
+        # Sessão deve estar completa
+        if checkout_session.status != 'complete':
             return Response(
-                {'error': 'Sessão de checkout ainda não foi concluída'},
+                {'error': f'Sessão de checkout ainda não foi concluída (status: {checkout_session.status})'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -2240,6 +2247,8 @@ def verify_checkout_session(request):
         
         # Buscar ou atualizar subscription localmente
         stripe_sub = stripe.Subscription.retrieve(subscription_id)
+        # Trial = status "trialing"; ativar imediatamente para dar acesso
+        stripe_status = stripe_sub.get('status', '')
         price_id = stripe_sub['items']['data'][0]['price']['id']
         tier, plan = determine_plan_from_price_id(price_id)
         
@@ -2266,8 +2275,8 @@ def verify_checkout_session(request):
                     stripe_subscription_id=subscription_id,
                 )
         
-        # Garantir que está ativa e com períodos atualizados (tanto para existente quanto para recém-encontrada)
-        if subscription.status != Subscription.STATUS_ACTIVE:
+        # Trialing ou active no Stripe = ativo aqui (acesso liberado no trial)
+        if stripe_status in ('active', 'trialing'):
             subscription.status = Subscription.STATUS_ACTIVE
         subscription.stripe_subscription_id = subscription_id
         subscription.tier = tier
@@ -2330,6 +2339,28 @@ def subscription_status(request):
             'status': None,
             'is_active': False,
         })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def subscription_sync(request):
+    """
+    Força sincronização da assinatura com o Stripe.
+    Útil quando o Stripe mostra ativo/trialing mas o sistema exibe Pendente.
+    """
+    try:
+        subscription = request.user.subscription
+        _sync_subscription_from_stripe(subscription, raise_on_error=True)
+        subscription.refresh_from_db()
+        return Response({
+            'ok': True,
+            'status': subscription.status,
+            'is_active': subscription.is_active,
+        })
+    except Subscription.DoesNotExist:
+        return Response({'error': 'Assinatura não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+    except (ValueError, stripe.error.StripeError) as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
@@ -2445,14 +2476,28 @@ def upgrade_portal_session(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def _sync_subscription_from_stripe(subscription):
+def _sync_subscription_from_stripe(subscription, raise_on_error=False):
     """
     Atualiza tier/plan/período da Subscription com dados do Stripe.
     Útil ao retornar do portal Stripe (webhook pode demorar).
+    Se tiver stripe_customer_id mas não stripe_subscription_id, tenta recuperar do Stripe.
+    Se raise_on_error=True, propaga exceções (útil para endpoints que precisam retornar erro).
     """
-    if not subscription or not subscription.stripe_subscription_id:
+    if not subscription:
         return
     try:
+        # Fallback: se não tem stripe_subscription_id mas tem customer_id, buscar subscriptions do cliente
+        if not subscription.stripe_subscription_id and subscription.stripe_customer_id:
+            subs = stripe.Subscription.list(customer=subscription.stripe_customer_id, status='all', limit=5)
+            for s in subs.data:
+                if s.get('status') in ('active', 'trialing'):
+                    subscription.stripe_subscription_id = s.get('id')
+                    subscription.save()
+                    break
+        if not subscription.stripe_subscription_id:
+            if raise_on_error:
+                raise ValueError('Nenhuma assinatura ativa encontrada no Stripe para este cliente.')
+            return
         stripe_sub = stripe.Subscription.retrieve(subscription.stripe_subscription_id)
         items = stripe_sub.get('items', {}).get('data', [])
         if items:
@@ -2468,7 +2513,7 @@ def _sync_subscription_from_stripe(subscription):
         if period_end:
             subscription.current_period_end = timezone.make_aware(datetime.fromtimestamp(period_end))
         stripe_status = stripe_sub.get('status', '')
-        if stripe_status == 'active':
+        if stripe_status in ('active', 'trialing'):
             subscription.status = Subscription.STATUS_ACTIVE
         elif stripe_status == 'past_due':
             subscription.status = Subscription.STATUS_PAST_DUE
@@ -2477,6 +2522,8 @@ def _sync_subscription_from_stripe(subscription):
         subscription.cancel_at_period_end = stripe_sub.get('cancel_at_period_end', False)
         subscription.save()
     except Exception:
+        if raise_on_error:
+            raise
         pass  # Mantém dados locais em caso de erro
 
 
@@ -2506,7 +2553,9 @@ class PlanosView(TemplateView):
         try:
             subscription = user.subscription
             # Sincronizar com Stripe ao carregar (garante que alterações no portal apareçam)
-            _sync_subscription_from_stripe(subscription)
+            # ?skip_sync=1 pula o sync para testar o botão "Atualizar status" com status pendente forçado
+            if not self.request.GET.get('skip_sync'):
+                _sync_subscription_from_stripe(subscription)
             subscription.refresh_from_db()
             context['subscription'] = subscription
             context['has_subscription'] = True

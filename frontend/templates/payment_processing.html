@@ -267,9 +267,9 @@
         }
       }
       
-      // Começar a verificar após 3 segundos (mais rápido)
-      console.log("Iniciando verificação de status em 3 segundos...");
-      setTimeout(checkSubscriptionStatus, 3000);
+      // Verificar imediatamente e depois a cada 10s (trial/confirmação pode ser instantânea)
+      console.log("Iniciando verificação de status...");
+      setTimeout(checkSubscriptionStatus, 500);
     </script>
   </body>
 </html>
