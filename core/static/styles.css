@@ -73,6 +73,7 @@ p {
   gap: 24px !important;
   padding: 24px !important;
   min-height: 100vh !important;
+  overflow-x: hidden;
 }
 
 @media (max-width: 980px) {
@@ -80,6 +81,21 @@ p {
     grid-template-columns: 1fr !important;
     padding: 16px !important;
     gap: 16px !important;
+    overflow-x: hidden;
+  }
+  .app-shell > .main,
+  .app-shell > main,
+  .app-shell > .page,
+  .app-shell > .view {
+    min-width: 0;
+    width: 100%;
+    overflow-x: hidden;
+  }
+}
+@media (max-width: 400px) {
+  .app-shell {
+    padding: 10px 8px !important;
+    gap: 12px !important;
   }
 }
 
@@ -1422,4 +1438,119 @@ textarea:focus {
 .planning-card a:hover {
   color: var(--accent-dark, #0056b3);
   text-decoration: underline;
+}
+
+/* ========== MOBILE NAV (≤768px) - Sidebar vira overlay com hamburger. Desktop inalterado. ========== */
+@media (max-width: 768px) {
+  .mobile-nav-toggle {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 1003;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .mobile-nav-toggle:hover {
+    background: #fff;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+  }
+  .mobile-nav-toggle-bar {
+    display: block;
+    width: 18px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--text);
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  body.mobile-nav-open .mobile-nav-toggle-bar:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  body.mobile-nav-open .mobile-nav-toggle-bar:nth-child(2) {
+    opacity: 0;
+  }
+  body.mobile-nav-open .mobile-nav-toggle-bar:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+  .mobile-nav-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  body.mobile-nav-open .mobile-nav-backdrop {
+    display: block;
+    opacity: 1;
+  }
+  .app-shell .sidebar,
+  aside.sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    max-height: none !important;
+    z-index: 1002 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border-right: 1px solid var(--border) !important;
+    box-shadow: none !important;
+  }
+  body.mobile-nav-open .app-shell .sidebar,
+  body.mobile-nav-open aside.sidebar {
+    transform: translateX(0);
+    box-shadow: 8px 0 24px rgba(15, 23, 42, 0.12) !important;
+  }
+  .app-shell > main,
+  .app-shell > .page,
+  .app-shell > .view {
+    padding-top: 62px !important;
+  }
+
+  /* Calendário: botões < > menores e lado a lado */
+  .calendar-toolbar .calendar-nav .icon-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    border-radius: 8px;
+  }
+  .calendar-toolbar .calendar-nav {
+    gap: 2px;
+    flex-wrap: nowrap;
+  }
+  .calendar-toolbar .calendar-nav-title {
+    min-width: 80px;
+    font-size: 12px;
+  }
+}
+
+/* Desktop: esconder toggle e backdrop */
+.mobile-nav-toggle,
+.mobile-nav-backdrop {
+  display: none;
+}
+@media (max-width: 768px) {
+  .mobile-nav-toggle {
+    display: flex !important;
+  }
 }

@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, RedirectView
 
 from .views import (
     StudentViewSet, LessonViewSet, TaskViewSet, HomeView, DashboardView, DashboardHomeView,
@@ -36,6 +36,7 @@ urlpatterns = [
     path("dashboard/", DashboardHomeView.as_view(), name="dashboard-home"),
     path("perfil/", PerfilView.as_view(), name="perfil"),
     path("", HomeView.as_view(), name="home"),
+    path("cobranca/", RedirectView.as_view(url="/?view=view-billing", permanent=False), name="cobranca"),
     path("alunos/", AlunosView.as_view(), name="alunos"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("signup/", TemplateView.as_view(template_name="signup.html"), name="signup"),

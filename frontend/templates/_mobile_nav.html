@@ -1,0 +1,44 @@
+<!-- Mobile: botão hambúrguer + overlay. Só afeta telas ≤768px. Desktop inalterado. -->
+<button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Abrir menu" aria-expanded="false">
+  <span class="mobile-nav-toggle-bar"></span>
+  <span class="mobile-nav-toggle-bar"></span>
+  <span class="mobile-nav-toggle-bar"></span>
+</button>
+<div class="mobile-nav-backdrop" id="mobileNavBackdrop" aria-hidden="true"></div>
+<script>
+(function() {
+  function init() {
+    var sidebar = document.querySelector('.app-shell .sidebar, aside.sidebar');
+    var toggle = document.getElementById('mobileNavToggle');
+    var backdrop = document.getElementById('mobileNavBackdrop');
+    if (!sidebar || !toggle || !backdrop) return;
+
+    function open() {
+      document.body.classList.add('mobile-nav-open');
+      if (toggle) { toggle.setAttribute('aria-expanded', 'true'); toggle.setAttribute('aria-label', 'Fechar menu'); }
+      if (backdrop) backdrop.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+    function close() {
+      document.body.classList.remove('mobile-nav-open');
+      if (toggle) { toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-label', 'Abrir menu'); }
+      if (backdrop) backdrop.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+    function toggleNav() {
+      if (document.body.classList.contains('mobile-nav-open')) close();
+      else open();
+    }
+
+    toggle.addEventListener('click', toggleNav);
+    backdrop.addEventListener('click', close);
+    sidebar.querySelectorAll('a, button').forEach(function(el) {
+      if (el.classList.contains('nav-group-header')) return;
+      el.addEventListener('click', function() { setTimeout(close, 150); });
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>

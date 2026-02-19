@@ -226,6 +226,7 @@
 </head>
 
 <body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <!-- SIDEBAR (copie/cole a sua; aqui deixo só o essencial com Perfil ativo) -->
     <aside class="sidebar">

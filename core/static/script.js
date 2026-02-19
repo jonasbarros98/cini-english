@@ -1564,7 +1564,6 @@ async function loadBillingData(entryId) {
     
     renderBillingHeader(data);
     renderBillingSummary(data);
-    renderBillingOrigin(data);
     renderBillingHistory(data);
     
     // Seleciona modelo padrão baseado no status
@@ -1646,7 +1645,7 @@ function renderBillingSummary(data) {
   const statusDot = document.getElementById("billingStatusDot");
 
   if (amountValue) {
-    amountValue.textContent = formatBRL(data.entry.amount).replace("R$ ", "");
+    amountValue.textContent = formatBRL(data.entry.amount).replace(/R\$\s*/g, "");
   }
 
   if (dueValue) {
@@ -1668,6 +1667,14 @@ function renderBillingSummary(data) {
     statusText.textContent = data.status.text;
   }
 
+  const descVal = document.getElementById("billingDescValue");
+  const formaVal = document.getElementById("billingFormaValue");
+  if (descVal) descVal.textContent = data.entry.description || "—";
+  if (formaVal) {
+    const pm = { pix: "PIX", card: "Cartão", cash: "Dinheiro", transfer: "Transferência", other: "Outro" };
+    formaVal.textContent = pm[data.entry.payment_method] || "—";
+  }
+
   // Atualiza classes e cor do status
   if (statusPill) {
     statusPill.className = "billing-status";
@@ -1676,40 +1683,6 @@ function renderBillingSummary(data) {
     } else if (data.status.color === "🔴") {
       statusPill.classList.add("bad");
     }
-  }
-}
-
-// Renderiza card de origem da cobrança
-function renderBillingOrigin(data) {
-  const originReference = document.getElementById("originReference");
-  const originDesc = document.getElementById("originDesc");
-  const originCreatedAt = document.getElementById("originCreatedAt");
-  const originPaymentMethod = document.getElementById("originPaymentMethod");
-
-  if (originReference) {
-    // Período de referência = data de vencimento
-    originReference.textContent = data.entry.due_date ? formatDateBR(data.entry.due_date) : "—";
-  }
-
-  if (originDesc) {
-    originDesc.textContent = data.entry.description || "Mensalidade";
-  }
-
-  if (originCreatedAt) {
-    const entryDate = data.entry.issue_date ? formatDateBR(data.entry.issue_date) : "—";
-    originCreatedAt.textContent = entryDate;
-  }
-
-  if (originPaymentMethod) {
-    const paymentMethodLabels = {
-      "pix": "PIX",
-      "card": "Cartão",
-      "cash": "Dinheiro",
-      "transfer": "Transferência",
-      "other": "Outro",
-    };
-    const method = paymentMethodLabels[data.entry.payment_method] || data.entry.payment_method || "—";
-    originPaymentMethod.textContent = method;
   }
 }
 
@@ -1823,22 +1796,33 @@ function openBillingWhatsApp() {
   window.open(url, "_blank");
 }
 
-// Copia mensagem
-async function copyBillingMessage() {
+// Copia mensagem (funciona em produção/HTTPS)
+function copyBillingMessage() {
   const messageEl = document.getElementById("billingMessage");
-  const message = messageEl ? messageEl.value.trim() : "";
-
-  if (!message) {
+  if (!messageEl) return;
+  const msg = messageEl.value.trim();
+  if (!msg) {
     alert("A mensagem está vazia.");
     return;
   }
-
-  try {
-    await navigator.clipboard.writeText(message);
-    alert("Mensagem copiada para a área de transferência!");
-  } catch (error) {
-    alert("Não foi possível copiar automaticamente. Selecione o texto manualmente.");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(msg)
+      .then(function () { alert("Mensagem copiada!"); })
+      .catch(function () {
+        messageEl.focus();
+        messageEl.setSelectionRange(0, msg.length);
+        alert("Não foi possível copiar. Selecione o texto e use Copiar do menu.");
+      });
+    return;
   }
+  messageEl.focus();
+  messageEl.setSelectionRange(0, msg.length);
+  if (document.execCommand("copy")) {
+    messageEl.setSelectionRange(0, 0);
+    alert("Mensagem copiada!");
+    return;
+  }
+  alert("Não foi possível copiar. Selecione o texto e use Copiar do menu.");
 }
 
 // Marca como enviada
@@ -2702,6 +2686,16 @@ function attachForms() {
     });
   }
 
+  // Mobile: toggle recolher filtros
+  const billingFiltersToggle = document.getElementById("billingFiltersToggle");
+  const billingEntrySelector = document.getElementById("billingEntrySelector");
+  if (billingFiltersToggle && billingEntrySelector) {
+    billingFiltersToggle.addEventListener("click", () => {
+      billingEntrySelector.classList.toggle("billing-filters--collapsed");
+      billingFiltersToggle.setAttribute("aria-expanded", billingEntrySelector.classList.contains("billing-filters--collapsed") ? "false" : "true");
+    });
+  }
+
   // Botões de template
   document.querySelectorAll(".billing-template-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -2719,6 +2713,7 @@ function attachForms() {
   if (billingCopyMessage) {
     billingCopyMessage.addEventListener("click", copyBillingMessage);
   }
+
 
   const billingMarkSent = document.getElementById("billingMarkSent");
   if (billingMarkSent) {

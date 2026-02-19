@@ -791,10 +791,67 @@
     .modal-actions .btn{
       min-width: 100px;
     }
+
+    /* ========== MOBILE CALENDÁRIO (≤768px) ========== */
+    @media (max-width: 768px){
+      .wrap{ padding: 12px 12px 80px; }
+      .page-head{
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .title h1{ font-size: 18px; }
+      .title p{ font-size: 11px; margin-top: 4px; }
+      .right-controls{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        justify-content: stretch;
+      }
+      .right-controls .chip,
+      .right-controls .btn,
+      .right-controls .seg{ font-size: 11px; padding: 6px 8px; }
+      /* Botões ‹ › menores e lado a lado no mobile */
+      .nav-arrows{ display: inline-flex !important; gap: 4px; align-items: center; }
+      .right-controls .nav-arrows #btnPrev,
+      .right-controls .nav-arrows #btnNext{
+        min-width: 32px;
+        padding: 6px 4px;
+        font-size: 14px;
+      }
+      .grid{ gap: 10px; }
+      .panel-head{ padding: 10px 12px; }
+      .panel-head h2{ font-size: 12px; }
+      .panel-head .meta{ font-size: 10px; }
+      .month{ padding: 8px; }
+      .month-row{ gap: 4px; padding: 2px; }
+      .cell{
+        min-height: 72px;
+        padding: 3px;
+        border-radius: 8px;
+      }
+      .daynum{ font-size: 9px; margin-bottom: 1px; }
+      .daynum .mini{ font-size: 7px; min-width: 12px; }
+      .evt{ padding: 2px 3px; font-size: 7.5px; border-radius: 4px; }
+      .evt .time{ min-width: 24px; font-size: 7px; }
+      .evt .name{ max-width: 60px; }
+      .more{ font-size: 8px; padding: 2px 4px; }
+      .week{ padding: 8px; }
+      .week-head{ grid-template-columns: 48px repeat(7, 1fr); }
+      .week-head .stub{ padding: 6px 6px; font-size: 10px; }
+      .dayhead{ padding: 6px 4px; font-size: 10px; }
+      .dayhead .dow2{ font-size: 9px; }
+      .dayhead .dnum{ font-size: 11px; }
+      .week-body{ grid-template-columns: 48px repeat(7, 1fr); }
+      .tcell{ font-size: 10px; padding: 6px 8px; }
+      .dow{ padding: 6px 6px; font-size: 10px; }
+    }
   </style>
 </head>
 
 <body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -943,9 +1000,10 @@
         <span class="chip done" id="chipDone"><span class="dot"></span>Realizadas: <b id="cntDone">0</b></span>
 
         <button class="btn" id="btnToday" type="button">Hoje</button>
-        <button class="btn" id="btnPrev" type="button">‹</button>
-        <button class="btn" id="btnNext" type="button">›</button>
-
+        <div class="nav-arrows" style="display:inline-flex;gap:4px;">
+          <button class="btn" id="btnPrev" type="button">‹</button>
+          <button class="btn" id="btnNext" type="button">›</button>
+        </div>
         <div class="seg" role="tablist" aria-label="Visão do calendário">
           <button class="active" id="tabMonth" type="button">Mensal</button>
           <button id="tabWeek" type="button">Semanal</button>

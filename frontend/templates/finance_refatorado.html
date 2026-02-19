@@ -835,6 +835,30 @@
       flex-wrap: wrap;
     }
 
+    /* Modal mobile - evitar overflow no iPhone */
+    @media (max-width: 768px){
+      .modal-backdrop{
+        padding: 12px;
+        align-items: flex-start;
+        padding-top: 60px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .modal{
+        width: 100%;
+        max-width: calc(100vw - 24px);
+        flex-shrink: 0;
+        margin: 0 auto 24px;
+        border-radius: 16px;
+      }
+      .modal-head{ padding: 12px; }
+      .modal-body{ padding: 12px; overflow-y: auto; }
+      .modal-foot{ padding: 12px; }
+      .modal .two{ grid-template-columns: 1fr; }
+      .modal input, .modal select, .modal textarea{ box-sizing: border-box; max-width: 100%; }
+    }
+
     /* ===== Toast ===== */
     .toast{
       position: fixed;
@@ -896,10 +920,95 @@
       .money{ font-size: 15px; }
       .filter-bar{ flex-wrap: wrap; }
     }
+
+    /* ========== MOBILE FINANCEIRO (≤768px) ========== */
+    @media (max-width: 768px){
+      .wrap{ padding: 12px 14px 80px; }
+      .topbar{
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .topbar .title{ min-width: 0; }
+      .topbar h1{ font-size: 20px; }
+      .topbar .subtitle, .topbar p{ font-size: 12px; }
+      .top-actions, .actions{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        justify-content: stretch;
+      }
+      .top-actions .btn, .actions .btn{
+        font-size: 12px;
+        padding: 10px 10px;
+        justify-content: center;
+      }
+      .top-actions .btn .kbd, .actions .btn .kbd{ display: none; }
+      .stats{
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 10px 0 12px;
+      }
+      .stat{
+        min-height: 60px;
+        padding: 10px 12px;
+      }
+      .stat .icon, .stat-ic{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+      }
+      .stat .value{ font-size: 18px; }
+      .stat .label{ font-size: 11px; }
+      .subvalue{ font-size: 10px; }
+      .grid-main{ gap: 12px; }
+      .month{ padding: 10px 12px; }
+      .month-head h3{ font-size: 15px; }
+      .month-tools .btn{ padding: 6px 8px; font-size: 11px; }
+      .card{ padding: 12px; }
+      .two{ grid-template-columns: 1fr 1fr; gap: 8px; }
+
+      /* Lançamentos: evitar overflow à direita no mobile */
+      .wrap, .grid-main, .groups, .month{ overflow-x: hidden; max-width: 100%; }
+      .filter-bar{ flex-wrap: wrap; gap: 8px; }
+      .filter-tabs{ flex-wrap: wrap; }
+      .filter-tabs .tab{ padding: 6px 10px; font-size: 12px; }
+      .filter-quick{ flex-wrap: wrap; }
+      .filter-quick .quick-btn{ padding: 5px 8px; font-size: 10px; }
+      .group-head{ flex-wrap: wrap; gap: 8px; }
+      .group-head .date{ flex-wrap: wrap; font-size: 13px; }
+      .item{
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 10px 12px;
+      }
+      .item-left{ min-width: 0; }
+      .meta .name{ max-width: none; word-break: break-word; overflow-wrap: break-word; }
+      .meta .top{ flex-wrap: wrap; }
+      .item-right{
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        border-top: 1px solid rgba(15,23,42,.06);
+        padding-top: 10px;
+      }
+      .item-right-top{ flex-wrap: wrap; justify-content: flex-start; }
+      .item-right-bottom{ flex-wrap: wrap; justify-content: flex-start; }
+      .status-toggles{ flex-wrap: wrap; }
+      .status-toggle{ padding: 4px 8px; font-size: 11px; }
+      .money{ font-size: 15px; }
+      .mini-actions{ flex-wrap: wrap; }
+      .btn-mini{ padding: 6px 8px; font-size: 11px; }
+    }
   </style>
 </head>
 
 <body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">

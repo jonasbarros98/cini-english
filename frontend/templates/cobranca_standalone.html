@@ -18,9 +18,40 @@
     .meta-dot.bad{ background:var(--bad); }
     .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:20px; }
     label{ display:block; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px; }
-    select, input[type="month"]{ width:100%; padding:12px; border:1px solid var(--border); border-radius:12px; font-size:14px; margin-bottom:16px; }
+    select, input[type="month"]{ width:100%; max-width:100%; min-width:0; padding:12px; border:1px solid var(--border); border-radius:12px; font-size:14px; margin-bottom:16px; box-sizing:border-box; }
+    .billing-filters-row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    .billing-filters-row .field{ min-width:0; overflow:hidden; }
     .billing-grid{ display:grid; grid-template-columns:1.25fr .75fr; gap:18px; }
     @media(max-width:768px){ .billing-grid{ grid-template-columns:1fr; } }
+
+    /* Mobile: botão recolher filtros + corrigir overflow */
+    .billing-filters-toggle{ display:none; }
+    @media(max-width:768px){
+      .billing-filters-row{ grid-template-columns:1fr; }
+      .billing-filters-toggle{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        width:100%;
+        padding:10px 12px;
+        margin-bottom:8px;
+        border:1px solid var(--border);
+        border-radius:12px;
+        background:rgba(255,255,255,.92);
+        font-weight:900;
+        font-size:13px;
+        color:var(--text);
+        cursor:pointer;
+        box-shadow:0 10px 24px rgba(2,6,23,.06);
+        transition:.2s ease;
+      }
+      .billing-filters-toggle:hover{ border-color:rgba(30,136,255,.25); box-shadow:0 12px 24px rgba(2,6,23,.08); }
+      .billing-filters-toggle .filters-chevron{ font-size:10px; transition:transform .2s ease; }
+      #billingEntrySelector.billing-filters--collapsed .billing-filters-toggle .filters-chevron{ transform:rotate(-90deg); }
+      #billingEntrySelector.billing-filters--collapsed .billing-filters-inner{ display:none; }
+      #billingEntrySelector.billing-filters--collapsed .billing-filters-toggle{ margin-bottom:12px; }
+      .billing-filters-inner{ margin-bottom:16px; }
+    }
     .billing-summary{ display:grid; grid-template-columns:1fr auto; gap:14px; align-items:center; }
     .billing-amount{ font-size:32px; font-weight:900; margin:0; }
     .billing-kpis{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
@@ -44,6 +75,7 @@
   </style>
 </head>
 <body data-user-id="{{ request.user.id }}">
+  {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -78,11 +110,17 @@
         </header>
 
         <section class="card" id="billingEntrySelector">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-            <div><label>Filtrar por Aluno</label><select id="billingStudentFilter"><option value="">Todos os alunos</option></select></div>
-            <div><label>Filtrar por Mês</label><input type="month" id="billingMonthFilter" /></div>
+          <button type="button" class="billing-filters-toggle" id="billingFiltersToggle" aria-expanded="true" aria-controls="billingFiltersInner">
+            <span>Filtros</span>
+            <span class="filters-chevron" aria-hidden="true">▼</span>
+          </button>
+          <div class="billing-filters-inner" id="billingFiltersInner">
+            <div class="billing-filters-row">
+              <div class="field"><label for="billingStudentFilter">Filtrar por Aluno</label><select id="billingStudentFilter"><option value="">Todos os alunos</option></select></div>
+              <div class="field"><label for="billingMonthFilter">Filtrar por Mês</label><input type="month" id="billingMonthFilter" /></div>
+            </div>
           </div>
-          <label>Lançamento a cobrar</label>
+          <label for="billingEntrySelect">Lançamento a cobrar</label>
           <select id="billingEntrySelect"><option value="">Selecione um lançamento...</option></select>
         </section>
 
@@ -251,6 +289,12 @@
 
       byId('billingStudentFilter').addEventListener('change',()=>{ loadBillingEntries(); byId('billingEntrySelect').value=''; byId('billingContent').style.display='none'; });
       byId('billingMonthFilter').addEventListener('change',()=>{ loadBillingEntries(); byId('billingEntrySelect').value=''; byId('billingContent').style.display='none'; });
+
+      (function(){
+        var toggle=byId('billingFiltersToggle');
+        var wrapper=byId('billingEntrySelector');
+        if(toggle&&wrapper){ toggle.addEventListener('click',function(){ wrapper.classList.toggle('billing-filters--collapsed'); toggle.setAttribute('aria-expanded',wrapper.classList.contains('billing-filters--collapsed')?'false':'true'); }); }
+      })();
       byId('billingEntrySelect').addEventListener('change',e=>loadBillingData(e.target.value||null));
       document.querySelectorAll('.billing-template-btn').forEach(b=>b.addEventListener('click',()=>selectTemplate(b.dataset.template)));
 
@@ -260,9 +304,14 @@
         let ph=currentBillingData.student.phone.replace(/\D/g,''); if(ph.length<=11)ph='55'+ph;
         window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,'_blank');
       });
-      byId('billingCopyMessage').addEventListener('click',async()=>{
-        const msg=byId('billingMessage').value.trim();
-        try{ await navigator.clipboard.writeText(msg); alert('Copiado!'); }catch(){ alert('Selecione e copie manualmente.'); }
+      byId('billingCopyMessage').addEventListener('click',function(){
+        var el=byId('billingMessage'); if(!el)return;
+        var msg=el.value.trim(); if(!msg){ alert('Mensagem vazia.'); return; }
+        el.focus(); el.setSelectionRange(0,el.value.length);
+        if(document.execCommand('copy')){ el.setSelectionRange(0,0); alert('Copiado!'); return; }
+        el.setSelectionRange(0,0);
+        if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(msg).then(function(){ alert('Copiado!'); }).catch(function(){ alert('Selecione e copie manualmente.'); }); return; }
+        alert('Selecione e copie manualmente.');
       });
       byId('billingMarkSent').addEventListener('click',async()=>{
         if(!currentBillingData||!currentMessageTemplate){ alert('Selecione um template.'); return; }

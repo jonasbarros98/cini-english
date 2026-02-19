@@ -3,7 +3,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,minimum-scale=0.5" />
   <title>EDUCAflowOne • Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,12 +12,16 @@
 
   <style>
     /* Estilos específicos do dashboard que não estão no styles.css principal */
-    html,body{ height:100%; }
+    html,body{ height:100%; overflow-x: hidden; }
     
     .page{
       max-width: 100%;
+      width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
     }
     
     @media (max-width: 980px){
@@ -31,7 +35,7 @@
       display:flex;
       flex-direction:column;
       gap:4px;
-      min-width: 280px;
+      min-width: 0;
     }
     
     .topbar .eyebrow{
@@ -50,6 +54,8 @@
       color: var(--muted);
       font-size: 13px;
       line-height: 1.3;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     /* Welcome pill */
@@ -212,6 +218,7 @@
       border:1px solid var(--border);
       box-shadow: 0 10px 22px rgba(2,6,23,.06);
       min-height: 76px;
+      min-width: 0;
     }
     .kpi:hover{
       transform: translateY(-2px);
@@ -243,7 +250,7 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      max-width: 220px;
+      max-width: 100%;
     }
     .kpi .value{
       font-size: 22px;
@@ -259,7 +266,7 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      max-width: 220px;
+      max-width: 100%;
     }
 
     .span-3{ grid-column: span 3; }
@@ -285,11 +292,26 @@
       justify-content:space-between;
       gap: 10px;
       margin-bottom: 12px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .panel-header .panel-title{
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .panel-header .pill,
+    .panel-header .badge{
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .panel-title{
       display:flex;
       flex-direction:column;
       gap:3px;
+      min-width: 0;
     }
     .panel-title h2{
       margin:0;
@@ -315,6 +337,9 @@
       font-weight: 800;
       color: var(--text);
       white-space:nowrap;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .pill .dot{
       width: 8px;
@@ -515,6 +540,9 @@
       font-size: 12px;
       font-weight: 600;
       text-align:center;
+      max-width: 100%;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
     }
 
     @media (max-width: 980px){
@@ -531,10 +559,118 @@
       .quick{ grid-template-columns: 1fr; }
       .welcome .wtext strong, .welcome .wtext span{ max-width: 240px; }
     }
+
+    /* ========== MOBILE DASHBOARD (≤768px) - layout compacto, sem pilha infinita ========== */
+    @media (max-width: 768px){
+      .page{ padding: 12px 14px 24px; }
+      .kpis, .grid{ min-width: 0; }
+      /* Topbar: título + welcome em linha compacta */
+      .topbar{
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .topbar .title{ min-width: 0; }
+      .topbar .title > div{
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .topbar h1{ font-size: 20px; }
+      .topbar .subtitle{ font-size: 12px; }
+      .welcome{
+        width: 100%;
+        max-width: 100%;
+        padding: 8px 12px;
+      }
+      .welcome .wtext strong,
+      .welcome .wtext span{ max-width: 100%; }
+      /* Botões de ação: 2 colunas em grid */
+      .top-actions{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        justify-content: stretch;
+      }
+      .top-actions .btn{
+        font-size: 12px;
+        padding: 10px 10px;
+        justify-content: center;
+      }
+      .top-actions .btn .kbd{ display: none; }
+      .top-actions .btn.primary{ grid-column: span 2; }
+      /* KPIs: 2 colunas compactas */
+      .kpis{
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 12px 0 14px;
+      }
+      .kpi{
+        min-height: 64px;
+        padding: 10px 12px;
+        grid-column: span 1 !important;
+      }
+      .kpi .icon{
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+      }
+      .kpi .value{ font-size: 18px; }
+      .kpi .label,
+      .kpi .hint{ font-size: 11px; max-width: 100%; }
+      /* Grid principal: cards compactos */
+      .grid{ gap: 12px; }
+      .panel{ padding: 12px; overflow-x: hidden; }
+      .card{ min-width: 0; overflow-x: hidden; }
+      .qbtn{ min-width: 0; }
+      .panel-title h2{ font-size: 15px; }
+      .panel-title p{ font-size: 11px; }
+      /* Atalhos rápidos: 2 colunas */
+      .quick{
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .qbtn{
+        min-height: 48px;
+        padding: 10px;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+      }
+      .qbtn .left{ width: 100%; }
+      .qbtn .qicon{ width: 32px; height: 32px; font-size: 14px; }
+      .qbtn .qtext strong{ font-size: 12px; }
+      .qbtn .qtext span{ font-size: 11px; }
+      .qbtn .arrow{ display: none; }
+      /* Lista Hoje + itens */
+      .item{ padding: 10px; }
+      .time{ min-width: 44px; font-size: 12px; }
+      .content .title{ font-size: 12px; }
+      .content .sub{ font-size: 11px; }
+      /* Alertas */
+      .alerts{ gap: 8px; }
+      .alert{ padding: 10px; }
+      .alert .aicon{ width: 32px; height: 32px; font-size: 14px; }
+      .alert .atext strong{ font-size: 12px; }
+      .alert .atext span{ font-size: 11px; }
+      /* Footnote menor + não estoura */
+      .footnote{ font-size: 11px; margin-top: 12px; padding: 0 4px; }
+    }
+
+    /* Telas muito estreitas (≤400px) - reduzir padding para caber melhor */
+    @media (max-width: 400px){
+      .page{ padding: 10px 8px 20px; }
+      .kpis{ gap: 8px; }
+      .kpi{ padding: 8px 10px; }
+      .panel{ padding: 10px; }
+    }
   </style>
 </head>
 
 <body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">

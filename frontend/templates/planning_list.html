@@ -374,6 +374,101 @@
       align-items: start;
     }
     @media (max-width: 820px) { .plan-card { grid-template-columns: 1fr; } }
+
+    /* ========== MOBILE PLANEJAMENTO (≤768px) ========== */
+    /* Sidebar deve ser fixed (não relative) para não ocupar espaço - styles.css faz overlay */
+    @media (max-width: 768px){
+      .app-shell .sidebar,
+      aside.sidebar {
+        position: fixed !important;
+        width: 280px !important;
+        min-width: auto !important;
+        max-width: 85vw !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        height: 100vh !important;
+        max-height: none !important;
+        grid-column: unset !important;
+      }
+      .app-shell{ padding-top: 10px !important; }
+      .app-shell > main.page{ padding-top: 52px !important; }
+      .wrap{ padding: 4px 14px 80px; }
+      .page-head{
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .page-head h1{ font-size: 18px; }
+      .page-head p{ font-size: 12px; }
+      .primary-btn, .page-head .btn{ padding: 10px 12px; font-size: 12px; }
+      .filters{ padding: 4px 0 8px; }
+      .filters-inner{
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px;
+        padding: 10px;
+      }
+      .filters-inner.has-custom{ grid-template-columns: 1fr 1fr !important; }
+      .field label{ font-size: 11px; }
+      .field input, .field select{ padding: 9px 10px; font-size: 13px; }
+      .section{ margin-top: 10px; }
+      .section-head{ padding: 10px 12px; }
+      .section-head h2{ font-size: 13px; }
+      .section-head .meta{ font-size: 11px; }
+      .day-head{ padding: 10px 12px; }
+      .day-title strong{ font-size: 14px; }
+      .day-title span{ font-size: 11px; }
+      .day-body{ padding: 0 12px 12px; gap: 10px; }
+      .plan-card{ padding: 10px; gap: 10px; }
+      .plan-main strong{ font-size: 13px; margin-bottom: 4px; }
+      .chip{ padding: 5px 8px; font-size: 10px; }
+      .caret{ width: 30px; height: 30px; font-size: 12px; }
+    }
+    @media (max-width: 480px){
+      .filters-inner{ grid-template-columns: 1fr !important; }
+      .filters-inner.has-custom{ grid-template-columns: 1fr !important; }
+    }
+
+    /* Mobile: botão recolher filtros */
+    .filters-toggle-mobile{ display: none; }
+    @media (max-width: 768px){
+      .filters-toggle-mobile{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255,255,255,.92);
+        font-weight: 900;
+        font-size: 13px;
+        color: var(--text);
+        cursor: pointer;
+        box-shadow: var(--shadow-soft);
+        transition: .2s ease;
+      }
+      .filters-toggle-mobile:hover{
+        border-color: rgba(37,99,235,.25);
+        box-shadow: 0 12px 24px rgba(2,6,23,.08);
+      }
+      .filters-toggle-mobile .filters-chevron{
+        font-size: 10px;
+        transition: transform .2s ease;
+      }
+      .filters.filters--collapsed .filters-toggle-mobile .filters-chevron{
+        transform: rotate(-90deg);
+      }
+      .filters.filters--collapsed .filters-inner{
+        display: none;
+      }
+      .filters.filters--collapsed .filters-toggle-mobile{
+        margin-bottom: 0;
+      }
+    }
+
     .plan-main strong { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
     .chips { display: flex; gap: 8px; flex-wrap: wrap; }
     .chip {
@@ -662,6 +757,31 @@
       pointer-events: auto !important;
       cursor: pointer;
     }
+    /* Modal mobile - evitar overflow no iPhone */
+    @media (max-width: 768px){
+      .modal-overlay{
+        padding: 12px;
+        align-items: flex-start;
+        padding-top: 60px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .modal{
+        width: 100%;
+        max-width: calc(100vw - 24px);
+        flex-shrink: 0;
+        margin: 0 auto 24px;
+        border-radius: 16px;
+      }
+      .modal-body{ padding: 12px; overflow-y: auto; }
+      .modal-head{ padding: 12px; }
+      .modal-actions{ padding: 12px; }
+      .modal-body .field input,
+      .modal-body .field select,
+      .modal-body .field textarea{ box-sizing: border-box; max-width: 100%; }
+    }
+
     /* Garantir que botões e links do modal sempre funcionem */
     .modal button,
     .modal a,
@@ -687,6 +807,7 @@
   </style>
 </head>
 <body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -819,7 +940,11 @@
       <button type="button" class="primary-btn" id="btnNewPlan">+ Novo Planejamento</button>
     </div>
 
-    <div class="filters">
+    <div class="filters" id="filtersWrapper">
+      <button type="button" class="filters-toggle-mobile" id="filtersToggleMobile" aria-expanded="true" aria-controls="filtersInner">
+        <span>Filtros</span>
+        <span class="filters-chevron" aria-hidden="true">▼</span>
+      </button>
       <div class="filters-inner" id="filtersInner">
         <div class="field">
           <label for="period">Período</label>
@@ -1955,6 +2080,18 @@
       setupCustomRange();
       setupFilters();
       fetchList();
+
+      // Mobile: toggle recolher filtros
+      (function () {
+        var toggle = document.getElementById("filtersToggleMobile");
+        var wrapper = document.getElementById("filtersWrapper");
+        if (toggle && wrapper) {
+          toggle.addEventListener("click", function () {
+            wrapper.classList.toggle("filters--collapsed");
+            toggle.setAttribute("aria-expanded", wrapper.classList.contains("filters--collapsed") ? "false" : "true");
+          });
+        }
+      })();
 
       // Sidebar: menu colapsável "Conta"
       function initContaGroupCollapse() {

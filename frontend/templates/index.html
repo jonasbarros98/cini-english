@@ -50,6 +50,7 @@
 
   </head>
   <body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+    {% include '_mobile_nav.html' %}
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
@@ -477,6 +478,8 @@
           #billingStudentFilter,
           #billingMonthFilter{
             width: 100%;
+            max-width: 100%;
+            min-width: 0;
             padding: 12px 14px;
             border-radius: 12px;
             border: 1px solid var(--border);
@@ -486,6 +489,39 @@
             font-size: 14px;
             box-shadow: inset 0 0 0 1px rgba(255,255,255,.0);
             transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+            box-sizing: border-box;
+          }
+
+          .billing-filters-row{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+          .billing-filters-row .form-row{ min-width: 0; overflow: hidden; margin-bottom: 0; }
+
+          /* Mobile: botão recolher filtros */
+          .billing-filters-toggle{ display: none; }
+          @media (max-width: 768px){
+            .billing-filters-row{ grid-template-columns: 1fr; }
+            .billing-filters-toggle{
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              width: 100%;
+              padding: 10px 12px;
+              margin-bottom: 8px;
+              border: 1px solid var(--border);
+              border-radius: 12px;
+              background: rgba(255,255,255,.92);
+              font-weight: 900;
+              font-size: 13px;
+              color: var(--text);
+              cursor: pointer;
+              box-shadow: 0 10px 24px rgba(2,6,23,.06);
+              transition: .2s ease;
+            }
+            .billing-filters-toggle:hover{ border-color: rgba(47,124,255,.35); box-shadow: 0 12px 24px rgba(2,6,23,.08); }
+            .billing-filters-toggle .filters-chevron{ font-size: 10px; transition: transform .2s ease; }
+            #billingEntrySelector.billing-filters--collapsed .billing-filters-toggle .filters-chevron{ transform: rotate(-90deg); }
+            #billingEntrySelector.billing-filters--collapsed .billing-filters-inner{ display: none; }
+            #billingEntrySelector.billing-filters--collapsed .billing-filters-toggle{ margin-bottom: 12px; }
+            .billing-filters-inner{ margin-bottom: 18px; }
           }
 
           #billingEntrySelect:focus,
@@ -846,207 +882,8 @@
         </style>
 
         {% if not is_partner_teacher %}
-        <section class="view" id="view-billing">
-          <!-- Cabeçalho contextual -->
-          <header class="topbar">
-            <div>
-              <h1 id="billingStudentName">Selecione um lançamento</h1>
-              <p class="muted" id="billingContextInfo">Escolha um lançamento financeiro para cobrar</p>
-            </div>
-
-            <!-- Opcional: você pode preencher via JS com plano/status/vencimento -->
-            <div class="billing-meta" id="billingMetaChips" aria-hidden="true">
-              <span class="meta-pill"><span class="meta-dot"></span><span id="metaStatusText">Pendente</span></span>
-              <span class="meta-pill">Vencimento: <b id="metaDueText">—</b></span>
-              <span class="meta-pill">Parcela: <b id="metaInstallmentText">—</b></span>
-            </div>
-          </header>
-
-          <!-- Seletor de lançamento -->
-          <section class="card billing-card mb-24" id="billingEntrySelector">
-            <!-- Filtros -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px;">
-              <div class="form-row" style="margin-bottom: 0;">
-                <label for="billingStudentFilter">Filtrar por Aluno</label>
-                <select id="billingStudentFilter" name="billingStudentFilter">
-                  <option value="">Todos os alunos</option>
-                </select>
-              </div>
-              <div class="form-row" style="margin-bottom: 0;">
-                <label for="billingMonthFilter">Filtrar por Mês</label>
-                <input type="month" id="billingMonthFilter" name="billingMonthFilter" />
-              </div>
-            </div>
-            
-            <div class="form-row" style="margin-bottom: 0;">
-              <label for="billingEntrySelect">Lançamento a cobrar</label>
-              <select id="billingEntrySelect" name="billingEntrySelect">
-                <option value="">Selecione um lançamento financeiro...</option>
-              </select>
-            </div>
-          </section>
-
-          <!-- Conteúdo principal (aparece quando um lançamento é selecionado) -->
-          <div id="billingContent" style="display: none;">
-
-            <div class="billing-grid mb-24">
-              <!-- Card principal de resumo financeiro -->
-              <section class="card" id="billingSummaryCard">
-                <div id="billingSummaryContent">
-                  <div class="billing-summary">
-                    <div>
-                      <p class="billing-amount">
-                        <small>Total</small><br>
-                        R$ <span id="billingAmountValue">0,00</span>
-                      </p>
-
-                      <div class="billing-kpis">
-                        <div class="kpi">📅 <span>Vencimento</span> <b id="billingDueValue">—</b></div>
-                        <div class="kpi">📚 <span>Progresso</span> <b id="billingProgressValue">—</b></div>
-                        <div class="kpi">🧾 <span>Parcela</span> <b id="billingInstallmentValue">—</b></div>
-                      </div>
-                    </div>
-
-                    <div class="billing-status" id="billingStatusPill">
-                      <span class="status-dot" id="billingStatusDot"></span>
-                      <span id="billingStatusText">Pendente</span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Origem (compacta) -->
-              <section class="card billing-card" id="billingOriginCard">
-                <div class="billing-card-header">
-                  <div>
-                    <h3 class="billing-card-title">Contexto rápido</h3>
-                    <p class="billing-card-sub">Informações essenciais (sem blá-blá-blá).</p>
-                  </div>
-                </div>
-
-                <div id="billingOriginContent" class="billing-origin">
-                  <div class="origin-item">
-                    <div class="k">Referência</div>
-                    <div class="v" id="originReference">—</div>
-                  </div>
-                  <div class="origin-item">
-                    <div class="k">Descrição</div>
-                    <div class="v" id="originDesc">—</div>
-                  </div>
-                  <div class="origin-item">
-                    <div class="k">Criado em</div>
-                    <div class="v" id="originCreatedAt">—</div>
-                  </div>
-                  <div class="origin-item">
-                    <div class="k">Forma</div>
-                    <div class="v" id="originPaymentMethod">—</div>
-                  </div>
-                </div>
-              </section>
-            </div>
-
-            <!-- Modelos de cobrança -->
-            <section class="card billing-card mb-24" id="billingTemplateCard">
-              <div class="billing-card-header">
-                <div>
-                  <h3 class="billing-card-title">Modelo de cobrança</h3>
-                  <p class="billing-card-sub">Clique em um modelo e a mensagem se ajusta sozinha.</p>
-                </div>
-              </div>
-
-              <div class="billing-templates">
-                <button type="button" class="billing-template-btn" data-template="friendly">😊 Lembrete amigável</button>
-                <button type="button" class="billing-template-btn" data-template="due_today">🟡 Vence hoje</button>
-                <button type="button" class="billing-template-btn" data-template="overdue">🔴 Em atraso</button>
-                <button type="button" class="billing-template-btn" data-template="thank_you">🙏 Agradecimento</button>
-              </div>
-            </section>
-
-            <!-- Mensagem automática (editável) -->
-            <section class="card billing-card mb-24" id="billingMessageCard">
-              <div class="billing-card-header">
-                <div>
-                  <h3 class="billing-card-title">Mensagem de cobrança</h3>
-                  <p class="billing-card-sub">Edite se quiser. Sem sofrimento.</p>
-                </div>
-                <button type="button" class="mini-btn" id="billingResetTemplate">Resetar para modelo</button>
-              </div>
-
-              <label for="billingMessage" class="hidden">Mensagem de cobrança</label>
-              <textarea
-                id="billingMessage"
-                name="billingMessage"
-                rows="12"
-                class="billing-textarea"
-                placeholder="Selecione um modelo acima para preencher automaticamente…"
-              ></textarea>
-
-              <div class="billing-editor-footer">
-                <span class="char-count"><span id="billingCharCount">0</span> caracteres</span>
-                <span class="char-count">Dica: WhatsApp ama mensagens curtas 😄</span>
-              </div>
-            </section>
-
-            <!-- Ações principais -->
-            <section class="card billing-card mb-24" id="billingActionsCard">
-              <div class="billing-card-header">
-                <div>
-                  <h3 class="billing-card-title">Ações</h3>
-                  <p class="billing-card-sub">O objetivo é: enviar e registrar.</p>
-                </div>
-              </div>
-
-              <div class="billing-actions">
-                <button type="button" class="btn btn-primary" id="billingOpenWhatsApp">
-                  💬 Enviar no WhatsApp
-                </button>
-
-                <button type="button" class="btn btn-ghost" id="billingCopyMessage">
-                  📋 Copiar mensagem
-                </button>
-
-                <button type="button" class="btn btn-confirm" id="billingMarkSent">
-                  ✅ Marcar como enviada
-                </button>
-              </div>
-            </section>
-
-            <!-- Histórico de cobranças (colapsável) -->
-            <section class="card billing-card" id="billingHistoryCard">
-              <div class="billing-card-header">
-                <div>
-                  <h3 class="billing-card-title">Histórico</h3>
-                  <p class="billing-card-sub">Linha do tempo das cobranças enviadas.</p>
-                </div>
-
-                <button type="button" id="billingHistoryToggle" class="history-toggle">
-                  🕒 Mostrar histórico
-                </button>
-              </div>
-
-              <div id="billingHistoryContent" style="display: none;">
-                <div id="billingHistoryList" class="history-list">
-                  <!-- JS preenche -->
-                </div>
-              </div>
-            </section>
-
-          </div>
-        </section>
+        {% include 'cobranca.html' %}
         {% endif %}
-
-        <script>
-          // UX bônus: contador de caracteres para mensagem de cobrança
-          (function(){
-            const ta = document.getElementById("billingMessage");
-            const cc = document.getElementById("billingCharCount");
-            if(!ta || !cc) return;
-
-            function upd(){ cc.textContent = String(ta.value.length); }
-            ta.addEventListener("input", upd);
-            upd();
-          })();
-        </script>
 
         {% if not is_partner_teacher %}
         <section class="view" id="view-tasks">

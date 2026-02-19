@@ -27,6 +27,7 @@
     }
 
     *{ box-sizing: border-box; }
+    html, body{ overflow-x: hidden; }
     body{
       margin:0;
       font-family: var(--font);
@@ -41,10 +42,14 @@
       grid-template-columns: 320px 1fr;
       gap: 24px;
       padding: 24px;
+      overflow-x: hidden;
     }
 
     .page{
       max-width: 100%;
+      width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
       margin: 0;
       padding: 0;
     }
@@ -124,8 +129,8 @@
     @media (max-width: 980px){
       .app-shell {
         grid-template-columns: 1fr;
+        padding: 16px;
       }
-      /* Sidebar agora é padronizado no styles.css */
       .grid{ grid-template-columns: 1fr; }
       .header{ flex-direction: column; align-items: flex-start; }
       .headerActions{ justify-content:flex-start; }
@@ -134,6 +139,43 @@
     @media (max-width: 560px){
       .stats{ grid-template-columns: 1fr; }
       .planPrice{ text-align:left; }
+    }
+
+    /* ========== MOBILE (≤768px) – evita overflow ========== */
+    @media (max-width: 768px){
+      .app-shell{ padding: 12px; }
+      .page{ padding: 0; }
+      .header{ gap: 12px; margin-bottom: 12px; }
+      .titleBlock h1{ font-size: 18px; }
+      .titleBlock p{ font-size: 13px; max-width: 100%; }
+      .grid{ gap: 12px; margin-top: 12px; min-width: 0; }
+      .card{ min-width: 0; overflow-x: hidden; }
+      .cardHeader{ flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+      .cardHeader h2{ font-size: 14px; }
+      .cardBody{ padding: 12px; }
+      .planTop{ flex-direction: column; gap: 10px; margin-bottom: 10px; }
+      .planName{ min-width: 0 !important; }
+      .planName .big{ font-size: 18px; }
+      .planName .sub{ font-size: 13px; word-wrap: break-word; overflow-wrap: break-word; }
+      .planPrice{ min-width: 0 !important; text-align: left; }
+      .planPrice .value{ font-size: 22px; }
+      .stats{ gap: 8px; min-width: 0; }
+      .stat{ min-width: 0; }
+      .stat .hint{ font-size: 12px; overflow-wrap: break-word; }
+      /* Tabela: scroll horizontal no mobile */
+      .table-wrapper{ min-width: 0; }
+      .card .table th, .card .table td{ padding: 10px 8px; font-size: 12px; }
+      .card .table th:nth-child(1), .card .table td:nth-child(1){ min-width: 65px; }
+      .card .table th:nth-child(2), .card .table td:nth-child(2){ min-width: 90px; }
+      .card .table th:nth-child(3), .card .table td:nth-child(3){ min-width: 75px; }
+      .card .table th:nth-child(4), .card .table td:nth-child(4){ min-width: 65px; }
+      .card .table th:nth-child(5), .card .table td:nth-child(5){ min-width: 45px; }
+      .pill{ font-size: 11px; padding: 4px 8px; }
+      .upgradePlanBtn{ font-size: 12px; padding: 10px 12px; text-align: left; white-space: normal; }
+      /* Banner de ação inativa */
+      .page > div[style*="linear-gradient"]{ padding: 16px !important; }
+      .page > div[style*="linear-gradient"] h2{ font-size: 16px !important; }
+      .page > div[style*="linear-gradient"] p{ font-size: 13px !important; }
     }
 
     /* Cards */
@@ -276,6 +318,9 @@
       margin: 12px 0;
     }
 
+    .table-wrapper{ width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrapper .table{ margin: 0; }
+
     /* Table */
     .table{
       width:100%;
@@ -377,6 +422,7 @@
 </head>
 
 <body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -630,6 +676,7 @@
             <span class="icon ic-receipt" aria-hidden="true"></span>
           </div>
 
+          <div class="table-wrapper">
           <table class="table" aria-label="Histórico de cobranças">
             <thead>
               <tr>
@@ -674,6 +721,7 @@
               {% endif %}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
