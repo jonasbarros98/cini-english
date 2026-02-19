@@ -326,14 +326,16 @@ class LessonPlanSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()
     subscription_exempt = serializers.SerializerMethodField()
+    subscription_summary = serializers.SerializerMethodField()
     user_profile = serializers.SerializerMethodField()
     partner_teachers = serializers.SerializerMethodField()
+    owner_teacher = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=False)
     password_confirm = serializers.CharField(write_only=True, required=False)
     user_profile_write = serializers.ChoiceField(
         choices=UserProfile.PROFILE_CHOICES,
         write_only=True,
-        required=True
+        required=False
     )
     partner_teachers_ids = serializers.ListField(
         child=serializers.IntegerField(),
@@ -356,15 +358,31 @@ class UserSerializer(serializers.ModelSerializer):
             "password_confirm",
             "is_admin",
             "subscription_exempt",
+            "subscription_summary",
             "user_profile",
             "partner_teachers",
+            "owner_teacher",
             "user_profile_write",
             "partner_teachers_ids",
             "subscription_exempt_write",
             "is_active",
             "date_joined",
         ]
-        read_only_fields = ["date_joined", "user_profile", "partner_teachers"]
+        read_only_fields = ["date_joined", "user_profile", "partner_teachers", "owner_teacher", "subscription_summary"]
+
+    def get_subscription_summary(self, obj):
+        try:
+            sub = obj.subscription
+            return {
+                "tier": sub.tier,
+                "tier_display": sub.get_tier_display(),
+                "status": sub.status,
+                "status_display": sub.get_status_display(),
+                "is_active": sub.is_active,
+                "current_period_end": sub.current_period_end.strftime("%Y-%m-%d") if sub.current_period_end else None,
+            }
+        except Subscription.DoesNotExist:
+            return None
 
     def get_is_admin(self, obj):
         try:
@@ -397,6 +415,21 @@ class UserSerializer(serializers.ModelSerializer):
             ]
         except UserProfile.DoesNotExist:
             return []
+
+    def get_owner_teacher(self, obj):
+        """Para Prof. Parceiro: retorna o professor dono da conta que o vinculou."""
+        try:
+            profile = obj.profile
+            if profile.user_profile != UserProfile.PROFILE_PARTNER_TEACHER:
+                return None
+            owner = UserProfile.objects.filter(partner_teachers=profile).select_related("user").first()
+            if not owner:
+                return None
+            u = owner.user
+            name = (u.first_name or u.last_name) and f"{u.first_name or ''} {u.last_name or ''}".strip() or u.username
+            return {"id": u.id, "username": u.username, "name": name or u.username}
+        except UserProfile.DoesNotExist:
+            return None
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)

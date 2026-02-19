@@ -1009,7 +1009,7 @@
           <button id="tabWeek" type="button">Semanal</button>
         </div>
 
-        {% if not is_partner_teacher %}<button class="btn primary" id="btnNew" type="button">+ Nova aula</button>{% endif %}
+        <button class="btn primary" id="btnNew" type="button">+ Nova aula</button>
       </div>
     </div>
 
@@ -1072,7 +1072,7 @@
               </div>
               <div class="day-actions">
                 <button class="mini-btn" id="btnJumpNow" type="button">Agora</button>
-                {% if not is_partner_teacher %}<button class="mini-btn primary" id="btnAddInline" type="button">+ Aula</button>{% endif %}
+                <button class="mini-btn primary" id="btnAddInline" type="button">+ Aula</button>
               </div>
             </div>
 
@@ -2409,10 +2409,16 @@
       
       attachFormSubmit();
 
-      $('#btnJumpNow')?.addEventListener('click', ()=>{
-        // se na semana, reposiciona linha do agora já está.
-        // aqui só dá feedback (em produção: scroll até hora atual)
-        showToast("Agora: em produção, rolar para a hora atual.");
+      $('#btnJumpNow')?.addEventListener('click', async ()=>{
+        selected = new Date();
+        await setView("week");
+        await renderDayPanel();
+        const nowEl = document.querySelector('.now-line, .now-dot, .now-label');
+        if (nowEl) {
+          nowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          showToast("Visualização ajustada para hoje.");
+        }
       });
 
       // ==========

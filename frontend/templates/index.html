@@ -1033,95 +1033,39 @@
             <button class="primary" id="newUserBtn">+ Novo Usuário</button>
           </header>
 
-          <!-- Formulário de Usuário (oculto por padrão) -->
-          <section class="card detail-card" id="userFormCard" style="display: none;">
-            <div class="section-header">
-              <div>
-                <p class="eyebrow">Usuário</p>
-                <h3 id="userFormTitle">Novo Usuário</h3>
-                <p class="muted">Preencha os dados do usuário.</p>
-              </div>
+          <!-- KPIs -->
+          <div class="users-kpis" id="usersKpis">
+            <div class="users-kpi">
+              <span class="users-kpi-value" id="usersKpiTotal">0</span>
+              <span class="users-kpi-label">Usuários</span>
             </div>
-            <form id="userForm" class="form">
-              <div class="form-row" id="userIdRow" style="display: none;">
-                <label for="uUserId">Código do Professor (ID)</label>
-                <input type="text" id="uUserId" name="uUserId" readonly style="background-color: #f5f5f5; cursor: not-allowed;" />
-                <small class="muted">ID único do professor no banco de dados</small>
-              </div>
-              <div class="form-row grid-two">
-                <div>
-                  <label for="uUsername">Username *</label>
-                  <input type="text" id="uUsername" name="uUsername" required />
-                </div>
-                <div>
-                  <label for="uEmail">Email</label>
-                  <input type="email" id="uEmail" name="uEmail" />
-                </div>
-              </div>
-              <div class="form-row grid-two">
-                <div>
-                  <label for="uFirstName">Nome</label>
-                  <input type="text" id="uFirstName" name="uFirstName" />
-                </div>
-                <div>
-                  <label for="uLastName">Sobrenome</label>
-                  <input type="text" id="uLastName" name="uLastName" />
-                </div>
-              </div>
-              <div class="form-row">
-                <label for="uPassword">Senha <span id="passwordRequired">*</span></label>
-                <input type="password" id="uPassword" name="uPassword" required />
-                <small class="muted">Deixe em branco para manter a senha atual (ao editar)</small>
-              </div>
-              <div class="form-row" id="passwordConfirmRow" style="display: none;">
-                <label for="uPasswordConfirm">Confirmar Senha <span id="passwordConfirmRequired">*</span></label>
-                <input type="password" id="uPasswordConfirm" name="uPasswordConfirm" />
-                <small id="passwordMatchError" style="color: #dc2626; display: none; font-size: 13px; margin-top: 4px;">
-                  As senhas não coincidem
-                </small>
-              </div>
-              <div class="form-row">
-                <label for="uUserProfile">Perfil de Usuário *</label>
-                <select id="uUserProfile" name="uUserProfile" required>
-                  <option value="professor">Professor</option>
-                  <option value="prof_parceiro">Prof. Parceiro</option>
-                </select>
-                <small class="muted">Selecione o perfil do usuário no sistema</small>
-              </div>
-              <div class="form-row" id="partnerTeachersRow" style="display: none;">
-                <label for="uPartnerTeachers">Professores Parceiros</label>
-                <select id="uPartnerTeachers" name="uPartnerTeachers" multiple style="min-height: 120px;">
-                  <option value="">Nenhum selecionado</option>
-                </select>
-                <small class="muted">Selecione os professores parceiros vinculados (apenas para perfil Professor). Use Ctrl+Click para selecionar múltiplos.</small>
-              </div>
-              <div class="form-row grid-two">
-                <div>
-                  <label style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="uIsAdmin" name="uIsAdmin" />
-                    <span>Administrador</span>
-                  </label>
-                </div>
-                <div>
-                  <label style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="uIsActive" name="uIsActive" checked />
-                    <span>Ativo</span>
-                  </label>
-                </div>
-                <div>
-                  <label style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="uSubscriptionExempt" name="uSubscriptionExempt" />
-                    <span>Sem assinatura (acesso liberado)</span>
-                  </label>
-                  <small class="muted">Marque para contas internas que não precisam de assinatura (ex: sua conta, esposa)</small>
-                </div>
-              </div>
-              <div class="form-row" style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button type="submit" class="primary">Salvar Usuário</button>
-                <button type="button" class="primary ghost" id="cancelUserForm">Cancelar</button>
-              </div>
-            </form>
-          </section>
+            <div class="users-kpi">
+              <span class="users-kpi-value" id="usersKpiActive">0</span>
+              <span class="users-kpi-label">Com assinatura ativa</span>
+            </div>
+            <div class="users-kpi">
+              <span class="users-kpi-value" id="usersKpiExempt">0</span>
+              <span class="users-kpi-label">Sem assinatura (liberado)</span>
+            </div>
+          </div>
+
+          <!-- Filtros e busca -->
+          <div class="users-filters">
+            <input type="text" id="usersSearch" class="users-search" placeholder="Buscar por nome, email ou username..." />
+            <div class="users-filter-row">
+              <select id="usersFilterStatus">
+                <option value="">Todos os status</option>
+                <option value="active">Com assinatura ativa</option>
+                <option value="exempt">Liberado (sem assinatura)</option>
+                <option value="inactive">Sem assinatura</option>
+              </select>
+              <select id="usersFilterProfile">
+                <option value="">Todos os perfis</option>
+                <option value="professor">Professor</option>
+                <option value="prof_parceiro">Prof. Parceiro</option>
+              </select>
+            </div>
+          </div>
 
           <!-- Lista de Usuários -->
           <section class="card detail-card">
@@ -1132,11 +1076,80 @@
                 <p class="muted">Gerencie os usuários do sistema.</p>
               </div>
             </div>
-            <div id="usersList" class="student-list"></div>
+            <div id="usersList" class="users-list"></div>
           </section>
         </section>
 
       </main>
+    </div>
+
+    <!-- Modal de Edição de Usuário -->
+    <div id="userEditModal" class="user-edit-modal" aria-hidden="true">
+      <div class="user-edit-modal-backdrop" id="userEditModalBackdrop"></div>
+      <div class="user-edit-modal-box">
+        <div class="user-edit-modal-header">
+          <h3 id="userFormTitle">Novo Usuário</h3>
+          <button type="button" class="user-edit-modal-close" id="userEditModalClose" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="userForm" class="form">
+          <div class="form-row" id="userIdRow" style="display: none;">
+            <label for="uUserId">Código (ID)</label>
+            <input type="text" id="uUserId" name="uUserId" readonly style="background-color: #f5f5f5; cursor: not-allowed;" />
+          </div>
+          <div class="form-row grid-two">
+            <div>
+              <label for="uUsername">Username *</label>
+              <input type="text" id="uUsername" name="uUsername" required />
+            </div>
+            <div>
+              <label for="uEmail">Email</label>
+              <input type="email" id="uEmail" name="uEmail" />
+            </div>
+          </div>
+          <div class="form-row grid-two">
+            <div>
+              <label for="uFirstName">Nome</label>
+              <input type="text" id="uFirstName" name="uFirstName" />
+            </div>
+            <div>
+              <label for="uLastName">Sobrenome</label>
+              <input type="text" id="uLastName" name="uLastName" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="uPassword">Senha <span id="passwordRequired">*</span></label>
+            <input type="password" id="uPassword" name="uPassword" required />
+            <small class="muted">Deixe em branco para manter a senha atual (ao editar)</small>
+          </div>
+          <div class="form-row" id="passwordConfirmRow" style="display: none;">
+            <label for="uPasswordConfirm">Confirmar Senha *</label>
+            <input type="password" id="uPasswordConfirm" name="uPasswordConfirm" />
+            <small id="passwordMatchError" style="color: #dc2626; display: none;">As senhas não coincidem</small>
+          </div>
+          <div class="form-row">
+            <label for="uUserProfile">Perfil *</label>
+            <select id="uUserProfile" name="uUserProfile" required>
+              <option value="professor">Professor</option>
+              <option value="prof_parceiro">Prof. Parceiro</option>
+            </select>
+          </div>
+          <div class="form-row" id="partnerTeachersRow" style="display: none;">
+            <label for="uPartnerTeachers">Professores Parceiros</label>
+            <select id="uPartnerTeachers" name="uPartnerTeachers" multiple style="min-height: 100px;">
+              <option value="">Nenhum selecionado</option>
+            </select>
+          </div>
+          <div class="form-row grid-two">
+            <div><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="uIsAdmin" name="uIsAdmin" /><span>Administrador</span></label></div>
+            <div><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="uIsActive" name="uIsActive" checked /><span>Ativo</span></label></div>
+            <div><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="uSubscriptionExempt" name="uSubscriptionExempt" /><span>Sem assinatura (acesso liberado)</span></label></div>
+          </div>
+          <div class="form-row" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="submit" class="primary">Salvar</button>
+            <button type="button" class="primary ghost" id="cancelUserForm">Cancelar</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <script src="{% static 'script.js' %}"></script>

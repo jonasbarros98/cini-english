@@ -140,6 +140,14 @@
       border-color: rgba(37,99,235,.25);
       box-shadow: 0 16px 34px rgba(37,99,235,.10);
     }
+    /* Editor somente leitura (prof. parceiro) */
+    .editor-readonly input,
+    .editor-readonly select,
+    .editor-readonly textarea{
+      background-color: #f5f7fb !important;
+      cursor: not-allowed;
+      opacity: 0.95;
+    }
     .help{
       margin-top: 6px;
       color: var(--muted);
@@ -644,7 +652,7 @@
           </div>
         </div>
 
-        <div class="editor" id="studentEditor">
+        <div class="editor {% if is_partner_teacher %}editor-readonly{% endif %}" id="studentEditor">
           <!-- Section: Identity -->
           <section class="section" data-open="true">
             <button class="section-head" type="button">
@@ -1057,6 +1065,16 @@
       btnCancel?.addEventListener('click', closeModal);
       overlay?.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
       document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && overlay?.classList.contains('is-open')) closeModal(); });
+
+      // Prof. parceiro: desabilitar todos os campos do editor (somente exibição)
+      if (isPartnerTeacher) {
+        const editor = document.getElementById('studentEditor');
+        if (editor) {
+          editor.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
+          const removeBtn = $('#f_contract_remove');
+          if (removeBtn) removeBtn.disabled = true;
+        }
+      }
 
       // Collapsible sections (both page + modal)
       document.addEventListener('click', (e) => {

@@ -108,7 +108,12 @@ async function fetchJSON(path, options = {}) {
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     console.error("API error", res.status, res.statusText, text);
-    throw new Error(`Erro na API (${res.status})`);
+    let errMsg = `Erro na API (${res.status})`;
+    try {
+      const errJson = JSON.parse(text);
+      if (errJson && typeof errJson.error === "string") errMsg = errJson.error;
+    } catch (_) {}
+    throw new Error(errMsg);
   }
 
   if (res.status === 204) return null;
@@ -2983,46 +2988,149 @@ async function loadUsers() {
   }
 }
 
+function getFilteredUsers() {
+  const search = (document.getElementById("usersSearch")?.value || "").trim().toLowerCase();
+  const statusFilter = document.getElementById("usersFilterStatus")?.value || "";
+  const profileFilter = document.getElementById("usersFilterProfile")?.value || "";
+  let list = state.users || [];
+  if (search) {
+    list = list.filter(u => {
+      const name = ((u.first_name || "") + " " + (u.last_name || "")).trim() || u.username;
+      return (u.username || "").toLowerCase().includes(search) ||
+             (u.email || "").toLowerCase().includes(search) ||
+             name.toLowerCase().includes(search);
+    });
+  }
+  if (statusFilter === "active") {
+    list = list.filter(u => u.subscription_summary?.is_active === true);
+  } else if (statusFilter === "exempt") {
+    list = list.filter(u => u.subscription_exempt === true);
+  } else if (statusFilter === "inactive") {
+    list = list.filter(u => !u.subscription_exempt && !(u.subscription_summary?.is_active));
+  }
+  if (profileFilter) {
+    list = list.filter(u => u.user_profile === profileFilter);
+  }
+  return list;
+}
+
+function updateUsersKpis() {
+  const users = state.users || [];
+  const total = users.length;
+  const withActive = users.filter(u => u.subscription_summary?.is_active).length;
+  const exempt = users.filter(u => u.subscription_exempt).length;
+  const totalEl = document.getElementById("usersKpiTotal");
+  const activeEl = document.getElementById("usersKpiActive");
+  const exemptEl = document.getElementById("usersKpiExempt");
+  if (totalEl) totalEl.textContent = total;
+  if (activeEl) activeEl.textContent = withActive;
+  if (exemptEl) exemptEl.textContent = exempt;
+}
+
 function renderUsers() {
   const list = document.getElementById("usersList");
   if (!list) return;
 
+  updateUsersKpis();
+  const filtered = getFilteredUsers();
   list.innerHTML = "";
 
-  if (state.users.length === 0) {
+  if (filtered.length === 0) {
     const empty = document.createElement("p");
     empty.className = "muted";
-    empty.textContent = "Nenhum usuário cadastrado.";
+    empty.textContent = state.users?.length ? "Nenhum usuário encontrado com os filtros aplicados." : "Nenhum usuário cadastrado.";
     list.append(empty);
     return;
   }
 
-  state.users.forEach((user) => {
+  filtered.forEach((user) => {
+    const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username;
     const profileLabel = user.user_profile === "prof_parceiro" ? "Prof. Parceiro" : "Professor";
-    const row = document.createElement("div");
-    row.className = "student-row";
-    row.innerHTML = `
-      <div class="student-main">
-        <div class="student-name">
-          <strong>${user.username}</strong>
-          ${user.is_admin ? '<span class="tag" style="margin-left: 8px;">Admin</span>' : ''}
-          ${user.subscription_exempt ? '<span class="tag" style="margin-left: 8px; background: #d1fae5; color: #065f46;">Sem assinatura</span>' : ''}
-          <span class="tag" style="margin-left: 8px; background: #e0e7ff; color: #4338ca;">${profileLabel}</span>
-          <span class="tag" style="margin-left: 8px; background: #f3f4f6; color: #6b7280; font-size: 11px;">ID: ${user.id}</span>
+    const sub = user.subscription_summary;
+    const subTagClass = user.subscription_exempt ? "" : (sub?.is_active ? "sub-active" : (sub ? "sub-inactive" : "sub-pending"));
+    const subTagText = user.subscription_exempt ? "Liberado" : (sub?.is_active ? sub.tier_display || "Ativo" : (sub ? sub.status_display || "Inativo" : "Sem plano"));
+    const partnerCount = user.partner_teachers?.length || 0;
+
+    const card = document.createElement("div");
+    card.className = "user-card";
+    card.innerHTML = `
+      <div class="user-card-main">
+        <div class="user-card-name">
+          <span>${escapeHtml(displayName)}</span>
+          ${user.is_admin ? '<span class="user-card-tag admin">Admin</span>' : ''}
+          ${user.subscription_exempt ? '<span class="user-card-tag exempt">Sem assinatura</span>' : ''}
+          <span class="user-card-tag ${user.user_profile === 'prof_parceiro' ? 'partner' : 'professor'}">${escapeHtml(profileLabel)}</span>
         </div>
-        <div class="student-info">
-          <div style="margin-bottom: 4px;"><strong>Código:</strong> ${user.id}</div>${user.email || "Sem email"} • ${user.is_active ? "Ativo" : "Inativo"}
-          ${user.partner_teachers && user.partner_teachers.length > 0 ? 
-            ` • ${user.partner_teachers.length} parceiro(s)` : ''}
+        <div class="user-card-tags">
+          ${subTagClass ? `<span class="user-card-tag ${subTagClass}">${escapeHtml(subTagText)}</span>` : ''}
+          ${sub?.current_period_end && !user.subscription_exempt ? `<span class="user-card-tag" style="background:#f1f5f9;color:#64748b;">Vence ${sub.current_period_end}</span>` : ''}
+        </div>
+        <div class="user-card-meta">
+          <span>${escapeHtml(user.email || "Sem email")}</span>
+          <span>${user.is_active ? "Ativo" : "Inativo"}</span>
+          ${partnerCount ? `<span>${partnerCount} parceiro(s)</span>` : ""}
+          ${user.user_profile === 'prof_parceiro' && user.owner_teacher ? `<span class="user-card-owner" title="Professor dono da conta">Prof. dono: ${escapeHtml(user.owner_teacher.name || user.owner_teacher.username)}</span>` : ""}
         </div>
       </div>
-      <div class="student-actions">
-        <button class="tag" onclick="openUserForm(${user.id})">Editar</button>
-        <button class="tag" onclick="deleteUser(${user.id})" style="background: #fee; color: #c33;">Excluir</button>
+      <div class="user-card-actions">
+        <button type="button" class="btn-exempt" onclick="toggleSubscriptionExempt(${user.id}, event)">${user.subscription_exempt ? "Remover liberação" : "Liberar acesso"}</button>
+        ${!user.subscription_exempt && sub ? `<button type="button" class="btn-sync" onclick="syncUserSubscription(${user.id}, event)">Sincronizar</button>` : ''}
+        <button type="button" class="btn-edit" onclick="openUserForm(${user.id})">Editar</button>
+        <button type="button" class="btn-delete" onclick="deleteUser(${user.id}, event)">Excluir</button>
       </div>
     `;
-    list.append(row);
+    list.append(card);
   });
+}
+
+function escapeHtml(s) {
+  if (!s) return "";
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function toggleSubscriptionExempt(userId, ev) {
+  const user = state.users?.find(u => u.id === userId);
+  if (!user) return;
+  const newVal = !user.subscription_exempt;
+  if (newVal) {
+    if (!confirm(`Liberar acesso para ${user.username}? O usuário poderá acessar o sistema sem assinatura ativa.`)) return;
+  } else {
+    if (!confirm(`Remover liberação de ${user.username}? O usuário perderá o acesso se não tiver assinatura ativa.`)) return;
+  }
+  const btn = ev?.target;
+  if (btn) { btn.disabled = true; btn.textContent = "Salvando..."; }
+  try {
+    await fetchJSON(`/users/${userId}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ subscription_exempt_write: newVal }),
+    });
+    user.subscription_exempt = newVal;
+    await loadUsers();
+    renderUsers();
+  } catch (e) {
+    alert("Erro ao atualizar: " + (e.message || "Tente novamente."));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = newVal ? "Remover liberação" : "Liberar acesso"; }
+  }
+}
+
+async function syncUserSubscription(userId, ev) {
+  const btn = ev?.target;
+  if (btn) { btn.disabled = true; btn.textContent = "Sincronizando..."; }
+  try {
+    await fetchJSON("/subscription/sync/", {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId }),
+    });
+    await loadUsers();
+    renderUsers();
+  } catch (e) {
+    alert("Erro ao sincronizar: " + (e.message || "Tente novamente."));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Sincronizar"; }
+  }
 }
 
 async function loadPartnerTeachers() {
@@ -3064,11 +3172,11 @@ function updatePartnerTeachersSelect() {
 }
 
 async function openUserForm(userId = null) {
-  const card = document.getElementById("userFormCard");
+  const modal = document.getElementById("userEditModal");
   const titleEl = document.getElementById("userFormTitle");
   const form = document.getElementById("userForm");
 
-  if (!card || !form || !titleEl) {
+  if (!modal || !form || !titleEl) {
     console.error("Elementos do formulário de usuário não encontrados");
     return;
   }
@@ -3145,14 +3253,18 @@ async function openUserForm(userId = null) {
     await updatePartnerTeachersSelect();
   }
 
-  card.style.display = "flex";
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
 }
 
 function closeUserForm() {
-  const card = document.getElementById("userFormCard");
-  if (card) {
-    card.style.display = "none";
+  const modal = document.getElementById("userEditModal");
+  if (modal) {
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
   }
+  document.body.style.overflow = "";
   editingUserId = null;
   const form = document.getElementById("userForm");
   if (form) form.reset();
@@ -3290,21 +3402,22 @@ async function onUserFormSubmit(event) {
   }
 }
 
-async function deleteUser(userId) {
-  if (!confirm("Tem certeza que deseja excluir este usuário?")) {
-    return;
-  }
+async function deleteUser(userId, ev) {
+  const user = state.users?.find(u => u.id === userId);
+  const name = user ? (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username) : "este usuário";
+  if (!confirm(`Tem certeza que deseja excluir ${name}? Esta ação não pode ser desfeita.`)) return;
 
+  const btn = ev?.target;
+  if (btn) { btn.disabled = true; btn.textContent = "Excluindo..."; }
   try {
-    await fetchJSON(`/users/${userId}/`, {
-      method: "DELETE",
-    });
-    alert("Usuário excluído com sucesso!");
+    await fetchJSON(`/users/${userId}/`, { method: "DELETE" });
     await loadUsers();
     renderUsers();
   } catch (error) {
     console.error(error);
     alert("Não foi possível excluir o usuário.");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Excluir"; }
   }
 }
 
@@ -3315,14 +3428,27 @@ function initUsersUI() {
   }
 
   const cancelUserForm = document.getElementById("cancelUserForm");
-  if (cancelUserForm) {
-    cancelUserForm.addEventListener("click", closeUserForm);
-  }
+  if (cancelUserForm) cancelUserForm.addEventListener("click", closeUserForm);
+  const userEditModalBackdrop = document.getElementById("userEditModalBackdrop");
+  if (userEditModalBackdrop) userEditModalBackdrop.addEventListener("click", closeUserForm);
+  const userEditModalClose = document.getElementById("userEditModalClose");
+  if (userEditModalClose) userEditModalClose.addEventListener("click", closeUserForm);
+  document.addEventListener("keydown", function userModalKey(e) {
+    if (e.key === "Escape" && document.getElementById("userEditModal")?.classList.contains("is-open")) {
+      closeUserForm();
+    }
+  });
 
   const userForm = document.getElementById("userForm");
   if (userForm) {
     userForm.addEventListener("submit", onUserFormSubmit);
   }
+
+  ["usersSearch", "usersFilterStatus", "usersFilterProfile"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", renderUsers);
+    if (el) el.addEventListener("change", renderUsers);
+  });
 
   // Listener para mudança de perfil - mostra/oculta campo de professores parceiros
   const userProfileSelect = document.getElementById("uUserProfile");

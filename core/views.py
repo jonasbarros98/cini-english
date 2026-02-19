@@ -277,7 +277,7 @@ def _user_has_active_subscription(user):
     Retorna True se o usuário pode acessar o sistema sem bloqueio por assinatura.
     - Django staff/superuser: sempre permite
     - is_admin ou subscription_exempt no perfil: sempre permite
-    - Prof. parceiro: permite se o dono da conta tiver assinatura ativa
+    - Prof. parceiro: permite apenas se o dono da conta tiver assinatura ativa
     - Demais: exige assinatura ativa
     """
     # Django admin/staff
@@ -2347,9 +2347,20 @@ def subscription_sync(request):
     """
     Força sincronização da assinatura com o Stripe.
     Útil quando o Stripe mostra ativo/trialing mas o sistema exibe Pendente.
+    Admin pode passar user_id no body para sincronizar outro usuário.
     """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    user_id = request.data.get('user_id')
     try:
-        subscription = request.user.subscription
+        if user_id is not None:
+            is_admin = getattr(request.user.profile, 'is_admin', False)
+            if not is_admin:
+                return Response({'error': 'Apenas administradores podem sincronizar outros usuários'}, status=status.HTTP_403_FORBIDDEN)
+            target_user = User.objects.get(pk=user_id)
+            subscription = target_user.subscription
+        else:
+            subscription = request.user.subscription
         _sync_subscription_from_stripe(subscription, raise_on_error=True)
         subscription.refresh_from_db()
         return Response({
@@ -2357,6 +2368,8 @@ def subscription_sync(request):
             'status': subscription.status,
             'is_active': subscription.is_active,
         })
+    except User.DoesNotExist:
+        return Response({'error': 'Usuário não encontrado'}, status=status.HTTP_404_NOT_FOUND)
     except Subscription.DoesNotExist:
         return Response({'error': 'Assinatura não encontrada'}, status=status.HTTP_404_NOT_FOUND)
     except (ValueError, stripe.error.StripeError) as e:
@@ -3722,16 +3735,13 @@ def calendar_event_create(request):
     """
     POST /api/calendar/events/
     Body: {date, time, student_id, status?, note?, user_id?}
-    Cria uma nova aula (lesson). Apenas professor dono da conta pode criar; user_id opcional para atribuir a si ou a um parceiro.
+    Cria uma nova aula (lesson). Professor dono ou parceiro pode criar; user_id opcional (apenas dono) para atribuir a si ou a um parceiro.
+    Parceiros agendam apenas para alunos atribuídos a eles.
     """
     try:
-        # Prof. Parceiro não pode criar aulas
+        is_partner = False
         try:
-            if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
-                return Response(
-                    {'error': 'Apenas o professor dono da conta pode agendar aulas.'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+            is_partner = request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
         except UserProfile.DoesNotExist:
             pass
 
@@ -3749,8 +3759,9 @@ def calendar_event_create(request):
             )
         
         # Definir professor da aula: user_id válido (self ou parceiro) ou request.user
+        # Parceiros sempre criam para si mesmos
         teacher_user = request.user
-        if user_id is not None:
+        if user_id is not None and not is_partner:
             try:
                 user_id = int(user_id)
             except (TypeError, ValueError):
@@ -3780,7 +3791,7 @@ def calendar_event_create(request):
                     status=status.HTTP_404_NOT_FOUND
                 )
         
-        # Aluno: deve pertencer ao dono da conta ou a um parceiro (lista já usada em listagem)
+        # Aluno: dono vê alunos da conta; parceiro vê apenas alunos atribuídos a ele (assigned_teacher)
         try:
             profile = request.user.profile
             if profile.user_profile == UserProfile.PROFILE_TEACHER:
@@ -3788,7 +3799,8 @@ def calendar_event_create(request):
                 partner_ids.append(request.user.id)
                 student = Student.objects.get(id=student_id, user_id__in=partner_ids)
             else:
-                student = Student.objects.get(id=student_id, user=request.user)
+                # Parceiro: apenas alunos atribuídos a ele
+                student = Student.objects.get(id=student_id, assigned_teacher=request.user)
         except Student.DoesNotExist:
             return Response(
                 {'error': 'Aluno não encontrado'},
