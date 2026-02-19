@@ -18,9 +18,16 @@
     html,body{ height:100%; }
     .page{ max-width: 100%; margin: 0; padding: 0; }
 
+    /* Aproveitar melhor o espaço: menos gap entre sidebar e conteúdo */
+    body.page-finance .app-shell{
+      gap: 12px !important;
+      padding: 16px 20px 24px !important;
+    }
+
     .wrap{
-      max-width: 1280px;
-      margin: 0 auto;
+      width: 100%;
+      max-width: none;
+      margin: 0;
       padding: 0 20px 40px;
     }
 
@@ -1007,7 +1014,7 @@
   </style>
 </head>
 
-<body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+<body class="page-finance" data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
   {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <aside class="sidebar">
