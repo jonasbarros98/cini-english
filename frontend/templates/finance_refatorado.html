@@ -2076,7 +2076,7 @@
                   body: JSON.stringify({
                     student: Number(studentId),
                     description: installments > 1 ? `${description} • ${i}/${installments}` : description,
-                    amount: round2(amount / installments),
+                    amount: round2(amount),
                     installments,
                     current_installment: i,
                     issue_date: todayStr,
