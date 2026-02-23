@@ -2383,6 +2383,8 @@ def verify_checkout_session(request):
         except Exception as e:
             print(f"Erro ao atualizar períodos: {e}")
         subscription.save()
+
+        amount_total = getattr(checkout_session, 'amount_total', None) or checkout_session.get('amount_total')
         
         return Response({
             'success': True,
@@ -2391,6 +2393,7 @@ def verify_checkout_session(request):
             'plan': subscription.plan,
             'status': subscription.status,
             'is_active': subscription.is_active,
+            'amount_total': amount_total,
         })
         
     except stripe.error.StripeError as e:

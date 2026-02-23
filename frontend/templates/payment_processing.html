@@ -178,6 +178,10 @@
               
               if (verifyData.is_active) {
                 console.log("✅ Assinatura ativada via verificação direta! Redirecionando...");
+                if (typeof fbq === 'function') {
+                  const val = verifyData.amount_total;
+                  fbq('track', 'Purchase', { value: val != null ? Number(val) / 100 : 0, currency: 'BRL' });
+                }
                 window.location.replace("/");
                 return true;
               }
@@ -212,6 +216,10 @@
             if (data.has_subscription && data.is_active) {
               // Assinatura ativa, redirecionar
               console.log("✅ Assinatura ativa! Redirecionando para o dashboard...");
+              if (typeof fbq === 'function') {
+                const val = data.amount_total;
+                fbq('track', 'Purchase', { value: val != null ? Number(val) / 100 : 0, currency: 'BRL' });
+              }
               window.location.replace("/");
               return;
             } else if (data.has_subscription) {

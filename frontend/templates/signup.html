@@ -3,7 +3,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     {% include '_meta_pixel.html' %}
     <title>EDUCAflowOne | Cadastro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -186,6 +186,127 @@
       
       .login-link a:hover {
         text-decoration: underline;
+      }
+
+      /* ===== Mobile otimizado (≤ 640px) ===== */
+      @media (max-width: 640px) {
+        body {
+          padding: 12px;
+          padding-left: max(12px, env(safe-area-inset-left));
+          padding-right: max(12px, env(safe-area-inset-right));
+          padding-bottom: max(12px, env(safe-area-inset-bottom));
+          min-height: 100dvh;
+          align-items: flex-start;
+        }
+
+        .signup-container {
+          max-width: none;
+          width: 100%;
+          margin: 0 auto;
+          padding: 16px;
+          padding-left: max(16px, env(safe-area-inset-left));
+          padding-right: max(16px, env(safe-area-inset-right));
+          border-radius: 16px;
+          max-height: calc(100dvh - 24px);
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior-y: contain;
+        }
+
+        .signup-header {
+          margin-bottom: 14px;
+        }
+
+        .signup-icon {
+          max-width: 160px;
+          max-height: 90px;
+          margin-bottom: 6px;
+        }
+
+        .signup-icon img {
+          max-height: 90px;
+        }
+
+        .signup-title {
+          font-size: 20px;
+        }
+
+        .signup-subtitle {
+          font-size: 12px;
+        }
+
+        .plan-badge {
+          font-size: 10px;
+          padding: 4px 8px;
+          margin-top: 4px;
+        }
+
+        .signup-form {
+          gap: 12px;
+        }
+
+        .form-group {
+          gap: 4px;
+        }
+
+        .form-group label {
+          font-size: 12px;
+        }
+
+        .form-group input {
+          padding: 12px 14px;
+          font-size: 16px; /* evita zoom no iOS ao focar */
+          min-height: 48px; /* touch target adequado (44px+) */
+          border-radius: 10px;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+
+        .form-group small {
+          font-size: 11px;
+        }
+
+        .signup-button {
+          padding: 14px 20px;
+          min-height: 52px;
+          font-size: 15px;
+          margin-top: 6px;
+          border-radius: 10px;
+          touch-action: manipulation; /* remove delay de 300ms */
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .error-message {
+          padding: 10px 12px;
+          font-size: 13px;
+          margin-bottom: 12px;
+        }
+
+        .login-link {
+          margin-top: 18px;
+          font-size: 13px;
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+      }
+
+      /* Mobile muito estreito (≤ 375px) */
+      @media (max-width: 375px) {
+        body {
+          padding: 8px;
+        }
+
+        .signup-container {
+          padding: 12px;
+        }
+
+        .signup-icon {
+          max-width: 140px;
+          max-height: 75px;
+        }
+
+        .signup-title {
+          font-size: 18px;
+        }
       }
     </style>
   </head>
@@ -430,6 +551,9 @@
 
           // Aguardar um pouco para garantir que a sessão foi estabelecida
           await new Promise(resolve => setTimeout(resolve, 300));
+
+          // Meta Pixel: cadastro concluído
+          if (typeof fbq === 'function') fbq('track', 'CompleteRegistration');
 
           // Se há um plano selecionado, criar checkout session
           if (tier && plan && ['basic', 'premium', 'platinum'].includes(tier) && ['monthly', 'semestral', 'annual'].includes(plan)) {
