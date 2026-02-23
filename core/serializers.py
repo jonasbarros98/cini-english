@@ -582,6 +582,17 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
         allow_null=True,
     )
     
+    slug_publico = drf_serializers.SlugField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=80,
+        help_text="Slug único para link público de agendamento (ex: ayla-barros)"
+    )
+    agenda_publica_ativa = drf_serializers.BooleanField(required=False, default=False)
+    public_availability = drf_serializers.JSONField(required=False, default=dict)
+    public_booking_duration = drf_serializers.IntegerField(required=False, default=60, min_value=15, max_value=180)
+
     class Meta:
         model = UserProfile
         fields = [
@@ -592,6 +603,8 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
             'is_admin', 'user_profile', 'role',
             'subscription_status', 'stripe_customer_id',
             'partner_teachers', 'partner_teachers_ids',
+            'slug_publico', 'agenda_publica_ativa',
+            'public_availability', 'public_booking_duration',
         ]
         read_only_fields = ['is_admin', 'user_profile', 'username']
     
@@ -652,6 +665,25 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
         except Exception:
             return []
     
+    def validate_slug_publico(self, value):
+        """Valida slug único (apenas letras, números, hífens)."""
+        if not value or not str(value).strip():
+            return None
+        slug = str(value).strip().lower()
+        if len(slug) < 2:
+            raise drf_serializers.ValidationError("O slug deve ter pelo menos 2 caracteres.")
+        import re
+        if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', slug):
+            raise drf_serializers.ValidationError("Use apenas letras minúsculas, números e hífens.")
+        # Unicidade (excluir o próprio usuário)
+        instance = self.instance
+        qs = UserProfile.objects.filter(slug_publico=slug)
+        if instance:
+            qs = qs.exclude(pk=instance.pk)
+        if qs.exists():
+            raise drf_serializers.ValidationError("Este slug já está em uso por outro professor.")
+        return slug
+
     def validate(self, data):
         password = data.get('password', '')
         password_confirm = data.get('password_confirm', '')

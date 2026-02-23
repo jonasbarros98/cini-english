@@ -19,6 +19,8 @@ from .views import (
     calendar_events, calendar_event_status, calendar_event_create, calendar_event_update,
     calendar_day_note, calendar_day_note_update,
     support_ticket_create, support_tickets_list,
+    PublicCalendarView, public_availability_api, public_reservation_create,
+    public_booking_confirm, public_booking_reject,
 )
 
 router = DefaultRouter()
@@ -33,6 +35,12 @@ router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
     path("landing/", TemplateView.as_view(template_name="landing.html"), name="landing"),
+    path("agendar/", PublicCalendarView.as_view(), name="public-calendar"),
+    path("agendar/<slug:slug>/", PublicCalendarView.as_view(), name="public-calendar-slug"),
+    path("api/public/<slug:slug>/availability/", public_availability_api, name="api-public-availability"),
+    path("api/public/<slug:slug>/reservations/", public_reservation_create, name="api-public-reservations"),
+    path("api/public/booking/<int:booking_id>/confirm/", public_booking_confirm, name="api-public-booking-confirm"),
+    path("api/public/booking/<int:booking_id>/reject/", public_booking_reject, name="api-public-booking-reject"),
     path("dashboard/", DashboardHomeView.as_view(), name="dashboard-home"),
     path("perfil/", PerfilView.as_view(), name="perfil"),
     path("", HomeView.as_view(), name="home"),

@@ -486,6 +486,27 @@ class UserProfile(models.Model):
         default=False,
         help_text="Se True, o usuário não precisa de assinatura ativa para acessar o sistema (ex: admin, contas internas)"
     )
+    # Agenda pública de agendamento (link único por professor)
+    slug_publico = models.SlugField(
+        max_length=80,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text="Slug único para link público de agendamento (ex: ayla-barros). Só letras, números e hífens."
+    )
+    agenda_publica_ativa = models.BooleanField(
+        default=False,
+        help_text="Se True, a agenda pública está ativa e o link pode ser compartilhado"
+    )
+    public_availability = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Horários disponíveis por dia da semana. Formato: {1:[18:00,21:00], 2:[18:00,21:00], ...} (0=domingo, 6=sábado)"
+    )
+    public_booking_duration = models.PositiveSmallIntegerField(
+        default=60,
+        help_text="Duração da aula em minutos para agendamento público"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -810,3 +831,50 @@ class SupportTicket(models.Model):
     
     def __str__(self):
         return f"#{self.ticket_id} - {self.title} - {self.user.username}"
+
+
+class PublicBookingRequest(models.Model):
+    """Solicitação de agendamento via link público (não expõe dados sensíveis)"""
+    STATUS_PENDING = "pending"
+    STATUS_CONFIRMED = "confirmed"
+    STATUS_CANCELLED = "cancelled"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pendente"),
+        (STATUS_CONFIRMED, "Confirmada"),
+        (STATUS_CANCELLED, "Cancelada"),
+    ]
+
+    teacher = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="public_booking_requests",
+        help_text="Professor que receberá a solicitação"
+    )
+    requested_date = models.DateField(help_text="Data solicitada")
+    requested_time = models.TimeField(help_text="Horário solicitado")
+    duration_minutes = models.PositiveSmallIntegerField(default=60)
+
+    # Dados do aluno (apenas para contato - não cria aluno automaticamente)
+    student_name = models.CharField(max_length=255)
+    student_whatsapp = models.CharField(max_length=30)
+    student_email = models.EmailField()
+    subject = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Solicitação de agendamento público"
+        verbose_name_plural = "Solicitações de agendamento público"
+
+    def __str__(self):
+        return f"{self.student_name} → {self.teacher.get_full_name()} {self.requested_date} {self.requested_time}"

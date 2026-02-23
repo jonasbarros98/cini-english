@@ -591,6 +591,21 @@
     .status-pill.bad{background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.22); color: rgba(185,28,28,.95);}
     .status-pill.done{background: rgba(14,165,233,.12); border-color: rgba(14,165,233,.22); color: rgba(2,132,199,.95);}
 
+    .public-badge, .public-badge-pill{
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 800;
+      background: rgba(99, 102, 241, .12);
+      border: 1px solid rgba(99, 102, 241, .22);
+      color: #4f46e5;
+      white-space: nowrap;
+    }
+    .evt .public-badge { margin-left: 4px; }
+
     .lesson-actions{
       display:flex;gap:6px;flex-wrap:wrap;
     }
@@ -989,6 +1004,7 @@
         {% endif %}
         <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
       </div>
+
     </aside>
     
     <main style="overflow-y: auto; max-height: calc(100vh - 48px);">
@@ -1103,12 +1119,75 @@
               </div>
             </div>
           </div>
+
+          {% if not is_partner_teacher and can_use_public_calendar %}
+          <div class="day-card" id="publicBookingCard">
+            <div class="day-card-head">
+              <div>
+                <p class="h">Link público de agendamento</p>
+                <p class="sub">Compartilhe no Instagram, WhatsApp ou cartão. Alunos marcam direto.</p>
+              </div>
+            </div>
+            <div class="list">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 12px;">
+                  <input type="checkbox" id="toggleAgendaPublica" {% if agenda_publica_ativa %}checked{% endif %} style="width: 18px; height: 18px;">
+                  <span>Ativar agenda pública</span>
+                </label>
+              </div>
+              <div id="publicSlugWrap" style="{% if not agenda_publica_ativa %}display:none;{% endif %}">
+                <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
+                  <button type="button" id="btnConfigHorarios" class="btn" style="padding: 8px 12px; font-size: 12px;">⚙ Configurar horários</button>
+                </div>
+                <label style="font-size: 11px; color: var(--muted2); display: block; margin-bottom: 4px;">Seu slug (ex: ayla-barros)</label>
+                <div style="display: flex; gap: 6px;">
+                  <input type="text" id="inputSlugPublico" value="{{ slug_publico }}" placeholder="meu-slug" style="flex:1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 12px;">
+                  <button type="button" id="btnSaveSlug" class="primary" style="padding: 8px 12px; font-size: 12px; white-space: nowrap;">Salvar</button>
+                </div>
+                <p id="slugError" style="color: var(--bad); font-size: 11px; margin: 4px 0 0; display: none;"></p>
+                {% if slug_publico and agenda_publica_ativa %}
+                <p style="font-size: 11px; margin: 10px 0 0; color: var(--muted);">Seu link:</p>
+                <div style="display: flex; gap: 6px; margin-top: 4px;">
+                  <input type="text" id="publicLinkDisplay" readonly value="{{ public_booking_url }}" style="flex:1; padding: 6px 8px; font-size: 11px; background: rgba(0,0,0,.04); border: 1px solid var(--border); border-radius: 8px;">
+                  <button type="button" id="btnCopyPublicLink" class="btn" style="padding: 6px 10px; font-size: 11px;">Copiar</button>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
     </main>
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- Modal: Configurar horários da agenda pública -->
+  <div class="modal" id="modalConfigHorarios" style="display:none;">
+    <div class="modal-overlay" id="modalConfigHorariosOverlay"></div>
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h2>Configurar horários disponíveis</h2>
+        <button class="modal-close" id="modalConfigHorariosClose" type="button" aria-label="Fechar">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" style="margin: 0 0 16px; font-size: 13px; color: var(--muted);">Defina em quais dias e horários alunos podem agendar. Deixe desmarcado para "não disponível".</p>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label>Duração da aula (min)</label>
+          <input type="number" id="configDuration" min="15" max="180" step="15" value="{{ public_booking_duration }}" style="width: 100px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px;">
+        </div>
+        <div id="configHorariosRows" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- 0=Dom, 1=Seg, ..., 6=Sáb - preenchido via JS -->
+        </div>
+        <div class="modal-actions" style="margin-top: 20px;">
+          <button type="button" class="btn" id="btnConfigHorariosCancel">Cancelar</button>
+          <button type="button" class="btn primary" id="btnConfigHorariosSave">Salvar horários</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{ public_availability|json_script:"public-availability-data" }}
 
   <!-- Modal: aluno não vinculado ao professor -->
   <div class="modal-student-assignment" id="studentAssignmentModal" style="display:none;position:fixed;inset:0;z-index:10002;align-items:center;justify-content:center;background:rgba(15,23,42,.4);padding:20px;">
@@ -1350,10 +1429,11 @@
           }
           
           const events = await fetchJSON(`/api/calendar/events/?start=${start}&end=${end}`);
-          // Garantir que realized está definido para cada evento
+          // Garantir que realized está definido para cada evento e source para agenda pública
           lessons = events.map(evt => ({
             ...evt,
-            realized: evt.realized !== undefined ? evt.realized : (evt.status === "done")
+            realized: evt.realized !== undefined ? evt.realized : (evt.status === "done"),
+            source: evt.source || 'lesson'
           }));
           loadedRange = { start, end };
           
@@ -1475,10 +1555,12 @@
                 statusHtml = `<span class="status-dot" title="${statusLabel(displayStatus)}"></span>`;
               }
               
+              const publicBadge = (l.source === 'public_booking') ? '<span class="public-badge" title="Solicitação via agenda pública">📅 Pública</span>' : '';
               e.innerHTML = `
                 <span class="time">${l.time}</span>
                 <span class="name" title="${studentName}">${displayName}</span>
                 ${statusHtml}
+                ${publicBadge}
               `;
               e.addEventListener('click', (ev)=>{ ev.stopPropagation(); selectDay(fromYMD(l.date)); });
               evts.appendChild(e);
@@ -1668,8 +1750,9 @@
             }
 
             const displayName = shortName(l.student) || l.student;
+            const weekPublicBadge = (l.source === 'public_booking') ? '<span class="public-badge" title="Agenda pública">📅</span>' : '';
             evt.innerHTML = `
-              <div class="name" title="${escapeHtml(l.student)}">${escapeHtml(displayName)} – <span class="t">${l.time}</span></div>
+              <div class="name" title="${escapeHtml(l.student)}">${escapeHtml(displayName)} – <span class="t">${l.time}</span> ${weekPublicBadge}</div>
               ${notePreview}
             `;
 
@@ -1774,16 +1857,22 @@
             // Determinar status para exibição: se realized é true, mostrar como "done"
             const displayStatus = (l.realized || l.status === "done") ? "done" : l.status;
             const isRealized = l.realized || l.status === "done";
+            const isPublicBooking = l.source === 'public_booking';
             
-            card.innerHTML = `
-              <div class="lesson-top">
-                <div class="lesson-title">
-                  <div class="n">${escapeHtml(l.student)}</div>
-                  <div class="m">${l.time} • ${statusLabel(displayStatus)}</div>
-                </div>
-                <span class="status-pill ${statusClass(displayStatus)}">${statusLabel(displayStatus)}</span>
+            const publicBookingMeta = isPublicBooking && (l.student_email || l.student_whatsapp) ?
+              `<div class="lesson-meta" style="font-size:11px;color:var(--muted);margin-top:4px;">
+                ${l.student_email ? `✉ ${escapeHtml(l.student_email)}` : ''} 
+                ${l.student_whatsapp ? ` • 📱 ${escapeHtml(l.student_whatsapp)}` : ''}
+              </div>` : '';
+            
+            const publicBadgePill = isPublicBooking ? '<span class="public-badge-pill" title="Solicitação via agenda pública">📅 Agenda pública</span>' : '';
+            
+            const actionsHtml = isPublicBooking ? `
+              <div class="lesson-actions">
+                <button class="act ok" data-act="public_confirm">Confirmar</button>
+                <button class="act bad" data-act="public_reject">Recusar</button>
               </div>
-
+            ` : `
               <div class="lesson-actions">
                 <button class="act ok" data-act="confirmed" ${isRealized ? 'disabled' : ''}>Confirmar</button>
                 <button class="act warn" data-act="pending" ${isRealized ? 'disabled' : ''}>Pendente</button>
@@ -1792,6 +1881,18 @@
                 <button class="act" data-act="edit" ${isRealized ? 'disabled' : ''}>Editar</button>
                 <button class="act bad" data-act="delete">Excluir</button>
               </div>
+            `;
+            
+            card.innerHTML = `
+              <div class="lesson-top">
+                <div class="lesson-title">
+                  <div class="n">${escapeHtml(l.student)} ${publicBadgePill}</div>
+                  <div class="m">${l.time} • ${statusLabel(displayStatus)}</div>
+                </div>
+                <span class="status-pill ${statusClass(displayStatus)}">${statusLabel(displayStatus)}</span>
+              </div>
+              ${publicBookingMeta}
+              ${actionsHtml}
             `;
 
             card.addEventListener('click', (e)=>{
@@ -1808,16 +1909,42 @@
       }
 
       async function handleLessonAction(id, act){
-        const i = lessons.findIndex(x => x.id===id);
+        const i = lessons.findIndex(x => String(x.id) === String(id));
         if(i < 0) return;
 
+        // Ações para solicitações da agenda pública (pbr_XXX)
+        if(act === "public_confirm" || act === "public_reject"){
+          const rawId = String(id).startsWith('pbr_') ? String(id).replace('pbr_','') : null;
+          if(!rawId) return;
+          const bookingId = parseInt(rawId, 10);
+          if(isNaN(bookingId)) return;
+          
+          const endpoint = act === "public_confirm" ? `/api/public/booking/${bookingId}/confirm/` : `/api/public/booking/${bookingId}/reject/`;
+          try {
+            const res = await fetchJSON(endpoint, { method: 'POST' });
+            lessons.splice(i, 1);
+            loadedRange = null;
+            if(view==="month") await renderMonth();
+            else await renderWeek();
+            await renderDayPanel();
+            refreshCounters();
+            showToast(res?.message || (act === "public_confirm" ? "Solicitação confirmada." : "Solicitação recusada."));
+          } catch (error) {
+            console.error('Erro:', error);
+            showToast(error?.message || "Erro ao processar.", true);
+          }
+          return;
+        }
+
         if(act === "edit"){
+          if(String(id).startsWith('pbr_')) return;
           initModalElements();
           await openEditLessonModal(id);
           return;
         }
 
         if(act === "delete"){
+          if(String(id).startsWith('pbr_')) return;
           const ok = confirm("Excluir esta aula?");
           if(!ok) return;
           
@@ -1832,6 +1959,8 @@
           }
           return;
         }
+
+        if(String(id).startsWith('pbr_')) return;
 
         // status change - atualização otimista
         const oldStatus = lessons[i].status;
@@ -2533,6 +2662,169 @@
             console.error('Erro ao fazer logout:', error);
             window.location.href = '/login/';
           }
+        });
+      }
+
+      // ========== Link público de agendamento ==========
+      const toggleAgenda = document.getElementById('toggleAgendaPublica');
+      const publicSlugWrap = document.getElementById('publicSlugWrap');
+      const inputSlug = document.getElementById('inputSlugPublico');
+      const btnSaveSlug = document.getElementById('btnSaveSlug');
+      const slugError = document.getElementById('slugError');
+      const publicLinkDisplay = document.getElementById('publicLinkDisplay');
+      const btnCopyLink = document.getElementById('btnCopyPublicLink');
+
+      if (toggleAgenda && publicSlugWrap) {
+        toggleAgenda.addEventListener('change', async () => {
+          const active = toggleAgenda.checked;
+          publicSlugWrap.style.display = active ? 'block' : 'none';
+          try {
+            const csrf = getCookie('csrftoken');
+            const r = await fetch('/api/profile/update/', {
+              method: 'PATCH',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+              body: JSON.stringify({ agenda_publica_ativa: active })
+            });
+            const data = await r.json().catch(()=> ({}));
+            if (!r.ok) { showToast(data.detail || data.error || 'Erro ao atualizar'); return; }
+            showToast(active ? 'Agenda pública ativada' : 'Agenda pública desativada');
+            if (active && data.slug_publico) window.location.reload();
+          } catch (e) { showToast('Erro ao atualizar'); }
+        });
+      }
+
+      if (btnSaveSlug && inputSlug && slugError) {
+        btnSaveSlug.addEventListener('click', async () => {
+          const slug = (inputSlug.value || '').trim().toLowerCase().replace(/\s+/g, '-');
+          if (!slug) { slugError.textContent = 'Informe um slug'; slugError.style.display = 'block'; return; }
+          if (slug.length < 2) { slugError.textContent = 'Mínimo 2 caracteres'; slugError.style.display = 'block'; return; }
+          if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) { slugError.textContent = 'Use apenas letras, números e hífens'; slugError.style.display = 'block'; return; }
+          slugError.style.display = 'none';
+          try {
+            const csrf = getCookie('csrftoken');
+            const r = await fetch('/api/profile/update/', {
+              method: 'PATCH',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+              body: JSON.stringify({ slug_publico: slug, agenda_publica_ativa: true })
+            });
+            const data = await r.json().catch(()=> ({}));
+            if (!r.ok) {
+              slugError.textContent = data.slug_publico?.[0] || data.detail || data.error || 'Erro ao salvar';
+              slugError.style.display = 'block';
+              return;
+            }
+            showToast('Slug salvo!');
+            window.location.reload();
+          } catch (e) { slugError.textContent = 'Erro de conexão'; slugError.style.display = 'block'; }
+        });
+      }
+
+      if (btnCopyLink && publicLinkDisplay) {
+        btnCopyLink.addEventListener('click', () => {
+          const url = publicLinkDisplay.value;
+          navigator.clipboard?.writeText(url).then(() => showToast('Link copiado!')).catch(() => showToast('Não foi possível copiar'));
+        });
+      }
+
+      // ========== Modal Configurar horários ==========
+      const DAYS_LABELS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+      const modalConfig = document.getElementById('modalConfigHorarios');
+      const modalConfigOverlay = document.getElementById('modalConfigHorariosOverlay');
+      const modalConfigClose = document.getElementById('modalConfigHorariosClose');
+      const configRows = document.getElementById('configHorariosRows');
+      const configDuration = document.getElementById('configDuration');
+      const btnConfigHorarios = document.getElementById('btnConfigHorarios');
+      const btnConfigCancel = document.getElementById('btnConfigHorariosCancel');
+      const btnConfigSave = document.getElementById('btnConfigHorariosSave');
+
+      function getPublicAvailabilityData() {
+        const el = document.getElementById('public-availability-data');
+        if (!el || !el.textContent) return {};
+        try { return JSON.parse(el.textContent); } catch (e) { return {}; }
+      }
+
+      function openConfigHorariosModal() {
+        if (!modalConfig || !configRows) return;
+        const availability = getPublicAvailabilityData();
+        configRows.innerHTML = '';
+        for (let d = 0; d < 7; d++) {
+          const row = document.createElement('div');
+          row.className = 'config-row';
+          row.dataset.day = String(d);
+          row.style.cssText = 'display: flex; align-items: center; gap: 12px; flex-wrap: wrap;';
+          const slot = availability[String(d)];
+          const checked = !!slot && Array.isArray(slot) && slot.length >= 2;
+          const [from = '18:00', to = '21:00'] = slot || [];
+          row.innerHTML = `
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; font-size: 13px; min-width: 90px;">
+              <input type="checkbox" class="config-day-check" ${checked ? 'checked' : ''} style="width: 18px; height: 18px;">
+              <span class="config-day-label">${DAYS_LABELS[d]}</span>
+            </label>
+            <div class="config-times" style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 140px;">
+              <input type="time" class="config-time-from" value="${from}" style="padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;" ${!checked ? 'disabled' : ''}>
+              <span style="font-size: 12px; color: var(--muted);">até</span>
+              <input type="time" class="config-time-to" value="${to}" style="padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px;" ${!checked ? 'disabled' : ''}>
+            </div>
+          `;
+          const checkbox = row.querySelector('.config-day-check');
+          const timeFrom = row.querySelector('.config-time-from');
+          const timeTo = row.querySelector('.config-time-to');
+          checkbox.addEventListener('change', () => {
+            const en = checkbox.checked;
+            timeFrom.disabled = timeTo.disabled = !en;
+            if (!en) { timeFrom.value = '18:00'; timeTo.value = '21:00'; }
+          });
+          configRows.appendChild(row);
+        }
+        modalConfig.style.display = 'flex';
+        modalConfig.style.alignItems = 'center';
+        modalConfig.style.justifyContent = 'center';
+        modalConfig.style.position = 'fixed';
+        modalConfig.style.inset = '0';
+        modalConfig.style.zIndex = '10002';
+        modalConfig.style.background = 'rgba(15,23,42,.4)';
+      }
+
+      function closeConfigHorariosModal() {
+        if (modalConfig) modalConfig.style.display = 'none';
+      }
+
+      if (btnConfigHorarios) btnConfigHorarios.addEventListener('click', openConfigHorariosModal);
+      if (modalConfigOverlay) modalConfigOverlay.addEventListener('click', closeConfigHorariosModal);
+      if (modalConfigClose) modalConfigClose.addEventListener('click', closeConfigHorariosModal);
+      if (btnConfigCancel) btnConfigCancel.addEventListener('click', closeConfigHorariosModal);
+
+      if (btnConfigSave && configRows) {
+        btnConfigSave.addEventListener('click', async () => {
+          const availability = {};
+          configRows.querySelectorAll('.config-row').forEach(row => {
+            const day = row.dataset.day;
+            const check = row.querySelector('.config-day-check');
+            const from = row.querySelector('.config-time-from');
+            const to = row.querySelector('.config-time-to');
+            if (check?.checked && from && to) {
+              const f = from.value || '18:00';
+              const t = to.value || '21:00';
+              if (f && t) availability[day] = [f, t];
+            }
+          });
+          const duration = parseInt(configDuration?.value || '60', 10) || 60;
+          try {
+            const csrf = getCookie('csrftoken');
+            const r = await fetch('/api/profile/update/', {
+              method: 'PATCH',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+              body: JSON.stringify({ public_availability: availability, public_booking_duration: Math.min(180, Math.max(15, duration)) })
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) { showToast(data.detail || data.error || 'Erro ao salvar'); return; }
+            showToast('Horários salvos!');
+            closeConfigHorariosModal();
+            window.location.reload();
+          } catch (e) { showToast('Erro ao salvar'); }
         });
       }
 

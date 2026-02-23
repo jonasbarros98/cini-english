@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent, DayNote, SupportTicket
+from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest
 
 
 @admin.register(Student)
@@ -124,3 +124,12 @@ class SupportTicketAdmin(admin.ModelAdmin):
         }),
     )
     date_hierarchy = "created_at"
+
+
+@admin.register(PublicBookingRequest)
+class PublicBookingRequestAdmin(admin.ModelAdmin):
+    list_display = ("teacher", "requested_date", "requested_time", "student_name", "student_whatsapp", "status", "created_at")
+    list_filter = ("status", "requested_date", "teacher")
+    search_fields = ("student_name", "student_email", "teacher__username", "teacher__first_name", "teacher__last_name")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "requested_date"

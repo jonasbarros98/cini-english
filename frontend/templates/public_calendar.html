@@ -1,0 +1,1562 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#6366f1" />
+  <title>Agendar aula • EDUCAflowOne</title>
+  <meta name="description" content="Agende sua aula em poucos cliques." />
+  {% include '_meta_pixel.html' %}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --muted2:#64748b;
+      --stroke: rgba(15,23,42,.12);
+      --stroke2: rgba(15,23,42,.08);
+      --shadow: 0 20px 45px -25px rgba(2,6,23,.35);
+      --shadow2: 0 10px 30px rgba(2,6,23,.12);
+      --blur: 18px;
+      --radius: 18px;
+      --radius2: 14px;
+
+      --primary:#6366f1;
+      --primary2:#4f46e5;
+      --accent:#f97316;
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+
+      --chip: rgba(99,102,241,.10);
+      --chipHover: rgba(99,102,241,.16);
+
+      --focus: 0 0 0 3px rgba(99,102,241,.25);
+      --grid: rgba(15,23,42,.04);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; scroll-behavior:smooth; }
+    :focus-visible{ outline:3px solid rgba(99,102,241,.35); outline-offset:2px; }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 520px at 15% 10%, rgba(99,102,241,.12), transparent 55%),
+        radial-gradient(900px 520px at 85% 0%, rgba(249,115,22,.10), transparent 55%),
+        radial-gradient(700px 520px at 80% 90%, rgba(99,102,241,.08), transparent 55%),
+        var(--bg);
+      overflow-x:hidden;
+    }
+
+    /* Subtle grid overlay (reduced on mobile) */
+    .grid{
+      position:fixed; inset:0;
+      pointer-events:none;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(60% 60% at 50% 18%, rgba(0,0,0,.4), transparent 70%);
+      opacity:.5;
+    }
+    @media (max-width: 640px){ .grid{ opacity: .3; } }
+
+    .wrap{
+      max-width: min(1380px, 96vw);
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+      position:relative;
+      z-index:1;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      margin-bottom: 16px;
+    }
+
+    .brand{
+      display:flex; align-items:center; gap:12px;
+      user-select:none;
+    }
+
+    .logo{
+      width:44px; height:44px; border-radius:14px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      box-shadow: 0 12px 28px -12px rgba(99,102,241,.35);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden;
+      flex-shrink:0;
+      position:relative;
+    }
+    .logo img{ width:100%; height:100%; object-fit:contain; padding:6px; }
+    .logo-fallback{ display:none; font-weight:900; font-size:20px; color:rgba(255,255,255,.95); letter-spacing:-.05em; align-items:center; justify-content:center; position:absolute; inset:0; }
+
+    .brand h1{
+      font-size: 16px;
+      margin:0;
+      letter-spacing:.2px;
+      line-height:1.1;
+    }
+    .brand p{
+      margin:2px 0 0;
+      font-size:12px;
+      color: var(--muted);
+    }
+
+    .topActions{
+      display:flex; align-items:center; gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,.86);
+      box-shadow: 0 8px 20px -12px rgba(2,6,23,.2);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .dot{
+      width:8px; height:8px; border-radius:999px;
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(22,163,74,.12);
+    }
+
+    .btn{
+      appearance:none;
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,.9);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 700;
+      font-size: 12.5px;
+      cursor:pointer;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      display:inline-flex; align-items:center; gap:8px;
+      box-shadow: 0 10px 24px -12px rgba(2,6,23,.18);
+      text-decoration:none;
+    }
+    .btn:hover{ background: rgba(255,255,255,1); border-color: var(--stroke); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(0px) scale(.99); }
+    .btn:focus{ outline:none; box-shadow: var(--focus); }
+
+    .btn.primary{
+      border:none;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color:#fff;
+      box-shadow: 0 14px 32px -12px rgba(79,70,229,.4);
+    }
+    .btn.primary:hover{ filter: brightness(1.05); transform: translateY(-1px); }
+    .btn:disabled{ cursor:not-allowed; opacity:.85; transform:none !important; }
+    .btn.ghost{
+      background: rgba(99,102,241,.08);
+      border-color: rgba(99,102,241,.18);
+      color: var(--primary2);
+    }
+    .btn.ghost:hover{ background: rgba(99,102,241,.12); }
+
+    main{
+      display:grid;
+      grid-template-columns: minmax(0, 7fr) minmax(260px, 3fr);
+      gap: 20px;
+      align-items:start;
+      margin-top: 14px;
+    }
+    main > * { min-width: 0; }
+
+    @media (max-width: 980px){
+      main{ grid-template-columns: 1fr; }
+      .topActions{ justify-content:flex-start; }
+    }
+
+    .card{
+      border:1px solid var(--stroke2);
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .cardHeader{
+      padding: 14px 14px;
+      border-bottom: 1px solid var(--stroke2);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .cardHeader h2{
+      margin:0;
+      font-size: 14px;
+      letter-spacing:.2px;
+    }
+
+    .cardHeader .sub{
+      margin:4px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .leftHeader{
+      display:flex; flex-direction:column;
+    }
+
+    .nav{
+      display:flex; align-items:center; gap:8px;
+    }
+
+    .iconBtn{
+      width:36px; height:36px;
+      border-radius: 12px;
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,.9);
+      color: var(--text);
+      cursor:pointer;
+      transition: background .12s ease, transform .12s ease, border-color .12s ease;
+      display:inline-flex; align-items:center; justify-content:center;
+      box-shadow: 0 6px 16px -8px rgba(2,6,23,.12);
+    }
+    .iconBtn:hover{ background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.25); transform: translateY(-1px); }
+    .iconBtn:active{ transform: translateY(0px) scale(.99); }
+    .iconBtn:focus{ outline:none; box-shadow: var(--focus); }
+
+    .calendarBody{
+      padding: 12px 14px 18px;
+      min-width: 0;
+    }
+
+    .monthGrid{
+      display:grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .dow{
+      font-size: 11px;
+      color: var(--muted2);
+      padding: 0 4px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+    }
+
+    .day{
+      min-height: 68px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.92);
+      padding: 8px 6px 6px;
+      display:flex;
+      flex-direction:column;
+      gap: 8px;
+      position:relative;
+      cursor:pointer;
+      transition: background .12s ease, border-color .12s ease, transform .12s ease;
+      box-shadow: 0 2px 8px -4px rgba(2,6,23,.08);
+    }
+    .day:hover{
+      background: rgba(255,255,255,1);
+      border-color: rgba(99,102,241,.25);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px -10px rgba(99,102,241,.2);
+    }
+    .day.muted{
+      opacity:.45;
+      cursor: default;
+      background: rgba(248,250,252,.9);
+    }
+    .day.muted:hover{ transform:none; background: rgba(248,250,252,.9); border-color: var(--stroke2); }
+    .day.past{
+      opacity:.5;
+      cursor: not-allowed;
+      background: rgba(248,250,252,.95);
+      pointer-events: none;
+    }
+    .day.selected{
+      border-color: rgba(99,102,241,.5);
+      background: rgba(99,102,241,.12);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.15) inset;
+    }
+
+    .dayNum{
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing:.2px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap: 4px;
+    }
+
+    .tag{
+      font-size: 9px;
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(15,23,42,.05);
+      color: var(--muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:100%;
+    }
+
+    .slotsPreview{
+      display:flex;
+      gap: 4px;
+      flex-wrap:wrap;
+    }
+    .chip{
+      font-size: 10px;
+      padding: 4px 6px;
+      border-radius: 999px;
+      background: var(--chip);
+      border: 1px solid rgba(99,102,241,.18);
+      color: var(--primary2);
+      transition: background .12s ease, transform .12s ease, border-color .12s ease;
+      user-select:none;
+      font-weight: 600;
+    }
+    .chip:hover{ background: var(--chipHover); border-color: rgba(99,102,241,.3); transform: translateY(-1px); }
+    .chip.disabled{
+      opacity:.45;
+      text-decoration: line-through;
+      cursor:not-allowed;
+    }
+
+    .legend{
+      display:flex; gap:8px; flex-wrap:wrap;
+      align-items:center;
+      color: var(--muted2);
+      font-size: 12px;
+    }
+    .lg{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid var(--stroke2);
+      background: rgba(255,255,255,.86);
+      font-weight: 600;
+    }
+    .lg i{
+      width:8px; height:8px; border-radius:999px; display:inline-block;
+      box-shadow: 0 0 0 4px rgba(15,23,42,.06);
+    }
+    .lg .free{ background: var(--ok); box-shadow: 0 0 0 4px rgba(22,163,74,.12); }
+    .lg .few{ background: var(--warn); box-shadow: 0 0 0 4px rgba(245,158,11,.12); }
+    .lg .full{ background: var(--danger); box-shadow: 0 0 0 4px rgba(239,68,68,.12); }
+
+    /* Right column */
+    .sideBody{
+      padding: 14px;
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+
+    .profile{
+      display:flex; gap:12px; align-items:center;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke2);
+      background: rgba(99,102,241,.06);
+    }
+    .avatar{
+      width:46px; height:46px; border-radius: 16px;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      border: 1px solid rgba(99,102,241,.2);
+      display:flex; align-items:center; justify-content:center;
+      font-weight: 800;
+      letter-spacing:.3px;
+      color: #fff;
+      box-shadow: 0 8px 20px -8px rgba(79,70,229,.4);
+      user-select:none;
+    }
+    .profile h3{
+      margin:0;
+      font-size: 14px;
+      line-height:1.1;
+    }
+    .profile p{
+      margin:4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height:1.25;
+    }
+
+    .panel{
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke2);
+      background: rgba(248,250,252,.8);
+    }
+    .panel h4{
+      margin:0 0 8px;
+      font-size: 13px;
+      letter-spacing:.2px;
+    }
+    .panel .hint{
+      margin:0 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height:1.3;
+    }
+
+    .slotList{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+
+    .slotBtn{
+      font-size: 12px;
+      font-weight: 700;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.95);
+      color: var(--text);
+      cursor:pointer;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+      box-shadow: 0 2px 8px -4px rgba(2,6,23,.1);
+    }
+    .slotBtn:hover{ background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); transform: translateY(-1px); }
+    .slotBtn:active{ transform: translateY(0px) scale(.99); }
+    .slotBtn:focus{ outline:none; box-shadow: var(--focus); }
+    .slotBtn.disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      text-decoration: line-through;
+      background: rgba(248,250,252,.6);
+    }
+    .slotBtn.selected{
+      border-color: rgba(99,102,241,.5);
+      background: rgba(99,102,241,.15);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.12) inset;
+      color: var(--primary2);
+    }
+
+    .formRow{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @media (max-width: 520px){
+      .formRow{ grid-template-columns: 1fr; }
+    }
+
+    label{
+      display:block;
+      font-size: 11px;
+      color: var(--muted2);
+      margin: 8px 0 6px;
+      letter-spacing:.08em;
+      text-transform: uppercase;
+    }
+
+    input, textarea{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.95);
+      color: var(--text);
+      outline:none;
+      transition: border-color .12s ease, background .12s ease, box-shadow .12s ease;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    textarea{ min-height: 92px; resize: vertical; }
+    input:focus, textarea:focus{
+      border-color: rgba(99,102,241,.5);
+      background: #fff;
+      box-shadow: var(--focus);
+    }
+    input::placeholder, textarea::placeholder{ color: var(--muted2); }
+
+    .summary{
+      margin-top: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      padding: 10px;
+      border-radius: 16px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,.9);
+    }
+    .sumLine{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .sumLine b{ color: var(--text); }
+
+    .actions{
+      margin-top: 10px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .actions .btn{
+      flex:1 1 auto;
+      justify-content:center;
+      padding: 12px 12px;
+      border-radius: 14px;
+    }
+
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      background: var(--text);
+      border:1px solid rgba(15,23,42,.1);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 999px;
+      box-shadow: 0 12px 28px -8px rgba(2,6,23,.4);
+      font-size: 12px;
+      font-weight: 600;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 50;
+    }
+    .toast.show{
+      opacity:1;
+      transform: translateX(-50%) translateY(-6px);
+    }
+
+    .footerNote{
+      margin-top: 10px;
+      color: var(--muted2);
+      font-size: 12px;
+      text-align:center;
+      padding: 10px 6px 0;
+    }
+    .footerNote a{ color: var(--primary2); text-decoration:none; border-bottom:1px dashed rgba(99,102,241,.4); }
+    .footerNote a:hover{ color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* Tiny icons (no libs) */
+    .ico{
+      width:16px; height:16px; display:inline-block;
+    }
+    .ico svg{ width:16px; height:16px; display:block; }
+    .unavailable{ text-align:center; padding: 60px 24px; }
+    .unavailable h2{ margin:0 0 12px; font-size:22px; color:var(--text); }
+    .unavailable p{ margin:0; color:var(--muted); font-size:15px; }
+
+    /* ========== MOBILE: User-friendly, elegant, functional ========== */
+    @media (max-width: 640px){
+      :root{ --radius: 16px; --radius2: 12px; }
+      html{ -webkit-tap-highlight-color: transparent; }
+      body{
+        padding-bottom: env(safe-area-inset-bottom, 0);
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap{
+        padding: 16px 16px 100px;
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+      }
+      header{
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .brand{
+        gap: 10px;
+      }
+      .brand h1{ font-size: 18px; }
+      .brand p{ font-size: 13px; }
+      .logo{ width: 40px; height: 40px; border-radius: 12px; }
+      .topActions{
+        justify-content: stretch;
+        flex-wrap: nowrap;
+        gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+        margin: 0 -4px;
+      }
+      .topActions .pill{ flex-shrink: 0; padding: 12px 14px; font-size: 11px; }
+      .topActions .btn{ flex: 1; min-width: 0; justify-content: center; padding: 12px 14px; font-size: 13px; }
+
+      main{ gap: 16px; margin-top: 12px; }
+
+      .card{ border-radius: 16px; box-shadow: 0 8px 32px -16px rgba(2,6,23,.2); }
+      .cardHeader{
+        padding: 16px;
+        flex-wrap: wrap;
+      }
+      .cardHeader h2{ font-size: 15px; }
+      .cardHeader .sub{ font-size: 12px; }
+      .calendarBody{ padding: 14px; }
+      .calendarBody .legend{
+        gap: 6px;
+        margin-bottom: 10px;
+        font-size: 11px;
+      }
+      .calendarBody .lg{ padding: 8px 10px; font-size: 10px; }
+      .monthGrid{ gap: 5px; }
+      .dow{ font-size: 10px; padding: 4px 0; letter-spacing: .08em; }
+      .day{
+        min-height: 52px;
+        padding: 6px 5px;
+        gap: 6px;
+        border-radius: 10px;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .dayNum{ font-size: 12px; }
+      .day .tag{ font-size: 8px; padding: 2px 5px; }
+      .slotsPreview .chip{ font-size: 9px; padding: 3px 5px; }
+      .nav .iconBtn{
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        font-size: 18px;
+      }
+
+      .sideBody{ padding: 16px; gap: 14px; }
+      .profile{
+        padding: 14px;
+        gap: 14px;
+      }
+      .avatar{ width: 52px; height: 52px; border-radius: 14px; font-size: 18px; }
+      .profile h3{ font-size: 15px; }
+      .profile p{ font-size: 13px; }
+      .panel{ padding: 14px; }
+      .panel h4{ font-size: 14px; margin-bottom: 6px; }
+      .panel .hint{ font-size: 12px; margin-bottom: 8px; }
+
+      .slotList{ gap: 8px; }
+      .slotBtn{
+        min-width: 64px;
+        min-height: 48px;
+        padding: 14px 16px;
+        font-size: 14px;
+        border-radius: 14px;
+        font-weight: 700;
+      }
+      .slotBtn:active{ transform: scale(0.97); }
+
+      label{ font-size: 12px; margin: 10px 0 6px; }
+      input, textarea{
+        padding: 16px 16px;
+        font-size: 16px;
+        border-radius: 14px;
+        min-height: 52px;
+      }
+      textarea{ min-height: 100px; padding: 16px; }
+      input::placeholder, textarea::placeholder{ font-size: 15px; }
+
+      .summary{ padding: 14px; border-radius: 14px; }
+      .sumLine{ font-size: 13px; }
+      .actions{ gap: 12px; margin-top: 14px; }
+      .actions .btn{
+        min-height: 52px;
+        padding: 16px 20px;
+        font-size: 15px;
+        border-radius: 14px;
+      }
+
+      .toast{
+        bottom: max(24px, env(safe-area-inset-bottom));
+        padding: 14px 20px;
+        font-size: 13px;
+        border-radius: 999px;
+      }
+
+      .footerNote{ font-size: 11px; padding-top: 14px; }
+    }
+
+    /* Mobile: sticky CTA quando formulário visível */
+    .mobileCta{
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 12px 16px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      background: linear-gradient(to top, rgba(255,255,255,.98), rgba(255,255,255,.95));
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--stroke2);
+      box-shadow: 0 -8px 24px -8px rgba(2,6,23,.15);
+      z-index: 40;
+      transition: transform .25s ease, opacity .25s ease;
+    }
+    .mobileCta.visible{ display: block; animation: slideUp .3s ease; }
+    .mobileCta.hidden{ transform: translateY(100%); opacity: 0; pointer-events: none; }
+    @keyframes slideUp{
+      from{ transform: translateY(100%); opacity: 0; }
+      to{ transform: translateY(0); opacity: 1; }
+    }
+    @media (min-width: 641px){ .mobileCta{ display: none !important; } }
+
+    @media (max-width: 380px){
+      .day{ min-height: 46px; padding: 5px 4px; }
+      .dayNum{ font-size: 11px; }
+      .day .tag{ font-size: 7px; padding: 2px 4px; }
+      .slotsPreview .chip{ font-size: 8px; padding: 2px 4px; }
+      .monthGrid{ gap: 4px; }
+      .slotBtn{ min-width: 56px; min-height: 44px; padding: 12px 14px; font-size: 13px; }
+    }
+
+    @media (max-width: 640px){
+      .mobileCta .btn.primary{
+        width: 100%;
+        justify-content: center;
+        padding: 16px 24px;
+        font-size: 16px;
+        font-weight: 800;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px -8px rgba(79,70,229,.5);
+      }
+    }
+  </style>
+</head>
+<body data-slug="{{ slug|default:'' }}" data-error="{{ error|default:'' }}" data-teacher-name="{% if teacher %}{{ teacher.get_full_name|default:teacher.username }}{% endif %}" data-teacher-duration="{% if teacher %}{{ teacher.profile.public_booking_duration|default:60 }}{% else %}60{% endif %}" data-teacher-whatsapp="{{ teacher_whatsapp|default:'' }}">
+  <div class="grid" aria-hidden="true"></div>
+
+  <div class="wrap" id="mainWrap">
+    {% if error %}
+    <section class="card unavailable" style="max-width:480px;margin:40px auto;">
+      <h2>Agenda indisponível</h2>
+      <p>{{ error }}</p>
+      <p style="margin-top:16px;font-size:13px;">O professor pode ter desativado o link ou a assinatura não está ativa.</p>
+    </section>
+    {% else %}
+    <header>
+      <div class="brand">
+        <div class="logo" title="EDUCAflowOne">
+          <span class="logo-fallback" aria-hidden="true">E</span>
+          <img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne" onerror="this.style.display='none';this.previousElementSibling.style.display='flex'" />
+        </div>
+        <div>
+          <h1>Agendamento • EDUCAflowOne</h1>
+          <p id="subtitle">Escolha um dia e um horário disponível.</p>
+        </div>
+      </div>
+
+      <div class="topActions">
+        <div class="pill" id="pillAvailability" title="Horários livres nesta semana (demo)">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="pillText">—</span>
+        </div>
+
+        <a class="btn primary" href="#form" id="btnGoForm" title="Ir para confirmação">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          Reservar
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <!-- LEFT: Calendar -->
+      <section class="card" aria-label="Calendário">
+        <div class="cardHeader">
+          <div class="leftHeader">
+            <h2 id="monthTitle">—</h2>
+            <div class="sub" id="monthSub">Clique em um dia para ver horários.</div>
+          </div>
+          <div class="nav">
+            <button class="iconBtn" id="prevMonth" type="button" aria-label="Mês anterior">‹</button>
+            <button class="iconBtn" id="todayBtn" type="button" aria-label="Ir para hoje">Hoje</button>
+            <button class="iconBtn" id="nextMonth" type="button" aria-label="Próximo mês">›</button>
+          </div>
+        </div>
+
+        <div class="calendarBody">
+          <div class="legend" style="margin-bottom:12px;">
+            <span class="lg"><i class="free"></i> muitos horários</span>
+            <span class="lg"><i class="few"></i> poucos horários</span>
+            <span class="lg"><i class="full"></i> lotado</span>
+          </div>
+
+          <div class="monthGrid" id="dowRow" style="margin-bottom:10px;"></div>
+          <div class="monthGrid" id="daysGrid"></div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Details & booking form -->
+      <aside class="card" aria-label="Detalhes e confirmação" id="form">
+        <div class="cardHeader">
+          <div class="leftHeader">
+            <h2>Confirmar agendamento</h2>
+            <div class="sub" id="selectionHint">Selecione um dia e um horário.</div>
+          </div>
+          <div class="nav">
+            <button class="btn ghost" id="btnClear" type="button" title="Limpar seleção">Limpar</button>
+          </div>
+        </div>
+
+        <div class="sideBody">
+          <div class="profile">
+            <div class="avatar" id="avatar">AP</div>
+            <div>
+              <h3 id="teacherName">Ayla Barros</h3>
+              <p id="teacherMeta">Aulas particulares • Online/Presencial • Resposta rápida</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h4>Horários do dia</h4>
+            <p class="hint" id="dayHint">Selecione um dia no calendário para ver os horários disponíveis.</p>
+            <div class="slotList" id="slotList"></div>
+          </div>
+
+          <div class="panel">
+            <h4>Seus dados</h4>
+            <div class="formRow">
+              <div>
+                <label for="name">Nome</label>
+                <input id="name" type="text" placeholder="Seu nome" autocomplete="name" />
+              </div>
+              <div>
+                <label for="whatsapp">WhatsApp</label>
+                <input id="whatsapp" type="tel" placeholder="(41) 9 9999-9999" autocomplete="tel" />
+              </div>
+            </div>
+
+            <div class="formRow">
+              <div>
+                <label for="email">E-mail</label>
+                <input id="email" type="email" placeholder="voce@email.com" autocomplete="email" />
+              </div>
+              <div>
+                <label for="subject">Tema</label>
+                <input id="subject" type="text" placeholder="Ex.: Conversação, gramática..." />
+              </div>
+            </div>
+
+            <label for="notes">Observações (opcional)</label>
+            <textarea id="notes" placeholder="Ex.: nível atual, objetivo, preferências de horário..."></textarea>
+
+            <div class="summary" aria-label="Resumo do agendamento">
+              <div class="sumLine"><span>Professor(a)</span><b id="sumTeacher">Ayla Barros</b></div>
+              <div class="sumLine"><span>Data</span><b id="sumDate">—</b></div>
+              <div class="sumLine"><span>Horário</span><b id="sumTime">—</b></div>
+              <div class="sumLine"><span>Duração</span><b id="sumDuration">60 min</b></div>
+              <div class="sumLine"><span>Status</span><b id="sumStatus">Pré-reserva</b></div>
+            </div>
+
+            <div class="actions">
+              <button class="btn ghost" id="btnWhats" type="button" title="Enviar mensagem no WhatsApp do professor">
+                <span class="ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M20 11.6a7.9 7.9 0 0 1-8 8 8.4 8.4 0 0 1-4-1l-3 1 1-3a8 8 0 1 1 14-5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9.2 9.4c.2-.3.5-.3.8-.3l.6.1c.2 0 .4.2.5.4l.7 1.6c.1.2 0 .5-.1.6l-.5.6c-.1.2-.1.4 0 .6.4.8 1.2 1.6 2 2 .2.1.4.1.6 0l.6-.5c.2-.1.4-.2.6-.1l1.6.7c.2.1.4.3.4.5l.1.6c0 .3 0 .6-.3.8-.4.4-1 .8-1.7.8-1 0-2.6-.5-4.2-2.1-1.6-1.6-2.1-3.2-2.1-4.2 0-.7.4-1.3.8-1.7Z" fill="currentColor" opacity=".8"/></svg>
+                </span>
+                WhatsApp
+              </button>
+
+              <button class="btn primary" id="btnConfirm" type="button">
+                <span class="ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M20 7 9 18l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                Confirmar agendamento
+              </button>
+            </div>
+
+            <div class="footerNote">
+              Ao confirmar, você envia uma <b>solicitação</b> de horário. O professor pode confirmar em seguida.
+              <br/>
+              <span style="opacity:.85">Powered by <a href="#" onclick="return false;">EDUCAflowOne</a>.</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+    {% endif %}
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">—</div>
+
+  <div class="mobileCta hidden" id="mobileCta" aria-hidden="true">
+    <button type="button" class="btn primary" id="mobileCtaBtn">
+      <span class="ico">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M20 7 9 18l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      Confirmar agendamento
+    </button>
+  </div>
+
+  <script>
+    /**
+     * Public booking page
+     * - Se slug presente: usa API (disponibilidade + POST reserva)
+     * - Não expõe dados sensíveis (apenas dias/horários disponíveis)
+     */
+
+    // ---------- Config from server ----------
+    const body = document.body;
+    const SLUG = (body.getAttribute('data-slug') || '').trim();
+    const HAS_ERROR = (body.getAttribute('data-error') || '').trim().length > 0;
+    const USE_API = SLUG.length > 0 && !HAS_ERROR;
+    const TEACHER_NAME = body.getAttribute('data-teacher-name') || 'Professor';
+    const TEACHER_DURATION = parseInt(body.getAttribute('data-teacher-duration') || '60', 10);
+
+    // Cache de disponibilidade por mês (API)
+    let availabilityCache = {};
+
+    // ---------- Utils ----------
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    const pad2 = (n) => String(n).padStart(2, '0');
+
+    function formatDateBR(date){
+      const d = pad2(date.getDate());
+      const m = pad2(date.getMonth()+1);
+      const y = date.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+
+    function formatMonthBR(date){
+      const fmt = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
+      const s = fmt.format(date);
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function isoDate(date){
+      return `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`;
+    }
+
+    function weekdayShort(){
+      return ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+    }
+
+    function toast(msg){
+      const t = $('#toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toast._tm);
+      toast._tm = setTimeout(()=>t.classList.remove('show'), 2200);
+    }
+
+    function initials(name){
+      const parts = name.trim().split(/\s+/).filter(Boolean);
+      if(!parts.length) return "??";
+      const a = parts[0][0] || "";
+      const b = parts.length>1 ? parts[parts.length-1][0] : (parts[0][1] || "");
+      return (a+b).toUpperCase();
+    }
+
+    const TEACHER_WHATSAPP = (body.getAttribute('data-teacher-whatsapp') || '').trim();
+    const TEACHER = {
+      name: TEACHER_NAME,
+      durationMin: TEACHER_DURATION,
+      timezone: "America/Sao_Paulo",
+      whatsapp: TEACHER_WHATSAPP
+    };
+
+    // ---------- API ----------
+    async function fetchAvailability(monthStr){
+      if (availabilityCache[monthStr]) return availabilityCache[monthStr];
+      try {
+        const url = `/api/public/${encodeURIComponent(SLUG)}/availability/?month=${monthStr}`;
+        const res = await fetch(url);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return {};
+        const days = (data && data.days) ? data.days : {};
+        availabilityCache[monthStr] = days;
+        return days;
+      } catch (e) {
+        console.error('fetchAvailability:', e);
+        return {};
+      }
+    }
+
+    function getCookie(name){
+      const m = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'));
+      return m ? decodeURIComponent(m[2]) : '';
+    }
+
+    async function createReservation(payload){
+      const csrf = getCookie('csrftoken');
+      const res = await fetch(`/api/public/${encodeURIComponent(SLUG)}/reservations/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify(payload),
+        credentials: 'same-origin'
+      });
+      const data = await res.json().catch(()=> ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar');
+      return data;
+    }
+
+    function isSlotInPast(date, timeStr){
+      if (!timeStr || typeof timeStr !== 'string') return false;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      if(d < today) return true;
+      if(d > today) return false;
+      const parts = timeStr.split(':');
+      const h = parseInt(parts[0], 10) || 0;
+      const m = parseInt(parts[1], 10) || 0;
+      const now = new Date();
+      const slotMin = h * 60 + m;
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      return slotMin <= nowMin;
+    }
+
+    // ---------- Availability logic ----------
+    function buildSlotsForDate(date, daysData){
+      const key = isoDate(date);
+      if (USE_API && daysData) {
+        const day = daysData[key];
+        return day ? (day.slots || []) : [];
+      }
+      return [];
+    }
+
+    function availabilityScore(date, daysData){
+      const slots = buildSlotsForDate(date, daysData) || [];
+      const total = slots.length;
+      const free = slots.filter(s=>s && s.available && !isSlotInPast(date, s.time || '')).length;
+
+      if(total === 0) return { total, free, level:"none" };
+      if(free === 0) return { total, free, level:"full" };
+      if(free <= 1) return { total, free, level:"few" };
+      return { total, free, level:"free" };
+    }
+
+    function countFreeSlotsThisWeek(){
+      const now = new Date();
+      const day = now.getDay();
+      const start = new Date(now); start.setDate(now.getDate() - day);
+      const end = new Date(start); end.setDate(start.getDate() + 6);
+      let count = 0;
+      const d = new Date(start);
+      while(d <= end){
+        const dayDate = new Date(d);
+        const slots = buildSlotsForDate(dayDate, state.daysData);
+        count += slots.filter(s=>s.available && !isSlotInPast(dayDate, s.time)).length;
+        d.setDate(d.getDate() + 1);
+      }
+      return count;
+    }
+
+    function updatePillAvailability(){
+      const count = countFreeSlotsThisWeek();
+      const el = $('#pillText');
+      if(!el) return;
+      if(count === 0) el.textContent = 'Nenhum horário livre esta semana';
+      else if(count === 1) el.textContent = '1 horário livre esta semana';
+      else el.textContent = `${count} horários livres esta semana`;
+    }
+
+    // ---------- Calendar rendering ----------
+    const state = {
+      view: new Date(),
+      selectedDate: null,
+      selectedTime: null,
+      daysData: {}  // disponibilidade do mês atual (da API)
+    };
+
+    function setTeacherUI(){
+      const name = TEACHER.name || 'Professor';
+      $('#teacherName').textContent = name;
+      $('#sumTeacher').textContent = name;
+      $('#sumDuration').textContent = `${TEACHER.durationMin} min`;
+      $('#avatar').textContent = initials(name);
+    }
+
+    function renderDows(){
+      const row = $('#dowRow');
+      row.innerHTML = '';
+      for(const d of weekdayShort()){
+        const el = document.createElement('div');
+        el.className = 'dow';
+        el.textContent = d;
+        row.appendChild(el);
+      }
+    }
+
+    async function loadAndRenderMonth(){
+      const v = state.view;
+      const monthStr = `${v.getFullYear()}-${pad2(v.getMonth()+1)}`;
+      if (USE_API) {
+        state.daysData = await fetchAvailability(monthStr);
+      } else {
+        state.daysData = {};
+      }
+      renderMonth();
+    }
+
+    function renderMonth(){
+      const v = state.view;
+      const grid = $('#daysGrid');
+      if (!grid) return;
+      $('#monthTitle').textContent = formatMonthBR(v);
+      $('#monthSub').textContent = USE_API ? "Clique em um dia para ver horários disponíveis." : "Carregando...";
+
+      const year = v.getFullYear();
+      const month = v.getMonth();
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month+1, 0);
+      const startDay = first.getDay(); // 0..6
+
+      const cells = 42;
+      grid.innerHTML = '';
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayKey = isoDate(today);
+
+      function isPastDate(d) {
+        const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        return d0 < today;
+      }
+
+      for(let i=0; i<cells; i++){
+        const cellDate = new Date(year, month, 1 - startDay + i);
+        const inMonth = (cellDate.getMonth() === month);
+        const key = isoDate(cellDate);
+        const isPast = inMonth && isPastDate(cellDate);
+
+        const dayEl = document.createElement('div');
+        dayEl.className = 'day' + (inMonth ? '' : ' muted') + (isPast ? ' past' : '');
+
+        if(state.selectedDate && isoDate(state.selectedDate) === key){
+          dayEl.classList.add('selected');
+        }
+
+        const top = document.createElement('div');
+        top.className = 'dayNum';
+
+        const num = document.createElement('span');
+        num.textContent = cellDate.getDate();
+        top.appendChild(num);
+
+        const info = availabilityScore(cellDate, state.daysData);
+
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+
+        if(key === todayKey){
+          tag.textContent = 'Hoje';
+          tag.style.borderColor = 'rgba(99,102,241,.35)';
+          tag.style.background = 'rgba(99,102,241,.14)';
+          tag.style.color = '#4338ca';
+        }else if(isPast){
+          tag.textContent = 'Indisponível';
+          tag.style.borderColor = 'rgba(100,116,139,.25)';
+          tag.style.background = 'rgba(100,116,139,.08)';
+          tag.style.color = '#64748b';
+        }else if(!inMonth){
+          tag.textContent = '—';
+        }else if(info.total === 0){
+          tag.textContent = 'Sem agenda';
+        }else if(info.free === 0){
+          tag.textContent = 'Lotado';
+          tag.style.borderColor = 'rgba(239,68,68,.28)';
+          tag.style.background = 'rgba(239,68,68,.12)';
+          tag.style.color = '#b91c1c';
+        }else if(info.free <= 1){
+          tag.textContent = `${info.free} livre`;
+          tag.style.borderColor = 'rgba(245,158,11,.35)';
+          tag.style.background = 'rgba(245,158,11,.14)';
+          tag.style.color = '#b45309';
+        }else{
+          tag.textContent = `${info.free} livres`;
+          tag.style.borderColor = 'rgba(22,163,74,.28)';
+          tag.style.background = 'rgba(22,163,74,.12)';
+          tag.style.color = '#15803d';
+        }
+
+        top.appendChild(tag);
+        dayEl.appendChild(top);
+
+        const chips = document.createElement('div');
+        chips.className = 'slotsPreview';
+        if(inMonth){
+          const slots = buildSlotsForDate(cellDate, state.daysData);
+          const freeSlots = slots.filter(s=>s.available && !isSlotInPast(cellDate, s.time)).slice(0,2);
+          if(freeSlots.length){
+            for(const s of freeSlots){
+              const c = document.createElement('span');
+              c.className = 'chip';
+              c.textContent = s.time;
+              chips.appendChild(c);
+            }
+          }else if(slots.length){
+            const c = document.createElement('span');
+            c.className = 'chip disabled';
+            c.textContent = 'Sem vagas';
+            chips.appendChild(c);
+          }else{
+            const c = document.createElement('span');
+            c.className = 'chip disabled';
+            c.textContent = '—';
+            chips.appendChild(c);
+          }
+        }else{
+          const c = document.createElement('span');
+          c.className = 'chip disabled';
+          c.textContent = '—';
+          chips.appendChild(c);
+        }
+        dayEl.appendChild(chips);
+
+        if(inMonth && !isPast){
+          dayEl.addEventListener('click', () => {
+            state.selectedDate = new Date(cellDate);
+            state.selectedTime = null;
+            renderMonth();
+            renderSlots();
+            updateSummary();
+            updatePillAvailability();
+          });
+        }
+
+        grid.appendChild(dayEl);
+      }
+    }
+
+    function renderSlots(){
+      const hint = $('#dayHint');
+      const list = $('#slotList');
+      if (!list) return;
+
+      if(!state.selectedDate){
+        hint.textContent = "Selecione um dia no calendário para ver os horários disponíveis.";
+        list.innerHTML = '';
+        const sh = $('#selectionHint'); if(sh) sh.textContent = "Selecione um dia e um horário.";
+        const st = $('#subtitle'); if(st) st.textContent = "Escolha um dia e um horário disponível.";
+        return;
+      }
+
+      const date = state.selectedDate;
+      const slots = buildSlotsForDate(date, state.daysData);
+      if(state.selectedTime && isSlotInPast(date, state.selectedTime)){
+        state.selectedTime = null;
+        updateSummary();
+      }
+
+      $('#subtitle').textContent = `Dia selecionado: ${formatDateBR(date)}.`;
+      $('#selectionHint').textContent = `Dia: ${formatDateBR(date)} • escolha um horário para confirmar.`;
+
+      if(!slots.length){
+        hint.textContent = "Sem disponibilidade neste dia. Escolha outra data.";
+        list.innerHTML = '';
+        return;
+      }
+
+      const freeCount = slots.filter(s=>s.available && !isSlotInPast(date, s.time)).length;
+      hint.textContent = `${formatDateBR(date)} • ${freeCount}/${slots.length} horários disponíveis.`;
+
+      list.innerHTML = '';
+      for(const s of slots){
+        const past = isSlotInPast(date, s.time);
+        const effectivelyAvailable = s.available && !past;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'slotBtn' + (effectivelyAvailable ? '' : ' disabled');
+        b.textContent = s.time;
+
+        if(state.selectedTime === s.time){
+          b.classList.add('selected');
+        }
+
+        if(effectivelyAvailable){
+          b.addEventListener('click', ()=>{
+            state.selectedTime = s.time;
+            $$('.slotBtn', list).forEach(x=>x.classList.remove('selected'));
+            b.classList.add('selected');
+            updateSummary();
+            toast(`Horário selecionado: ${s.time}`);
+            if(window.innerWidth <= 640){
+              $('#form').scrollIntoView({ behavior:'smooth', block:'start' });
+              setTimeout(()=>$('#name').focus(), 400);
+            } else if(window.innerWidth < 980){
+              $('#name').scrollIntoView({ behavior:'smooth', block:'center' });
+              setTimeout(()=>$('#name').focus(), 250);
+            }
+          });
+        }
+
+        list.appendChild(b);
+      }
+    }
+
+    function updateMobileCta(){
+      const cta = $('#mobileCta');
+      if(!cta) return;
+      const hasSelection = state.selectedDate && state.selectedTime;
+      const formVisible = cta.dataset.formVisible === '1';
+      const show = hasSelection && formVisible && window.innerWidth <= 640;
+      cta.classList.toggle('visible', show);
+      cta.classList.toggle('hidden', !show);
+      cta.setAttribute('aria-hidden', !show);
+    }
+    function updateSummary(){
+      const d = state.selectedDate ? formatDateBR(state.selectedDate) : '—';
+      const t = state.selectedTime || '—';
+      $('#sumDate').textContent = d;
+      $('#sumTime').textContent = t;
+
+      const ok = state.selectedDate && state.selectedTime;
+      $('#sumStatus').textContent = ok ? 'Solicitação' : 'Pré-reserva';
+      $('#sumStatus').style.color = ok ? '#0f172a' : '#64748b';
+      updateMobileCta();
+    }
+
+    // ---------- Actions ----------
+    function goMonth(delta){
+      const v = state.view;
+      state.view = new Date(v.getFullYear(), v.getMonth()+delta, 1);
+      loadAndRenderMonth();
+      renderSlots();
+      updateSummary();
+      updatePillAvailability();
+    }
+
+    function setToday(){
+      const t = new Date();
+      state.view = new Date(t.getFullYear(), t.getMonth(), 1);
+      state.selectedDate = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+      state.selectedTime = null;
+      loadAndRenderMonth();
+      renderSlots();
+      updateSummary();
+      toast("Indo para hoje");
+    }
+
+    function clearSelection(){
+      state.selectedDate = null;
+      state.selectedTime = null;
+      renderMonth();
+      renderSlots();
+      updateSummary();
+      toast("Seleção limpa");
+    }
+
+    function normalizePhoneBR(v){
+      const digits = (v || "").replace(/\D/g,'').slice(0,11);
+      if(digits.length <= 2) return digits;
+      const ddd = digits.slice(0,2);
+      const rest = digits.slice(2);
+      if(rest.length <= 4) return `(${ddd}) ${rest}`;
+      if(rest.length <= 8) return `(${ddd}) ${rest.slice(0,4)}-${rest.slice(4)}`;
+      return `(${ddd}) ${rest.slice(0,1)} ${rest.slice(1,5)}-${rest.slice(5)}`;
+    }
+
+    function isDateInPast(d){
+      const t = new Date(); t.setHours(0,0,0,0);
+      const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      return x < t;
+    }
+
+    function validateForm(){
+      const name = $('#name').value.trim();
+      const wa = $('#whatsapp').value.trim();
+      const email = $('#email').value.trim();
+
+      if(!state.selectedDate) return { ok:false, msg:"Selecione um dia no calendário." };
+      if(isDateInPast(state.selectedDate)) return { ok:false, msg:"Selecione uma data a partir de hoje." };
+      if(!state.selectedTime) return { ok:false, msg:"Selecione um horário disponível." };
+      if(name.length < 2) return { ok:false, msg:"Informe seu nome." };
+      if(wa.replace(/\D/g,'').length < 10) return { ok:false, msg:"Informe um WhatsApp válido." };
+      if(!/^\S+@\S+\.\S+$/.test(email)) return { ok:false, msg:"Informe um e-mail válido." };
+
+      return { ok:true };
+    }
+
+    async function onConfirm(){
+      const v = validateForm();
+      if(!v.ok){
+        toast(v.msg);
+        return;
+      }
+
+      const payload = {
+        date: isoDate(state.selectedDate),
+        time: state.selectedTime,
+        name: $('#name').value.trim(),
+        whatsapp: $('#whatsapp').value.trim(),
+        email: $('#email').value.trim(),
+        subject: $('#subject').value.trim(),
+        notes: $('#notes').value.trim()
+      };
+
+      const btn = $('#btnConfirm');
+      const prev = btn.innerHTML;
+      btn.disabled = true;
+      btn.style.opacity = .85;
+      btn.innerHTML = `Enviando...`;
+
+      try{
+        const res = USE_API ? await createReservation(payload) : { success: true, reservation_id: 'RSV-DEMO' };
+        if(res && res.success){
+          toast(`Solicitação enviada • ${res.reservation_id || ''}`);
+          // Invalidar cache para refletir slot ocupado
+          const monthStr = `${state.selectedDate.getFullYear()}-${pad2(state.selectedDate.getMonth()+1)}`;
+          delete availabilityCache[monthStr];
+
+          const sh = $('#selectionHint'); if(sh) sh.textContent = `Solicitação enviada! Aguarde a confirmação do(a) professor(a).`;
+          const ms = $('#monthSub'); if(ms) ms.textContent = "Você pode escolher outro horário se precisar.";
+
+          state.selectedTime = null;
+          await loadAndRenderMonth();
+          renderSlots();
+          updateSummary();
+          updatePillAvailability();
+
+          // optional: clear notes/subject
+          $('#subject').value = '';
+          $('#notes').value = '';
+        }else{
+          toast(res?.error || "Não foi possível enviar. Tente novamente.");
+        }
+      }catch(e){
+        toast(e?.message || "Erro ao enviar. Verifique sua conexão.");
+      }finally{
+        btn.disabled = false;
+        btn.style.opacity = 1;
+        btn.innerHTML = prev;
+      }
+    }
+
+    function openWhatsApp(){
+      const name = $('#name').value.trim();
+      if (!name || name.length < 2) {
+        toast("Informe seu nome antes de enviar no WhatsApp.");
+        return;
+      }
+      if (!state.selectedDate) {
+        toast("Selecione um dia no calendário.");
+        return;
+      }
+      if (!state.selectedTime) {
+        toast("Selecione um horário disponível.");
+        return;
+      }
+
+      const date = formatDateBR(state.selectedDate);
+      const time = state.selectedTime;
+      const subject = ($('#subject').value || '').trim();
+      const msg =
+`Olá! Sou ${name}. Gostaria de agendar uma aula com você.
+
+Data: ${date}
+Horário: ${time}
+Tema: ${subject || "—"}
+
+Enviado via EDUCAflowOne.`;
+
+      const encoded = encodeURIComponent(msg);
+      let waUrl;
+      if (TEACHER.whatsapp) {
+        const digits = TEACHER.whatsapp.replace(/\D/g, '');
+        const number = digits.startsWith('55') ? digits : '55' + digits;
+        if (number.length >= 12) {
+          waUrl = `https://wa.me/${number}?text=${encoded}`;
+        } else {
+          waUrl = `https://wa.me/?text=${encoded}`;
+        }
+      } else {
+        waUrl = `https://wa.me/?text=${encoded}`;
+      }
+      window.open(waUrl, "_blank", "noopener");
+    }
+
+    // ---------- Boot ----------
+    function boot(){
+      if (HAS_ERROR) return;
+      const dowRow = $('#dowRow');
+      if (!dowRow) return;
+      setTeacherUI();
+      renderDows();
+
+      const now = new Date();
+      state.view = new Date(now.getFullYear(), now.getMonth(), 1);
+      state.selectedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      (async ()=>{
+        try {
+          await loadAndRenderMonth();
+          renderSlots();
+          updateSummary();
+          updatePillAvailability();
+        } catch (e) {
+          console.error('Erro ao carregar calendário:', e);
+          toast('Erro ao carregar. Tente recarregar.');
+        }
+
+      // Wire events
+      $('#prevMonth').addEventListener('click', ()=>goMonth(-1));
+      $('#nextMonth').addEventListener('click', ()=>goMonth(1));
+      $('#todayBtn').addEventListener('click', setToday);
+      $('#btnClear').addEventListener('click', clearSelection);
+
+      $('#btnConfirm').addEventListener('click', onConfirm);
+      $('#btnWhats').addEventListener('click', openWhatsApp);
+      const mobileCtaBtn = $('#mobileCtaBtn');
+      if (mobileCtaBtn) mobileCtaBtn.addEventListener('click', onConfirm);
+
+      const formEl = $('#form');
+      const ctaEl = $('#mobileCta');
+      if (formEl && ctaEl && 'IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries)=>{
+          entries.forEach(e=>{
+            ctaEl.dataset.formVisible = e.isIntersecting ? '1' : '0';
+            updateMobileCta();
+          });
+        }, { threshold: 0.1, rootMargin: '0px' });
+        io.observe(formEl);
+      }
+      updateMobileCta();
+
+      // Phone masking (BR)
+      $('#whatsapp').addEventListener('input', (e)=>{
+        const cur = e.target.value;
+        e.target.value = normalizePhoneBR(cur);
+      });
+
+      // Smooth anchor behavior
+      $('#btnGoForm').addEventListener('click', (e)=>{
+        e.preventDefault();
+        $('#form').scrollIntoView({ behavior:'smooth', block:'start' });
+      });
+
+      document.addEventListener('keydown', (e)=>{
+        if(e.key === "Escape") clearSelection();
+        if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"){
+          e.preventDefault();
+          $('#name')?.focus();
+          toast("Foco no formulário");
+        }
+      });
+
+      toast("Selecione um horário para reservar");
+      })();
+    }
+
+    boot();
+  </script>
+</body>
+</html>

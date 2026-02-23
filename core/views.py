@@ -25,7 +25,7 @@ import os
 import uuid
 import threading
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
-from .models import Student, Lesson, Task, Subscription, StripeEvent, DayNote, SupportTicket
+from .models import Student, Lesson, Task, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
 
@@ -3535,11 +3535,33 @@ def profile_update_view(request):
         if 'last_name' in raw_data:
             serializer_data['last_name'] = raw_data.get('last_name', '') or ''
         
+        # Agenda pública: apenas Premium+, admin ou subscription_exempt
+        public_calendar_fields = ['slug_publico', 'agenda_publica_ativa', 'public_availability', 'public_booking_duration']
+        if any(f in raw_data for f in public_calendar_fields) and not _user_can_use_public_calendar(user):
+            return Response(
+                {'error': 'A agenda pública é um recurso disponível no plano Premium ou superior. Faça upgrade para utilizar.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         # Campos diretos do UserProfile - incluir apenas os que foram enviados
-        profile_fields = ['cpf_cnpj', 'phone', 'cep', 'address', 'city', 'state', 'timezone', 'language']
+        profile_fields = ['cpf_cnpj', 'phone', 'cep', 'address', 'city', 'state', 'timezone', 'language',
+                         'slug_publico', 'agenda_publica_ativa', 'public_availability', 'public_booking_duration']
         for field in profile_fields:
             if field in raw_data:
-                serializer_data[field] = raw_data.get(field, '') or ''
+                val = raw_data.get(field)
+                if field == 'slug_publico':
+                    serializer_data[field] = (val or '').strip() or None
+                elif field == 'agenda_publica_ativa':
+                    serializer_data[field] = bool(val in (True, 'true', '1', 1))
+                elif field == 'public_availability':
+                    serializer_data[field] = val if isinstance(val, dict) else {}
+                elif field == 'public_booking_duration':
+                    try:
+                        serializer_data[field] = int(val) if val is not None else 60
+                    except (ValueError, TypeError):
+                        serializer_data[field] = 60
+                else:
+                    serializer_data[field] = val or ''
         
         # Foto - processar se foi enviada via FormData (request.FILES)
         # Se não houver foto em FILES, mas houver em data (pode ser string vazia), não incluir
@@ -3699,8 +3721,41 @@ def calendar_events(request):
                 'student_id': lesson.student.id,
                 'status': final_status,
                 'realized': lesson.realized,
-                'note': lesson.info or ""
+                'note': lesson.info or "",
+                'source': 'lesson'
             })
+        
+        # Incluir solicitações da agenda pública (pendentes) - para professor dono ou admin
+        try:
+            is_admin = getattr(request.user.profile, 'is_admin', False)
+            user_profile = getattr(request.user.profile, 'user_profile', None)
+            if is_admin or user_profile != UserProfile.PROFILE_PARTNER_TEACHER:
+                pbr_qs = PublicBookingRequest.objects.filter(
+                    teacher=request.user,
+                    status=PublicBookingRequest.STATUS_PENDING,
+                    requested_date__gte=start_date,
+                    requested_date__lte=end_date
+                ).order_by('requested_date', 'requested_time')
+                for pbr in pbr_qs:
+                    events.append({
+                        'id': f'pbr_{pbr.id}',
+                        'date': pbr.requested_date.strftime('%Y-%m-%d'),
+                        'time': pbr.requested_time.strftime('%H:%M'),
+                        'student': pbr.student_name,
+                        'student_id': None,
+                        'status': 'pending',
+                        'realized': False,
+                        'note': (pbr.notes or '') + (f' | WhatsApp: {pbr.student_whatsapp}' if pbr.student_whatsapp else ''),
+                        'source': 'public_booking',
+                        'student_email': pbr.student_email,
+                        'student_whatsapp': pbr.student_whatsapp,
+                        'subject': pbr.subject or '',
+                    })
+        except (UserProfile.DoesNotExist, AttributeError):
+            pass
+        
+        # Ordenar eventos por data e horário
+        events.sort(key=lambda e: (e['date'], e['time']))
         
         return Response(events)
     
@@ -4220,6 +4275,15 @@ class CalendarNewView(TemplateView):
             profile = self.request.user.profile
             context['user_is_admin'] = profile.is_admin
             context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+            context['can_use_public_calendar'] = _user_can_use_public_calendar(self.request.user)
+            context['slug_publico'] = getattr(profile, 'slug_publico', None) or ''
+            context['agenda_publica_ativa'] = getattr(profile, 'agenda_publica_ativa', False)
+            slug = getattr(profile, 'slug_publico', None)
+            context['public_booking_url'] = self.request.build_absolute_uri(
+                reverse('public-calendar-slug', kwargs={'slug': slug})
+            ) if slug else ''
+            context['public_availability'] = getattr(profile, 'public_availability', None) or {}
+            context['public_booking_duration'] = getattr(profile, 'public_booking_duration', None) or 60
             # Professores que o dono da conta pode atribuir ao agendar aula (ele + parceiros)
             if profile.user_profile == UserProfile.PROFILE_TEACHER:
                 partners = list(profile.partner_teachers.select_related('user').all())
@@ -4231,8 +4295,319 @@ class CalendarNewView(TemplateView):
         except UserProfile.DoesNotExist:
             context['user_is_admin'] = False
             context['is_partner_teacher'] = False
+            context['can_use_public_calendar'] = False
             context['assignable_teachers'] = []
         return context
+
+
+def _user_can_use_public_calendar(user):
+    """
+    Agenda pública disponível apenas para:
+    - Admin (profile.is_admin)
+    - subscription_exempt ("Sem assinatura - acesso liberado")
+    - Assinatura Premium ou Platinum ativa
+    """
+    if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+        return True
+    try:
+        profile = user.profile
+        if profile.is_admin or getattr(profile, 'subscription_exempt', False):
+            return True
+        try:
+            sub = user.subscription
+            if sub.is_active and sub.tier in (Subscription.TIER_PREMIUM, Subscription.TIER_PLATINUM):
+                return True
+        except Subscription.DoesNotExist:
+            pass
+    except UserProfile.DoesNotExist:
+        pass
+    return False
+
+
+def _get_teacher_for_public_booking(slug):
+    """
+    Resolve professor pelo slug para agenda pública.
+    Retorna (teacher, error_msg).
+    teacher é None se agenda indisponível ou slug inválido.
+    Agenda pública disponível apenas para Premium+, admin ou subscription_exempt.
+    """
+    if not slug or not str(slug).strip():
+        return (None, "Link inválido")
+    slug = str(slug).strip().lower()
+    try:
+        profile = UserProfile.objects.select_related('user').get(slug_publico=slug)
+    except UserProfile.DoesNotExist:
+        return (None, "Agenda não encontrada")
+    if not profile.agenda_publica_ativa:
+        return (None, "Agenda indisponível")
+    if not _user_can_use_public_calendar(profile.user):
+        return (None, "Agenda indisponível")
+    return (profile.user, None)
+
+
+class PublicCalendarView(TemplateView):
+    """Página pública de agendamento por professor (link único por slug)"""
+    template_name = "public_calendar.html"
+
+    def get(self, request, slug=None, *args, **kwargs):
+        slug = slug or kwargs.get('slug', '')
+        teacher, error = _get_teacher_for_public_booking(slug)
+        teacher_whatsapp = ''
+        if teacher and hasattr(teacher, 'profile'):
+            teacher_whatsapp = (teacher.profile.phone or '').strip()
+        context = {
+            'teacher': teacher,
+            'error': error,
+            'slug': slug,
+            'teacher_whatsapp': teacher_whatsapp,
+            'public_booking_url': reverse('public-calendar-slug', kwargs={'slug': slug}) if slug else request.build_absolute_uri('/agendar/')
+        }
+        return render(request, self.template_name, context)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_availability_api(request, slug):
+    """
+    GET /api/public/<slug>/availability/?month=2026-02
+    Retorna disponibilidade do professor (horários por dia) e dados públicos.
+    Não expõe alunos, eventos privados, etc.
+    """
+    teacher, error = _get_teacher_for_public_booking(slug)
+    if error or not teacher:
+        return Response({'error': error or 'Agenda indisponível'}, status=status.HTTP_404_NOT_FOUND)
+
+    month_str = request.query_params.get('month')
+    if not month_str:
+        return Response({'error': 'Parâmetro month obrigatório (YYYY-MM)'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        year, month = map(int, month_str.split('-'))
+        first = date(year, month, 1)
+        last = date(year, month + 1, 1) - timedelta(days=1) if month < 12 else date(year + 1, 1, 1) - timedelta(days=1)
+    except (ValueError, TypeError):
+        return Response({'error': 'Formato inválido. Use YYYY-MM'}, status=status.HTTP_400_BAD_REQUEST)
+
+    profile = teacher.profile
+    availability = profile.public_availability or {}
+    duration = profile.public_booking_duration or 60
+
+    # Default: seg-sex 18:00-21:00 se não configurado (0=dom, 1=seg,...,6=sab)
+    if not availability:
+        availability = {str(i): ["18:00", "21:00"] for i in range(1, 6)}
+
+    def build_slots_for_date(d):
+        # Python weekday: 0=seg, 6=dom. Mapear para 0=dom, 1=seg,...,6=sab
+        wd = (d.weekday() + 1) % 7
+        win = availability.get(str(wd))
+        if not win or len(win) < 2:
+            return []
+        start, end = win[0], win[1]
+        sh, sm = map(int, start.split(':'))
+        eh, em = map(int, end.split(':'))
+        start_min = sh * 60 + sm
+        end_min = eh * 60 + em
+        slots = []
+        while start_min + duration <= end_min:
+            slots.append(f'{start_min//60:02d}:{start_min%60:02d}')
+            start_min += duration
+        return slots
+
+    # Horários já ocupados: Lesson (aulas) + PublicBookingRequest confirmados/pendentes
+    lessons_qs = Lesson.objects.filter(
+        user=teacher,
+        date__gte=first,
+        date__lte=last,
+        status__in=['confirmed', 'pending']
+    ).exclude(realized=True)
+    busy_lessons = {(l.date.strftime('%Y-%m-%d'), l.time.strftime('%H:%M') if l.time else '') for l in lessons_qs}
+
+    bookings_qs = PublicBookingRequest.objects.filter(
+        teacher=teacher,
+        requested_date__gte=first,
+        requested_date__lte=last,
+        status__in=['pending', 'confirmed']
+    )
+    busy_bookings = {(b.requested_date.strftime('%Y-%m-%d'), b.requested_time.strftime('%H:%M')) for b in bookings_qs}
+
+    busy = busy_lessons | busy_bookings
+
+    days_data = {}
+    d = first
+    while d <= last:
+        key = d.strftime('%Y-%m-%d')
+        all_slots = build_slots_for_date(d)
+        free_slots = [s for s in all_slots if (key, s) not in busy]
+        days_data[key] = {
+            'slots': [{'time': s, 'available': (key, s) not in busy} for s in all_slots],
+            'free_count': len(free_slots)
+        }
+        d += timedelta(days=1)
+
+    return Response({
+        'teacher_name': teacher.get_full_name() or teacher.username,
+        'duration_minutes': duration,
+        'month': month_str,
+        'days': days_data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def public_reservation_create(request, slug):
+    """
+    POST /api/public/<slug>/reservations/
+    Cria solicitação de agendamento público.
+    """
+    teacher, error = _get_teacher_for_public_booking(slug)
+    if error or not teacher:
+        return Response({'error': error or 'Agenda indisponível'}, status=status.HTTP_404_NOT_FOUND)
+
+    data = request.data
+    name = (data.get('name') or '').strip()
+    whatsapp = (data.get('whatsapp') or '').strip()
+    email = (data.get('email') or '').strip()
+    req_date = data.get('date')  # YYYY-MM-DD
+    req_time = data.get('time')  # HH:MM
+
+    if not name or len(name) < 2:
+        return Response({'error': 'Informe seu nome.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not whatsapp or len(whatsapp.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')) < 10:
+        return Response({'error': 'Informe um WhatsApp válido.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not email or '@' not in email:
+        return Response({'error': 'Informe um e-mail válido.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not req_date or not req_time:
+        return Response({'error': 'Selecione data e horário.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from datetime import datetime as dt
+        requested_date = datetime.strptime(req_date, '%Y-%m-%d').date()
+        requested_time = datetime.strptime(req_time, '%H:%M').time()
+    except (ValueError, TypeError):
+        return Response({'error': 'Data ou horário inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    today = timezone.localdate()
+    if requested_date < today:
+        return Response({'error': 'Não é possível agendar em data passada. Selecione a partir de hoje.'}, status=status.HTTP_400_BAD_REQUEST)
+    if requested_date == today:
+        now = timezone.localtime()
+        requested_dt = datetime.combine(requested_date, requested_time)
+        now_dt = datetime.combine(today, now.time())
+        if requested_dt <= now_dt:
+            return Response({'error': 'Este horário já passou. Selecione um horário futuro.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verificar se horário está disponível
+    profile = teacher.profile
+    availability = profile.public_availability or {}
+    wd = (requested_date.weekday() + 1) % 7  # 0=dom, 1=seg,...,6=sab
+    win = availability.get(str(wd))
+    if not win:
+        return Response({'error': 'Este dia não está disponível na agenda.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verificar conflito com aulas existentes
+    existing = Lesson.objects.filter(user=teacher, date=requested_date, time=requested_time, status__in=['confirmed', 'pending']).exclude(realized=True)
+    if existing.exists():
+        return Response({'error': 'Este horário já foi reservado.'}, status=status.HTTP_400_BAD_REQUEST)
+    existing_booking = PublicBookingRequest.objects.filter(teacher=teacher, requested_date=requested_date, requested_time=requested_time, status__in=['pending', 'confirmed'])
+    if existing_booking.exists():
+        return Response({'error': 'Este horário já foi reservado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    duration = profile.public_booking_duration or 60
+
+    booking = PublicBookingRequest.objects.create(
+        teacher=teacher,
+        requested_date=requested_date,
+        requested_time=requested_time,
+        duration_minutes=duration,
+        student_name=name,
+        student_whatsapp=whatsapp,
+        student_email=email,
+        subject=(data.get('subject') or '').strip(),
+        notes=(data.get('notes') or '').strip(),
+        status='pending'
+    )
+    return Response({
+        'success': True,
+        'reservation_id': f'RSV-{booking.id}',
+        'message': 'Solicitação enviada. O professor confirmará em breve.'
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def public_booking_confirm(request, booking_id):
+    """
+    POST /api/public/booking/<id>/confirm/
+    Professor confirma a solicitação: cria Aluno + Aula e marca PublicBookingRequest como confirmada.
+    """
+    try:
+        pbr = PublicBookingRequest.objects.get(id=booking_id, status=PublicBookingRequest.STATUS_PENDING)
+    except PublicBookingRequest.DoesNotExist:
+        return Response({'error': 'Solicitação não encontrada ou já processada.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if pbr.teacher_id != request.user.id:
+        return Response({'error': 'Sem permissão.'}, status=status.HTTP_403_FORBIDDEN)
+
+    # Criar ou vincular aluno - buscar por email primeiro
+    student = Student.objects.filter(
+        user=request.user,
+        email__iexact=pbr.student_email
+    ).first()
+
+    if not student:
+        student = Student.objects.create(
+            user=request.user,
+            name=pbr.student_name,
+            email=pbr.student_email,
+            phone=pbr.student_whatsapp or '',
+            status=Student.STATUS_ACTIVE,
+        )
+
+    # Criar aula
+    title = pbr.subject or f"Aula com {pbr.student_name}"
+    lesson = Lesson.objects.create(
+        student=student,
+        user=request.user,
+        date=pbr.requested_date,
+        time=pbr.requested_time,
+        title=title,
+        info=pbr.notes or '',
+        status='confirmed',
+        realized=False,
+    )
+
+    pbr.status = PublicBookingRequest.STATUS_CONFIRMED
+    pbr.save(update_fields=['status', 'updated_at'])
+
+    return Response({
+        'success': True,
+        'lesson_id': lesson.id,
+        'student_id': student.id,
+        'message': 'Solicitação confirmada. Aula criada no calendário.'
+    }, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def public_booking_reject(request, booking_id):
+    """
+    POST /api/public/booking/<id>/reject/
+    Professor recusa a solicitação.
+    """
+    try:
+        pbr = PublicBookingRequest.objects.get(id=booking_id, status=PublicBookingRequest.STATUS_PENDING)
+    except PublicBookingRequest.DoesNotExist:
+        return Response({'error': 'Solicitação não encontrada ou já processada.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if pbr.teacher_id != request.user.id:
+        return Response({'error': 'Sem permissão.'}, status=status.HTTP_403_FORBIDDEN)
+
+    pbr.status = PublicBookingRequest.STATUS_CANCELLED
+    pbr.save(update_fields=['status', 'updated_at'])
+
+    return Response({
+        'success': True,
+        'message': 'Solicitação recusada.'
+    }, status=200)
 
 
 class TicketsView(TemplateView):
