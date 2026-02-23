@@ -1749,6 +1749,7 @@
                 <div class="more">
                   <button type="button" class="btn-mini" data-act="more" aria-haspopup="true" aria-expanded="false">⋯</button>
                   <div class="menu" role="menu">
+                    <button type="button" data-act="receipt">🖨️ Imprimir Recibo</button>
                     <button type="button" data-act="edit">Editar <small>✎</small></button>
                     <button type="button" data-act="delete" style="color:#b91c1c;">Excluir <small>🗑</small></button>
                   </div>
@@ -1906,9 +1907,14 @@
           return;
         }
 
-        // If clicked inside menu (agora só Editar e Excluir)
+        // If clicked inside menu (Editar, Excluir, Imprimir Recibo)
         if(btn.closest('.menu')){
           const menuAct = btn.dataset.act;
+          if(menuAct === 'receipt'){
+            window.open(`/recibo/${entryId}/`, '_blank', 'noopener');
+            closeAllMenus();
+            return;
+          }
           handleMenuAction(entryId, menuAct);
           closeAllMenus();
           return;

@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recibo de Pagamento | EDUCAflowOne</title>
+
+  <!-- Optional: Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg: #f5f7ff;
+      --card: rgba(255,255,255,.82);
+      --card-solid: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: rgba(15,23,42,.10);
+      --shadow: 0 24px 60px -30px rgba(2,6,23,.35);
+
+      --primary: #3b82f6;
+      --primary-2: #6366f1;
+      --good: #16a34a;
+      --warn: #f59e0b;
+      --danger:#ef4444;
+
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-full: 999px;
+
+      --paper-w: 860px;
+    }
+
+    *{ box-sizing: border-box; }
+    html{ scroll-behavior: smooth; }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(99,102,241,.20), transparent 55%),
+                  radial-gradient(900px 500px at 95% 15%, rgba(59,130,246,.18), transparent 55%),
+                  radial-gradient(900px 700px at 30% 100%, rgba(34,197,94,.10), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 28px 18px;
+    }
+
+    /* Top utility bar */
+    .topbar{
+      max-width: var(--paper-w);
+      margin: 0 auto 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 220px;
+    }
+    .brand-mark{
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(99,102,241,.18), rgba(59,130,246,.18));
+      border: 1px solid rgba(99,102,241,.22);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: 0 14px 30px -22px rgba(2,6,23,.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .brand-mark::after{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.60), transparent 60%);
+      transform: rotate(18deg);
+      opacity: .55;
+    }
+    .brand h1{
+      font-size: 14px;
+      margin: 0;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+    }
+    .brand span{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    .top-actions{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn{
+      appearance:none;
+      border: 1px solid transparent;
+      background: #fff;
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      font-size: 13px;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      box-shadow: 0 10px 22px -18px rgba(2,6,23,.35);
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+      user-select:none;
+    }
+    .btn:hover{ transform: translateY(-1px); box-shadow: 0 16px 30px -20px rgba(2,6,23,.42); }
+    .btn:active{ transform: translateY(0px); }
+    .btn:focus-visible{
+      outline: 3px solid rgba(59,130,246,.25);
+      outline-offset: 2px;
+    }
+
+    .btn.primary{
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #fff;
+      border-color: rgba(255,255,255,.20);
+    }
+    .btn.ghost{
+      background: rgba(255,255,255,.75);
+      border-color: rgba(15,23,42,.10);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn .dot{
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 0 6px rgba(22,163,74,.12);
+    }
+
+    /* Paper */
+    .paper-wrap{
+      max-width: var(--paper-w);
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .paper{
+      background: var(--card);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(15,23,42,.10);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Decorative header band */
+    .paper-header{
+      padding: 22px 22px 16px;
+      border-bottom: 1px solid rgba(15,23,42,.08);
+      background:
+        radial-gradient(1200px 200px at 20% 0%, rgba(99,102,241,.22), transparent 55%),
+        radial-gradient(800px 220px at 90% 30%, rgba(59,130,246,.18), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,.70), rgba(255,255,255,.35));
+    }
+
+    .header-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .title{
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 260px;
+    }
+    .title h2{
+      margin:0;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+    .title p{
+      margin:0;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: var(--radius-full);
+      background: rgba(255,255,255,.75);
+      border: 1px solid rgba(15,23,42,.10);
+      font-weight: 800;
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .badge small{
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: var(--radius-full);
+      font-weight: 900;
+      font-size: 12px;
+      border: 1px solid rgba(15,23,42,.08);
+      background: rgba(255,255,255,.55);
+    }
+    .status-pill .s{
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 0 6px rgba(22,163,74,.12);
+    }
+
+    .paper-body{
+      padding: 18px 22px 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.80));
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .card{
+      background: rgba(255,255,255,.80);
+      border: 1px solid rgba(15,23,42,.10);
+      border-radius: var(--radius-lg);
+      padding: 14px 14px;
+      box-shadow: 0 14px 30px -26px rgba(2,6,23,.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::after{
+      content:"";
+      position:absolute;
+      inset:-60px -80px auto auto;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle at 30% 30%, rgba(99,102,241,.14), transparent 60%);
+      transform: rotate(15deg);
+      opacity: .65;
+    }
+
+    .field{
+      display:flex;
+      flex-direction: column;
+      gap: 5px;
+      position: relative;
+      z-index: 1;
+    }
+    .label{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+    .value{
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .value.mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .amount-box{
+      display:flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .amount{
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+    .amount small{
+      display:block;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .stamp{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-full);
+      border: 1px dashed rgba(22,163,74,.45);
+      background: rgba(22,163,74,.08);
+      font-weight: 900;
+      font-size: 12px;
+      color: #166534;
+      white-space: nowrap;
+    }
+    .stamp .check{
+      width: 22px; height: 22px;
+      border-radius: 8px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(22,163,74,.16);
+      border: 1px solid rgba(22,163,74,.18);
+    }
+
+    .divider{
+      height: 1px;
+      background: rgba(15,23,42,.08);
+      margin: 14px 0;
+    }
+
+    .note{
+      background: rgba(255,255,255,.75);
+      border: 1px solid rgba(15,23,42,.10);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      color: var(--text);
+      box-shadow: 0 12px 26px -24px rgba(2,6,23,.35);
+    }
+    .note strong{
+      display:block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+    }
+    .note p{
+      margin:0;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .footer{
+      padding: 16px 22px;
+      border-top: 1px solid rgba(15,23,42,.08);
+      background: rgba(255,255,255,.70);
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tiny{
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .tiny a{ color: var(--primary); text-decoration: none; font-weight: 800; }
+    .tiny a:hover{ text-decoration: underline; }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 9999;
+      background: rgba(15,23,42,.90);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 12px 12px;
+      box-shadow: 0 20px 50px -30px rgba(2,6,23,.60);
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      transform: translateY(16px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all .25s ease;
+      max-width: min(420px, calc(100vw - 36px));
+    }
+    .toast.show{
+      transform: translateY(0px);
+      opacity: 1;
+    }
+    .toast .t-dot{
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: 0 0 0 6px rgba(22,163,74,.16);
+      flex: none;
+    }
+    .toast .t-text{
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    /* Modal to customize (optional but useful) */
+    .modal-backdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(2,6,23,.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 9998;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+    }
+    .modal{
+      width: min(720px, 100%);
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(15,23,42,.12);
+      border-radius: 20px;
+      box-shadow: 0 40px 80px -45px rgba(2,6,23,.65);
+      overflow:hidden;
+    }
+    .modal header{
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(15,23,42,.08);
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(99,102,241,.10), transparent);
+    }
+    .modal header strong{
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: -0.01em;
+    }
+    .modal .content{
+      padding: 16px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .modal .row{
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .modal label{
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+    .modal input, .modal select, .modal textarea{
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(15,23,42,.12);
+      background: #fff;
+      font-weight: 700;
+      color: var(--text);
+      outline: none;
+    }
+    .modal textarea{ resize: vertical; min-height: 70px; grid-column: 1 / -1; }
+    .modal footer{
+      padding: 14px 16px;
+      border-top: 1px solid rgba(15,23,42,.08);
+      display:flex;
+      justify-content:flex-end;
+      gap: 10px;
+      background: rgba(255,255,255,.70);
+    }
+
+    /* Print styles */
+    @media print{
+      body{
+        background: #fff !important;
+        padding: 0 !important;
+      }
+      .topbar, .toast, .modal-backdrop{
+        display:none !important;
+      }
+      .paper{
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 0 !important;
+      }
+      .paper-header{
+        background: #fff !important;
+      }
+      .paper-body{
+        background: #fff !important;
+      }
+      .card, .note{
+        box-shadow: none !important;
+      }
+      .paper-wrap{
+        max-width: 100% !important;
+        margin: 0 !important;
+      }
+    }
+
+    @media (max-width: 760px){
+      .grid{ grid-template-columns: 1fr; }
+      .brand{ min-width: 0; }
+      .top-actions{ width: 100%; justify-content: flex-start; }
+      .modal .content{ grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  {% if entry_not_found %}
+  <div style="padding:40px;text-align:center;font-family:Inter,sans-serif;">
+    <h1 style="color:#64748b;">Lançamento não encontrado</h1>
+    <p style="margin:16px 0;">O recibo solicitado não existe ou você não tem permissão para acessá-lo.</p>
+    <a href="/financeiro/" style="color:#2563eb;font-weight:700;">← Voltar ao Financeiro</a>
+  </div>
+  {% else %}
+  <!-- TOP BAR -->
+  <div class="topbar" aria-label="Ações do recibo">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <!-- You can replace with your logo image -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 3h10v4H7V3Z" stroke="rgba(15,23,42,.75)" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M7 7h10v14H7V7Z" stroke="rgba(15,23,42,.75)" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M9 11h6M9 14h6M9 17h6" stroke="rgba(99,102,241,.85)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1>EDUCAflowOne <span>Recibo de pagamento</span></h1>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="btn ghost" id="btnCopy">
+        📋 Copiar dados
+      </button>
+      <button class="btn ghost" id="btnEdit">
+        ✍️ Editar
+      </button>
+      <button class="btn primary" id="btnPrint">
+        🖨️ Imprimir / PDF <span class="dot" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- PAPER -->
+  <div class="paper-wrap">
+    <section class="paper" id="receiptPaper" role="document" aria-label="Recibo">
+      <header class="paper-header">
+        <div class="header-row">
+          <div class="title">
+            <h2>Recibo de pagamento</h2>
+            <p>
+              Comprovante emitido para o aluno/cliente após o pagamento de parcela.
+              <br/>Guarde para sua organização financeira.
+            </p>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:10px; align-items:flex-end;">
+            <div class="badge" title="Identificação do recibo">
+              <span style="font-weight: 900;">#</span>
+              <span id="rReceiptId" class="value mono" style="font-size:12px;">REC-2026-000193</span>
+              <small>•</small>
+              <small id="rIssuedAt">11/02/2026 14:33</small>
+            </div>
+
+            <div class="status-pill" title="Status do pagamento">
+              <span class="s" aria-hidden="true"></span>
+              <span id="rStatusText">PAGO</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="paper-body">
+        <div class="grid">
+          <!-- Payer -->
+          <div class="card">
+            <div class="field">
+              <div class="label">Aluno / Cliente</div>
+              <div class="value" id="rStudentName">Jonas Pereira Barros de Sousa</div>
+            </div>
+            <div class="divider"></div>
+            <div class="field">
+              <div class="label">Contato</div>
+              <div class="value" id="rStudentContact">+55 (41) 99999-9999 • aluno@email.com</div>
+            </div>
+          </div>
+
+          <!-- Payee -->
+          <div class="card">
+            <div class="field">
+              <div class="label">Recebedor</div>
+              <div class="value" id="rTeacherName">Administração (Conta Principal)</div>
+            </div>
+            <div class="divider"></div>
+            <div class="field">
+              <div class="label">Sistema</div>
+              <div class="value" id="rSystemName">EDUCAflowOne • educaflowone.com.br</div>
+            </div>
+          </div>
+
+          <!-- Payment -->
+          <div class="card" style="grid-column: 1 / -1;">
+            <div class="amount-box">
+              <div>
+                <div class="label">Valor pago</div>
+                <div class="amount" id="rAmount">R$ 345,00</div>
+                <small class="muted" id="rAmountExtenso" style="display:block; margin-top:6px; font-weight:700; color: var(--muted);">
+                  (trezentos e quarenta e cinco reais)
+                </small>
+              </div>
+
+              <div class="stamp" aria-label="Pagamento confirmado">
+                <span class="check" aria-hidden="true">✓</span>
+                <span id="rPaidAt">Pago em 11/02/2026</span>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+              <div class="field">
+                <div class="label">Método</div>
+                <div class="value" id="rMethod">PIX</div>
+              </div>
+              <div class="field">
+                <div class="label">Parcela</div>
+                <div class="value" id="rInstallment">1 / 3</div>
+              </div>
+              <div class="field">
+                <div class="label">Vencimento</div>
+                <div class="value" id="rDueDate">12/02/2026</div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="field">
+                <div class="label">Descrição</div>
+                <div class="value" id="rDescription">Mensalidade Fevereiro • Plano Intensivo</div>
+              </div>
+              <div class="field">
+                <div class="label">Referência</div>
+                <div class="value mono" id="rReference">FIN-ENTRY-8472 • ITEM-0031</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <div class="note">
+            <strong>Observações</strong>
+            <p id="rNotes">Pagamento confirmado. Caso necessário, apresente este recibo para conferência.</p>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="tiny">
+          Este recibo é um comprovante simples de pagamento gerado pelo sistema.<br/>
+          Dúvidas? <a href="#" onclick="return false;">contato@educaflowone.com</a>
+        </div>
+        <div class="tiny" style="text-align:right;">
+          Autenticidade: <span class="value mono" id="rHash" style="font-size:12px;">A7F2-19C0-5B7E</span><br/>
+          Emitido por: <span class="value" id="rIssuedBy" style="font-size:12px;">Usuário logado</span>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span class="t-dot" aria-hidden="true"></span>
+    <div class="t-text" id="toastText">Copiado!</div>
+  </div>
+
+  <!-- EDIT MODAL (mock, you can feed server data later) -->
+  <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Editar recibo (mock)">
+      <header>
+        <strong>Editar dados do recibo (mock)</strong>
+        <button class="btn ghost" id="btnCloseModal" style="padding:8px 10px;">✕</button>
+      </header>
+
+      <div class="content">
+        <div class="row">
+          <label for="mStudent">Aluno / Cliente</label>
+          <input id="mStudent" type="text" value="Jonas Pereira Barros de Sousa"/>
+        </div>
+
+        <div class="row">
+          <label for="mContact">Contato</label>
+          <input id="mContact" type="text" value="+55 (41) 99999-9999 • aluno@email.com"/>
+        </div>
+
+        <div class="row">
+          <label for="mTeacher">Recebedor</label>
+          <input id="mTeacher" type="text" value="Administração (Conta Principal)"/>
+        </div>
+
+        <div class="row">
+          <label for="mMethod">Método</label>
+          <select id="mMethod">
+            <option>PIX</option>
+            <option>Dinheiro</option>
+            <option>Cartão</option>
+            <option>Transferência</option>
+            <option>Outro</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="mAmount">Valor pago (R$)</label>
+          <input id="mAmount" type="number" step="0.01" value="345.00"/>
+        </div>
+
+        <div class="row">
+          <label for="mInstallment">Parcela</label>
+          <input id="mInstallment" type="text" value="1 / 3"/>
+        </div>
+
+        <div class="row" style="grid-column:1/-1;">
+          <label for="mDesc">Descrição</label>
+          <input id="mDesc" type="text" value="Mensalidade Fevereiro • Plano Intensivo"/>
+        </div>
+
+        <textarea id="mNotes">Pagamento confirmado. Caso necessário, apresente este recibo para conferência.</textarea>
+      </div>
+
+      <footer>
+        <button class="btn ghost" id="btnCancelEdit">Cancelar</button>
+        <button class="btn primary" id="btnApplyEdit">Aplicar</button>
+      </footer>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if receipt_data %}{{ receipt_data|json_script:"receipt-data" }}{% endif %}
+
+  <script>
+    // ======= Helpers =======
+    const $ = (sel, root=document) => root.querySelector(sel);
+
+    function showToast(msg){
+      const t = $("#toast");
+      if (!t) return;
+      const tt = $("#toastText");
+      if (tt) tt.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => t.classList.remove("show"), 1600);
+    }
+
+    function formatBRL(value){
+      try {
+        return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+      } catch {
+        return `R$ ${Number(value).toFixed(2)}`.replace(".", ",");
+      }
+    }
+
+    // Very light "extenso" mock (good enough for UI; backend can do correct extenso)
+    function extensoBRL(value){
+      const v = Number(value || 0);
+      if (!isFinite(v)) return "";
+      // Keep it simple: show numeric in extenso placeholder
+      // Replace later with backend lib if you want true pt-BR extenso.
+      return `(${formatBRL(v).replace("R$", "").trim()} reais)`;
+    }
+
+    function nowBR(){
+      const d = new Date();
+      const pad = n => String(n).padStart(2,"0");
+      return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function randomHash(){
+      const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+      let out = "";
+      for(let i=0;i<12;i++){
+        out += chars[Math.floor(Math.random()*chars.length)];
+        if(i===3 || i===7) out += "-";
+      }
+      return out;
+    }
+
+    // ======= Data: server ou mock =======
+    let receiptData = null;
+    const scriptEl = document.getElementById("receipt-data");
+    if (scriptEl && scriptEl.textContent) {
+      try { receiptData = JSON.parse(scriptEl.textContent); } catch(e) {}
+    }
+    if (!receiptData) {
+      receiptData = {
+        receipt_id: "REC-2026-000193",
+        issued_at: nowBR(),
+        status: "PAGO",
+        student_name: "—",
+        student_contact: "—",
+        teacher_name: "—",
+        system_name: "EDUCAflowOne • educaflowone.com.br",
+        amount: 0,
+        paid_at: "—",
+        method: "PIX",
+        installment: "1 / 1",
+        due_date: "—",
+        description: "—",
+        reference: "—",
+        notes: "—",
+        hash: randomHash(),
+        issued_by: "—"
+      };
+    }
+
+    function renderReceipt(data){
+      const el = $("#rReceiptId");
+      if (!el) return;
+      el.textContent = data.receipt_id || "-";
+      const set = (id, val) => { const e = $(id); if (e) e.textContent = val || "-"; };
+      set("#rIssuedAt", data.issued_at);
+      set("#rStatusText", data.status);
+      set("#rStudentName", data.student_name);
+      set("#rStudentContact", data.student_contact);
+      set("#rTeacherName", data.teacher_name);
+      set("#rSystemName", data.system_name);
+      set("#rAmount", formatBRL(data.amount || 0));
+      set("#rAmountExtenso", extensoBRL(data.amount || 0));
+      set("#rPaidAt", data.paid_at);
+      set("#rMethod", data.method);
+      set("#rInstallment", data.installment);
+      set("#rDueDate", data.due_date);
+      set("#rDescription", data.description);
+      set("#rReference", data.reference);
+      set("#rNotes", data.notes);
+      set("#rHash", data.hash);
+      set("#rIssuedBy", data.issued_by);
+    }
+
+    // ======= Actions =======
+    $("#btnPrint") && $("#btnPrint").addEventListener("click", () => {
+      showToast("Abrindo impressão...");
+      setTimeout(() => window.print(), 180);
+    });
+
+    $("#btnCopy") && $("#btnCopy").addEventListener("click", async () => {
+      const text =
+`RECIBO DE PAGAMENTO - EDUCAflowOne
+ID: ${$("#rReceiptId").textContent}
+Emissão: ${$("#rIssuedAt").textContent}
+Status: ${$("#rStatusText").textContent}
+
+Aluno/Cliente: ${$("#rStudentName").textContent}
+Contato: ${$("#rStudentContact").textContent}
+
+Recebedor: ${$("#rTeacherName").textContent}
+Valor: ${$("#rAmount").textContent}
+Método: ${$("#rMethod").textContent}
+Parcela: ${$("#rInstallment").textContent}
+Vencimento: ${$("#rDueDate").textContent}
+
+Descrição: ${$("#rDescription").textContent}
+Referência: ${$("#rReference").textContent}
+Obs: ${$("#rNotes").textContent}
+
+Autenticidade: ${$("#rHash").textContent}`;
+
+      try{
+        await navigator.clipboard.writeText(text);
+        showToast("Recibo copiado!");
+      }catch(e){
+        // fallback
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        showToast("Recibo copiado (fallback)!");
+      }
+    });
+
+    // ======= Modal edit (mock) =======
+    function openModal(){
+      $("#modalBackdrop").style.display = "flex";
+      $("#modalBackdrop").setAttribute("aria-hidden","false");
+    }
+    function closeModal(){
+      $("#modalBackdrop").style.display = "none";
+      $("#modalBackdrop").setAttribute("aria-hidden","true");
+    }
+
+    $("#btnEdit") && $("#btnEdit").addEventListener("click", () => {
+      const m = id => document.getElementById(id);
+      m("mStudent").value = (m("rStudentName") && m("rStudentName").textContent) || "";
+      m("mContact").value = (m("rStudentContact") && m("rStudentContact").textContent) || "";
+      m("mTeacher").value = (m("rTeacherName") && m("rTeacherName").textContent) || "";
+      m("mMethod").value = (m("rMethod") && m("rMethod").textContent) || "PIX";
+      m("mAmount").value = (receiptData && receiptData.amount || 0).toFixed(2);
+      m("mInstallment").value = (m("rInstallment") && m("rInstallment").textContent) || "1 / 1";
+      m("mDesc").value = (m("rDescription") && m("rDescription").textContent) || "";
+      m("mNotes").value = (m("rNotes") && m("rNotes").textContent) || "";
+      openModal();
+    });
+
+    $("#btnCloseModal") && $("#btnCloseModal").addEventListener("click", closeModal);
+    $("#btnCancelEdit") && $("#btnCancelEdit").addEventListener("click", closeModal);
+    $("#modalBackdrop") && $("#modalBackdrop").addEventListener("click", (e) => {
+      if(e.target === $("#modalBackdrop")) closeModal();
+    });
+
+    $("#btnApplyEdit") && $("#btnApplyEdit").addEventListener("click", () => {
+      receiptData.student_name = $("#mStudent").value.trim();
+      receiptData.student_contact = $("#mContact").value.trim();
+      receiptData.teacher_name = $("#mTeacher").value.trim();
+      receiptData.method = $("#mMethod").value;
+      receiptData.amount = Number($("#mAmount").value || 0);
+      receiptData.installment = $("#mInstallment").value.trim();
+      receiptData.description = $("#mDesc").value.trim();
+      receiptData.notes = $("#mNotes").value.trim();
+      renderReceipt(receiptData);
+      closeModal();
+      showToast("Dados atualizados!");
+    });
+
+    // initial render (só se tiver o paper)
+    if ($("#rReceiptId")) renderReceipt(receiptData);
+  </script>
+</body>
+</html>

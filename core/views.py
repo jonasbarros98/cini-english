@@ -367,6 +367,93 @@ class FinanceView(TemplateView):
         return context
 
 
+class ReciboView(TemplateView):
+    """View para renderizar o recibo de um lançamento financeiro"""
+    template_name = "recibo.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        entry_id = self.kwargs.get('entry_id')
+        qs = get_financial_entries_queryset_for_user(self.request)
+        try:
+            entry = qs.get(pk=entry_id)
+        except FinancialEntry.DoesNotExist:
+            context['receipt_data'] = None
+            context['entry_not_found'] = True
+            return context
+
+        student = entry.student
+        beneficiary = entry.beneficiary_user or entry.user
+        teacher_name = beneficiary.get_full_name() or beneficiary.username
+
+        payment_method_labels = {
+            'pix': 'PIX',
+            'cash': 'Dinheiro',
+            'card': 'Cartão',
+            'transfer': 'Transferência',
+            'other': 'Outro',
+        }
+        method_label = payment_method_labels.get(entry.payment_method or 'pix', 'PIX')
+
+        def fmt_date(d):
+            return d.strftime('%d/%m/%Y') if d else '-'
+
+        def fmt_datetime(dt):
+            return dt.strftime('%d/%m/%Y %H:%M') if dt else '-'
+
+        # Usar horário de Brasília no recibo
+        try:
+            from zoneinfo import ZoneInfo
+            now_brazil = timezone.now().astimezone(ZoneInfo('America/Sao_Paulo'))
+        except ImportError:
+            import pytz
+            now_brazil = timezone.now().astimezone(pytz.timezone('America/Sao_Paulo'))
+
+        paid_at_str = 'Pago em ' + fmt_date(entry.payment_date) if entry.status == FinancialEntry.STATUS_PAID and entry.payment_date else '-'
+        installment_str = f"{entry.current_installment} / {entry.installments}" if entry.installments > 1 else "1 / 1"
+
+        contact_parts = []
+        if student.phone:
+            contact_parts.append(str(student.phone))
+        if student.email:
+            contact_parts.append(str(student.email))
+        student_contact = ' • '.join(contact_parts) if contact_parts else '-'
+
+        import random
+        import string
+        hash_chars = string.ascii_uppercase + string.digits
+        hash_val = '-'.join([''.join(random.choices(hash_chars, k=4)) for _ in range(3)])
+
+        receipt_id = f"REC-{entry.due_date.year}-{str(entry.id).zfill(6)}" if entry.due_date else f"REC-{entry.id}"
+
+        context['receipt_data'] = {
+            'receipt_id': receipt_id,
+            'issued_at': fmt_datetime(now_brazil),
+            'status': 'PAGO' if entry.status == FinancialEntry.STATUS_PAID else entry.status.upper(),
+            'student_name': student.name,
+            'student_contact': student_contact,
+            'teacher_name': f"{teacher_name} (Conta Principal)" if beneficiary == self.request.user else teacher_name,
+            'system_name': 'EDUCAflowOne • educaflowone.com.br',
+            'amount': float(entry.amount),
+            'paid_at': paid_at_str,
+            'method': method_label,
+            'installment': installment_str,
+            'due_date': fmt_date(entry.due_date),
+            'description': entry.description,
+            'reference': f"FIN-ENTRY-{entry.id}",
+            'notes': entry.notes or 'Pagamento confirmado. Caso necessário, apresente este recibo para conferência.',
+            'hash': hash_val,
+            'issued_by': self.request.user.get_full_name() or self.request.user.username,
+        }
+        context['entry_not_found'] = False
+        return context
+
+
 class HomeView(View):
     """
     Rota principal (/): usuário não logado → landing page; logado → dashboard/planos/calendar.
