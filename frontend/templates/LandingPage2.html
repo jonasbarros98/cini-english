@@ -118,6 +118,7 @@
     }
     .btn-nav:hover{transform: translateY(-2px)}
     .btn-nav:hover::after{opacity:1; transform: translateX(0) rotate(8deg)}
+    .btn-nav .btn-nav-short{display:none}
 
     :focus-visible{outline:3px solid rgba(99,102,241,.35); outline-offset:2px}
 
@@ -685,7 +686,12 @@
       .billing-toggle{min-width:110px}
     }
     @media (max-width: 768px){
-      .nav-actions .nav-link{display:none}
+      .nav{padding:.75rem 1rem;gap:.5rem}
+      .nav-actions{gap:.4rem}
+      .nav-actions .nav-link[href^="#"]{display:none}
+      .btn-nav{padding:.5rem .85rem;font-size:.82rem}
+      .btn-nav .btn-nav-full{display:none}
+      .btn-nav .btn-nav-short{display:inline}
       .hero{padding-top: 9.25rem; padding-bottom: 4.75rem}
       .sticky-cta{display:block}
       body{padding-bottom: 86px}
@@ -710,7 +716,7 @@
         <a class="nav-link" href="#faq">FAQ</a>
         <a class="nav-link" href="/login/">Login</a>
         <!-- NÃO trocar nome/rota -->
-        <a class="btn-nav cta-signup" href="/signup/?tier=basic&plan=monthly">Testar 7 dias grátis</a>
+        <a class="btn-nav cta-signup" href="/signup/?tier=basic&plan=monthly"><span class="btn-nav-full">Testar 7 dias grátis</span><span class="btn-nav-short">Testar grátis</span></a>
       </nav>
     </div>
   </header>
