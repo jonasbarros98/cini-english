@@ -698,6 +698,27 @@
       .billing .glider{width: 104px}
       .billing-toggle{min-width:104px; padding:.65rem .85rem}
     }
+
+    /* Modal de contato */
+    .contact-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(6px);z-index:2000;display:none;align-items:center;justify-content:center;padding:1rem;opacity:0;transition:opacity .2s}
+    .contact-modal-overlay.open{display:flex;opacity:1}
+    .contact-modal{background:var(--card);border-radius:var(--radius2);padding:1.75rem;max-width:420px;width:100%;box-shadow:var(--shadow2);transform:scale(.95);transition:transform .2s}
+    .contact-modal-overlay.open .contact-modal{transform:scale(1)}
+    .contact-modal h3{font-size:1.25rem;color:var(--text);margin:0 0 1.25rem}
+    .contact-modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;cursor:pointer;color:var(--muted2);padding:.25rem;line-height:1}
+    .contact-modal-close:hover{color:var(--text)}
+    .contact-modal .form-group{margin-bottom:1rem}
+    .contact-modal label{display:block;font-size:.875rem;font-weight:600;color:var(--text);margin-bottom:.4rem}
+    .contact-modal input,.contact-modal textarea{width:100%;padding:.65rem .9rem;border:2px solid var(--border);border-radius:10px;font-size:1rem;font-family:inherit}
+    .contact-modal input:focus,.contact-modal textarea:focus{outline:none;border-color:var(--primary)}
+    .contact-modal textarea{min-height:80px;resize:vertical}
+    .contact-modal .btn-submit{width:100%;padding:.75rem;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:1rem}
+    .contact-modal .btn-submit:hover{opacity:.95}
+    .contact-modal .btn-submit:disabled{opacity:.7;cursor:not-allowed}
+    .contact-modal .feedback{margin-top:.75rem;font-size:.9rem;display:none}
+    .contact-modal .feedback.success{display:block;color:#059669}
+    .contact-modal .feedback.error{display:block;color:#dc2626}
+    .contact-modal{position:relative}
   </style>
 </head>
 
@@ -1032,7 +1053,7 @@
         </div>
 
         <p class="fineprint">
-          Precisa de nota fiscal ou customização? <a href="mailto:contato@eduflow.com">Entre em contato conosco</a>.
+          Precisa de nota fiscal ou customização? <a href="#" class="js-contact-trigger">Entre em contato conosco</a>.
         </p>
       </div>
     </section>
@@ -1042,7 +1063,7 @@
       <div class="container">
         <div class="section-header">
           <h2>Perguntas Frequentes</h2>
-          <p>Se ainda tiver dúvidas, <a href="mailto:contato@eduflow.com" style="color: var(--primary2); text-decoration: underline;">entre em contato conosco</a>.</p>
+          <p>Se ainda tiver dúvidas, <a href="#" class="js-contact-trigger" style="color: var(--primary2); text-decoration: underline;">entre em contato conosco</a>.</p>
         </div>
 
         <div class="faq-grid">
@@ -1113,6 +1134,31 @@
     </div>
   </footer>
 
+  <!-- Modal de contato -->
+  <div class="contact-modal-overlay" id="contactModal" role="dialog" aria-modal="true" aria-labelledby="contactModalTitle">
+    <div class="contact-modal">
+      <button type="button" class="contact-modal-close" aria-label="Fechar" id="contactModalClose">&times;</button>
+      <h3 id="contactModalTitle">Entre em contato</h3>
+      <form id="contactForm">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="contactName">Nome</label>
+          <input type="text" id="contactName" name="name" required placeholder="Seu nome" maxlength="100" />
+        </div>
+        <div class="form-group">
+          <label for="contactContact">WhatsApp ou Email</label>
+          <input type="text" id="contactContact" name="contact" required placeholder="(11) 99999-9999 ou email@exemplo.com" maxlength="150" />
+        </div>
+        <div class="form-group">
+          <label for="contactMessage">Dúvida</label>
+          <textarea id="contactMessage" name="message" required placeholder="Como podemos ajudar?" maxlength="500" rows="3"></textarea>
+        </div>
+        <button type="submit" class="btn-submit" id="contactSubmit">Enviar</button>
+        <p class="feedback" id="contactFeedback"></p>
+      </form>
+    </div>
+  </div>
+
   <!-- Mobile sticky CTA -->
   <div class="sticky-cta" role="region" aria-label="Chamada para ação fixa no mobile">
     <div class="wrap">
@@ -1125,6 +1171,40 @@
 
   <script>
     lucide.createIcons();
+
+    // Modal de contato
+    function getCookie(n){const v=`; ${document.cookie}`;const p=v.split(`; ${n}=`);return p.length===2?p.pop().split(";").shift():null;}
+    const contactModal=document.getElementById('contactModal');
+    const contactForm=document.getElementById('contactForm');
+    const contactFeedback=document.getElementById('contactFeedback');
+    const contactSubmit=document.getElementById('contactSubmit');
+    document.querySelectorAll('.js-contact-trigger').forEach(function(a){
+      a.addEventListener('click',function(e){e.preventDefault();contactModal.classList.add('open');});
+    });
+    document.getElementById('contactModalClose').addEventListener('click',function(){contactModal.classList.remove('open');});
+    contactModal.addEventListener('click',function(e){if(e.target===contactModal)contactModal.classList.remove('open');});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&contactModal.classList.contains('open'))contactModal.classList.remove('open');});
+    contactForm.addEventListener('submit',async function(e){
+      e.preventDefault();
+      contactFeedback.className='feedback';contactFeedback.textContent='';contactFeedback.style.display='none';
+      const name=document.getElementById('contactName').value.trim();
+      const contact=document.getElementById('contactContact').value.trim();
+      const message=document.getElementById('contactMessage').value.trim();
+      if(!name||!contact||!message){contactFeedback.className='feedback error';contactFeedback.textContent='Preencha todos os campos.';contactFeedback.style.display='block';return;}
+      contactSubmit.disabled=true;contactSubmit.textContent='Enviando...';
+      try{
+        let csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||getCookie('csrftoken');
+        if(!csrf){await fetch('/',{method:'GET',credentials:'same-origin'});csrf=getCookie('csrftoken');}
+        const res=await fetch('/api/landing/contact/',{
+          method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf||''},
+          credentials:'same-origin',body:JSON.stringify({name,contact,message})
+        });
+        const data=await res.json();
+        if(res.ok&&data.success){contactFeedback.className='feedback success';contactFeedback.textContent=data.message||'Enviado!';contactForm.reset();setTimeout(function(){contactModal.classList.remove('open');},1500);}
+        else{contactFeedback.className='feedback error';contactFeedback.textContent=data.error||'Erro ao enviar.';contactFeedback.style.display='block';}
+      }catch(err){contactFeedback.className='feedback error';contactFeedback.textContent='Erro de conexão. Tente novamente.';contactFeedback.style.display='block';}
+      contactSubmit.disabled=false;contactSubmit.textContent='Enviar';
+    });
 
     // Meta Pixel: Lead quando clica em CTA de signup
     document.querySelectorAll('.cta-signup, .signup-link').forEach(function(link) {

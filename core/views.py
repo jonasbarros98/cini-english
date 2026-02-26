@@ -2874,6 +2874,42 @@ def signup_view(request):
             user_profile=UserProfile.PROFILE_TEACHER,
             is_admin=False
         )
+
+        # Enviar email de boas-vindas
+        nome = (first_name or '').strip() or (user.get_full_name() or username).strip() or 'Você'
+        link_login = request.build_absolute_uri('/login/')
+        welcome_body = f"""Olá, {nome}! 👋
+
+Que bom ter você no EducaflowOne 😊
+
+Agora você pode organizar alunos, agenda e pagamentos em um só lugar - sem planilhas ou anotações manuais.
+
+Para começar rápido, recomendamos 3 passos simples:
+
+1️⃣ Cadastre seu primeiro aluno
+2️⃣ Adicione uma aula na agenda
+3️⃣ Registre o seu financeiro
+
+Em poucos minutos você já terá tudo funcionando.
+
+👉 Acessar minha conta agora
+{link_login}
+
+Se precisar de ajuda, é só responder este email ou falar conosco no WhatsApp.
+
+Aproveite seus 7 dias grátis!
+
+""" + getattr(settings, 'EMAIL_SIGNATURE', '')
+        try:
+            send_mail(
+                subject='Bem-vindo ao Educaflow 🎉',
+                message=welcome_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            print(f"[Signup] Erro ao enviar email de boas-vindas: {e}")
         
         return Response({
             'success': True,
@@ -4875,15 +4911,14 @@ Este é um email automático do sistema EDUCAflowOne.
         print(f"Host: {getattr(settings, 'EMAIL_HOST', 'N/A')}:{getattr(settings, 'EMAIL_PORT', 'N/A')}")
         print(f"{'='*60}\n")
         
-        # Tentar com fail_silently=False primeiro para capturar o erro real
-        # Se der timeout, capturamos a exceção e tratamos
+        # IMPORTANTE: fail_silently=True garante que falhas de email nunca bloqueiem o sistema.
         try:
             result = send_mail(
                 subject=subject,
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[support_email],
-                fail_silently=False,  # False para capturar o erro real
+                fail_silently=True,
             )
             if result:
                 email_sent = True
@@ -4965,5 +5000,71 @@ Este é um email automático do sistema EDUCAflowOne.
         print(f"{'='*60}\n")
         return Response(
             {'error': f'Erro ao criar ticket: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def landing_contact_view(request):
+    """
+    POST /api/landing/contact/
+    Formulário de contato da landing page (visitantes não logados).
+    Campos: name, contact (WhatsApp ou Email), message (dúvida).
+    Envia email para CONTACT_EMAIL (educaflowone@gmail.com).
+    """
+    try:
+        name = (request.data.get('name') or '').strip()
+        contact = (request.data.get('contact') or '').strip()
+        message = (request.data.get('message') or '').strip()
+
+        if not name:
+            return Response({'error': 'Nome é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not contact:
+            return Response({'error': 'WhatsApp ou Email é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not message:
+            return Response({'error': 'Dúvida é obrigatória.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(name) > 100:
+            return Response({'error': 'Nome deve ter no máximo 100 caracteres.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(contact) > 150:
+            return Response({'error': 'Contato deve ter no máximo 150 caracteres.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(message) > 500:
+            return Response({'error': 'Dúvida deve ter no máximo 500 caracteres.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        contact_email = getattr(settings, 'CONTACT_EMAIL', 'educaflowone@gmail.com')
+        subject = f'[Landing] Contato: {name}'
+
+        body = f"""Novo contato pela landing page EDUCAflowOne
+
+Nome: {name}
+WhatsApp ou Email: {contact}
+Dúvida:
+{message}
+
+---
+Enviado em: {timezone.now().strftime('%Y-%m-%d %H:%M')}"""
+        email_sent = False
+        try:
+            n = send_mail(
+                subject=subject,
+                message=body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[contact_email],
+                fail_silently=True,
+            )
+            email_sent = n > 0
+        except Exception as e:
+            print(f"[Landing Contact] Erro ao enviar email: {e}")
+
+        return Response({
+            'success': True,
+            'email_sent': email_sent,
+            'message': 'Mensagem enviada com sucesso! Entraremos em contato em breve.' if email_sent else 'Mensagem recebida. Pode haver atraso no retorno.',
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response(
+            {'error': f'Erro ao enviar mensagem: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

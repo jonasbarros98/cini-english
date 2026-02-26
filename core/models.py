@@ -507,6 +507,16 @@ class UserProfile(models.Model):
         default=60,
         help_text="Duração da aula em minutos para agendamento público"
     )
+    onboarding_24h_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Data/hora em que o email de onboarding (24h pós-cadastro) foi enviado"
+    )
+    pending_subscription_recovery_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Data/hora em que o email de recuperação (assinatura pendente) foi enviado"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

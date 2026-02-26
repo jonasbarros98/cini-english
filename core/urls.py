@@ -18,7 +18,7 @@ from .views import (
     AlunosView, CalendarNewView, FinanceView, ReciboView, TicketsView,
     calendar_events, calendar_event_status, calendar_event_create, calendar_event_update,
     calendar_day_note, calendar_day_note_update,
-    support_ticket_create, support_tickets_list,
+    support_ticket_create, support_tickets_list, landing_contact_view,
     PublicCalendarView, public_availability_api, public_reservation_create,
     public_booking_confirm, public_booking_reject,
 )
@@ -89,6 +89,7 @@ urlpatterns = [
     path("api/calendar/day-note/update/", calendar_day_note_update, name="api-calendar-day-note-update"),
     # Support ticket endpoints
     path("api/support/tickets/", support_ticket_create, name="api-support-tickets"),
+    path("api/landing/contact/", landing_contact_view, name="api-landing-contact"),
     path("api/support/tickets/list/", support_tickets_list, name="api-support-tickets-list"),
     # Tickets view (admin only)
     path("tickets/", TicketsView.as_view(), name="tickets"),

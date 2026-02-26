@@ -255,3 +255,22 @@ else:
 # Support email
 SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'jonasbarros98@gmail.com')
 
+# Landing page contact form (visitantes não logados)
+CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'educaflowone@gmail.com')
+
+# URL base do site (para links em emails - login, etc.)
+SITE_URL = os.environ.get('SITE_URL', 'https://educaflowone.com.br')
+
+# Assinatura dos emails automáticos (boas-vindas, etc). Use \\n para quebras de linha.
+EMAIL_SIGNATURE = os.environ.get('EMAIL_SIGNATURE', '''—
+Equipe EducaflowOne
+Plataforma de gestão para professores particulares
+
+🌐 https://educaflowone.com.br
+
+📧 educaflowone@gmail.com
+
+📱 WhatsApp: (41) 99239-4289
+
+Organize alunos, aulas e pagamentos em um só lugar.''').replace('\\n', '\n')
+
