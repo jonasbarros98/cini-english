@@ -1954,6 +1954,45 @@ Para gerenciar sua assinatura (cartão, cancelamento, etc.):
         print(f"   Erro ao enviar email de confirmação: {e}")
 
 
+def _send_subscription_canceled_email(subscription):
+    """Envia email de confirmação quando assinatura é cancelada."""
+    try:
+        user = subscription.user
+        if not user or not user.email:
+            return
+        nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
+        plano = f"{subscription.get_tier_display()} - {subscription.get_plan_display()}"
+        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br').rstrip('/')
+        link_planos = f"{site_url}/planos/"
+        signature = getattr(settings, 'EMAIL_SIGNATURE', '')
+        body = f"""Olá, {nome},
+
+Recebemos a solicitação de cancelamento da sua assinatura EDUCAflowOne.
+
+Plano cancelado: {plano}
+
+Seu acesso ao sistema continuará até o fim do período já pago. Após isso, você precisará assinar novamente para voltar a usar.
+
+Mudou de ideia? Você pode reativar a qualquer momento:
+
+👉 Ver planos e assinar novamente
+{link_planos}
+
+Sentiremos sua falta! Se tiver feedback ou sugestões, é só responder este email.
+
+{signature}"""
+        send_mail(
+            subject='Assinatura cancelada – EDUCAflowOne',
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+        print(f"   Email de cancelamento enviado para {user.email}")
+    except Exception as e:
+        print(f"   Erro ao enviar email de cancelamento: {e}")
+
+
 def _send_payment_failed_email(subscription):
     """Envia email quando pagamento falha (invoice.payment_failed)."""
     try:
@@ -2298,11 +2337,12 @@ def handle_invoice_payment_failed(invoice):
 
 
 def handle_subscription_deleted(subscription_obj):
-    """Processa cancelamento de assinatura"""
+    """Processa cancelamento de assinatura e envia email de confirmação"""
     subscription_id = subscription_obj.get('id')
     
     try:
         subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
+        _send_subscription_canceled_email(subscription)
         subscription.status = Subscription.STATUS_CANCELED
         subscription.stripe_subscription_id = None  # Limpar referência
         subscription.save()
