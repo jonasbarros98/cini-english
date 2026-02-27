@@ -1,0 +1,9 @@
+Django>=4.2
+djangorestframework
+django-cors-headers
+dj-database-url
+python-dotenv
+whitenoise
+stripe
+Pillow
+django-anymail[resend]
