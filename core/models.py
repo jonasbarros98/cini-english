@@ -623,6 +623,11 @@ class Subscription(models.Model):
         default=False,
         help_text="Cancelar ao fim do período"
     )
+    cancel_scheduled_email_sent_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Data em que o email de cancelamento agendado foi enviado"
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

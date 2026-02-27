@@ -2393,12 +2393,18 @@ def handle_subscription_deleted(subscription_obj):
 
 
 def handle_subscription_updated(subscription_obj):
-    """Processa atualização de assinatura (ex.: troca de mensal → semestral no portal Stripe)"""
+    """Processa atualização de assinatura (ex.: troca de plano, cancelamento agendado)"""
     subscription_id = subscription_obj.get('id')
+    cancel_at_period_end = subscription_obj.get('cancel_at_period_end', False)
+    print(f"[subscription.updated] id={subscription_id} cancel_at_period_end={cancel_at_period_end}")
     
     try:
         subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
-        
+    except Subscription.DoesNotExist:
+        print(f"[subscription.updated] Subscription nao encontrada: stripe_subscription_id={subscription_id}")
+        return
+    
+    try:
         # Atualizar tier e plan a partir do novo price_id (quando usuário troca plano no portal)
         items = subscription_obj.get('items', {}).get('data', [])
         if items:
@@ -2417,9 +2423,6 @@ def handle_subscription_updated(subscription_obj):
         
         # Atualizar status baseado no status do Stripe (trialing = trial 7 dias = acesso liberado)
         stripe_status = subscription_obj.get('status', '')
-        cancel_at_period_end = subscription_obj.get('cancel_at_period_end', False)
-        cancel_just_scheduled = cancel_at_period_end and not subscription.cancel_at_period_end
-        
         if stripe_status in ('active', 'trialing'):
             subscription.status = Subscription.STATUS_ACTIVE
         elif stripe_status == 'past_due':
@@ -2427,16 +2430,25 @@ def handle_subscription_updated(subscription_obj):
         elif stripe_status == 'canceled' or stripe_status == 'unpaid':
             subscription.status = Subscription.STATUS_CANCELED
         
+        # Se usuário desfez o cancelamento, limpar flag do email
+        if not cancel_at_period_end:
+            subscription.cancel_scheduled_email_sent_at = None
+        
         subscription.cancel_at_period_end = cancel_at_period_end
         subscription.save()
         
-        # Email quando usuário agenda cancelamento (recebe na hora, não no fim do período)
-        if cancel_just_scheduled:
+        # Email quando usuário agenda cancelamento (envia 1 vez por agendamento)
+        if cancel_at_period_end and not subscription.cancel_scheduled_email_sent_at:
             period_end_date = subscription.current_period_end
             _send_subscription_cancel_scheduled_email(subscription, period_end_date)
+            subscription.cancel_scheduled_email_sent_at = timezone.now()
+            subscription.save(update_fields=['cancel_scheduled_email_sent_at'])
+            print(f"[subscription.updated] Email cancelamento agendado enviado para {subscription.user.email}")
         
-    except Subscription.DoesNotExist:
-        pass
+    except Exception as e:
+        print(f"[subscription.updated] Erro: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def determine_plan_from_price_id(price_id):
