@@ -22,7 +22,6 @@ from django.template.loader import render_to_string
 import stripe
 import json
 import os
-import traceback
 import uuid
 import threading
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
@@ -5052,24 +5051,16 @@ Enviado em: {timezone.now().strftime('%Y-%m-%d %H:%M')}"""
                 message=body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[contact_email],
-                fail_silently=False,
+                fail_silently=True,
             )
             email_sent = n > 0
         except Exception as e:
-            tb = traceback.format_exc()
-            print(f"[Landing Contact] Erro ao enviar email: {e}\n{tb}")
-            err_msg = 'Não foi possível enviar o email. Tente novamente mais tarde.'
-            if os.environ.get('DEBUG_EMAIL_ERROR', '').lower() in ('1', 'true', 'yes'):
-                err_msg = str(e)
-            return Response({
-                'success': False,
-                'error': err_msg,
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"[Landing Contact] Erro ao enviar email: {e}")
 
         return Response({
             'success': True,
-            'email_sent': True,
-            'message': 'Mensagem enviada com sucesso! Entraremos em contato em breve.',
+            'email_sent': email_sent,
+            'message': 'Mensagem enviada com sucesso! Entraremos em contato em breve.' if email_sent else 'Mensagem recebida. Pode haver atraso no retorno.',
         }, status=status.HTTP_201_CREATED)
 
     except Exception as e:

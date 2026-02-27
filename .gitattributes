@@ -1,2 +1,0 @@
-# Ensure requirements files use LF and are treated as text (helps avoid encoding issues)
-requirements*.txt text eol=lf

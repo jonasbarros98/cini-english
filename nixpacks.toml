@@ -1,6 +1,0 @@
-[phases.install]
-cmds = [
-  "python3 -m venv /opt/venv",
-  "python3 -c 'open(\"/tmp/reqs.txt\",\"w\").write(\"Django>=4.2\\ndjangorestframework\\ndjango-cors-headers\\ndj-database-url\\npython-dotenv\\nwhitenoise\\nstripe\\nPillow\\npsycopg2-binary\\ndjango-anymail[resend]\\n\")'",
-  "/opt/venv/bin/pip install -r /tmp/reqs.txt"
-]
