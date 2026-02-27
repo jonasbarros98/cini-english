@@ -2086,7 +2086,6 @@ def handle_checkout_session_completed(session):
             subscription.status = Subscription.STATUS_ACTIVE
             subscription.save()
             print(f"✅ Subscription salva/atualizada com sucesso!")
-            _send_subscription_activated_email(subscription)
         
         # Ativar assinatura se ainda estiver pending
         if subscription.status == Subscription.STATUS_PENDING:
@@ -2120,11 +2119,11 @@ def handle_checkout_session_completed(session):
             print(f"   Status: {subscription.status}")
             print(f"   Período: {subscription.current_period_start} até {subscription.current_period_end}")
 
-            # Email de confirmação de assinatura ativada (apenas ao ativar)
-            _send_subscription_activated_email(subscription)
-
         else:
             print(f"ℹ️ Assinatura já está com status: {subscription.status}")
+
+        # Email de confirmação: checkout.session.completed = usuário acabou de concluir (trial ou pago)
+        _send_subscription_activated_email(subscription)
 
     except Exception as e:
         print(f"Erro ao processar checkout.session.completed: {e}")
