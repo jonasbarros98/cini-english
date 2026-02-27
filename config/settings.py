@@ -219,11 +219,21 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True
 
 # Email configuration
-# Se não houver credenciais configuradas, usa console backend (para desenvolvimento)
+# Prioridade: RESEND_API_KEY (funciona no Railway Free/Hobby, SMTP é bloqueado) > SMTP Gmail
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 
-if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+if RESEND_API_KEY:
+    # Resend via API HTTPS - funciona em qualquer plano do Railway (porta 443 não é bloqueada)
+    EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
+    ANYMAIL = {'RESEND_API_KEY': RESEND_API_KEY}
+    # Resend exige domínio verificado; use DEFAULT_FROM_EMAIL com email do domínio que você adicionou no painel Resend
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'contato@educaflowone.com.br')
+    EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
+    print("✅ EMAIL: Configurado para Resend (API)")
+    print(f"   From: {DEFAULT_FROM_EMAIL}")
+elif EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     # Produção: usar SMTP real
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
@@ -253,7 +263,7 @@ else:
     print("⚠️  EMAIL: Usando console backend (desenvolvimento). Configure EMAIL_HOST_USER e EMAIL_HOST_PASSWORD para envio real.")
 
 # Support email
-SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'jonasbarros98@gmail.com')
+SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'educaflowone@gmail.com')
 
 # Landing page contact form (visitantes não logados)
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'educaflowone@gmail.com')

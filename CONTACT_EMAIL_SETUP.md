@@ -11,7 +11,38 @@ O formulário "Entre em contato" na landing page envia os dados para **educaflow
 - O envio é feito via `POST /api/landing/contact/`
 - O backend envia um email para `CONTACT_EMAIL` (educaflowone@gmail.com)
 
-## Configurar envio de email (Gmail/SMTP)
+---
+
+## ⭐ Recomendado no Railway: Resend (API)
+
+O **Railway bloqueia portas SMTP** (465, 587) em planos Free, Trial e Hobby. Por isso Gmail/SMTP não funciona em produção no Railway. Use **Resend**, que envia via API HTTPS (porta 443).
+
+### 1. Criar conta no Resend
+
+1. Acesse [resend.com](https://resend.com) e crie uma conta
+2. No painel: **Domains** → **Add Domain** → adicione `educaflowone.com.br`
+3. Adicione os registros DNS (DKIM, SPF, DMARC) que o Resend indicar no seu provedor de DNS
+4. Clique em **Verify** quando os registros estiverem propagados (pode levar até 48h, geralmente minutos)
+5. Em **API Keys**, crie uma chave e copie
+
+### 2. Variáveis de ambiente no Railway
+
+```env
+# Resend (prioridade sobre SMTP - use no Railway)
+RESEND_API_KEY=re_xxxxxxxxxxxx
+DEFAULT_FROM_EMAIL=contato@educaflowone.com.br
+CONTACT_EMAIL=educaflowone@gmail.com
+```
+
+O `DEFAULT_FROM_EMAIL` deve ser um endereço **@educaflowone.com.br** (domínio verificado no Resend).
+
+### 3. Deploy e teste
+
+Faça deploy e envie o formulário de contato. O email deve chegar em `CONTACT_EMAIL`.
+
+---
+
+## Alternativa: Gmail SMTP (só funciona local ou em hosts que permitem SMTP)
 
 Para que os emails cheguem de fato na caixa de entrada, configure as variáveis de ambiente:
 

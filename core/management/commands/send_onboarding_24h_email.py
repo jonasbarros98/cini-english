@@ -71,7 +71,7 @@ A melhor forma de ver o valor do sistema é com um teste rápido:
 
 👉 Cadastre 1 Aluno
 👉 Adicione 1 Aula na Agenda
-👉 Registre 1 Planejamento de Aulas ou a Primeira Cobrança
+👉 Registre 1 Planejamento de Aulas ou a sua primeira Cobrança
 
 Leva menos de 2 minutos - e você já começa a ter tudo organizado.
 
