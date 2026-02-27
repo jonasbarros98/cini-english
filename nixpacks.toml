@@ -1,3 +1,2 @@
-# Garante instalação explícita de requirements.txt (inclui django-anymail para Resend)
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = ["python fix_requirements_encoding.py", "pip install -r requirements.txt"]
