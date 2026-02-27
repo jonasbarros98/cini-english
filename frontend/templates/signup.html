@@ -128,6 +128,36 @@
       .form-group input:valid:not(:placeholder-shown) {
         border-color: #10b981;
       }
+
+      .pwd-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .pwd-wrapper input {
+        padding-right: 44px;
+        flex: 1;
+      }
+      .pwd-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 6px;
+        color: #666;
+        opacity: 0.7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.2s;
+      }
+      .pwd-toggle:hover {
+        opacity: 1;
+        color: #333;
+      }
       
       .signup-button {
         padding: 11px 20px;
@@ -348,28 +378,38 @@
         
         <div class="form-group">
           <label for="password">Senha *</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            required
-            autocomplete="new-password"
-            placeholder="Mínimo 8 caracteres"
-            minlength="8"
-          />
+          <div class="pwd-wrapper">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              autocomplete="new-password"
+              placeholder="Mínimo 8 caracteres"
+              minlength="8"
+            />
+            <button type="button" class="pwd-toggle" id="togglePassword" aria-label="Mostrar senha" title="Mostrar senha">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         
         <div class="form-group">
           <label for="passwordConfirm">Confirmar Senha *</label>
-          <input
-            type="password"
-            id="passwordConfirm"
-            name="passwordConfirm"
-            required
-            autocomplete="new-password"
-            placeholder="Digite a senha novamente"
-            minlength="8"
-          />
+          <div class="pwd-wrapper">
+            <input
+              type="password"
+              id="passwordConfirm"
+              name="passwordConfirm"
+              required
+              autocomplete="new-password"
+              placeholder="Digite a senha novamente"
+              minlength="8"
+            />
+            <button type="button" class="pwd-toggle" id="togglePasswordConfirm" aria-label="Mostrar senha" title="Mostrar senha">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
           <small id="passwordMatchError" style="color: #dc2626; display: none; font-size: 13px; margin-top: 4px;">
             As senhas não coincidem
           </small>
@@ -479,6 +519,34 @@
       
       passwordInput.addEventListener("input", validatePasswordMatch);
       passwordConfirmInput.addEventListener("input", validatePasswordMatch);
+
+      // Toggle mostrar/ocultar senha (com auto-ocultar apos 4 segundos)
+      function setupPwdToggle(btnId, inputId) {
+        const btn = document.getElementById(btnId);
+        const input = document.getElementById(inputId);
+        const iconShow = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        const iconHide = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+        let hideTimer = null;
+        btn.addEventListener("click", function() {
+          const isHidden = input.type === "password";
+          input.type = isHidden ? "text" : "password";
+          btn.innerHTML = isHidden ? iconHide : iconShow;
+          btn.setAttribute("aria-label", isHidden ? "Ocultar senha" : "Mostrar senha");
+          btn.setAttribute("title", isHidden ? "Ocultar senha" : "Mostrar senha");
+          if (hideTimer) clearTimeout(hideTimer);
+          if (isHidden) {
+            hideTimer = setTimeout(function() {
+              input.type = "password";
+              btn.innerHTML = iconShow;
+              btn.setAttribute("aria-label", "Mostrar senha");
+              btn.setAttribute("title", "Mostrar senha");
+              hideTimer = null;
+            }, 4000);
+          }
+        });
+      }
+      setupPwdToggle("togglePassword", "password");
+      setupPwdToggle("togglePasswordConfirm", "passwordConfirm");
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();

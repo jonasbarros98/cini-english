@@ -98,6 +98,19 @@ EMAIL_HOST_PASSWORD=sua_api_key
 
 ---
 
+## Emails automáticos de assinatura (Stripe webhook)
+
+Quando o Resend (ou SMTP) está configurado, estes emails são enviados automaticamente:
+
+| Email | Momento | Gatilho |
+|-------|---------|---------|
+| **Assinatura ativada** | Após checkout Stripe concluído | Webhook `checkout.session.completed` |
+| **Pagamento falhou** | Quando Stripe não consegue cobrar (cartão vencido, etc.) | Webhook `invoice.payment_failed` |
+
+Nenhuma configuração extra é necessária — usam as mesmas variáveis (`RESEND_API_KEY`, `DEFAULT_FROM_EMAIL`). O webhook do Stripe precisa estar configurado com os eventos `checkout.session.completed` e `invoice.payment_failed`.
+
+---
+
 ## Email de onboarding 24h (pós-cadastro + assinatura ativa)
 
 Após cadastro **e** assinatura de um plano, 24 horas depois enviamos um email de engajamento: "Você já cadastrou seu primeiro aluno?".

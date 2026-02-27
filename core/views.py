@@ -1915,6 +1915,88 @@ def stripe_webhook(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
+def _send_subscription_activated_email(subscription):
+    """Envia email de confirmação quando assinatura é ativada (checkout concluído)."""
+    try:
+        user = subscription.user
+        if not user or not user.email:
+            return
+        nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
+        plano = f"{subscription.get_tier_display()} - {subscription.get_plan_display()}"
+        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br').rstrip('/')
+        link_planos = f"{site_url}/planos/"
+        link_login = f"{site_url}/login/"
+        signature = getattr(settings, 'EMAIL_SIGNATURE', '')
+        body = f"""Olá, {nome}! 🎉
+
+Sua assinatura foi ativada com sucesso!
+
+Plano: {plano}
+
+Agora você tem acesso completo ao EDUCAflowOne. Comece a organizar seus alunos, aulas e pagamentos.
+
+👉 Acessar minha conta
+{link_login}
+
+Para gerenciar sua assinatura (cartão, cancelamento, etc.):
+{link_planos}
+
+{signature}"""
+        send_mail(
+            subject='Assinatura ativada com sucesso ✅',
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+        print(f"   Email de confirmação enviado para {user.email}")
+    except Exception as e:
+        print(f"   Erro ao enviar email de confirmação: {e}")
+
+
+def _send_payment_failed_email(subscription):
+    """Envia email quando pagamento falha (invoice.payment_failed)."""
+    try:
+        user = subscription.user
+        if not user or not user.email:
+            return
+        nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
+        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br').rstrip('/')
+        link_planos = f"{site_url}/planos/"
+        signature = getattr(settings, 'EMAIL_SIGNATURE', '')
+        body = f"""Olá, {nome},
+
+Não conseguimos processar o pagamento da sua assinatura EDUCAflowOne.
+
+Possíveis causas:
+• Cartão vencido ou limite estourado
+• Dados do cartão incorretos
+• Bloqueio pelo banco
+
+Para continuar usando o sistema sem interrupções, atualize sua forma de pagamento:
+
+👉 Atualizar forma de pagamento
+{link_planos}
+
+Acesse a página de planos e clique em "Gerenciar assinatura" para cadastrar um novo cartão.
+
+O Stripe tentará cobrar novamente automaticamente. Se o problema persistir, sua assinatura poderá ser suspensa.
+
+Precisa de ajuda? Responda este email ou entre em contato pelo WhatsApp.
+
+{signature}"""
+        send_mail(
+            subject='⚠️ Problema no pagamento da sua assinatura',
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+        print(f"   Email de pagamento falhou enviado para {user.email}")
+    except Exception as e:
+        print(f"   Erro ao enviar email de pagamento falhou: {e}")
+
+
 def handle_checkout_session_completed(session):
     """Processa conclusão do checkout - ativa assinatura imediatamente"""
     print(f"🔍 handle_checkout_session_completed chamado")
@@ -2004,6 +2086,7 @@ def handle_checkout_session_completed(session):
             subscription.status = Subscription.STATUS_ACTIVE
             subscription.save()
             print(f"✅ Subscription salva/atualizada com sucesso!")
+            _send_subscription_activated_email(subscription)
         
         # Ativar assinatura se ainda estiver pending
         if subscription.status == Subscription.STATUS_PENDING:
@@ -2036,9 +2119,13 @@ def handle_checkout_session_completed(session):
             print(f"✅ Assinatura {subscription_id} ativada via checkout.session.completed")
             print(f"   Status: {subscription.status}")
             print(f"   Período: {subscription.current_period_start} até {subscription.current_period_end}")
+
+            # Email de confirmação de assinatura ativada (apenas ao ativar)
+            _send_subscription_activated_email(subscription)
+
         else:
             print(f"ℹ️ Assinatura já está com status: {subscription.status}")
-        
+
     except Exception as e:
         print(f"Erro ao processar checkout.session.completed: {e}")
         import traceback
@@ -2196,16 +2283,17 @@ def handle_invoice_paid(invoice):
 
 
 def handle_invoice_payment_failed(invoice):
-    """Processa falha de pagamento - suspende acesso"""
+    """Processa falha de pagamento - marca como past_due e envia email"""
     subscription_id = invoice.get('subscription')
-    
+
     if not subscription_id:
         return
-    
+
     try:
         subscription = Subscription.objects.get(stripe_subscription_id=subscription_id)
         subscription.status = Subscription.STATUS_PAST_DUE
         subscription.save()
+        _send_payment_failed_email(subscription)
     except Subscription.DoesNotExist:
         pass
 
@@ -2888,7 +2976,7 @@ Para começar rápido, recomendamos 3 passos simples:
 
 1️⃣ Cadastre seu primeiro aluno
 2️⃣ Adicione uma aula na agenda
-3️⃣ Registre o seu financeiro
+3️⃣ Registre um Planejamento de Aula
 
 Em poucos minutos você já terá tudo funcionando.
 
