@@ -1,5 +1,6 @@
 [phases.install]
 cmds = [
+  "python3 -m ensurepip --default-pip",
   "python3 -c 'open(\"/tmp/reqs.txt\",\"w\").write(\"Django>=4.2\\ndjangorestframework\\ndjango-cors-headers\\ndj-database-url\\npython-dotenv\\nwhitenoise\\nstripe\\nPillow\\ndjango-anymail[resend]\\n\")'",
   "python3 -m pip install -r /tmp/reqs.txt"
 ]
