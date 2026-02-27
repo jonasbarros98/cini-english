@@ -1,2 +1,4 @@
 [phases.install]
-cmds = ["python fix_requirements_encoding.py", "pip install -r requirements.txt"]
+cmds = [
+  "pip install Django>=4.2 djangorestframework django-cors-headers dj-database-url python-dotenv whitenoise stripe Pillow 'django-anymail[resend]'"
+]

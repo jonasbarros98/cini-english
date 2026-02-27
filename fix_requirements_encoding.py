@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Corrige encoding de requirements.txt se estiver em UTF-16 (Windows)."""
-import os
+import sys
 path = "requirements.txt"
-if not os.path.exists(path):
-    exit(0)
-with open(path, "rb") as f:
-    d = f.read()
-if len(d) > 1 and d[1:2] == b"\x00":
-    with open(path, "wb") as f:
-        f.write(d.decode("utf-16-le").encode("utf-8"))
+try:
+    with open(path, "rb") as f:
+        d = f.read()
+    if b"\x00" in d[:min(100, len(d))]:
+        with open(path, "wb") as f:
+            f.write(d.decode("utf-16-le").encode("utf-8"))
+        print("Converted requirements.txt from UTF-16 to UTF-8")
+except Exception as e:
+    print("fix_requirements_encoding:", e, file=sys.stderr)
+    sys.exit(0)
