@@ -106,9 +106,10 @@ Quando o Resend (ou SMTP) está configurado, estes emails são enviados automati
 |-------|---------|---------|
 | **Assinatura ativada** | Após checkout Stripe concluído | Webhook `checkout.session.completed` |
 | **Pagamento falhou** | Quando Stripe não consegue cobrar (cartão vencido, etc.) | Webhook `invoice.payment_failed` |
-| **Confirmação de cancelamento** | Quando o usuário cancela a assinatura | Webhook `customer.subscription.deleted` |
+| **Cancelamento agendado** | Quando o usuário agenda cancelamento no fim do período | Webhook `customer.subscription.updated` (cancel_at_period_end) |
+| **Confirmação de cancelamento** | Quando a assinatura termina de fato (fim do período) | Webhook `customer.subscription.deleted` |
 
-Nenhuma configuração extra é necessária — usam as mesmas variáveis (`RESEND_API_KEY`, `DEFAULT_FROM_EMAIL`). O webhook do Stripe precisa estar configurado com os eventos `checkout.session.completed`, `invoice.payment_failed` e `customer.subscription.deleted`.
+Nenhuma configuração extra é necessária — usam as mesmas variáveis (`RESEND_API_KEY`, `DEFAULT_FROM_EMAIL`). O webhook do Stripe precisa ter os eventos: `checkout.session.completed`, `invoice.payment_failed`, `customer.subscription.updated` e `customer.subscription.deleted`.
 
 ---
 

@@ -1954,8 +1954,50 @@ Para gerenciar sua assinatura (cartão, cancelamento, etc.):
         print(f"   Erro ao enviar email de confirmação: {e}")
 
 
+def _send_subscription_cancel_scheduled_email(subscription, period_end_date=None):
+    """Envia email quando usuário agenda cancelamento (cancel_at_period_end)."""
+    try:
+        user = subscription.user
+        if not user or not user.email:
+            return
+        nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
+        plano = f"{subscription.get_tier_display()} - {subscription.get_plan_display()}"
+        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br').rstrip('/')
+        link_planos = f"{site_url}/planos/"
+        signature = getattr(settings, 'EMAIL_SIGNATURE', '')
+        data_fim = period_end_date or subscription.current_period_end
+        data_str = data_fim.strftime('%d/%m/%Y') if data_fim else 'o fim do período atual'
+        body = f"""Olá, {nome},
+
+Recebemos sua solicitação de cancelamento da assinatura EDUCAflowOne.
+
+Plano: {plano}
+Cancelamento agendado para: {data_str}
+
+Seu acesso ao sistema continua normalmente até essa data. Nenhuma nova cobrança será feita.
+
+Mudou de ideia? Você pode desfazer o cancelamento a qualquer momento antes do fim do período:
+
+👉 Gerenciar assinatura (desfazer cancelamento)
+{link_planos}
+
+Acesse a página de planos e clique em "Gerenciar assinatura" para reativar.
+
+{signature}"""
+        send_mail(
+            subject='Cancelamento agendado – EDUCAflowOne',
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+        print(f"   Email de cancelamento agendado enviado para {user.email}")
+    except Exception as e:
+        print(f"   Erro ao enviar email de cancelamento agendado: {e}")
+
+
 def _send_subscription_canceled_email(subscription):
-    """Envia email de confirmação quando assinatura é cancelada."""
+    """Envia email de confirmação quando assinatura é efetivamente cancelada (fim do período)."""
     try:
         user = subscription.user
         if not user or not user.email:
@@ -2367,15 +2409,17 @@ def handle_subscription_updated(subscription_obj):
                 subscription.plan = plan
         
         # Atualizar período
+        period_end_ts = subscription_obj.get('current_period_end', 0)
         subscription.current_period_start = timezone.make_aware(
             datetime.fromtimestamp(subscription_obj.get('current_period_start', 0))
         )
-        subscription.current_period_end = timezone.make_aware(
-            datetime.fromtimestamp(subscription_obj.get('current_period_end', 0))
-        )
+        subscription.current_period_end = timezone.make_aware(datetime.fromtimestamp(period_end_ts))
         
         # Atualizar status baseado no status do Stripe (trialing = trial 7 dias = acesso liberado)
         stripe_status = subscription_obj.get('status', '')
+        cancel_at_period_end = subscription_obj.get('cancel_at_period_end', False)
+        cancel_just_scheduled = cancel_at_period_end and not subscription.cancel_at_period_end
+        
         if stripe_status in ('active', 'trialing'):
             subscription.status = Subscription.STATUS_ACTIVE
         elif stripe_status == 'past_due':
@@ -2383,8 +2427,13 @@ def handle_subscription_updated(subscription_obj):
         elif stripe_status == 'canceled' or stripe_status == 'unpaid':
             subscription.status = Subscription.STATUS_CANCELED
         
-        subscription.cancel_at_period_end = subscription_obj.get('cancel_at_period_end', False)
+        subscription.cancel_at_period_end = cancel_at_period_end
         subscription.save()
+        
+        # Email quando usuário agenda cancelamento (recebe na hora, não no fim do período)
+        if cancel_just_scheduled:
+            period_end_date = subscription.current_period_end
+            _send_subscription_cancel_scheduled_email(subscription, period_end_date)
         
     except Subscription.DoesNotExist:
         pass
