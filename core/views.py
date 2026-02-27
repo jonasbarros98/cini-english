@@ -5058,9 +5058,12 @@ Enviado em: {timezone.now().strftime('%Y-%m-%d %H:%M')}"""
         except Exception as e:
             tb = traceback.format_exc()
             print(f"[Landing Contact] Erro ao enviar email: {e}\n{tb}")
+            err_msg = 'Não foi possível enviar o email. Tente novamente mais tarde.'
+            if os.environ.get('DEBUG_EMAIL_ERROR', '').lower() in ('1', 'true', 'yes'):
+                err_msg = str(e)
             return Response({
                 'success': False,
-                'error': 'Não foi possível enviar o email. Tente novamente mais tarde.',
+                'error': err_msg,
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({
