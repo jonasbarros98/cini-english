@@ -35,6 +35,12 @@ class StudentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]  # Suporta FormData e JSON
     
+    def list(self, request, *args, **kwargs):
+        """Lista alunos com header anti-cache para evitar lista desatualizada após criar/editar."""
+        response = super().list(request, *args, **kwargs)
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        return response
+
     def get_queryset(self):
         qs = super().get_queryset()
         
@@ -1013,6 +1019,9 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
         billing_logs = BillingLog.objects.filter(financial_entry=entry).order_by('-sent_at')
         logs_serializer = BillingLogSerializer(billing_logs, many=True, context={'request': request})
         
+        # Progresso real: aulas realizadas (Lesson.realized=True) - igual ao cadastro do aluno
+        lessons_done = Lesson.objects.filter(student=student, realized=True).count()
+        
         # Formata dados do aluno
         student_data = {
             'id': student.id,
@@ -1022,7 +1031,7 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
             'plan_name': student.plan_name or '',
             'status': student.status or 'active',
             'lessons_total': student.lessons_total,
-            'lessons_done': student.lessons_done,
+            'lessons_done': lessons_done,
             'pix_key': student.pix_key or '',
             'default_due_day': student.default_due_day,
             'preferred_payment_method': student.preferred_payment_method or '',
