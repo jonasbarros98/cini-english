@@ -240,9 +240,13 @@
     .info b{color: var(--text); font-weight: 900;}
 
     .progress-wrap{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .progress-wrap.progress-per-lesson{flex-wrap:wrap;align-items:flex-start;}
+    .progress-per-lesson .progress-meta{margin-bottom:4px;}
     .progress{flex:1;height:10px;border-radius:999px;background: rgba(15,23,42,.06);overflow:hidden;border:1px solid rgba(15,23,42,.06);}
     .bar{height:100%;width:18%;border-radius:999px;background: linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.70));}
     .progress-meta{font-size:12px;font-weight:900;color:var(--muted);white-space:nowrap;}
+    .btn-link-sm{background:none;border:none;padding:0;font-size:12px;font-weight:700;color:rgba(37,99,235,.9);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+    .btn-link-sm:hover{color:rgba(37,99,235,1);}
 
     .quick-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
     .btn.primary{
@@ -713,7 +717,7 @@
           <!-- Section: Plan -->
           <section class="section" data-open="true">
             <button class="section-head" type="button">
-              <strong>Plano</strong>
+              <strong>Plano e Cobrança</strong>
               <span>Aberto</span>
             </button>
             <div class="section-body">
@@ -727,7 +731,20 @@
                   </select>
                 </div>
                 <div class="field">
-                  <label>Plano atual</label>
+                  <label for="f_billing_type">Tipo de Cobrança (Como você cobra esse aluno)</label>
+                  <select id="f_billing_type">
+                    <option value="package">Pacote de aulas</option>
+                    <option value="monthly_fixed">Mensal fixo</option>
+                    <option value="per_lesson">Por aula realizada</option>
+                    <option value="other">Outro</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Pacote de aulas -->
+              <div id="f_wrap_package" class="billing-wrap-fields">
+                <div class="field">
+                  <label>Plano do aluno (pacote)</label>
                   <select id="f_plan">
                     <option value="">Sem plano</option>
                     <option value="Mensal">Mensal</option>
@@ -736,29 +753,50 @@
                     <option value="Anual">Anual</option>
                     <option value="Outro">Outro</option>
                   </select>
-                  <small style="display:block;margin-top:4px;color:var(--muted);font-size:11px;">Para planos customizados, use "Outro"</small>
+                  <small style="display:block;margin-top:4px;color:var(--muted);font-size:11px;">Só para alunos com pacote.</small>
+                </div>
+                <div class="field">
+                  <label>Aulas do plano</label>
+                  <input type="number" id="f_total" placeholder="Ex: 23"/>
+                </div>
+                <div class="two">
+                  <div class="field">
+                    <label>Data de início</label>
+                    <input type="date" id="f_start"/>
+                  </div>
+                  <div class="field">
+                    <label>Dia de vencimento</label>
+                    <input type="number" id="f_due" min="1" max="28" placeholder="1 a 28"/>
+                  </div>
                 </div>
               </div>
 
-              <div class="field">
-                <label>Aulas do plano</label>
-                <input type="number" id="f_total" placeholder="Ex: 23"/>
+              <!-- Mensal fixo -->
+              <div id="f_wrap_monthly_fixed" class="billing-wrap-fields" style="display:none;">
+                <div class="two">
+                  <div class="field">
+                    <label>Valor mensal</label>
+                    <input type="number" id="f_monthly_amount" min="0" step="0.01" placeholder="Ex: 150,00"/>
+                  </div>
+                  <div class="field">
+                    <label>Dia de vencimento</label>
+                    <input type="number" id="f_due_monthly" min="1" max="28" placeholder="1 a 28"/>
+                  </div>
+                </div>
               </div>
-              <div class="field">
+
+              <!-- Por aula realizada -->
+              <div id="f_wrap_per_lesson" class="billing-wrap-fields" style="display:none;">
+                <div class="field">
+                  <label>Valor por aula</label>
+                  <input type="number" id="f_per_lesson_amount" min="0" step="0.01" placeholder="Ex: 50,00"/>
+                </div>
+              </div>
+
+              <div class="field" id="f_wrap_done">
                 <label>Aulas realizadas</label>
                 <input type="number" id="f_done" placeholder="Calculado automaticamente" readonly style="background-color: #f5f5f5; cursor: not-allowed;" />
                 <small class="muted" style="display: block; margin-top: 4px; font-size: 12px;">Calculado automaticamente baseado em aulas marcadas como "Realizado"</small>
-              </div>
-
-              <div class="two">
-                <div class="field">
-                  <label>Data de início</label>
-                  <input type="date" id="f_start"/>
-                </div>
-                <div class="field">
-                  <label>Dia de vencimento</label>
-                  <input type="number" id="f_due" min="1" max="28" placeholder="1 a 28"/>
-                </div>
               </div>
             </div>
           </section>
@@ -871,7 +909,20 @@
                 </select>
               </div>
               <div class="field">
-                <label for="n_plan">Plano atual</label>
+                <label for="n_billing_type">Tipo de Cobrança (Como você cobra esse aluno)</label>
+                <select id="n_billing_type">
+                  <option value="package" selected>Pacote de aulas</option>
+                  <option value="monthly_fixed">Mensal fixo</option>
+                  <option value="per_lesson">Por aula realizada</option>
+                  <option value="other">Outro</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Pacote de aulas: Plano + Aulas do plano -->
+            <div id="n_wrap_package" class="billing-wrap-fields">
+              <div class="field">
+                <label for="n_plan">Plano do aluno (pacote)</label>
                 <select id="n_plan">
                   <option value="none" selected>Sem plano</option>
                   <option value="Mensal">Mensal</option>
@@ -880,12 +931,34 @@
                   <option value="Anual">Anual</option>
                   <option value="Outro">Outro</option>
                 </select>
+                <div class="help">Só para alunos com pacote.</div>
+              </div>
+              <div class="field">
+                <label for="n_total">Aulas do plano</label>
+                <input id="n_total" type="number" min="0" placeholder="Ex: 8, 12, 23"/>
               </div>
             </div>
 
-            <div class="field">
-              <label for="n_total">Aulas do plano</label>
-              <input id="n_total" type="number" min="0" placeholder="Ex: 8, 12, 23"/>
+            <!-- Mensal fixo: Valor mensal + Dia de vencimento -->
+            <div id="n_wrap_monthly_fixed" class="billing-wrap-fields" style="display:none;">
+              <div class="two">
+                <div class="field">
+                  <label for="n_monthly_amount">Valor mensal</label>
+                  <input id="n_monthly_amount" type="number" min="0" step="0.01" placeholder="Ex: 150,00"/>
+                </div>
+                <div class="field">
+                  <label for="n_due_monthly">Dia de vencimento</label>
+                  <input id="n_due_monthly" type="number" min="1" max="28" placeholder="1 a 28"/>
+                </div>
+              </div>
+            </div>
+
+            <!-- Por aula realizada: Valor por aula -->
+            <div id="n_wrap_per_lesson" class="billing-wrap-fields" style="display:none;">
+              <div class="field">
+                <label for="n_per_lesson_amount">Valor por aula</label>
+                <input id="n_per_lesson_amount" type="number" min="0" step="0.01" placeholder="Ex: 50,00"/>
+              </div>
             </div>
             {% if assignable_teachers %}
             <div class="field">
@@ -910,7 +983,7 @@
           </button>
           <div class="section-body">
             <div class="two">
-              <div class="field">
+              <div class="field" id="n_wrap_financeiro_due">
                 <label for="n_due">Dia de vencimento padrão</label>
                 <input id="n_due" type="number" min="1" max="28" placeholder="1 a 28"/>
               </div>
@@ -952,6 +1025,19 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Modal: Detalhes de aulas por mês (per_lesson) -->
+  <div class="modal-overlay" id="lessonsDetailOverlay" aria-hidden="true" style="display:none;">
+    <div class="modal" style="max-width:360px;" role="dialog">
+      <div class="modal-head">
+        <h3 id="lessonsDetailTitle">Aulas realizadas por mês</h3>
+        <button class="modal-close" type="button" id="lessonsDetailClose" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body">
+        <ul id="lessonsDetailList" style="list-style:none;margin:0;padding:0;"></ul>
+      </div>
+    </div>
+  </div>
+
   <script>
     window.IS_PARTNER_TEACHER = {{ is_partner_teacher|yesno:"true,false" }};
   </script>
@@ -982,25 +1068,42 @@
       let currentEditingId = null;
       let currentSort = null; // null, 'name-asc', 'name-desc', 'status', 'progress-asc', 'progress-desc'
 
-      // Função para calcular aulas realizadas de um aluno
+      // Toggle campos conforme Tipo de cobrança (modal usa n_, editor usa f_)
+      function toggleBillingFields(prefix) {
+        const bt = $(`#${prefix}_billing_type`)?.value || 'package';
+        const wrapPackage = $(`#${prefix}_wrap_package`);
+        const wrapMonthly = $(`#${prefix}_wrap_monthly_fixed`);
+        const wrapPerLesson = $(`#${prefix}_wrap_per_lesson`);
+        if (wrapPackage) wrapPackage.style.display = bt === 'package' ? '' : 'none';
+        if (wrapMonthly) wrapMonthly.style.display = bt === 'monthly_fixed' ? '' : 'none';
+        if (wrapPerLesson) wrapPerLesson.style.display = bt === 'per_lesson' ? '' : 'none';
+        // Modal: Mensal fixo já tem dia no bloco acima; esconde o duplicado em Financeiro
+        if (prefix === 'n') {
+          const wrapFinanceiroDue = $('#n_wrap_financeiro_due');
+          if (wrapFinanceiroDue) wrapFinanceiroDue.style.display = bt === 'monthly_fixed' ? 'none' : '';
+        }
+      }
+
+      // Função para calcular aulas realizadas de um aluno (retorna total e por mês)
       async function calculateLessonsDone(studentId) {
         try {
-          if (!studentId) return 0;
+          if (!studentId) return { total: 0, byMonth: {} };
           
           const lessons = await fetchJSON(`/api/lessons/?student=${studentId}`);
+          if (!Array.isArray(lessons)) return { total: 0, byMonth: {} };
           
-          // Verificar se lessons é um array válido
-          if (!Array.isArray(lessons)) {
-            return 0;
-          }
-          
-          // Filtrar apenas aulas realmente realizadas (verificar explicitamente por true)
-          const realizedCount = lessons.filter(lesson => lesson.realized === true).length;
-          
-          return realizedCount;
+          const realized = lessons.filter(l => l.realized === true);
+          const byMonth = {};
+          realized.forEach(l => {
+            if (l.date) {
+              const key = l.date.slice(0, 7); // YYYY-MM
+              byMonth[key] = (byMonth[key] || 0) + 1;
+            }
+          });
+          return { total: realized.length, byMonth };
         } catch (error) {
           console.error('Erro ao calcular aulas realizadas:', error);
-          return 0;
+          return { total: 0, byMonth: {} };
         }
       }
 
@@ -1061,7 +1164,7 @@
         overlay.classList.add('is-open');
         overlay.setAttribute('aria-hidden','false');
         document.documentElement.style.overflow = 'hidden';
-        // foco no primeiro campo
+        toggleBillingFields('n');
         setTimeout(() => $('#n_name')?.focus(), 0);
       }
 
@@ -1072,12 +1175,24 @@
         document.documentElement.style.overflow = '';
       }
 
+      $('#n_billing_type')?.addEventListener('change', () => toggleBillingFields('n'));
+      $('#f_billing_type')?.addEventListener('change', () => toggleBillingFields('f'));
       btnOpen?.addEventListener('click', openModal);
       fabOpen?.addEventListener('click', openModal);
       btnClose?.addEventListener('click', closeModal);
       btnCancel?.addEventListener('click', closeModal);
-      overlay?.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
-      document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && overlay?.classList.contains('is-open')) closeModal(); });
+      $('#lessonsDetailClose')?.addEventListener('click', () => {
+        const o = $('#lessonsDetailOverlay');
+        if (o) { o.style.display = 'none'; o.classList.remove('is-open'); o.setAttribute('aria-hidden', 'true'); }
+      });
+      $('#lessonsDetailOverlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'lessonsDetailOverlay') {
+          e.target.style.display = 'none';
+          e.target.classList.remove('is-open');
+          e.target.setAttribute('aria-hidden', 'true');
+        }
+      });
+      // Modal fixo: só fecha ao clicar em X ou Cancelar (não fecha ao clicar fora nem com Escape)
 
       // Prof. parceiro: desabilitar todos os campos do editor (somente exibição)
       if (isPartnerTeacher) {
@@ -1137,18 +1252,23 @@
           // Calcular aulas realizadas para todos os alunos antes de renderizar
           const studentsWithDone = await Promise.all(
             filtered.map(async (student) => {
-              const done = await calculateLessonsDone(student.id);
-              return { ...student, calculated_lessons_done: done };
+              const res = await calculateLessonsDone(student.id);
+              return { ...student, calculated_lessons_done: res.total, calculated_lessons_by_month: res.byMonth };
             })
           );
+
+        const MONTH_NAMES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+        const today = new Date();
+        const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2,'0')}`;
 
         studentsList.innerHTML = studentsWithDone.map(student => {
           const status = student.status || 'active';
           const plan = student.plan_name || '';
           const total = student.lessons_total || 0;
-          // Usar o valor calculado dinamicamente
           const done = student.calculated_lessons_done || 0;
-          const pct = total > 0 ? Math.min(100, Math.round((done/total)*100)) : 0;
+          const byMonth = student.calculated_lessons_by_month || {};
+          const isPerLesson = student.billing_type === 'per_lesson';
+          const pct = !isPerLesson && total > 0 ? Math.min(100, Math.round((done/total)*100)) : 0;
           
           const badgePlan = plan 
             ? `<span class="badge ok"><span class="dot"></span>${escapeHtml(plan)}</span>`
@@ -1159,6 +1279,21 @@
             : status === 'paused'
             ? `<span class="badge warn"><span class="dot"></span>Pausado</span>`
             : `<span class="badge bad"><span class="dot"></span>Encerrado</span>`;
+
+          // Para per_lesson: mostrar aulas do mês atual + botão Ver detalhes
+          const currentMonthCount = byMonth[currentMonthKey] || 0;
+          const monthLabel = `${MONTH_NAMES[today.getMonth()]}/${today.getFullYear()}`;
+          const progressHtml = isPerLesson
+            ? `<div class="progress-wrap progress-per-lesson">
+                <div class="progress-meta">${currentMonthCount} aula${currentMonthCount !== 1 ? 's' : ''} em ${monthLabel}</div>
+                ${Object.keys(byMonth).length > 0 ? `<button type="button" class="btn-link-sm js-lessons-detail" data-student-id="${student.id}" data-by-month='${JSON.stringify(byMonth)}'>Ver detalhes por mês</button>` : ''}
+              </div>`
+            : `<div class="progress-wrap">
+                <div class="progress" aria-label="Progresso de aulas">
+                  <div class="bar" style="width: ${pct}%;"></div>
+                </div>
+                <div class="progress-meta">${done}/${total || '—'} aulas</div>
+              </div>`;
 
           return `
             <article class="student-card" 
@@ -1184,14 +1319,10 @@
                 <div class="line">📞 <b>Telefone:</b> <span>${escapeHtml(student.phone || '—')}</span></div>
                 <div class="line">📍 <b>Endereço:</b> <span>${escapeHtml(student.address || '—')}</span></div>
               </div>
-              <div class="progress-wrap">
-                <div class="progress" aria-label="Progresso de aulas">
-                  <div class="bar" style="width: ${pct}%;"></div>
-                </div>
-                <div class="progress-meta">${done}/${total || '—'} aulas</div>
-              </div>
+              ${progressHtml}
               <div class="quick-actions">
                 <button class="btn primary js-plan" type="button">Criar planejamento</button>
+                ${student.billing_type === 'per_lesson' && !isPartnerTeacher ? `<button class="btn primary js-generate-billing" type="button" data-student-id="${student.id}">Gerar cobrança do mês</button>` : ''}
                 ${!isPartnerTeacher ? `<button class="btn js-edit" type="button">Editar</button><button class="btn danger js-toggle" type="button">${status === 'active' ? 'Inativar' : 'Ativar'}</button>` : ''}
               </div>
             </article>
@@ -1431,7 +1562,6 @@
       function updateCount() {
         const countEl = document.getElementById('studentCount');
         if (countEl) {
-          // Garantir que allStudents foi carregado
           if (!allStudents || allStudents.length === 0) {
             countEl.textContent = 'Carregando...';
             return;
@@ -1526,6 +1656,61 @@
           return;
         }
 
+        const lessonsDetailBtn = el.closest('.js-lessons-detail');
+        if (lessonsDetailBtn) {
+          const card = lessonsDetailBtn.closest('.student-card');
+          const studentName = card?.dataset?.name || 'Aluno';
+          let byMonth = {};
+          try {
+            byMonth = JSON.parse(lessonsDetailBtn.dataset.byMonth || '{}');
+          } catch (_) {}
+          const entries = Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12);
+          const MONTH_NAMES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+          const list = $('#lessonsDetailList');
+          const overlay = $('#lessonsDetailOverlay');
+          if (list) {
+            list.innerHTML = entries.length ? entries.map(([key, count]) => {
+              const [y, m] = key.split('-');
+              const label = `${MONTH_NAMES[parseInt(m, 10) - 1]}/${y}`;
+              return `<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;"><span>${label}</span><strong>${count} aula${count !== 1 ? 's' : ''}</strong></li>`;
+            }).join('') : '<li style="padding:16px;color:var(--muted);">Nenhuma aula realizada registrada.</li>';
+          }
+          const title = $('#lessonsDetailTitle');
+          if (title) title.textContent = `${studentName} — Aulas por mês`;
+          if (overlay) { overlay.style.display = 'flex'; overlay.classList.add('is-open'); overlay.setAttribute('aria-hidden', 'false'); }
+          return;
+        }
+
+        const generateBillingBtn = el.closest('.js-generate-billing');
+        if (generateBillingBtn) {
+          const studentId = generateBillingBtn.dataset.studentId;
+          if (!studentId) return;
+          generateBillingBtn.disabled = true;
+          generateBillingBtn.textContent = 'Gerando...';
+          try {
+            const res = await fetchJSON('/api/students/generate-monthly-billing/', {
+              method: 'POST',
+              body: JSON.stringify({ student_id: parseInt(studentId, 10) }),
+            });
+            showToast(res.message || 'Cobrança gerada.', false);
+            const firstCreated = res.created && res.created[0];
+            const firstUpdated = res.updated && res.updated[0];
+            if (firstCreated) {
+              window.location.href = '/?view=view-billing&entry=' + firstCreated.id;
+            } else if (firstUpdated) {
+              window.location.href = '/?view=view-billing&entry=' + firstUpdated.id;
+            } else {
+              await loadStudents();
+            }
+          } catch (err) {
+            showToast(err.message || 'Erro ao gerar cobrança', true);
+          } finally {
+            generateBillingBtn.disabled = false;
+            generateBillingBtn.textContent = 'Gerar cobrança do mês';
+          }
+          return;
+        }
+
         // Selecionar aluno ao clicar no card
         const card = el.closest('.student-card');
         if (card && !el.closest('.quick-actions')) {
@@ -1549,11 +1734,17 @@
         $('#f_email').value = student.email || '';
         $('#f_address').value = student.address || '';
         $('#f_status').value = student.status || 'active';
+        $('#f_billing_type').value = student.billing_type || 'package';
+        $('#f_monthly_amount').value = student.monthly_amount ?? '';
+        $('#f_per_lesson_amount').value = student.per_lesson_amount ?? '';
+        const dueVal = student.default_due_day ?? '';
+        $('#f_due').value = dueVal;
+        $('#f_due_monthly').value = dueVal;
+        toggleBillingFields('f');
         // Mapear plano para select
         const planValue = student.plan_name || '';
         const planSelect = $('#f_plan');
         if (planSelect) {
-          // Se o valor existe nas opções, seleciona; senão, deixa vazio (sem plano)
           const options = Array.from(planSelect.options).map(opt => opt.value);
           if (planValue && options.includes(planValue)) {
             planSelect.value = planValue;
@@ -1562,12 +1753,10 @@
           }
         }
         $('#f_total').value = student.lessons_total || '';
-        // Calcular aulas realizadas automaticamente
-        calculateLessonsDone(student.id).then(count => {
-          $('#f_done').value = count;
+        calculateLessonsDone(student.id).then(res => {
+          $('#f_done').value = res.total;
         });
         $('#f_start').value = student.plan_start_date ? student.plan_start_date.split('T')[0] : '';
-        $('#f_due').value = student.default_due_day || '';
         $('#f_payment').value = student.preferred_payment_method || '';
         $('#f_pix').value = student.pix_key || '';
         const fAssigned = $('#f_assigned_teacher');
@@ -1623,10 +1812,13 @@
               formData.append('email', student.email || '');
               formData.append('address', student.address || '');
               formData.append('status', student.status || 'active');
+              formData.append('billing_type', student.billing_type || 'package');
               formData.append('plan_name', student.plan_name || '');
               formData.append('lessons_total', student.lessons_total || 0);
               if (student.plan_start_date) formData.append('plan_start_date', student.plan_start_date);
               if (student.default_due_day) formData.append('default_due_day', student.default_due_day);
+              if (student.monthly_amount != null) formData.append('monthly_amount', student.monthly_amount);
+              if (student.per_lesson_amount != null) formData.append('per_lesson_amount', student.per_lesson_amount);
               if (student.preferred_payment_method) formData.append('preferred_payment_method', student.preferred_payment_method);
               if (student.pix_key) formData.append('pix_key', student.pix_key);
               // Enviar string vazia para remover o arquivo
@@ -1654,7 +1846,11 @@
           return;
         }
 
+          const billingType = $('#n_billing_type')?.value || 'package';
           const planValue = $('#n_plan')?.value || 'none';
+          const defaultDue = billingType === 'monthly_fixed'
+            ? ($('#n_due_monthly')?.value ? parseInt($('#n_due_monthly').value, 10) : null)
+            : ($('#n_due')?.value ? parseInt($('#n_due').value, 10) : null);
           const data = {
             name,
             guardians: ($('#n_responsible')?.value || '').trim() || 'Responsável próprio',
@@ -1662,30 +1858,27 @@
             email: ($('#n_email')?.value || '').trim(),
             address: ($('#n_address')?.value || '').trim(),
             status: $('#n_status')?.value || 'active',
-            plan_name: planValue === 'none' ? '' : planValue,
-            lessons_total: parseInt(($('#n_total')?.value || '0'), 10) || 0,
+            billing_type: billingType,
+            plan_name: billingType === 'package' && planValue !== 'none' ? planValue : '',
+            lessons_total: billingType === 'package' ? (parseInt(($('#n_total')?.value || '0'), 10) || 0) : 0,
             plan_start_date: $('#n_start')?.value || null,
-            default_due_day: $('#n_due')?.value ? parseInt($('#n_due')?.value, 10) : null,
+            default_due_day: defaultDue,
             preferred_payment_method: $('#n_payment')?.value || '',
             pix_key: ($('#n_pix')?.value || '').trim(),
+            monthly_amount: billingType === 'monthly_fixed' && $('#n_monthly_amount')?.value ? parseFloat($('#n_monthly_amount').value) : null,
+            per_lesson_amount: billingType === 'per_lesson' && $('#n_per_lesson_amount')?.value ? parseFloat($('#n_per_lesson_amount').value) : null,
           };
           var nAt = $('#n_assigned_teacher');
           if (nAt && nAt.value) data.assigned_teacher = parseInt(nAt.value, 10);
 
           // Limpar campos vazios (manter campos obrigatórios)
-          // Não remover: name, status, guardians (tem default)
           const optionalFields = ['phone', 'email', 'address', 'plan_name', 'pix_key', 'preferred_payment_method'];
           optionalFields.forEach(key => {
-            if (data[key] === '') {
-              delete data[key];
-            }
+            if (data[key] === '') delete data[key];
           });
           
-          // Converter string vazia para null em campos opcionais
           if (data.plan_start_date === '') data.plan_start_date = null;
-          if (data.default_due_day === '' || data.default_due_day === null) {
-            if ('default_due_day' in data && data.default_due_day === '') delete data.default_due_day;
-          }
+          if (data.default_due_day === '' || data.default_due_day === null) delete data.default_due_day;
 
         // Verificar se há arquivo de contrato
         const contractFile = $('#n_contract')?.files?.[0];
@@ -1704,10 +1897,13 @@
             formData.append('email', ($('#n_email')?.value || '').trim() || '');
             formData.append('address', ($('#n_address')?.value || '').trim() || '');
             formData.append('status', $('#n_status')?.value || 'active');
-            formData.append('plan_name', planValue === 'none' ? '' : planValue);
-            formData.append('lessons_total', parseInt(($('#n_total')?.value || '0'), 10) || 0);
+            formData.append('billing_type', billingType);
+            formData.append('plan_name', data.plan_name || '');
+            formData.append('lessons_total', data.lessons_total || 0);
             if ($('#n_start')?.value) formData.append('plan_start_date', $('#n_start').value);
-            if ($('#n_due')?.value) formData.append('default_due_day', parseInt($('#n_due').value, 10));
+            if (data.default_due_day) formData.append('default_due_day', data.default_due_day);
+            if (data.monthly_amount != null) formData.append('monthly_amount', data.monthly_amount);
+            if (data.per_lesson_amount != null) formData.append('per_lesson_amount', data.per_lesson_amount);
             if ($('#n_payment')?.value) formData.append('preferred_payment_method', $('#n_payment').value);
             if (($('#n_pix')?.value || '').trim()) formData.append('pix_key', ($('#n_pix').value || '').trim());
             var nAt = $('#n_assigned_teacher');
@@ -1730,38 +1926,7 @@
               await loadStudents();
             }
           } else {
-            // Sem arquivo, usar JSON normal
-            const data = {
-              name,
-              guardians: ($('#n_responsible')?.value || '').trim() || 'Responsável próprio',
-              phone: ($('#n_phone')?.value || '').trim() || '',
-              email: ($('#n_email')?.value || '').trim() || '',
-              address: ($('#n_address')?.value || '').trim() || '',
-              status: $('#n_status')?.value || 'active',
-              plan_name: planValue === 'none' ? '' : planValue,
-              lessons_total: parseInt(($('#n_total')?.value || '0'), 10) || 0,
-              plan_start_date: $('#n_start')?.value || null,
-              default_due_day: $('#n_due')?.value ? parseInt($('#n_due')?.value, 10) : null,
-              preferred_payment_method: $('#n_payment')?.value || '',
-              pix_key: ($('#n_pix')?.value || '').trim() || '',
-            };
-            var nAt2 = $('#n_assigned_teacher');
-            if (nAt2 && nAt2.value) data.assigned_teacher = parseInt(nAt2.value, 10);
-
-            // Limpar campos vazios (manter campos obrigatórios)
-            const optionalFields = ['phone', 'email', 'address', 'plan_name', 'pix_key', 'preferred_payment_method'];
-            optionalFields.forEach(key => {
-              if (data[key] === '') {
-                delete data[key];
-              }
-            });
-            
-            // Converter string vazia para null em campos opcionais
-            if (data.plan_start_date === '') data.plan_start_date = null;
-            if (data.default_due_day === '' || data.default_due_day === null) {
-              if ('default_due_day' in data && data.default_due_day === '') delete data.default_due_day;
-            }
-            
+            // Sem arquivo, usar JSON normal (data já foi montado acima)
             if (currentEditingId) {
               // Editar
               await fetchJSON(`${API_BASE}${currentEditingId}/`, {
@@ -1811,8 +1976,20 @@
         const contractFile = $('#f_contract')?.files?.[0];
         const hasContractFile = contractFile && contractFile.size > 0;
 
+        const billingType = $('#f_billing_type')?.value || 'package';
+        const defaultDue = billingType === 'monthly_fixed'
+          ? ($('#f_due_monthly')?.value ? parseInt($('#f_due_monthly').value, 10) : null)
+          : ($('#f_due')?.value ? parseInt($('#f_due').value, 10) : null);
+        const editorPayload = {
+          billing_type: billingType,
+          plan_name: billingType === 'package' ? (($('#f_plan')?.value || '').trim() || '') : '',
+          lessons_total: billingType === 'package' ? (parseInt(($('#f_total')?.value || '0'), 10) || 0) : 0,
+          monthly_amount: billingType === 'monthly_fixed' && $('#f_monthly_amount')?.value ? parseFloat($('#f_monthly_amount').value) : null,
+          per_lesson_amount: billingType === 'per_lesson' && $('#f_per_lesson_amount')?.value ? parseFloat($('#f_per_lesson_amount').value) : null,
+          default_due_day: defaultDue,
+        };
+
         if (hasContractFile) {
-          // Usar FormData para enviar arquivo
           const formData = new FormData();
           formData.append('name', name);
           formData.append('guardians', ($('#f_responsible')?.value || '').trim() || 'Responsável próprio');
@@ -1820,10 +1997,13 @@
           formData.append('email', ($('#f_email')?.value || '').trim() || '');
           formData.append('address', ($('#f_address')?.value || '').trim() || '');
           formData.append('status', $('#f_status')?.value || 'active');
-          formData.append('plan_name', ($('#f_plan')?.value || '').trim() || '');
-          formData.append('lessons_total', parseInt(($('#f_total')?.value || '0'), 10) || 0);
+          formData.append('billing_type', editorPayload.billing_type);
+          formData.append('plan_name', editorPayload.plan_name);
+          formData.append('lessons_total', editorPayload.lessons_total);
           if ($('#f_start')?.value) formData.append('plan_start_date', $('#f_start').value);
-          if ($('#f_due')?.value) formData.append('default_due_day', parseInt($('#f_due').value, 10));
+          if (editorPayload.default_due_day) formData.append('default_due_day', editorPayload.default_due_day);
+          if (editorPayload.monthly_amount != null) formData.append('monthly_amount', editorPayload.monthly_amount);
+          if (editorPayload.per_lesson_amount != null) formData.append('per_lesson_amount', editorPayload.per_lesson_amount);
           if ($('#f_payment')?.value) formData.append('preferred_payment_method', $('#f_payment').value);
           if (($('#f_pix')?.value || '').trim()) formData.append('pix_key', ($('#f_pix').value || '').trim());
           var fAt = $('#f_assigned_teacher');
@@ -1846,7 +2026,6 @@
             showToast(`Erro ao atualizar: ${error.message}`, true);
           }
         } else {
-          // Sem arquivo, usar JSON normal
           const data = {
             ...student,
             name,
@@ -1855,10 +2034,13 @@
             email: ($('#f_email')?.value || '').trim() || '',
             address: ($('#f_address')?.value || '').trim() || '',
             status: $('#f_status')?.value || 'active',
-            plan_name: ($('#f_plan')?.value || '').trim() || '',
-            lessons_total: parseInt(($('#f_total')?.value || '0'), 10) || 0,
+            billing_type: editorPayload.billing_type,
+            plan_name: editorPayload.plan_name,
+            lessons_total: editorPayload.lessons_total,
             plan_start_date: $('#f_start')?.value || null,
-            default_due_day: $('#f_due')?.value ? parseInt($('#f_due')?.value, 10) : null,
+            default_due_day: editorPayload.default_due_day,
+            monthly_amount: editorPayload.monthly_amount,
+            per_lesson_amount: editorPayload.per_lesson_amount,
             preferred_payment_method: $('#f_payment')?.value || '',
             pix_key: ($('#f_pix')?.value || '').trim() || '',
           };
@@ -1886,12 +2068,14 @@
       });
 
         function clearNewForm(){
-        ['n_name','n_phone','n_email','n_responsible','n_address','n_total','n_start','n_due','n_pix','n_assigned_teacher'].forEach(id=>{
+        ['n_name','n_phone','n_email','n_responsible','n_address','n_total','n_start','n_due','n_due_monthly','n_monthly_amount','n_per_lesson_amount','n_pix','n_assigned_teacher'].forEach(id=>{
           const el = document.getElementById(id);
           if(el) el.value = '';
         });
         $('#n_status') && ($('#n_status').value = 'active');
+        $('#n_billing_type') && ($('#n_billing_type').value = 'package');
         $('#n_plan') && ($('#n_plan').value = 'none');
+        toggleBillingFields('n');
         $('#n_payment') && ($('#n_payment').value = '');
         const f = $('#n_contract'); if(f) f.value = '';
         currentEditingId = null;

@@ -4,6 +4,14 @@
 
 O formulário "Entre em contato" na landing page envia os dados para **educaflowone@gmail.com**.
 
+## Tickets de suporte (widget "Reporte um problema")
+
+Os tickets abertos por usuários logados também enviam email para **SUPPORT_EMAIL** (educaflowone@gmail.com por padrão).
+
+- **Destino:** `SUPPORT_EMAIL` (ou `CONTACT_EMAIL` como fallback)
+- **Mensagem:** Ticket ID, título, descrição, usuário, contexto
+- **Diagnóstico:** Na tela `/tickets/`, cada card mostra "✓ Email enviado" ou "✗ Email não enviado". Se não enviou, há "Erro no email: ..." com a mensagem de erro (timeout, auth, etc.)
+
 ## Como funciona
 
 - Ao clicar em "Entre em contato conosco", abre um modal na mesma página
@@ -140,3 +148,17 @@ Após cadastro **e** assinatura de um plano, 24 horas depois enviamos um email d
    ```env
    SITE_URL=https://educaflowone.com.br
    ```
+
+---
+
+## Troubleshooting: email de tickets não chega
+
+1. **Na tela /tickets/:** Veja se o card mostra "✗ Email não enviado". Se sim, role até o rodapé do card — a mensagem "Erro no email: ..." indica a causa (timeout, autenticação, etc.).
+
+2. **Railway:** Portas SMTP (465, 587) são bloqueadas. Use **Resend** (`RESEND_API_KEY`) em vez de Gmail SMTP.
+
+3. **Gmail local:** Se estiver em desenvolvimento local com Gmail SMTP, confira se `EMAIL_HOST_USER` e `EMAIL_HOST_PASSWORD` (senha de app) estão corretos no `.env`.
+
+4. **Spam:** Verifique a pasta de spam de educaflowone@gmail.com.
+
+5. **Variáveis:** Em produção (Railway), defina `SUPPORT_EMAIL=educaflowone@gmail.com` nas variáveis de ambiente.

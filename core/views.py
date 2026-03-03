@@ -1,4 +1,5 @@
 from datetime import datetime, date, timedelta
+from calendar import monthrange
 from django.utils import timezone
 from django.db.models import Q, Sum, Count
 from decimal import Decimal
@@ -22,6 +23,7 @@ from django.template.loader import render_to_string
 import stripe
 import json
 import os
+import re
 import uuid
 import threading
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
@@ -151,6 +153,169 @@ class StudentViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Você não pode excluir este aluno.")
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['post'], url_path='generate-monthly-billing')
+    def generate_monthly_billing(self, request):
+        """
+        Gera cobranças do mês para alunos com tipo "Por aula realizada".
+        POST /api/students/generate-monthly-billing/
+        Body: { "month": "2026-03" } (opcional, default: mês atual)
+        """
+        if self._is_partner_teacher():
+            return Response(
+                {'error': 'Professores parceiros não podem gerar cobranças.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        month_str = request.data.get('month') or request.query_params.get('month')
+        student_id = request.data.get('student_id') or request.query_params.get('student_id')
+        if student_id:
+            try:
+                student_id = int(student_id)
+            except (ValueError, TypeError):
+                student_id = None
+        today = date.today()
+        if month_str:
+            try:
+                year, month = map(int, month_str.split('-'))
+            except (ValueError, AttributeError):
+                return Response(
+                    {'error': 'Mês inválido. Use formato YYYY-MM (ex: 2026-03).'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            year, month = today.year, today.month
+
+        _, last_day = monthrange(year, month)
+
+        students_qs = self.get_queryset().filter(
+            billing_type=Student.BILLING_PER_LESSON,
+            per_lesson_amount__isnull=False
+        ).exclude(per_lesson_amount=0)
+        if student_id:
+            students_qs = students_qs.filter(id=student_id)
+            if not students_qs.exists():
+                return Response({
+                    'created': [],
+                    'skipped': [],
+                    'message': 'Aluno não encontrado ou não é do tipo "Por aula realizada" com valor por aula cadastrado.',
+                }, status=status.HTTP_200_OK)
+
+        created = []
+        updated = []
+        skipped = []
+        per_lesson_count = students_qs.count()
+
+        for student in students_qs:
+            lessons_count = Lesson.objects.filter(
+                student=student,
+                realized=True,
+                date__year=year,
+                date__month=month
+            ).count()
+            if lessons_count == 0:
+                skipped.append({'student': student.name, 'reason': 'Nenhuma aula realizada'})
+                continue
+
+            due_day = min(student.default_due_day or last_day, last_day)
+            due_date = date(year, month, due_day)
+            existing_entry = FinancialEntry.objects.filter(
+                student=student,
+                due_date__year=year,
+                due_date__month=month,
+                description__startswith='Cobrança por aula realizada'
+            ).first()
+
+            if existing_entry:
+                # Cobrança já existe: atualizar se houver mais aulas e ainda não pago
+                if existing_entry.status in (FinancialEntry.STATUS_PAID, FinancialEntry.STATUS_CANCELLED):
+                    skipped.append({'student': student.name, 'reason': 'Cobrança já gerada e paga para este mês'})
+                    continue
+                # Extrair quantas aulas foram cobradas na descrição: "(3 aulas)"
+                match = re.search(r'\((\d+)\s*aulas?\)', existing_entry.description, re.I)
+                billed_lessons = int(match.group(1)) if match else 0
+                if lessons_count <= billed_lessons:
+                    skipped.append({'student': student.name, 'reason': 'Cobrança já gerada para este mês'})
+                    continue
+                # Atualizar cobrança com novas aulas
+                amount = (student.per_lesson_amount or 0) * lessons_count
+                if amount <= 0:
+                    continue
+                new_description = f'Cobrança por aula realizada - {month:02d}/{year} ({lessons_count} aulas)'
+                existing_entry.description = new_description
+                existing_entry.amount = amount
+                existing_entry.save(update_fields=['description', 'amount', 'updated_at'])
+                updated.append({
+                    'id': existing_entry.id,
+                    'student': student.name,
+                    'amount': float(amount),
+                    'lessons': lessons_count,
+                    'previous_lessons': billed_lessons,
+                    'due_date': due_date.isoformat(),
+                })
+                continue
+
+            amount = (student.per_lesson_amount or 0) * lessons_count
+            if amount <= 0:
+                continue
+
+            description = f'Cobrança por aula realizada - {month:02d}/{year} ({lessons_count} aulas)'
+            entry = FinancialEntry.objects.create(
+                student=student,
+                user=student.user,
+                beneficiary_user=student.user,
+                description=description,
+                amount=amount,
+                installments=1,
+                current_installment=1,
+                issue_date=today,
+                due_date=due_date,
+                status=FinancialEntry.STATUS_OVERDUE if due_date < today else FinancialEntry.STATUS_PENDING,
+                payment_method=student.preferred_payment_method or FinancialEntry.PAYMENT_METHOD_PIX,
+            )
+            created.append({
+                'id': entry.id,
+                'student': student.name,
+                'amount': float(amount),
+                'lessons': lessons_count,
+                'due_date': due_date.isoformat(),
+            })
+
+        # Mensagem amigável
+        if created or updated:
+            parts = []
+            if created:
+                parts.append(f'{len(created)} cobrança(s) gerada(s)')
+            if updated:
+                parts.append(f'{len(updated)} cobrança(s) atualizada(s) (novas aulas no mês)')
+            message = ' e '.join(parts) + ' com sucesso!'
+        elif per_lesson_count == 0:
+            message = (
+                'Nenhum aluno com cobrança por aula realizada. '
+                'Cadastre alunos com esse tipo e valor por aula para usar esta função.'
+            )
+        elif all('já gerada' in s.get('reason', '') for s in skipped):
+            message = (
+                'Todas as cobranças deste mês já foram geradas para os alunos elegíveis. '
+                'Não há nada novo para gerar.'
+            )
+        elif all(s['reason'] == 'Nenhuma aula realizada' for s in skipped):
+            message = (
+                'Nenhum aluno teve aulas realizadas este mês. '
+                'Marque as aulas como realizadas no calendário e tente novamente.'
+            )
+        else:
+            message = (
+                'Nenhuma cobrança gerada. '
+                'Os alunos elegíveis já tiveram cobrança gerada ou não tiveram aulas realizadas este mês.'
+            )
+
+        return Response({
+            'month': f'{year}-{month:02d}',
+            'created': created,
+            'updated': updated,
+            'skipped': skipped,
+            'message': message,
+        }, status=status.HTTP_200_OK)
 
 
 class LessonViewSet(viewsets.ModelViewSet):
@@ -4910,7 +5075,11 @@ def support_tickets_list(request):
         email_sent = request.query_params.get('email_sent')
         if email_sent is not None:
             tickets = tickets.filter(email_sent=email_sent.lower() == 'true')
-        
+
+        status_filter = request.query_params.get('status')
+        if status_filter in ('open', 'closed'):
+            tickets = tickets.filter(status=status_filter)
+
         search = request.query_params.get('search')
         if search:
             tickets = tickets.filter(
@@ -4947,6 +5116,9 @@ def support_tickets_list(request):
                 'created_at': ticket.created_at.isoformat(),
                 'email_sent': ticket.email_sent,
                 'email_error': ticket.email_error,
+                'status': ticket.status,
+                'status_display': ticket.get_status_display(),
+                'resolved_at': ticket.resolved_at.isoformat() if ticket.resolved_at else None,
             })
         
         return Response({
@@ -4962,6 +5134,59 @@ def support_tickets_list(request):
             {'error': f'Erro ao listar tickets: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+def _check_ticket_admin(request):
+    """Verifica se o usuário é admin. Retorna (is_admin, error_response)."""
+    try:
+        is_admin = request.user.profile.is_admin
+    except UserProfile.DoesNotExist:
+        is_admin = False
+    if not is_admin:
+        return False, Response(
+            {'error': 'Apenas administradores podem gerenciar tickets'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    return True, None
+
+
+@api_view(['PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def support_ticket_detail(request, pk):
+    """
+    PATCH /api/support/tickets/<id>/ - Atualiza status (status: open|closed)
+    DELETE /api/support/tickets/<id>/ - Exclui o ticket
+    """
+    is_admin, err = _check_ticket_admin(request)
+    if not is_admin:
+        return err
+
+    try:
+        ticket = SupportTicket.objects.get(pk=pk)
+    except SupportTicket.DoesNotExist:
+        return Response({'error': 'Ticket não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        ticket.delete()
+        return Response({'message': 'Ticket excluído com sucesso'}, status=status.HTTP_200_OK)
+
+    if request.method == 'PATCH':
+        new_status = request.data.get('status')
+        if new_status in (SupportTicket.STATUS_OPEN, SupportTicket.STATUS_CLOSED):
+            ticket.status = new_status
+            if new_status == SupportTicket.STATUS_CLOSED:
+                from django.utils import timezone
+                ticket.resolved_at = timezone.now()
+            else:
+                ticket.resolved_at = None
+            ticket.save(update_fields=['status', 'resolved_at'])
+        return Response({
+            'id': ticket.id,
+            'ticket_id': ticket.ticket_id,
+            'status': ticket.status,
+            'status_display': ticket.get_status_display(),
+            'resolved_at': ticket.resolved_at.isoformat() if ticket.resolved_at else None,
+        }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -5045,8 +5270,8 @@ def support_ticket_create(request):
             email_sent=False,
         )
         
-        # Enviar email
-        support_email = getattr(settings, 'SUPPORT_EMAIL', 'jonasbarros98@gmail.com')
+        # Enviar email para o mesmo destino do formulário de contato (educaflowone@gmail.com)
+        support_email = getattr(settings, 'SUPPORT_EMAIL', None) or getattr(settings, 'CONTACT_EMAIL', 'educaflowone@gmail.com')
         
         # Mapear categorias e impactos para labels
         category_labels = {

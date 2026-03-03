@@ -104,6 +104,19 @@
     .badge.impact-high{background:rgba(239,68,68,.1);color:#dc2626;}
     .badge.email-sent{background:rgba(16,185,129,.1);color:#059669;}
     .badge.email-error{background:rgba(239,68,68,.1);color:#dc2626;}
+    .badge.status-open{background:rgba(59,130,246,.1);color:#2563eb;}
+    .badge.status-closed{background:rgba(100,116,139,.1);color:#475569;}
+    .ticket-actions{
+      display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);
+    }
+    .ticket-actions .btn{
+      padding:8px 14px;border-radius:12px;font-size:12px;font-weight:700;cursor:pointer;
+      border:1px solid var(--border);background:var(--card);color:var(--text);font-family:inherit;
+      transition:.15s;
+    }
+    .ticket-actions .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-soft);}
+    .ticket-actions .btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;}
+    .ticket-actions .btn.danger{background:rgba(239,68,68,.1);color:#dc2626;border-color:rgba(239,68,68,.2);}
     .ticket-title{
       font-size:16px;font-weight:700;margin:8px 0;color:var(--text);
     }
@@ -306,6 +319,14 @@
           </select>
         </div>
         <div class="filter-group">
+          <label>Status</label>
+          <select id="statusFilter">
+            <option value="">Todos</option>
+            <option value="open">Aberto</option>
+            <option value="closed">Concluído</option>
+          </select>
+        </div>
+        <div class="filter-group">
           <label>Email</label>
           <select id="emailFilter">
             <option value="">Todos</option>
@@ -368,6 +389,7 @@
       const search = document.getElementById('searchInput').value.toLowerCase();
       const category = document.getElementById('categoryFilter').value;
       const impact = document.getElementById('impactFilter').value;
+      const statusFilter = document.getElementById('statusFilter').value;
       const emailSent = document.getElementById('emailFilter').value;
 
       filteredTickets = allTickets.filter(ticket => {
@@ -376,11 +398,12 @@
           ticket.title.toLowerCase().includes(search) ||
           ticket.description.toLowerCase().includes(search) ||
           ticket.user.username.toLowerCase().includes(search) ||
-          ticket.user.email.toLowerCase().includes(search)
+          (ticket.user.email || '').toLowerCase().includes(search)
         )) return false;
 
         if (category && ticket.category !== category) return false;
         if (impact && ticket.impact !== impact) return false;
+        if (statusFilter && (ticket.status || 'open') !== statusFilter) return false;
         if (emailSent !== '' && String(ticket.email_sent) !== emailSent) return false;
 
         return true;
@@ -413,12 +436,16 @@
         return;
       }
 
-      container.innerHTML = filteredTickets.map(ticket => `
-        <div class="ticket-card">
+      container.innerHTML = filteredTickets.map(ticket => {
+        const status = ticket.status || 'open';
+        const statusDisplay = ticket.status_display || (status === 'closed' ? 'Concluído' : 'Aberto');
+        return `
+        <div class="ticket-card" data-ticket-id="${ticket.id}" data-ticket-status="${status}">
           <div class="ticket-header">
             <div>
               <div class="ticket-id">#${ticket.ticket_id}</div>
               <div class="ticket-meta" style="margin-top:6px;">
+                <span class="badge status-${status}">${statusDisplay}</span>
                 <span class="badge category-${ticket.category}">${ticket.category_display}</span>
                 <span class="badge impact-${ticket.impact}">${ticket.impact_display}</span>
                 ${ticket.email_sent 
@@ -432,7 +459,7 @@
           <div class="ticket-title">${escapeHtml(ticket.title)}</div>
           <div class="ticket-description">${escapeHtml(ticket.description)}</div>
           <div class="ticket-user">
-            <strong>Usuário:</strong> ${escapeHtml(ticket.user.full_name)} (${escapeHtml(ticket.user.email)})
+            <strong>Usuário:</strong> ${escapeHtml(ticket.user.full_name)} (${escapeHtml(ticket.user.email || '')})
           </div>
           ${ticket.url || ticket.page ? `
             <div class="ticket-context">
@@ -447,11 +474,20 @@
           ` : `
             <div class="ticket-footer">
               <span>Criado em ${formatDate(ticket.created_at)}</span>
+              ${ticket.resolved_at ? `<span>Concluído em ${formatDate(ticket.resolved_at)}</span>` : ''}
               ${ticket.created_at_local ? `<span>Cliente: ${escapeHtml(ticket.created_at_local)} (${escapeHtml(ticket.timezone || 'N/A')})</span>` : ''}
             </div>
           `}
+          <div class="ticket-actions">
+            ${status === 'open' 
+              ? '<button type="button" class="btn primary js-ticket-complete" data-ticket-id="' + ticket.id + '">Marcar como concluído</button>'
+              : '<button type="button" class="btn js-ticket-reopen" data-ticket-id="' + ticket.id + '">Reabrir</button>'
+            }
+            <button type="button" class="btn danger js-ticket-delete" data-ticket-id="${ticket.id}">Excluir</button>
+          </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function escapeHtml(text) {
@@ -461,10 +497,66 @@
       return div.innerHTML;
     }
 
+    function getCSRFToken() {
+      const m = document.cookie.match(/(^|;\s*)csrftoken=([^;]+)/);
+      return m ? decodeURIComponent(m[2]) : '';
+    }
+
+    async function updateTicketStatus(ticketId, newStatus) {
+      try {
+        const res = await fetch(`/api/support/tickets/${ticketId}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+          credentials: 'same-origin',
+          body: JSON.stringify({ status: newStatus }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Erro ${res.status}`);
+        }
+        const data = await res.json();
+        const t = allTickets.find(x => x.id === ticketId);
+        if (t) { t.status = data.status; t.status_display = data.status_display; t.resolved_at = data.resolved_at; }
+        applyFilters();
+      } catch (e) {
+        alert(e.message || 'Erro ao atualizar ticket');
+      }
+    }
+
+    async function deleteTicket(ticketId) {
+      if (!confirm('Excluir este ticket? Esta ação não pode ser desfeita.')) return;
+      try {
+        const res = await fetch(`/api/support/tickets/${ticketId}/`, {
+          method: 'DELETE',
+          headers: { 'X-CSRFToken': getCSRFToken() },
+          credentials: 'same-origin',
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Erro ${res.status}`);
+        }
+        allTickets = allTickets.filter(t => t.id !== ticketId);
+        applyFilters();
+      } catch (e) {
+        alert(e.message || 'Erro ao excluir ticket');
+      }
+    }
+
+    document.getElementById('ticketsList').addEventListener('click', (e) => {
+      const btn = e.target.closest('.js-ticket-complete, .js-ticket-reopen, .js-ticket-delete');
+      if (!btn) return;
+      const id = parseInt(btn.dataset.ticketId, 10);
+      if (!id) return;
+      if (btn.classList.contains('js-ticket-complete')) updateTicketStatus(id, 'closed');
+      else if (btn.classList.contains('js-ticket-reopen')) updateTicketStatus(id, 'open');
+      else if (btn.classList.contains('js-ticket-delete')) deleteTicket(id);
+    });
+
     // Event listeners
     document.getElementById('searchInput').addEventListener('input', applyFilters);
     document.getElementById('categoryFilter').addEventListener('change', applyFilters);
     document.getElementById('impactFilter').addEventListener('change', applyFilters);
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
     document.getElementById('emailFilter').addEventListener('change', applyFilters);
 
     // Load tickets on page load

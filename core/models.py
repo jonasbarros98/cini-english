@@ -26,7 +26,19 @@ class Student(models.Model):
         (PAYMENT_METHOD_CASH, "Dinheiro"),
         (PAYMENT_METHOD_TRANSFER, "Transferência"),
     ]
-    
+
+    BILLING_PACKAGE = "package"
+    BILLING_MONTHLY_FIXED = "monthly_fixed"
+    BILLING_PER_LESSON = "per_lesson"
+    BILLING_OTHER = "other"
+
+    BILLING_TYPE_CHOICES = [
+        (BILLING_PACKAGE, "Pacote de aulas"),
+        (BILLING_MONTHLY_FIXED, "Mensal fixo"),
+        (BILLING_PER_LESSON, "Por aula realizada"),
+        (BILLING_OTHER, "Outro"),
+    ]
+
     name = models.CharField(max_length=255)
     guardians = models.CharField(
         max_length=255,
@@ -43,7 +55,27 @@ class Student(models.Model):
         default=STATUS_ACTIVE,
         help_text="Status do aluno"
     )
-    plan_name = models.CharField(max_length=255, blank=True, help_text="Plano atual")
+    billing_type = models.CharField(
+        max_length=20,
+        choices=BILLING_TYPE_CHOICES,
+        default=BILLING_PACKAGE,
+        help_text="Tipo de cobrança do aluno",
+    )
+    plan_name = models.CharField(max_length=255, blank=True, help_text="Plano do aluno (pacote)")
+    monthly_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor mensal fixo (para tipo Mensal fixo)",
+    )
+    per_lesson_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor por aula realizada",
+    )
     plan_start_date = models.DateField(null=True, blank=True, help_text="Data de início do plano")
     lessons_total = models.PositiveSmallIntegerField(default=0, help_text="Aulas do plano")
     lessons_done = models.PositiveSmallIntegerField(default=0, help_text="Aulas realizadas")
@@ -824,6 +856,27 @@ class SupportTicket(models.Model):
         help_text="Timestamp do servidor (timezone aware)"
     )
     
+    # Status do ticket (aberto / concluído)
+    STATUS_OPEN = "open"
+    STATUS_CLOSED = "closed"
+
+    STATUS_CHOICES = [
+        (STATUS_OPEN, "Aberto"),
+        (STATUS_CLOSED, "Concluído"),
+    ]
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_OPEN,
+        help_text="Status do ticket"
+    )
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Data em que o ticket foi marcado como concluído"
+    )
+
     # Status do email
     email_sent = models.BooleanField(
         default=False,
@@ -833,7 +886,7 @@ class SupportTicket(models.Model):
         blank=True,
         help_text="Erro ao enviar email (se houver)"
     )
-    
+
     class Meta:
         verbose_name = "Ticket de Suporte"
         verbose_name_plural = "Tickets de Suporte"
