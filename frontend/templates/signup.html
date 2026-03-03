@@ -345,8 +345,7 @@
       <div class="signup-header">
         <div class="signup-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
         <h1 class="signup-title">Criar Conta</h1>
-        <p class="signup-subtitle">Comece sua jornada no EDUCAflowOne</p>
-        <div id="planBadge" class="plan-badge" style="display: none;"></div>
+        <p class="signup-subtitle">7 dias grátis, sem cartão. Use o sistema e decida depois.</p>
       </div>
       
       <div id="errorMessage" class="error-message"></div>
@@ -438,7 +437,7 @@
         </div>
         
         <button type="submit" class="signup-button" id="signupButton">
-          Criar Conta e Continuar
+          Criar Conta – 7 dias grátis
         </button>
       </form>
       
@@ -468,29 +467,6 @@
         }
         
         return token;
-      }
-
-      // Obter tier e plan da querystring (normalizar para minúsculas para evitar falha na checagem)
-      const urlParams = new URLSearchParams(window.location.search);
-      const tier = ((urlParams.get('tier') || 'basic') + '').trim().toLowerCase();
-      const plan = ((urlParams.get('plan') || 'monthly') + '').trim().toLowerCase();
-      
-      const tierNames = {
-        'basic': 'Basic',
-        'premium': 'Premium',
-        'platinum': 'Platinum'
-      };
-      
-      const planNames = {
-        'monthly': 'Mensal',
-        'semestral': 'Semestral',
-        'annual': 'Anual'
-      };
-      
-      if (tier && plan && tierNames[tier] && planNames[plan]) {
-        const planBadge = document.getElementById('planBadge');
-        planBadge.textContent = `${tierNames[tier]} - ${planNames[plan]}`;
-        planBadge.style.display = 'inline-block';
       }
 
       const form = document.getElementById("signupForm");
@@ -623,50 +599,8 @@
           // Meta Pixel: cadastro concluído
           if (typeof fbq === 'function') fbq('track', 'CompleteRegistration');
 
-          // Se há um plano selecionado, criar checkout session
-          if (tier && plan && ['basic', 'premium', 'platinum'].includes(tier) && ['monthly', 'semestral', 'annual'].includes(plan)) {
-            signupButton.textContent = "Redirecionando para pagamento...";
-            
-            console.log("Criando checkout session para tier:", tier, "plan:", plan);
-            
-            // Obter novo CSRF token após login (pode ter mudado)
-            const newCsrf = await getCSRFToken();
-            console.log("CSRF token obtido:", newCsrf ? "Sim" : "Não");
-            
-            if (!newCsrf) {
-              throw new Error("Erro ao obter token de segurança. Recarregue a página e tente novamente.");
-            }
-            
-            const checkoutResponse = await fetch("/api/subscription/create-checkout/", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": newCsrf,
-              },
-              credentials: "same-origin",
-              body: JSON.stringify({ tier, plan }),
-            });
-
-            console.log("Resposta do checkout:", checkoutResponse.status, checkoutResponse.statusText);
-            const checkoutData = await checkoutResponse.json();
-            console.log("Dados do checkout:", checkoutData);
-
-            if (checkoutResponse.ok && checkoutData.checkout_url) {
-              // Redireciona para o Stripe Checkout
-              console.log("Redirecionando para Stripe Checkout:", checkoutData.checkout_url);
-              window.location.href = checkoutData.checkout_url;
-              return; // Importante: não continua o código após redirecionar
-            } else {
-              // Se falhar o checkout, mostra erro ao usuário
-              const errorMsg = checkoutData.error || "Erro ao criar sessão de pagamento. Tente novamente.";
-              console.error("Erro ao criar checkout:", checkoutData);
-              throw new Error(errorMsg);
-            }
-          } else {
-            // Sem plano válido: redireciona para página de planos (nunca para o dashboard)
-            console.log("Nenhum plano selecionado, redirecionando para planos");
-            window.location.replace("/planos/");
-          }
+          // Trial gratuito: ir direto para o app (sem cartão). No dia 7, trava e pede pagamento em /planos/
+          window.location.replace("/");
         } catch (error) {
           errorMessage.textContent = error.message || "Erro ao criar conta. Tente novamente.";
           errorMessage.classList.add("show");

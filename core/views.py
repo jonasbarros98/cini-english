@@ -82,25 +82,25 @@ class StudentViewSet(viewsets.ModelViewSet):
         if self._is_partner_teacher():
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Apenas o professor dono da conta pode cadastrar alunos.")
-        # Verificar limite de alunos do plano
+        # Verificar limite de alunos do plano (trial: sem limite)
         user = self.request.user
-        try:
-            subscription = user.subscription
-            _sync_subscription_from_stripe(subscription)
-            subscription.refresh_from_db()
-            if subscription.is_active:
-                max_students = subscription.get_max_students()
-                if max_students is not None:
-                    current_count = Student.objects.filter(user=user).count()
-                    if current_count >= max_students:
-                        from rest_framework.exceptions import PermissionDenied
-                        raise PermissionDenied(
-                            f"Limite de {max_students} alunos atingido no plano {subscription.get_tier_display()}. "
-                            f"Faça upgrade para Premium ou Platinum para alunos ilimitados."
-                        )
-        except Subscription.DoesNotExist:
-            # Sem assinatura ativa - permitir criação (pode estar em trial ou sem plano ainda)
-            pass
+        if not _user_is_in_trial(user):
+            try:
+                subscription = user.subscription
+                _sync_subscription_from_stripe(subscription)
+                subscription.refresh_from_db()
+                if subscription.is_active:
+                    max_students = subscription.get_max_students()
+                    if max_students is not None:
+                        current_count = Student.objects.filter(user=user, status=Student.STATUS_ACTIVE).count()
+                        if current_count >= max_students:
+                            from rest_framework.exceptions import PermissionDenied
+                            raise PermissionDenied(
+                                f"Limite de {max_students} alunos atingido no plano {subscription.get_tier_display()}. "
+                                f"Faça upgrade para Premium ou Platinum para alunos ilimitados."
+                            )
+            except Subscription.DoesNotExist:
+                pass
         # assigned_teacher pode vir em validated_data; validar que é parceiro do dono
         serializer.save(user=user)
     
@@ -443,23 +443,35 @@ class TaskViewSet(viewsets.ModelViewSet):
 from django.views.generic import TemplateView
 
 
+def _user_is_in_trial(user):
+    """True se o usuário está no trial gratuito (7 dias sem cartão)."""
+    try:
+        profile = user.profile
+        trial_ends = getattr(profile, 'trial_ends_at', None)
+        return bool(trial_ends and timezone.now() < trial_ends)
+    except Exception:
+        return False
+
+
 def _user_has_active_subscription(user):
     """
     Retorna True se o usuário pode acessar o sistema sem bloqueio por assinatura.
     - Django staff/superuser: sempre permite
     - is_admin ou subscription_exempt no perfil: sempre permite
+    - Trial gratuito: trial_ends_at no futuro (7 dias sem cartão)
     - Prof. parceiro: permite apenas se o dono da conta tiver assinatura ativa
     - Demais: exige assinatura ativa
     """
-    # Django admin/staff
     if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
         return True
     try:
         profile = user.profile
-        # Flag is_admin ou subscription_exempt: contas internas (admin, sua conta, esposa)
         if profile.is_admin or getattr(profile, 'subscription_exempt', False):
             return True
-        # Prof. parceiro: verificar se o dono da conta tem assinatura ativa
+        # Trial gratuito (7 dias sem cartão): acesso enquanto trial_ends_at > agora
+        trial_ends = getattr(profile, 'trial_ends_at', None)
+        if trial_ends and timezone.now() < trial_ends:
+            return True
         if profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
             owner = UserProfile.objects.filter(partner_teachers=profile).select_related('user').first()
             if owner:
@@ -468,7 +480,6 @@ def _user_has_active_subscription(user):
                 except Subscription.DoesNotExist:
                     return False
             return False
-        # Professor principal: precisa de assinatura ativa
         return user.subscription.is_active
     except (Subscription.DoesNotExist, UserProfile.DoesNotExist):
         return False
@@ -1913,11 +1924,34 @@ def create_checkout_session(request):
             {'error': f'Price ID não configurado para o plano {tier} {plan}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-    
+
+    # Verificar se o plano escolhido comporta os dados atuais (ex: trial com 20 alunos → Basic não cabe)
+    # Conta apenas alunos ATIVOS (pausados/encerrados não entram no limite)
+    user = request.user
+    if tier == Subscription.TIER_BASIC:
+        student_count = Student.objects.filter(user=user, status=Student.STATUS_ACTIVE).count()
+        if student_count > 15:
+            return Response(
+                {'error': f'Você tem {student_count} alunos ativos. O plano Basic permite até 15. '
+                         'Escolha Premium ou Platinum para manter todos.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    elif tier == Subscription.TIER_PREMIUM:
+        try:
+            partner_count = user.profile.partner_teachers.count()
+            if partner_count > 2:
+                return Response(
+                    {'error': f'Você tem {partner_count} professores parceiros. O plano Premium permite até 2. '
+                             'Escolha Platinum para manter todos.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except UserProfile.DoesNotExist:
+            pass
+
     # URLs de retorno
     base_url = request.build_absolute_uri('/')[:-1]  # Remove trailing slash
     success_url = f"{base_url}/payment-processing/?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{base_url}/signup/?plan={plan}"
+    cancel_url = f"{base_url}/planos/"
     
     try:
         # Criar ou obter customer no Stripe
@@ -1969,7 +2003,7 @@ def create_checkout_session(request):
                 'plan': plan,
             },
             subscription_data={
-                'trial_period_days': 7,  # Trial de 7 dias
+                # Sem trial no Stripe: trial gratuito é gerenciado pelo sistema (trial_ends_at)
                 'metadata': {
                     'user_id': str(request.user.id),
                     'tier': tier,
@@ -3069,7 +3103,17 @@ class PlanosView(TemplateView):
             context['plan_name'] = 'Nenhum plano ativo'
             context['plan_price'] = '—'
             context['next_billing'] = '—'
-        
+
+        # Contadores para aviso ao assinar (trial com muitos dados → Basic não cabe)
+        # Conta apenas alunos ATIVOS (pausados/encerrados não entram no limite)
+        context['student_count'] = Student.objects.filter(user=user, status=Student.STATUS_ACTIVE).count()
+        try:
+            context['partner_count'] = user.profile.partner_teachers.count()
+        except UserProfile.DoesNotExist:
+            context['partner_count'] = 0
+        context['basic_plan_unavailable'] = context['student_count'] > 15
+        context['premium_plan_unavailable'] = context['partner_count'] > 2
+
         # Buscar histórico de invoices do Stripe
         invoices = []
         if context.get('has_subscription'):
@@ -3230,11 +3274,12 @@ def signup_view(request):
             last_name=last_name,
         )
         
-        # Criar perfil padrão
+        # Criar perfil com trial gratuito de 7 dias (sem cartão)
         UserProfile.objects.create(
             user=user,
             user_profile=UserProfile.PROFILE_TEACHER,
-            is_admin=False
+            is_admin=False,
+            trial_ends_at=timezone.now() + timedelta(days=7),
         )
 
         # Enviar email de boas-vindas
@@ -3244,22 +3289,20 @@ def signup_view(request):
 
 Que bom ter você no EducaflowOne 😊
 
-Agora você pode organizar alunos, agenda e pagamentos em um só lugar - sem planilhas ou anotações manuais.
+Você tem 7 dias grátis para experimentar - sem cadastrar cartão. Use à vontade e decida depois.
 
-Para começar rápido, recomendamos 3 passos simples:
+Para começar rápido:
 
 1️⃣ Cadastre seu primeiro aluno
 2️⃣ Adicione uma aula na agenda
-3️⃣ Registre um Planejamento de Aula
+3️⃣ Veja sua agenda organizada
 
-Em poucos minutos você já terá tudo funcionando.
+No 5º dia avisaremos que o trial está terminando. No 7º dia, para continuar, basta escolher um plano na tela de planos.
 
 👉 Acessar minha conta agora
 {link_login}
 
-Se precisar de ajuda, é só responder este email ou falar conosco no WhatsApp.
-
-Aproveite seus 7 dias grátis!
+Aproveite! Se tiver dúvidas, responda este email ou fale conosco no WhatsApp.
 
 """ + getattr(settings, 'EMAIL_SIGNATURE', '')
         try:
@@ -3712,27 +3755,25 @@ def profile_partner_teachers_create(request):
             first_name=first_name,
             last_name=last_name,
         )
-        # Verificar limite de professores parceiros do plano
-        try:
-            subscription = request.user.subscription
-            # Sincronizar com Stripe para refletir upgrade de plano (ex.: Basic → Premium)
-            _sync_subscription_from_stripe(subscription)
-            subscription.refresh_from_db()
-            if subscription.is_active:
-                max_partners = subscription.get_max_partner_teachers()
-                if max_partners is not None:
-                    current_count = profile.partner_teachers.count()
-                    if current_count >= max_partners:
-                        # Deletar o usuário criado antes de retornar erro
-                        user.delete()
-                        return Response(
-                            {'error': f'Limite de {max_partners} professores parceiros atingido no plano {subscription.get_tier_display()}. '
-                                     f'Faça upgrade para Platinum para parceiros ilimitados.'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-        except Subscription.DoesNotExist:
-            # Sem assinatura ativa - permitir criação (pode estar em trial ou sem plano ainda)
-            pass
+        # Verificar limite de professores parceiros do plano (trial: sem limite)
+        if not _user_is_in_trial(request.user):
+            try:
+                subscription = request.user.subscription
+                _sync_subscription_from_stripe(subscription)
+                subscription.refresh_from_db()
+                if subscription.is_active:
+                    max_partners = subscription.get_max_partner_teachers()
+                    if max_partners is not None:
+                        current_count = profile.partner_teachers.count()
+                        if current_count >= max_partners:
+                            user.delete()
+                            return Response(
+                                {'error': f'Limite de {max_partners} professores parceiros atingido no plano {subscription.get_tier_display()}. '
+                                         f'Faça upgrade para Platinum para parceiros ilimitados.'},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+            except Subscription.DoesNotExist:
+                pass
         
         partner_profile = UserProfile.objects.create(
             user=user,
@@ -4700,9 +4741,9 @@ class CalendarNewView(TemplateView):
 
 def _user_can_use_public_calendar(user):
     """
-    Agenda pública disponível apenas para:
-    - Admin (profile.is_admin)
-    - subscription_exempt ("Sem assinatura - acesso liberado")
+    Agenda pública disponível para:
+    - Admin, subscription_exempt
+    - Trial (7 dias sem cartão) - tudo liberado durante trial
     - Assinatura Premium ou Platinum ativa
     """
     if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
@@ -4710,6 +4751,8 @@ def _user_can_use_public_calendar(user):
     try:
         profile = user.profile
         if profile.is_admin or getattr(profile, 'subscription_exempt', False):
+            return True
+        if _user_is_in_trial(user):
             return True
         try:
             sub = user.subscription

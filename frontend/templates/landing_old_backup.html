@@ -123,7 +123,7 @@
     :focus-visible{outline:3px solid rgba(99,102,241,.35); outline-offset:2px}
 
     /* ===== hero ===== */
-    .hero{padding: 10.25rem 0 5.75rem; position:relative}
+    .hero{padding: 10.25rem 0 3.5rem; position:relative}
     .hero-grid{
       display:grid;
       grid-template-columns: 1.15fr .85fr;
@@ -284,8 +284,8 @@
     .mock-card span{color:var(--muted2); font-size:.86rem; display:block; margin-top:2px}
 
     /* ===== sections ===== */
-    .section{padding: 5.6rem 0}
-    .section-header{text-align:center; margin-bottom: 3.0rem}
+    .section{padding: 3.5rem 0}
+    .section-header{text-align:center; margin-bottom: 2rem}
     .section-header h2{
       font-size: 2.35rem;
       color: var(--text);
@@ -339,7 +339,7 @@
     /* Screenshots - sistema em ação */
     .screenshot-grid{
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 1.5rem;
       align-items: start;
     }
@@ -374,7 +374,7 @@
       line-height: 1.4;
     }
     @media (max-width: 900px){
-      .screenshot-grid{ grid-template-columns: 1fr; }
+      .screenshot-grid{ grid-template-columns: 1fr; gap: 1.5rem; }
     }
 
     .card h3{
@@ -387,7 +387,7 @@
     .card p{color: var(--muted)}
 
     /* ===== how it works ===== */
-    .steps{display:grid; grid-template-columns: repeat(3,1fr); gap: 1.4rem; margin-top: 2rem}
+    .steps{display:grid; grid-template-columns: repeat(3,1fr); gap: 1.4rem; margin-top: 1.2rem}
     .step{
       background: rgba(255,255,255,.78);
       border:1px solid rgba(15,23,42,.10);
@@ -419,13 +419,13 @@
 
     /* ===== pricing ===== */
     .pricing{
-      padding: 6.2rem 0 6.6rem;
+      padding: 3.5rem 0 4rem;
       background: linear-gradient(to bottom, rgba(255,255,255,0), var(--bg2));
       border-top: 1px solid rgba(15,23,42,.06);
     }
 
     /* Toggle (melhor visual + animação) */
-    .billing-wrap{display:flex; justify-content:center; margin: 0 0 2.2rem}
+    .billing-wrap{display:flex; justify-content:center; margin: 0 0 1.5rem}
     .billing{
       position:relative;
       display:inline-flex;
@@ -551,7 +551,7 @@
     }
     .price-list .icon-check{display:inline-flex;flex-shrink:0;width:18px;height:18px;min-width:18px;margin-top:2px;color:var(--primary)}
     .price-list .icon-check svg{width:100%;height:100%}
-    .price-list i{width:18px;height:18px;min-width:18px;flex-shrink:0;color:#cbd5e1;margin-top:2px}
+    .price-list i{width:18px;height:18px;min-width:18px;flex-shrink:0;margin-top:2px}
     .price-list .no i{color:#cbd5e1}
     .price-list .no{color:#94a3b8}
 
@@ -629,7 +629,7 @@
     }
 
     /* ===== faq ===== */
-    .faq-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:2.2rem}
+    .faq-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:1.2rem}
     details{
       background: rgba(255,255,255,.82);
       border:1px solid rgba(15,23,42,.10);
@@ -653,7 +653,7 @@
     details[open] .chev{transform: rotate(180deg)}
 
     /* ===== footer ===== */
-    footer{padding: 4.5rem 0 4rem; text-align:center; color: var(--muted2)}
+    footer{padding: 2.5rem 0 2.5rem; text-align:center; color: var(--muted2)}
     footer .mini{margin-top:.75rem;font-size:.9rem}
 
     /* ===== mobile sticky CTA ===== */
@@ -692,7 +692,7 @@
       .btn-nav{padding:.5rem .85rem;font-size:.82rem}
       .btn-nav .btn-nav-full{display:none}
       .btn-nav .btn-nav-short{display:inline}
-      .hero{padding-top: 9.25rem; padding-bottom: 4.75rem}
+      .hero{padding-top: 9.25rem; padding-bottom: 3rem}
       .sticky-cta{display:block}
       body{padding-bottom: 86px}
       .billing .glider{width: 104px}
@@ -736,7 +736,6 @@
         <a class="nav-link" href="#pricing">Planos</a>
         <a class="nav-link" href="#faq">FAQ</a>
         <a class="nav-link" href="/login/">Login</a>
-        <!-- NÃO trocar nome/rota -->
         <a class="btn-nav cta-signup" href="/signup/?tier=basic&plan=monthly"><span class="btn-nav-full">Testar 7 dias grátis</span><span class="btn-nav-short">Testar grátis</span></a>
       </nav>
     </div>
@@ -769,7 +768,6 @@
           </div>
 
           <div class="hero-ctas">
-            <!-- NÃO trocar nome/rota -->
             <a class="btn btn-accent cta-signup" href="/signup/?tier=basic&plan=monthly">
               <i data-lucide="zap"></i> Testar 7 dias grátis
             </a>
@@ -919,6 +917,13 @@
         </div>
 
         <div class="screenshot-grid">
+          <div class="screenshot-card">
+            <div class="screenshot-wrap">
+              <img src="/static/img/dash.png" alt="Dashboard do professor" loading="lazy" />
+            </div>
+            <p class="screenshot-caption">Dashboard • visão geral e início rápido do dia</p>
+          </div>
+
           <div class="screenshot-card">
             <div class="screenshot-wrap">
               <img src="/static/img/calendario.png" alt="Calendário mensal do professor" loading="lazy" />
@@ -1116,7 +1121,7 @@
           </details>
         </div>
 
-        <div style="text-align:center; margin-top: 2.6rem;">
+        <div style="text-align:center; margin-top: 1.5rem;">
           <a class="btn btn-accent cta-signup" href="/signup/?tier=basic&plan=monthly"><i data-lucide="rocket"></i> Começar teste grátis</a>
           <p class="micro">Você não precisa de mais “força de vontade”. Precisa de um fluxo.</p>
         </div>
@@ -1206,7 +1211,7 @@
       contactSubmit.disabled=false;contactSubmit.textContent='Enviar';
     });
 
-    // Meta Pixel: Lead quando clica em CTA de signup
+    // Meta Pixel: Lead quando clica em CTA de signup (antes de navegar)
     document.querySelectorAll('.cta-signup, .signup-link').forEach(function(link) {
       link.addEventListener('click', function() {
         if (typeof fbq === 'function') fbq('track', 'Lead');

@@ -549,6 +549,16 @@ class UserProfile(models.Model):
         blank=True,
         help_text="Data/hora em que o email de recuperação (assinatura pendente) foi enviado"
     )
+    trial_ends_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fim do trial gratuito de 7 dias (sem cartão). Após essa data, o usuário precisa assinar."
+    )
+    trial_ending_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Data em que o email de aviso (trial terminando em 2 dias) foi enviado"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

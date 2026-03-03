@@ -576,9 +576,12 @@
             </button>
           </div>
           {% else %}
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="btn btnPrimary actionSubscribeBtn" data-tier="basic" data-plan="monthly" style="background: #fff; color: #4f46e5; border: none;">Assinar Basic</button>
-            <button class="btn btnPrimary actionSubscribeBtn" data-tier="premium" data-plan="monthly" style="background: #fff; color: #4f46e5; border: none;">Assinar Premium</button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            {% if basic_plan_unavailable %}
+            <span style="font-size: 12px; opacity: 0.95;">Você tem {{ student_count }} alunos ativos — Basic permite 15. Escolha Premium ou Platinum.</span>
+            {% endif %}
+            <button class="btn btnPrimary actionSubscribeBtn" data-tier="basic" data-plan="monthly" style="background: #fff; color: #4f46e5; border: none; {% if basic_plan_unavailable %}opacity: 0.6; cursor: not-allowed;{% endif %}" {% if basic_plan_unavailable %}disabled title="Basic permite até 15 alunos. Você tem {{ student_count }}."{% endif %}>Assinar Basic</button>
+            <button class="btn btnPrimary actionSubscribeBtn" data-tier="premium" data-plan="monthly" style="background: #fff; color: #4f46e5; border: none; {% if premium_plan_unavailable %}opacity: 0.6; cursor: not-allowed;{% endif %}" {% if premium_plan_unavailable %}disabled title="Premium permite até 2 parceiros. Você tem {{ partner_count }}."{% endif %}>Assinar Premium</button>
             <button class="btn btnPrimary actionSubscribeBtn" data-tier="platinum" data-plan="monthly" style="background: #fff; color: #4f46e5; border: none;">Assinar Platinum</button>
           </div>
           {% endif %}
