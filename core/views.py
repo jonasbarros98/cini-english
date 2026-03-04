@@ -152,6 +152,19 @@ class StudentViewSet(viewsets.ModelViewSet):
         if instance.user_id != request.user.id:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Você não pode excluir este aluno.")
+        # Impedir exclusão se houver qualquer lançamento financeiro ou planejamento futuro
+        # (excluir aluno apaga lançamentos em cascata; não permitir para preservar histórico)
+        today = timezone.now().date()
+        any_financial = FinancialEntry.objects.filter(student=instance).count()
+        future_plans = LessonPlan.objects.filter(student=instance, date__gte=today).count()
+        if any_financial > 0 or future_plans > 0:
+            parts = []
+            if any_financial > 0:
+                parts.append(f"{any_financial} lançamento(s) financeiro(s) (o histórico seria perdido)")
+            if future_plans > 0:
+                parts.append(f"{future_plans} planejamento(s) futuro(s)")
+            msg = "Não é possível excluir o aluno: " + " e ".join(parts) + ". Mantenha o aluno como Encerrado para preservar o histórico."
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=False, methods=['post'], url_path='generate-monthly-billing')
@@ -1107,7 +1120,17 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = get_financial_entries_queryset_for_user(self.request)
-        
+        today = date.today()
+
+        # Filtro "somente vencidos": todos os lançamentos em atraso (qualquer mês)
+        overdue_only = self.request.query_params.get("overdue_only", "").lower() in ("1", "true", "yes")
+        if overdue_only:
+            qs = qs.filter(
+                due_date__lt=today,
+                status__in=(FinancialEntry.STATUS_PENDING, FinancialEntry.STATUS_OVERDUE)
+            ).order_by("due_date")
+            return qs
+
         # Filtro por mês - mostra lançamentos com vencimento no mês (baseado na data de vencimento)
         month_param = self.request.query_params.get("month")
         if month_param:

@@ -158,6 +158,19 @@
       align-items: center;
       gap: 6px;
     }
+    .topbar-group.month-nav {
+      gap: 8px;
+    }
+    .month-nav-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .month-nav-btn {
+      white-space: nowrap;
+    }
     .topbar-controls .select-sm{
       min-width: 110px;
       padding: 8px 10px;
@@ -1141,9 +1154,14 @@
       </div>
 
       <div class="actions top-actions topbar-controls">
-        <div class="topbar-group">
-          <button class="btn ghost" id="financeMonthBack" title="Mês anterior">←</button>
-          <button class="btn ghost" id="financeMonthForward" title="Próximo mês">→</button>
+        <div class="topbar-group month-nav" role="group" aria-label="Navegar entre meses">
+          <span class="month-nav-label">Meses:</span>
+          <button type="button" class="btn ghost month-nav-btn" id="financeMonthBack" title="Ver mês anterior">
+            <span aria-hidden="true">‹</span> Anterior
+          </button>
+          <button type="button" class="btn ghost month-nav-btn" id="financeMonthForward" title="Ver próximo mês">
+            Próximo <span aria-hidden="true">›</span>
+          </button>
         </div>
         {% if not is_partner_teacher %}
         <button class="btn primary" id="newFinancialEntryBtn">+ Novo Lançamento <span class="kbd">N</span></button>
@@ -1460,7 +1478,10 @@
       const y = viewYear || new Date().getFullYear();
       const m = String((viewMonth !== undefined ? viewMonth : new Date().getMonth()) + 1).padStart(2, '0');
       try {
-        const raw = await fetchAPI(`/financial-entries/?month=${y}-${m}`);
+        const url = quickMode === 'overdue'
+          ? '/financial-entries/?overdue_only=1'
+          : `/financial-entries/?month=${y}-${m}`;
+        const raw = await fetchAPI(url);
         entries = raw.map(e => ({
           id: e.id,
           studentId: e.student,
@@ -1549,7 +1570,10 @@
     }
 
     function applyAllFilters(list){
-      let out = list.filter(e => withinMonth(e, viewYear, viewMonth));
+      // Em modo "Vencidos" a API já retorna todos os vencidos (qualquer mês); não filtrar por mês
+      let out = quickMode === 'overdue'
+        ? [...list]
+        : list.filter(e => withinMonth(e, viewYear, viewMonth));
 
       // quick modes
       if(quickMode === 'today'){
@@ -1575,12 +1599,19 @@
     // Rendering
     // ============================================================
     function renderMonthHeader(){
-      byId('financeMonthTitle').textContent = monthTitle(viewYear, viewMonth);
-      byId('sideTitle').textContent = monthTitle(viewYear, viewMonth);
+      if (quickMode === 'overdue') {
+        byId('financeMonthTitle').textContent = 'Vencidos (todos os meses)';
+        byId('sideTitle').textContent = 'Vencidos (todos)';
+      } else {
+        byId('financeMonthTitle').textContent = monthTitle(viewYear, viewMonth);
+        byId('sideTitle').textContent = monthTitle(viewYear, viewMonth);
+      }
     }
 
     function renderStats(){
-      const monthList = entries.filter(e => withinMonth(e, viewYear, viewMonth));
+      const monthList = quickMode === 'overdue'
+        ? entries
+        : entries.filter(e => withinMonth(e, viewYear, viewMonth));
       const totalCount = monthList.length;
 
       // amounts by status (treat overdue visually)
@@ -1610,8 +1641,8 @@
 
       byId('subPending').textContent = `vencem nos próximos 7 dias: ${fmtBRL(weekSum)}`;
       byId('subPaid').textContent = `pagos no mês: ${paidCount}`;
-      byId('subOverdue').textContent = `itens vencidos: ${overdueCount}`;
-      byId('subCount').textContent = `no mês selecionado`;
+      byId('subOverdue').textContent = quickMode === 'overdue' ? `itens vencidos: ${overdueCount}` : `itens vencidos: ${overdueCount}`;
+      byId('subCount').textContent = quickMode === 'overdue' ? 'em atraso (todos os meses)' : 'no mês selecionado';
 
       // side summary
       const totalMonth = monthList.filter(e => e.status !== 'cancelled').reduce((acc,e)=> acc + e.amount, 0);
@@ -1803,10 +1834,11 @@
         byId('quickWeek')?.classList.toggle('active', quickMode === 'week');
         byId('quickOverdue')?.classList.toggle('active', quickMode === 'overdue');
       }
-      byId('quickMonth').addEventListener('click', ()=>{
+      byId('quickMonth').addEventListener('click', async ()=>{
         quickMode = '';
         updateMonthToolActive();
         toast('Período', 'Mês inteiro.', '📅');
+        await loadEntries();
         rerender();
       });
       byId('quickToday').addEventListener('click', ()=>{
@@ -1821,10 +1853,11 @@
         toast('Filtro', quickMode ? 'Vence em 7 dias.' : 'Filtro removido.', '🔎');
         rerender();
       });
-      byId('quickOverdue').addEventListener('click', ()=>{
+      byId('quickOverdue').addEventListener('click', async ()=>{
         quickMode = (quickMode === 'overdue') ? '' : 'overdue';
         updateMonthToolActive();
-        toast('Filtro', quickMode ? 'Somente vencidos.' : 'Filtro removido.', '🔎');
+        toast('Filtro', quickMode ? 'Somente vencidos (todos os meses).' : 'Filtro removido.', '🔎');
+        await loadEntries();
         rerender();
       });
 

@@ -444,6 +444,52 @@
       background: rgba(255,255,255,.98);
       flex-shrink: 0;
     }
+    /* Modal de confirmação destrutiva */
+    .modal-overlay.modal--danger .modal{
+      max-width: 420px;
+      border-top: 3px solid var(--bad);
+      box-shadow: 0 20px 50px rgba(239,68,68,.12);
+    }
+    .modal--danger .modal-head h3{ color: var(--bad); }
+    .modal--danger .modal-body{
+      padding: 18px 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .modal--danger .modal-body .confirm-name{
+      font-weight: 800;
+      color: var(--text);
+      margin: 8px 0 12px;
+      padding: 10px 12px;
+      background: rgba(239,68,68,.06);
+      border-radius: 12px;
+      border: 1px solid rgba(239,68,68,.15);
+    }
+    .modal--danger .modal-body .confirm-warn{
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .modal--danger .modal-actions{
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    .modal--danger .btn-confirm-delete{
+      background: linear-gradient(135deg, #dc2626, #ef4444);
+      color: #fff;
+      border: none;
+      font-weight: 800;
+      padding: 10px 18px;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(239,68,68,.25);
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .modal--danger .btn-confirm-delete:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(239,68,68,.35);
+    }
 
     /* FAB */
     .fab{
@@ -1038,6 +1084,28 @@
     </div>
   </div>
 
+  <!-- Modal: Confirmar exclusão de aluno -->
+  <div class="modal-overlay modal--danger" id="deleteStudentOverlay" aria-hidden="true" data-delete-id="" data-delete-name="">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteStudentTitle">
+      <div class="modal-head">
+        <div>
+          <h3 id="deleteStudentTitle">Excluir aluno</h3>
+          <p>Esta ação não pode ser desfeita.</p>
+        </div>
+        <button class="modal-close" type="button" id="deleteStudentClose" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body">
+        <span>Deseja realmente excluir da base de dados o aluno:</span>
+        <div class="confirm-name" id="deleteStudentName"></div>
+        <p class="confirm-warn">O registro será removido permanentemente. Histórico de aulas e financeiro vinculado pode ser afetado conforme as regras do sistema.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" type="button" id="deleteStudentCancel">Cancelar</button>
+        <button class="btn-confirm-delete" type="button" id="deleteStudentConfirm">Excluir aluno</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     window.IS_PARTNER_TEACHER = {{ is_partner_teacher|yesno:"true,false" }};
   </script>
@@ -1192,6 +1260,49 @@
           e.target.setAttribute('aria-hidden', 'true');
         }
       });
+      function closeDeleteModal() {
+        const o = $('#deleteStudentOverlay');
+        if (o) { o.classList.remove('is-open'); o.setAttribute('aria-hidden', 'true'); o.dataset.deleteId = ''; o.dataset.deleteName = ''; }
+      }
+      function openDeleteModal(studentId, studentName) {
+        const o = $('#deleteStudentOverlay');
+        const nameEl = $('#deleteStudentName');
+        if (o && nameEl) {
+          o.dataset.deleteId = String(studentId);
+          o.dataset.deleteName = studentName || 'este aluno';
+          nameEl.textContent = o.dataset.deleteName;
+          o.classList.add('is-open');
+          o.setAttribute('aria-hidden', 'false');
+        }
+      }
+      $('#deleteStudentClose')?.addEventListener('click', closeDeleteModal);
+      $('#deleteStudentCancel')?.addEventListener('click', closeDeleteModal);
+      $('#deleteStudentOverlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'deleteStudentOverlay') closeDeleteModal();
+      });
+      $('#deleteStudentConfirm')?.addEventListener('click', async () => {
+        const o = $('#deleteStudentOverlay');
+        const studentId = o?.dataset?.deleteId;
+        const name = o?.dataset?.deleteName || 'aluno';
+        if (!studentId) return;
+        closeDeleteModal();
+        try {
+          const csrf = getCookie('csrftoken');
+          const response = await fetch(`${API_BASE}${studentId}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': csrf || '' },
+            credentials: 'same-origin',
+          });
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || err.detail || `Erro ${response.status}`);
+          }
+          showToast(`Aluno "${name}" excluído.`);
+          await loadStudents();
+        } catch (error) {
+          showToast(`Erro ao excluir aluno: ${error.message}`, true);
+        }
+      });
       // Modal fixo: só fecha ao clicar em X ou Cancelar (não fecha ao clicar fora nem com Escape)
 
       // Prof. parceiro: desabilitar todos os campos do editor (somente exibição)
@@ -1323,7 +1434,7 @@
               <div class="quick-actions">
                 <button class="btn primary js-plan" type="button">Criar planejamento</button>
                 ${student.billing_type === 'per_lesson' && !isPartnerTeacher ? `<button class="btn primary js-generate-billing" type="button" data-student-id="${student.id}">Gerar cobrança do mês</button>` : ''}
-                ${!isPartnerTeacher ? `<button class="btn js-edit" type="button">Editar</button><button class="btn danger js-toggle" type="button">${status === 'active' ? 'Inativar' : 'Ativar'}</button>` : ''}
+                ${!isPartnerTeacher ? `<button class="btn js-edit" type="button">Editar</button><button class="btn danger js-toggle" type="button">${status === 'active' ? 'Inativar' : 'Ativar'}</button>${status === 'ended' ? `<button class="btn danger js-delete" type="button" title="Excluir aluno da base">Excluir</button>` : ''}` : ''}
               </div>
             </article>
           `;
@@ -1653,6 +1764,17 @@
           } catch (error) {
             showToast(`Erro ao ${actionText.toLowerCase()} aluno: ${error.message}`, true);
           }
+          return;
+        }
+
+        const deleteBtn = el.closest('.js-delete');
+        if (deleteBtn) {
+          const c = deleteBtn.closest('.student-card');
+          if (!c) return;
+          const name = c.dataset.name || 'este aluno';
+          const studentId = c.dataset.studentId;
+          if (!studentId) return;
+          openDeleteModal(studentId, name);
           return;
         }
 
