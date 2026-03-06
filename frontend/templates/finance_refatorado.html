@@ -1342,7 +1342,7 @@
           <div class="two">
             <div class="row">
               <label for="feAmount">Valor (R$)</label>
-              <input inputmode="decimal" id="feAmount" name="feAmount" placeholder="0,00" required />
+              <input inputmode="decimal" id="feAmount" name="feAmount" placeholder="0,00" required maxlength="10" />
               <div class="small">Dica: aceite “199,90” ou “199.90”. Tanto faz</div>
             </div>
             <div class="row">
@@ -2050,10 +2050,35 @@
       due.setDate(due.getDate()+7);
       byId('feDueDate').value = ymd(due);
 
-      // Normalize money typing
-      byId('feAmount').addEventListener('blur', (e)=>{
+      // Máscara de valor: só números, vírgula para decimais, max 999.999,99
+      const feAmountEl = byId('feAmount');
+      function maskCurrencyInput(){
+        let v = feAmountEl.value;
+        v = v.replace(/[^\d,]/g, '');
+        const parts = v.split(',');
+        if (parts.length > 2) v = parts[0] + ',' + parts.slice(1).join('');
+        if (parts.length === 2 && parts[1].length > 2) v = parts[0] + ',' + parts[1].slice(0, 2);
+        if (parts[0].length > 6) v = parts[0].slice(0, 6) + (parts[1] !== undefined ? ',' + (parts[1] || '').slice(0, 2) : '');
+        feAmountEl.value = v;
+      }
+      feAmountEl.addEventListener('input', maskCurrencyInput);
+      feAmountEl.addEventListener('paste', (e)=>{
+        e.preventDefault();
+        let pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^\d,.]/g, '');
+        const idx = Math.max(pasted.lastIndexOf('.'), pasted.lastIndexOf(','));
+        if (idx >= 0) {
+          pasted = pasted.slice(0, idx).replace(/[.,]/g, '') + ',' + pasted.slice(idx + 1).replace(/\D/g, '');
+        } else {
+          pasted = pasted.replace(/\D/g, '');
+        }
+        const parts = pasted.split(',');
+        let v = (parts[0] || '').slice(0, 6);
+        if (parts[1] !== undefined) v += ',' + parts[1].slice(0, 2);
+        feAmountEl.value = v;
+      });
+      feAmountEl.addEventListener('blur', (e)=>{
         const n = parseMoney(e.target.value);
-        e.target.value = (n === null) ? '' : fmtNumberBR(n);
+        e.target.value = (n === null) ? '' : fmtNumberBR(Math.min(n, 999999.99));
       });
 
       // Submit form
@@ -2079,6 +2104,10 @@
         }
         if(amount <= 0){
           toast('Ops', 'O valor deve ser maior que zero.', '⚠');
+          return;
+        }
+        if(amount > 999999.99){
+          toast('Ops', 'O valor máximo permitido é R$ 999.999,99.', '⚠');
           return;
         }
         const dueYear = dueDate ? parseInt(dueDate.split('-')[0], 10) : 0;
