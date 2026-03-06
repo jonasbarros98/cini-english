@@ -944,7 +944,10 @@
 
     /* ========== MOBILE FINANCEIRO (≤768px) ========== */
     @media (max-width: 768px){
-      .wrap{ padding: 12px 14px 80px; }
+      html, body.page-finance{ height: auto !important; min-height: 100vh; overflow: visible !important; }
+      body.page-finance .app-shell{ min-height: auto !important; overflow: visible !important; }
+      body.page-finance .app-shell > main{ overflow: visible !important; }
+      .wrap{ padding: 12px 14px 80px; overflow: visible; }
       .topbar{
         flex-direction: column;
         align-items: stretch;
@@ -968,12 +971,13 @@
       .top-actions .btn .kbd, .actions .btn .kbd{ display: none; }
       .stats{
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin: 10px 0 12px;
+        gap: 8px;
+        margin: 10px 0 14px;
+        overflow: visible;
       }
       .stat{
-        min-height: 60px;
-        padding: 10px 12px;
+        min-height: 56px;
+        padding: 8px 10px;
       }
       .stat .icon, .stat-ic{
         width: 36px;
@@ -990,8 +994,8 @@
       .card{ padding: 12px; }
       .two{ grid-template-columns: 1fr 1fr; gap: 8px; }
 
-      /* Lançamentos: evitar overflow à direita no mobile */
-      .wrap, .grid-main, .groups, .month{ overflow-x: hidden; max-width: 100%; }
+      /* Lançamentos: overflow só na lista, não no wrap (evita cortar os cards do topo) */
+      .grid-main, .groups, .month{ overflow-x: hidden; max-width: 100%; }
       .filter-bar{ flex-wrap: wrap; gap: 8px; }
       .filter-tabs{ flex-wrap: wrap; }
       .filter-tabs .tab{ padding: 6px 10px; font-size: 12px; }
@@ -1910,10 +1914,11 @@
       // Toggle menus / act buttons
       container.addEventListener('click', (e)=>{
         const btn = e.target.closest('button');
+        const menuInBody = e.target.closest('.menu[data-entry-id]');
         const item = e.target.closest('.item');
-        if(!btn || !item) return;
+        var entryId = item ? item.dataset.entryId : (menuInBody ? menuInBody.getAttribute('data-entry-id') : null);
+        if(!btn || !entryId) return;
 
-        const entryId = item.dataset.entryId;
         const entry = entries.find(x => x.id == entryId); // == para dataset ser string e id número
         if(!entry) return;
 
@@ -1926,9 +1931,41 @@
           const isOpen = menu.classList.contains('open');
           closeAllMenus();
           if(!isOpen){
-            menu.classList.add('open');
-            item.classList.add('menu-open');
-            if(moreBtn) moreBtn.setAttribute('aria-expanded','true');
+            var isMobile = window.innerWidth <= 768;
+            if(isMobile && moreBtn){
+              // No iOS Safari, position:fixed dentro de container com overflow fica relativo ao container.
+              // Colocar o menu no body para posicionar corretamente em relação à viewport.
+              var moreContainer = item.querySelector('.more');
+              menu.setAttribute('data-entry-id', entryId);
+              menu._financeMenuOriginalParent = moreContainer;
+              if(moreContainer && menu.parentNode !== document.body) document.body.appendChild(menu);
+              var placeMenu = function(){
+                var rect = moreBtn.getBoundingClientRect();
+                var menuW = 220;
+                var menuH = 150;
+                var vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                var spaceBelow = vh - rect.bottom;
+                var openAbove = spaceBelow < menuH && rect.top > menuH;
+                var left = rect.right - menuW;
+                if (left < 8) left = 8;
+                if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+                menu.style.position = 'fixed';
+                menu.style.left = left + 'px';
+                menu.style.right = 'auto';
+                menu.style.width = menuW + 'px';
+                menu.style.top = (openAbove ? (rect.top - menuH - 8) : (rect.bottom + 8)) + 'px';
+                menu.style.zIndex = '10000';
+              };
+              placeMenu();
+              menu.classList.add('open');
+              item.classList.add('menu-open');
+              if(moreBtn) moreBtn.setAttribute('aria-expanded','true');
+              requestAnimationFrame(placeMenu);
+            } else {
+              menu.classList.add('open');
+              item.classList.add('menu-open');
+              if(moreBtn) moreBtn.setAttribute('aria-expanded','true');
+            }
           }
           return;
         }
@@ -1964,15 +2001,48 @@
         }
       });
 
-      // Close menus when clicking outside
+      // Close menus when clicking outside (menu pode estar no .more ou no body no mobile)
       document.addEventListener('click', (e)=>{
-        const clickedMenu = e.target.closest('.more');
-        if(!clickedMenu) closeAllMenus();
+        var insideMore = e.target.closest('.more');
+        var insideMenu = e.target.closest('.menu');
+        if(!insideMore && !insideMenu) closeAllMenus();
+      });
+
+      // Clique em opção do menu quando o menu está no body (mobile)
+      document.addEventListener('click', (e)=>{
+        var menuEl = e.target.closest('.menu[data-entry-id]');
+        if(!menuEl) return;
+        var btn = e.target.closest('button');
+        if(!btn || !btn.dataset.act) return;
+        var entryId = menuEl.getAttribute('data-entry-id');
+        var entry = entries.find(x => x.id == entryId);
+        if(!entry) return;
+        var menuAct = btn.dataset.act;
+        if(menuAct === 'receipt'){
+          window.open('/recibo/' + entryId + '/', '_blank', 'noopener');
+          closeAllMenus();
+          return;
+        }
+        if(menuAct === 'edit' || menuAct === 'delete'){
+          handleMenuAction(entryId, menuAct);
+          closeAllMenus();
+        }
       });
     }
 
     function closeAllMenus(){
-      document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open'));
+      document.querySelectorAll('.menu.open').forEach(m => {
+        m.classList.remove('open');
+        m.style.position = '';
+        m.style.left = '';
+        m.style.right = '';
+        m.style.top = '';
+        m.style.width = '';
+        if (m._financeMenuOriginalParent && m.parentNode === document.body) {
+          m._financeMenuOriginalParent.appendChild(m);
+          m._financeMenuOriginalParent = null;
+        }
+      });
       document.querySelectorAll('.item.menu-open').forEach(i => i.classList.remove('menu-open'));
       document.querySelectorAll('button[data-act="more"]').forEach(b => b.setAttribute('aria-expanded','false'));
     }
