@@ -656,7 +656,7 @@ class HomeView(View):
     """
     def get(self, request):
         if not request.user.is_authenticated:
-            return render(request, "landing.html")
+            return render(request, "test_landing_v5.html")
         # Sincronizar assinatura com Stripe antes de checar (corrige trial/pendente)
         try:
             sub = request.user.subscription

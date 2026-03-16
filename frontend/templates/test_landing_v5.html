@@ -1,0 +1,2212 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  {% include '_meta_pixel.html' %}
+  <title>EDUCAflowOne | Gestão completa para professores particulares</title>
+  <meta name="description" content="Agenda, alunos, planejamento e financeiro em um só lugar. Feito para professores particulares que querem clareza e controle total." />
+  <meta name="theme-color" content="#4f46e5" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ============================================================
+       DESIGN TOKENS
+       Archetype: Minimalist / Refined — editorial typographic ambition
+       Differentiator: Fraunces display serif + asymmetric hero layout
+    ============================================================ */
+    :root {
+      /* Typography */
+      --font-display: 'Fraunces', Georgia, serif;
+      --font-body: 'DM Sans', system-ui, sans-serif;
+
+      /* Color — warm palette, 60/30/10 distribution */
+      --color-bg:           #f8f7f5;   /* dominant warm off-white */
+      --color-surface:      #ffffff;
+      --color-surface-2:    #f2f0ec;
+      --color-dark:         #1e1b4b;   /* deep indigo — pain, final CTA (brand, less aggressive) */
+      --color-dark-2:       #1a1040;   /* deeper indigo for footer */
+      --color-text:         #1c1917;   /* warm near-black */
+      --color-muted:        #78716c;   /* stone-500 */
+      --color-subtle:       #a8a29e;   /* stone-400 */
+      --color-primary:      #4f46e5;   /* indigo-600 */
+      --color-primary-dark: #3730a3;   /* indigo-800 */
+      --color-primary-soft: #eef2ff;
+      --color-primary-mid:  #c7d2fe;
+      --color-border:       #e7e5e4;   /* stone-200 */
+      --color-border-warm:  #d6d3d1;
+      --color-success:      #15803d;
+      --color-success-soft: #f0fdf4;
+
+      /* Spacing scale */
+      --sp-1:  0.25rem;
+      --sp-2:  0.5rem;
+      --sp-3:  0.75rem;
+      --sp-4:  1rem;
+      --sp-5:  1.25rem;
+      --sp-6:  1.5rem;
+      --sp-8:  2rem;
+      --sp-10: 2.5rem;
+      --sp-12: 3rem;
+      --sp-16: 4rem;
+      --sp-20: 5rem;
+      --sp-24: 6rem;
+
+      /* Radius */
+      --r-sm:   8px;
+      --r-md:   14px;
+      --r-lg:   20px;
+      --r-xl:   28px;
+      --r-full: 999px;
+
+      /* Shadows — layered, not flat */
+      --shadow-xs: 0 1px 2px rgba(0,0,0,.04);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md: 0 8px 28px rgba(0,0,0,.07), 0 2px 6px rgba(0,0,0,.04);
+      --shadow-lg: 0 20px 60px rgba(0,0,0,.1),  0 6px 16px rgba(0,0,0,.05);
+      --shadow-primary: 0 4px 20px rgba(79,70,229,.28), 0 1px 4px rgba(79,70,229,.15);
+
+      /* Easing */
+      --ease-out-expo:   cubic-bezier(.16,1,.3,1);
+      --ease-spring:     cubic-bezier(.22,.68,0,1.2);
+      --ease-in-out:     cubic-bezier(.4,0,.2,1);
+    }
+
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+    body {
+      font-family: var(--font-body);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+    ::selection { background: var(--color-primary-soft); color: var(--color-primary); }
+
+    img { display: block; max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+
+    .container    { max-width: 1160px; margin: 0 auto; padding: 0 var(--sp-6); }
+    .container-sm { max-width: 780px;  margin: 0 auto; padding: 0 var(--sp-6); }
+
+    /* ============================================================
+       SHARED SECTION ATOMS
+    ============================================================ */
+    .section { padding: var(--sp-20) 0; }
+    .section-alt { background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+
+    .section-tag {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      font-family: var(--font-body);
+      font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: var(--color-primary);
+      margin-bottom: var(--sp-4);
+    }
+    .section-tag::before {
+      content: '';
+      display: block;
+      width: 16px; height: 2px;
+      background: var(--color-primary);
+      border-radius: 2px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.12;
+      letter-spacing: -.03em;
+      margin-bottom: var(--sp-4);
+    }
+    .section-title em {
+      font-style: italic;
+      color: var(--color-primary);
+    }
+
+    .section-desc {
+      font-size: 1.05rem;
+      color: var(--color-muted);
+      max-width: 520px;
+      line-height: 1.7;
+    }
+
+    .section-header { margin-bottom: var(--sp-12); }
+    .section-header.center { text-align: center; }
+    .section-header.center .section-desc { margin: 0 auto; }
+
+    /* ============================================================
+       BUTTONS
+    ============================================================ */
+    .btn {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      font-family: var(--font-body);
+      font-weight: 600; font-size: .95rem;
+      border: none; cursor: pointer;
+      text-decoration: none; white-space: nowrap;
+      transition: transform .2s var(--ease-spring), box-shadow .2s var(--ease-out-expo), filter .2s;
+      border-radius: var(--r-full);
+      padding: .85rem 1.625rem;
+    }
+    .btn i { width: 17px; height: 17px; flex-shrink: 0; }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: #fff;
+      box-shadow: var(--shadow-primary), inset 0 1px 0 rgba(255,255,255,.12);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 28px rgba(79,70,229,.35), 0 2px 6px rgba(79,70,229,.2), inset 0 1px 0 rgba(255,255,255,.12);
+      filter: brightness(1.06);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-ghost {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      box-shadow: var(--shadow-xs);
+    }
+    .btn-ghost:hover { background: var(--color-surface-2); transform: translateY(-1px); }
+
+    .btn-outline-white {
+      background: transparent;
+      color: rgba(255,255,255,.85);
+      border: 1px solid rgba(255,255,255,.25);
+    }
+    .btn-outline-white:hover {
+      background: rgba(255,255,255,.1);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    /* green trust pill */
+    .trust-pill {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      font-size: .82rem; font-weight: 600; color: var(--color-success);
+      background: var(--color-success-soft);
+      padding: .35rem .85rem;
+      border-radius: var(--r-full);
+      border: 1px solid rgba(21,128,61,.15);
+    }
+    .trust-pill i { width: 13px; height: 13px; }
+
+    /* ============================================================
+       SCROLL REVEAL
+    ============================================================ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity .6s var(--ease-out-expo), transform .6s var(--ease-out-expo);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* stagger delays */
+    .reveal[data-delay="1"] { transition-delay: .08s; }
+    .reveal[data-delay="2"] { transition-delay: .16s; }
+    .reveal[data-delay="3"] { transition-delay: .24s; }
+    .reveal[data-delay="4"] { transition-delay: .32s; }
+    .reveal[data-delay="5"] { transition-delay: .40s; }
+
+    /* ============================================================
+       NAVBAR
+    ============================================================ */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: var(--sp-4) var(--sp-6);
+      transition: background .3s, box-shadow .3s;
+    }
+    .navbar.scrolled {
+      background: rgba(248,247,245,.9);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 1px 0 var(--color-border);
+    }
+    .navbar-inner {
+      max-width: 1160px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-full);
+      padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-5);
+      box-shadow: var(--shadow-sm);
+    }
+    .navbar.scrolled .navbar-inner {
+      background: rgba(255,255,255,.6);
+      border-color: transparent;
+      box-shadow: none;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: var(--sp-2);
+      font-family: var(--font-display);
+      font-weight: 700; font-size: 1rem;
+      letter-spacing: -.02em;
+      color: var(--color-text);
+    }
+    .nav-brand img { width: 28px; height: 28px; border-radius: var(--r-sm); }
+
+    .nav-links { display: flex; align-items: center; gap: var(--sp-1); }
+    .nav-links a {
+      font-size: .875rem; font-weight: 500;
+      color: var(--color-muted);
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--r-full);
+      transition: color .15s, background .15s;
+    }
+    .nav-links a:hover { color: var(--color-text); background: var(--color-surface-2); }
+
+    .nav-cta {
+      font-size: .875rem; padding: .55rem 1.125rem;
+    }
+
+    .mobile-menu-btn {
+      display: none; background: none; border: none;
+      color: var(--color-text); cursor: pointer; padding: var(--sp-2);
+    }
+
+    /* ============================================================
+       HERO — asymmetric 2-column layout (the differentiator)
+    ============================================================ */
+    .hero {
+      padding-top: calc(80px + var(--sp-16));
+      padding-bottom: var(--sp-16);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Warm radial glow behind hero text */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -10%;
+      width: 700px; height: 700px;
+      background: radial-gradient(ellipse at 30% 30%, rgba(79,70,229,.05), transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1.2fr; /* dá um pouco mais de espaço pro dashboard */
+      gap: var(--sp-16);
+      align-items: center;
+    }
+
+    /* ---- left: text ---- */
+    .hero-text {}
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      font-size: .78rem; font-weight: 600;
+      color: var(--color-muted);
+      margin-bottom: var(--sp-6);
+    }
+    .hero-eyebrow-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-soft);
+      flex-shrink: 0;
+      animation: pulse-dot 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 3px var(--color-primary-soft); }
+      50% { box-shadow: 0 0 0 6px rgba(79,70,229,.08); }
+    }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2.8rem, 5.5vw, 4.5rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -.04em;
+      color: var(--color-text);
+      margin-bottom: var(--sp-6);
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--color-primary);
+    }
+    /* "aula" in italic for that editorial human touch */
+
+    .hero-sub {
+      font-size: 1.1rem;
+      color: var(--color-muted);
+      line-height: 1.7;
+      max-width: 440px;
+      margin-bottom: var(--sp-8);
+    }
+
+    .hero-actions {
+      display: flex; align-items: center; gap: var(--sp-3);
+      flex-wrap: wrap;
+      margin-bottom: var(--sp-5);
+    }
+
+    .hero-micro {
+      display: flex; align-items: center; gap: var(--sp-4);
+      flex-wrap: wrap;
+    }
+    .hero-micro-item {
+      display: flex; align-items: center; gap: var(--sp-1);
+      font-size: .8rem; color: var(--color-subtle); font-weight: 500;
+    }
+    .hero-micro-item i { width: 13px; height: 13px; color: var(--color-success); }
+
+    /* ---- right: dashboard visual ---- */
+    .hero-visual {
+      position: relative;
+      max-width: 720px;
+      margin-left: auto;
+    }
+
+    /* browser mockup frame */
+    .browser-frame {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg),
+                  0 0 0 1px rgba(255,255,255,.5) inset;
+      overflow: hidden;
+      position: relative;
+      transform: translateZ(0);
+    }
+    /* subtle gradient overlay at top for depth */
+    .browser-frame::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 80px;
+      background: linear-gradient(180deg, rgba(79,70,229,.04), transparent);
+      z-index: 1; pointer-events: none;
+    }
+
+    .browser-bar {
+      display: flex; align-items: center; gap: var(--sp-3);
+      padding: var(--sp-3) var(--sp-4);
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface-2);
+    }
+    .browser-dots { display: flex; gap: 5px; }
+    .browser-dots span {
+      width: 9px; height: 9px; border-radius: 50%;
+    }
+    .browser-dots span:nth-child(1) { background: #f87171; }
+    .browser-dots span:nth-child(2) { background: #fbbf24; }
+    .browser-dots span:nth-child(3) { background: #34d399; }
+
+    .browser-url {
+      flex: 1;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-sm);
+      padding: .3rem .75rem;
+      font-size: .72rem; color: var(--color-subtle);
+      font-family: var(--font-body);
+      font-weight: 500;
+    }
+
+    .browser-frame img {
+      width: 100%;
+      display: block;
+      border-radius: 0;
+    }
+
+    /* Floating card decoration — adds depth */
+    .hero-float-card {
+      position: absolute;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-3) var(--sp-4);
+      box-shadow: var(--shadow-md);
+      display: flex; align-items: center; gap: var(--sp-3);
+      white-space: nowrap;
+    }
+    .hero-float-card.card-1 {
+      bottom: -var(--sp-6); left: -var(--sp-6);
+      bottom: -1.5rem; left: -1.5rem;
+      animation: float-1 3.5s ease-in-out infinite;
+    }
+    .hero-float-card.card-2 {
+      top: var(--sp-8); right: -var(--sp-5);
+      top: 2rem; right: -1.25rem;
+      animation: float-2 4s ease-in-out infinite .5s;
+    }
+    @keyframes float-1 {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    @keyframes float-2 {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(6px); }
+    }
+    .float-icon {
+      width: 32px; height: 32px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .float-icon.green { background: var(--color-success-soft); color: var(--color-success); }
+    .float-icon.indigo { background: var(--color-primary-soft); color: var(--color-primary); }
+    .float-icon i { width: 15px; height: 15px; }
+    .float-text strong {
+      display: block; font-size: .78rem; font-weight: 700; color: var(--color-text);
+      line-height: 1.2;
+    }
+    .float-text span { font-size: .7rem; color: var(--color-muted); }
+
+    /* ============================================================
+       PAIN SECTION — dark, dramatic contrast
+    ============================================================ */
+    .pain-section {
+      background: var(--color-dark);
+      padding: var(--sp-20) 0;
+      position: relative;
+      overflow: hidden;
+    }
+    /* decorative large quotes in background */
+    .pain-section::before {
+      content: '\201C';
+      position: absolute;
+      font-family: var(--font-display);
+      font-size: 32rem;
+      line-height: 1;
+      color: rgba(255,255,255,.018);
+      top: -4rem; right: -2rem;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .pain-tag {
+      font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em;
+      color: rgba(255,255,255,.35);
+      display: flex; align-items: center; gap: var(--sp-2);
+      margin-bottom: var(--sp-4);
+    }
+    .pain-tag::before {
+      content: '';
+      display: block;
+      width: 16px; height: 2px;
+      background: rgba(255,255,255,.3);
+      border-radius: 2px;
+    }
+
+    .pain-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.9rem, 3.5vw, 2.8rem);
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.12;
+      letter-spacing: -.035em;
+      margin-bottom: var(--sp-12);
+      max-width: 600px;
+    }
+    .pain-title em {
+      font-style: italic;
+      color: rgba(255,255,255,.5);
+    }
+
+    .pain-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      margin-bottom: var(--sp-12);
+    }
+    .pain-card {
+      background: var(--color-dark);
+      padding: var(--sp-8) var(--sp-8);
+      transition: background .25s;
+    }
+    .pain-card:hover { background: rgba(255,255,255,.03); }
+
+    .pain-card-num {
+      font-family: var(--font-display);
+      font-size: 2.5rem; font-weight: 700;
+      color: rgba(255,255,255,.1);
+      line-height: 1; margin-bottom: var(--sp-4);
+      letter-spacing: -.04em;
+    }
+    .pain-card h4 {
+      font-family: var(--font-display);
+      font-size: 1.15rem; font-weight: 600;
+      color: rgba(255,255,255,.9);
+      margin-bottom: var(--sp-3);
+      letter-spacing: -.02em;
+    }
+    .pain-card p {
+      font-size: .9rem;
+      color: rgba(255,255,255,.45);
+      line-height: 1.65;
+    }
+
+    /* bridge text */
+    .pain-bridge {
+      border-top: 1px solid rgba(255,255,255,.08);
+      padding-top: var(--sp-8);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: var(--sp-8);
+      flex-wrap: wrap;
+    }
+    .pain-bridge p {
+      font-family: var(--font-display);
+      font-size: clamp(1.1rem, 2vw, 1.4rem);
+      font-style: italic;
+      font-weight: 400;
+      color: rgba(255,255,255,.65);
+      max-width: 560px;
+      line-height: 1.5;
+    }
+    .pain-bridge p em {
+      font-style: normal;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ============================================================
+       FEATURES (refined bento)
+    ============================================================ */
+    .bento {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: var(--sp-4);
+    }
+    .bento-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-8);
+      display: flex; flex-direction: column;
+      transition: transform .25s var(--ease-out-expo),
+                  box-shadow .25s var(--ease-out-expo),
+                  border-color .25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .bento-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--color-border-warm);
+    }
+    /* left accent bar on hover — the signature interaction */
+    .bento-card::after {
+      content: '';
+      position: absolute;
+      left: 0; bottom: 0;
+      width: 3px; height: 0;
+      background: var(--color-primary);
+      border-radius: 0 2px 2px 0;
+      transition: height .3s var(--ease-out-expo);
+    }
+    .bento-card:hover::after { height: 100%; }
+
+    .bento-card.span-4 { grid-column: span 4; }
+    .bento-card.span-3 { grid-column: span 3; }
+    .bento-card.span-2 { grid-column: span 2; }
+
+    .bento-icon {
+      width: 40px; height: 40px; border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: var(--sp-5); flex-shrink: 0;
+    }
+    .bento-icon i { width: 20px; height: 20px; }
+    .bento-icon.indigo { background: var(--color-primary-soft); color: var(--color-primary); }
+    .bento-icon.emerald { background: var(--color-success-soft); color: var(--color-success); }
+    .bento-icon.amber  { background: #fffbeb; color: #b45309; }
+    .bento-icon.slate  { background: #f1f5f9; color: #475569; }
+
+    .bento-card h3 {
+      font-family: var(--font-display);
+      font-size: 1.1rem; font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -.02em;
+      margin-bottom: var(--sp-2);
+    }
+    .bento-card p {
+      font-size: .875rem;
+      color: var(--color-muted);
+      line-height: 1.6;
+      flex-grow: 1;
+    }
+
+    /* outcome tag */
+    .bento-outcome {
+      display: inline-flex; align-items: center; gap: var(--sp-1);
+      font-size: .7rem; font-weight: 700;
+      color: var(--color-success);
+      background: var(--color-success-soft);
+      padding: .2em .65em;
+      border-radius: var(--r-full);
+      margin-top: var(--sp-4); align-self: flex-start;
+      border: 1px solid rgba(21,128,61,.12);
+    }
+    .bento-outcome i { width: 10px; height: 10px; }
+
+    /* featured card — dark */
+    .bento-card.featured {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+    .bento-card.featured::after { background: rgba(255,255,255,.4); }
+    .bento-card.featured h3 { color: #fff; }
+    .bento-card.featured p  { color: rgba(255,255,255,.7); }
+    .bento-card.featured .bento-icon {
+      background: rgba(255,255,255,.15); color: #fff;
+    }
+    .bento-card.featured .bento-outcome {
+      background: rgba(255,255,255,.18);
+      color: #fff;
+      border-color: rgba(255,255,255,.15);
+    }
+    .bento-card.featured:hover {
+      box-shadow: 0 12px 40px rgba(79,70,229,.35);
+      border-color: var(--color-primary);
+    }
+
+    /* ============================================================
+       SCREENSHOTS
+    ============================================================ */
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-5);
+    }
+    .screenshot-item {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      transition: transform .25s var(--ease-out-expo), box-shadow .25s;
+    }
+    .screenshot-item:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+    .screenshot-item img { width: 100%; }
+    .screenshot-item figcaption {
+      padding: var(--sp-4) var(--sp-5);
+      font-size: .83rem; font-weight: 600;
+      color: var(--color-muted);
+      border-top: 1px solid var(--color-border);
+    }
+
+    /* ============================================================
+       TESTIMONIALS — editorial pull-quote style
+    ============================================================ */
+    .testimonials-section { background: var(--color-surface-2); }
+
+    .testimonials-header {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: var(--sp-10); gap: var(--sp-4);
+    }
+    .carousel-controls { display: flex; gap: var(--sp-2); }
+    .carousel-btn {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s, border-color .15s, transform .15s var(--ease-spring);
+    }
+    .carousel-btn:hover {
+      background: var(--color-primary); color: #fff;
+      border-color: var(--color-primary);
+      transform: scale(1.05);
+    }
+    .carousel-btn i { width: 16px; height: 16px; }
+
+    .carousel-track-wrap { overflow: hidden; }
+    .carousel-track {
+      display: flex; gap: var(--sp-5);
+      transition: transform .45s var(--ease-out-expo);
+      padding: 4px 0;
+    }
+
+    /* editorial pull-quote card */
+    .testimonial-card {
+      min-width: 300px; max-width: 340px; flex-shrink: 0;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-8);
+      display: flex; flex-direction: column;
+      box-shadow: var(--shadow-xs);
+      transition: transform .25s var(--ease-out-expo), box-shadow .25s;
+    }
+    .testimonial-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* large Fraunces quotation mark */
+    .testimonial-quote-mark {
+      font-family: var(--font-display);
+      font-size: 3.5rem;
+      line-height: .8;
+      color: var(--color-primary-mid);
+      margin-bottom: var(--sp-3);
+      letter-spacing: -.02em;
+      user-select: none;
+    }
+
+    .testimonial-text {
+      font-size: .93rem;
+      color: var(--color-text);
+      line-height: 1.65;
+      flex-grow: 1;
+      margin-bottom: var(--sp-6);
+      font-weight: 400;
+    }
+
+    .testimonial-author {
+      display: flex; align-items: center; gap: var(--sp-3);
+      border-top: 1px solid var(--color-border);
+      padding-top: var(--sp-4);
+    }
+    .testimonial-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--color-primary-soft);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 600; font-size: .72rem;
+      color: var(--color-primary); flex-shrink: 0;
+    }
+    .testimonial-author strong {
+      display: block; font-size: .8rem; font-weight: 700;
+      color: var(--color-text); line-height: 1.3;
+    }
+    .testimonial-author span { font-size: .72rem; color: var(--color-subtle); }
+
+    /* ============================================================
+       HOW IT WORKS — large decorative numbers
+    ============================================================ */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--sp-5);
+    }
+    .step-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-8);
+      position: relative;
+      overflow: hidden;
+      transition: transform .25s var(--ease-out-expo), box-shadow .25s;
+    }
+    .step-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+    /* large decorative number in background */
+    .step-bg-num {
+      position: absolute;
+      top: -1.5rem; right: var(--sp-5);
+      font-family: var(--font-display);
+      font-size: 7rem; font-weight: 700;
+      color: rgba(79,70,229,.05);
+      line-height: 1;
+      letter-spacing: -.05em;
+      pointer-events: none;
+      user-select: none;
+    }
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: var(--r-sm);
+      background: var(--color-primary);
+      color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .82rem;
+      margin-bottom: var(--sp-5);
+    }
+    .step-card h3 {
+      font-family: var(--font-display);
+      font-size: 1.1rem; font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -.02em;
+      margin-bottom: var(--sp-3);
+    }
+    .step-card p { font-size: .9rem; color: var(--color-muted); line-height: 1.6; margin-bottom: var(--sp-4); }
+    .step-time {
+      display: inline-flex; align-items: center; gap: var(--sp-1);
+      font-size: .72rem; font-weight: 700;
+      color: var(--color-primary);
+      background: var(--color-primary-soft);
+      padding: .22em .7em; border-radius: var(--r-full);
+    }
+    .step-time i { width: 11px; height: 11px; }
+
+    /* ============================================================
+       PRICING
+    ============================================================ */
+    .billing-toggle {
+      display: inline-flex; align-items: center;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-full);
+      padding: 3px; gap: 2px;
+      margin-bottom: var(--sp-10);
+    }
+    .billing-btn {
+      padding: .55rem 1rem; border-radius: var(--r-full);
+      border: none; background: transparent;
+      font-family: var(--font-body);
+      font-weight: 600; font-size: .82rem;
+      color: var(--color-muted); cursor: pointer;
+      transition: background .15s, color .15s, box-shadow .15s;
+    }
+    .billing-btn.active {
+      background: var(--color-surface);
+      color: var(--color-text);
+      box-shadow: var(--shadow-xs);
+    }
+    .billing-btn small {
+      display: block; font-size: .62rem; font-weight: 700;
+      color: var(--color-success); margin-top: 1px;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--sp-5);
+      align-items: start;
+    }
+    .price-card {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-xl);
+      padding: var(--sp-8);
+      display: flex; flex-direction: column;
+      transition: transform .25s var(--ease-out-expo), box-shadow .25s;
+    }
+    .price-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+
+    /* popular card inverted to dark indigo */
+    .price-card.popular {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: rgba(255,255,255,.85);
+      position: relative;
+      box-shadow: var(--shadow-primary);
+    }
+    .price-card.popular:hover {
+      box-shadow: 0 12px 40px rgba(79,70,229,.4);
+      transform: translateY(-6px);
+    }
+    .popular-badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: #fff; color: var(--color-primary);
+      font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+      padding: .3rem .85rem; border-radius: var(--r-full);
+      white-space: nowrap;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .price-tier {
+      font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--color-primary);
+      margin-bottom: var(--sp-2);
+    }
+    .price-card.popular .price-tier { color: rgba(255,255,255,.6); }
+
+    .price-card h3 {
+      font-family: var(--font-display);
+      font-size: 1.4rem; font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -.02em;
+      margin-bottom: var(--sp-1);
+    }
+    .price-card.popular h3 { color: #fff; }
+
+    .price-sub { font-size: .83rem; color: var(--color-subtle); margin-bottom: var(--sp-6); }
+    .price-card.popular .price-sub { color: rgba(255,255,255,.5); }
+
+    .price-amount-row {
+      display: flex; align-items: baseline; gap: var(--sp-2);
+      margin-bottom: var(--sp-6);
+    }
+    .price-value {
+      font-family: var(--font-display);
+      font-size: 2.8rem; font-weight: 700;
+      color: var(--color-text);
+      letter-spacing: -.04em; line-height: 1;
+      transition: all .2s;
+    }
+    .price-card.popular .price-value { color: #fff; }
+    .price-period { font-size: .88rem; color: var(--color-subtle); font-weight: 500; }
+    .price-card.popular .price-period { color: rgba(255,255,255,.5); }
+
+    .price-features { list-style: none; margin-bottom: var(--sp-8); flex-grow: 1; }
+    .price-features li {
+      display: flex; align-items: flex-start; gap: var(--sp-3);
+      font-size: .875rem; font-weight: 500;
+      color: var(--color-text-2, var(--color-muted));
+      padding: var(--sp-2) 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .price-features li:last-child { border-bottom: none; }
+    .price-card.popular .price-features li { color: rgba(255,255,255,.8); border-bottom-color: rgba(255,255,255,.1); }
+
+    .price-features li i { width: 15px; height: 15px; color: var(--color-primary); flex-shrink: 0; margin-top: 2px; }
+    .price-features li.disabled { color: var(--color-subtle); }
+    .price-features li.disabled i { color: var(--color-border); }
+    .price-card.popular .price-features li i { color: rgba(255,255,255,.8); }
+
+    .btn-price {
+      display: block; width: 100%; text-align: center;
+      padding: .8rem 1.2rem; border-radius: var(--r-full);
+      font-family: var(--font-body);
+      font-weight: 700; font-size: .9rem;
+      text-decoration: none; border: none; cursor: pointer;
+      transition: transform .2s var(--ease-spring), filter .2s, box-shadow .2s;
+    }
+    .btn-price-fill {
+      background: #fff; color: var(--color-primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    }
+    .btn-price-fill:hover { filter: brightness(.97); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+
+    .btn-price-outline {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+    .btn-price-outline:hover { background: var(--color-surface-2); transform: translateY(-1px); }
+
+    /* trust strip */
+    .trust-strip {
+      display: flex; justify-content: center; align-items: center;
+      gap: var(--sp-8); flex-wrap: wrap;
+      padding: var(--sp-5) var(--sp-6);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--r-lg);
+      margin-top: var(--sp-8);
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: var(--sp-2);
+      font-size: .8rem; font-weight: 600;
+      color: var(--color-muted);
+    }
+    .trust-item i { width: 14px; height: 14px; color: var(--color-success); flex-shrink: 0; }
+
+    .pricing-note {
+      text-align: center; margin-top: var(--sp-5);
+      font-size: .83rem; color: var(--color-subtle);
+    }
+    .pricing-note a { color: var(--color-primary); text-decoration: underline; }
+
+    /* ============================================================
+       FAQ
+    ============================================================ */
+    .faq-list { border-top: 1px solid var(--color-border); }
+    .faq-item { border-bottom: 1px solid var(--color-border); }
+    .faq-question {
+      width: 100%; padding: var(--sp-5) 0;
+      background: none; border: none;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: var(--sp-4); cursor: pointer; text-align: left;
+      font-family: var(--font-display);
+      font-size: 1.05rem; font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -.02em;
+      transition: color .15s;
+    }
+    .faq-question:hover { color: var(--color-primary); }
+    .faq-question i {
+      width: 18px; height: 18px;
+      color: var(--color-subtle); flex-shrink: 0;
+      transition: transform .3s var(--ease-out-expo), color .15s;
+    }
+    .faq-answer { max-height: 0; overflow: hidden; transition: max-height .35s var(--ease-out-expo); }
+    .faq-answer p {
+      padding-bottom: var(--sp-5);
+      color: var(--color-muted); line-height: 1.7; font-size: .95rem;
+    }
+    .faq-item.open .faq-answer { max-height: 280px; }
+    .faq-item.open .faq-question i { transform: rotate(180deg); color: var(--color-primary); }
+
+    /* ============================================================
+       FINAL CTA — deep dark, Fraunces large
+    ============================================================ */
+    .final-cta {
+      background: var(--color-dark);
+      padding: var(--sp-24) 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    /* animated gradient background */
+    .final-cta::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(79,70,229,.15), transparent 50%),
+        radial-gradient(ellipse at 80% 50%, rgba(99,102,241,.1), transparent 50%);
+      animation: cta-glow 8s ease-in-out infinite alternate;
+    }
+    @keyframes cta-glow {
+      0%   { opacity: .7; }
+      100% { opacity: 1; }
+    }
+
+    .final-cta-inner { position: relative; z-index: 1; }
+
+    .final-cta h2 {
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 5vw, 4rem);
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.04em;
+      line-height: 1.08;
+      margin-bottom: var(--sp-5);
+    }
+    .final-cta h2 em {
+      font-style: italic;
+      color: var(--color-primary-mid);
+    }
+    .final-cta p {
+      color: rgba(255,255,255,.55);
+      font-size: 1.05rem;
+      max-width: 440px;
+      margin: 0 auto var(--sp-10);
+      line-height: 1.7;
+    }
+    .final-cta-actions {
+      display: flex; align-items: center; justify-content: center;
+      gap: var(--sp-4); flex-wrap: wrap;
+      margin-bottom: var(--sp-6);
+    }
+    .final-cta .btn-primary {
+      font-size: 1rem; padding: .95rem 1.875rem;
+    }
+    .final-cta-micro {
+      font-size: .78rem; color: rgba(255,255,255,.3);
+      display: flex; align-items: center; justify-content: center;
+      gap: var(--sp-4); flex-wrap: wrap;
+    }
+    .final-cta-micro span { display: flex; align-items: center; gap: var(--sp-1); }
+    .final-cta-micro i { width: 12px; height: 12px; color: rgba(255,255,255,.25); }
+
+    /* ============================================================
+       FOOTER
+    ============================================================ */
+    .footer {
+      background: var(--color-dark-2);
+      border-top: 1px solid rgba(255,255,255,.06);
+      padding: var(--sp-16) 0 var(--sp-8);
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr 1fr;
+      gap: var(--sp-12);
+      margin-bottom: var(--sp-12);
+    }
+    .footer-brand {
+      display: flex; align-items: center; gap: var(--sp-2);
+      font-family: var(--font-display);
+      font-weight: 700; font-size: .95rem;
+      color: #fff; margin-bottom: var(--sp-4);
+    }
+    .footer-brand img { width: 26px; height: 26px; border-radius: var(--r-sm); }
+    .footer-brand-text {
+      font-size: .87rem; color: rgba(255,255,255,.35);
+      line-height: 1.65; max-width: 260px;
+      margin-bottom: var(--sp-5);
+    }
+    .footer-socials { display: flex; gap: var(--sp-2); }
+    .footer-socials a {
+      width: 34px; height: 34px; border-radius: var(--r-sm);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,.4);
+      transition: background .15s, color .15s, transform .15s var(--ease-spring);
+    }
+    .footer-socials a i { width: 15px; height: 15px; }
+    .footer-socials a:hover {
+      background: var(--color-primary);
+      color: #fff; border-color: var(--color-primary);
+      transform: translateY(-2px);
+    }
+    .footer-col h4 {
+      font-size: .7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: rgba(255,255,255,.25);
+      margin-bottom: var(--sp-4);
+    }
+    .footer-col ul { list-style: none; }
+    .footer-col ul li { margin-bottom: var(--sp-3); }
+    .footer-col ul li a {
+      font-size: .87rem; font-weight: 500;
+      color: rgba(255,255,255,.4);
+      transition: color .15s;
+    }
+    .footer-col ul li a:hover { color: rgba(255,255,255,.8); }
+    .footer-bottom {
+      padding-top: var(--sp-6);
+      border-top: 1px solid rgba(255,255,255,.06);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: .78rem; color: rgba(255,255,255,.25);
+      flex-wrap: wrap; gap: var(--sp-3);
+    }
+    .footer-trust {
+      display: flex; align-items: center; gap: var(--sp-1);
+      color: var(--color-success); font-weight: 600;
+    }
+    .footer-trust i { width: 13px; height: 13px; }
+
+    /* ============================================================
+       CONTACT MODAL
+    ============================================================ */
+    .contact-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(12,10,9,.55);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
+      padding: var(--sp-4); opacity: 0; transition: opacity .2s;
+    }
+    .contact-overlay.open { display: flex; opacity: 1; }
+    .contact-box {
+      background: var(--color-surface);
+      border-radius: var(--r-xl);
+      padding: var(--sp-8); max-width: 420px; width: 100%;
+      box-shadow: var(--shadow-lg); position: relative;
+      transform: scale(.96); transition: transform .25s var(--ease-spring);
+    }
+    .contact-overlay.open .contact-box { transform: scale(1); }
+    .contact-box h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem; font-weight: 700;
+      color: var(--color-text);
+      letter-spacing: -.02em;
+      margin-bottom: var(--sp-6);
+    }
+    .contact-close {
+      position: absolute; top: var(--sp-4); right: var(--sp-4);
+      background: none; border: none; cursor: pointer;
+      color: var(--color-subtle); font-size: 1.3rem; line-height: 1; padding: var(--sp-1);
+      border-radius: var(--r-sm);
+      transition: color .15s, background .15s;
+    }
+    .contact-close:hover { color: var(--color-text); background: var(--color-surface-2); }
+    .contact-field { margin-bottom: var(--sp-4); }
+    .contact-field label {
+      display: block; font-size: .78rem; font-weight: 700;
+      color: var(--color-text); margin-bottom: var(--sp-2);
+    }
+    .contact-field input, .contact-field textarea {
+      width: 100%; padding: .65rem .9rem;
+      border: 1.5px solid var(--color-border); border-radius: var(--r-md);
+      font-size: .95rem; font-family: var(--font-body);
+      color: var(--color-text); background: var(--color-bg);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .contact-field input:focus, .contact-field textarea:focus {
+      outline: none; border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-soft);
+    }
+    .contact-field textarea { min-height: 80px; resize: vertical; }
+    .contact-submit {
+      width: 100%; padding: .8rem;
+      background: var(--color-primary); color: #fff; border: none;
+      border-radius: var(--r-md); font-weight: 700; font-size: .95rem;
+      font-family: var(--font-body);
+      cursor: pointer; transition: filter .15s, transform .15s var(--ease-spring);
+    }
+    .contact-submit:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .contact-submit:disabled { opacity: .6; cursor: not-allowed; }
+    .contact-feedback { margin-top: var(--sp-3); font-size: .85rem; display: none; }
+    .contact-feedback.success { display: block; color: var(--color-success); }
+    .contact-feedback.error   { display: block; color: #dc2626; }
+
+    /* ============================================================
+       MOBILE STICKY CTA
+    ============================================================ */
+    .mobile-sticky {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(248,247,245,.95);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border-top: 1px solid var(--color-border);
+      padding: var(--sp-3) var(--sp-4);
+      z-index: 99;
+    }
+    .mobile-sticky-inner {
+      max-width: 1160px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+    }
+    .mobile-sticky-text {
+      font-family: var(--font-display);
+      font-weight: 600; font-size: .9rem; color: var(--color-text);
+    }
+    .mobile-sticky-text span {
+      display: block; font-family: var(--font-body);
+      font-size: .72rem; color: var(--color-muted); font-weight: 400;
+    }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+    @media (max-width: 1024px) {
+      .hero-grid { grid-template-columns: 1fr; gap: var(--sp-12); }
+      .hero-visual { max-width: 640px; margin: 0 auto; }
+      .hero { padding-bottom: var(--sp-12); }
+      .hero h1 { font-size: clamp(2.5rem, 6vw, 3.5rem); }
+      .hero-float-card { display: none; }
+      .bento { grid-template-columns: repeat(2, 1fr); }
+      .bento-card.span-4, .bento-card.span-3 { grid-column: span 2; }
+      .bento-card.span-2 { grid-column: span 1; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
+      .price-card.popular { transform: none; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .trust-strip { gap: var(--sp-5); }
+    }
+
+    @media (max-width: 768px) {
+      /* Nav */
+      .navbar { padding: var(--sp-3) var(--sp-3); }
+      .navbar-inner { padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4); gap: var(--sp-2); }
+      .nav-brand { font-size: .88rem; }
+      .nav-brand img { width: 24px; height: 24px; }
+      .nav-links {
+        display: none;
+        position: absolute; top: calc(100% + .75rem); left: .75rem; right: .75rem;
+        background: var(--color-surface); border: 1px solid var(--color-border);
+        border-radius: var(--r-lg); box-shadow: var(--shadow-md);
+        padding: var(--sp-3); flex-direction: column; gap: var(--sp-1); z-index: 101;
+      }
+      .nav-links a { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md); width: 100%; }
+      .nav-cta { padding: .5rem 1rem; font-size: .8rem; }
+      .mobile-menu-btn { display: flex; }
+
+      /* Hero */
+      .hero { padding-top: calc(72px + var(--sp-10)); padding-bottom: var(--sp-10); }
+      .hero h1 { font-size: clamp(2rem, 8vw, 2.8rem); }
+      .hero-sub { font-size: 1rem; }
+      .hero-actions { flex-direction: column; align-items: flex-start; }
+      .hero-actions .btn { width: 100%; justify-content: center; }
+      .hero-micro { gap: var(--sp-3); }
+
+      /* Pain */
+      .pain-section { padding: var(--sp-12) 0; }
+      .pain-grid { grid-template-columns: 1fr; }
+      .pain-bridge { flex-direction: column; gap: var(--sp-6); }
+
+      /* Sections */
+      .container, .container-sm { padding: 0 var(--sp-4); }
+      .section { padding: var(--sp-12) 0; }
+      .section-header { margin-bottom: var(--sp-8); }
+      .section-title { font-size: clamp(1.6rem, 5vw, 2rem); }
+
+      /* Bento */
+      .bento { grid-template-columns: 1fr; gap: var(--sp-3); }
+      .bento-card.span-4, .bento-card.span-3, .bento-card.span-2 { grid-column: span 1; }
+      .bento-card { padding: var(--sp-6); border-radius: var(--r-md); }
+
+      /* Screenshots */
+      .screenshots-grid { grid-template-columns: 1fr; }
+      .screenshot-item { border-radius: var(--r-md); }
+
+      /* Steps */
+      .steps-grid { grid-template-columns: 1fr; gap: var(--sp-3); }
+      .step-card { padding: var(--sp-6); border-radius: var(--r-md); }
+      .step-bg-num { font-size: 5rem; }
+
+      /* Testimonials */
+      .testimonials-header { flex-direction: column; align-items: flex-start; gap: var(--sp-4); }
+      .carousel-track-wrap { overflow: hidden; max-width: calc(100vw - 2rem); }
+      .testimonial-card {
+        min-width: calc(100vw - 4.5rem);
+        max-width: calc(100vw - 4.5rem);
+        padding: var(--sp-6); border-radius: var(--r-md);
+      }
+
+      /* Pricing */
+      .billing-toggle { flex-wrap: nowrap; }
+      .billing-btn { padding: .5rem .8rem; font-size: .75rem; }
+      .price-card { padding: var(--sp-6); border-radius: var(--r-lg); }
+      .price-value { font-size: 2.4rem; }
+      .trust-strip { gap: var(--sp-4); flex-direction: column; align-items: flex-start; padding: var(--sp-5); }
+
+      /* FAQ */
+      .faq-question { font-size: .95rem; }
+
+      /* Final CTA */
+      .final-cta { padding: var(--sp-16) 0; }
+      .final-cta h2 { font-size: clamp(1.8rem, 6vw, 2.5rem); }
+      .final-cta-actions { flex-direction: column; align-items: center; }
+      .final-cta-actions .btn { width: 100%; max-width: 320px; justify-content: center; }
+      .final-cta-micro { flex-direction: column; gap: var(--sp-2); }
+
+      /* Footer */
+      .footer { padding: var(--sp-12) 0 var(--sp-6); }
+      .footer-grid { grid-template-columns: 1fr; gap: var(--sp-8); }
+      .footer-brand-text { max-width: 100%; }
+      .footer-socials { }
+      .footer-bottom { flex-direction: column; text-align: center; }
+
+      /* Mobile sticky */
+      .mobile-sticky { display: block; }
+      body { padding-bottom: 72px; }
+
+      /* Contact modal */
+      .contact-box { padding: var(--sp-6); border-radius: var(--r-lg); }
+    }
+
+    @media (max-width: 480px) {
+      .hero h1 { font-size: clamp(1.75rem, 7.5vw, 2.2rem); }
+      .navbar-inner { padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3); }
+      .nav-brand { font-size: .8rem; }
+      .nav-cta { padding: .45rem .85rem; font-size: .75rem; }
+      .bento-card h3 { font-size: 1rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ============================================================
+       NAVBAR
+  ============================================================ -->
+  <header class="navbar" id="navbar">
+    <div class="navbar-inner">
+      <a href="#top" class="nav-brand">
+        <img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne">
+        EDUCAflowOne
+      </a>
+
+      <nav class="nav-links">
+        <a href="#features">Recursos</a>
+        <a href="#screenshots">Sistema</a>
+        <a href="#pricing">Planos</a>
+        <a href="#faq">FAQ</a>
+        <a href="/login/">Login</a>
+      </nav>
+
+      <a href="/signup/?tier=basic&plan=monthly" class="btn btn-primary nav-cta cta-signup">
+        Testar grátis
+      </a>
+
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
+        <i data-lucide="menu"></i>
+      </button>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- ============================================================
+         HERO — asymmetric 2-column (the differentiator)
+    ============================================================ -->
+    <section class="hero">
+      <div class="container">
+        <div class="hero-grid">
+
+          <!-- Left: text -->
+          <div class="hero-text">
+            <div class="hero-eyebrow reveal">
+              <span class="hero-eyebrow-dot"></span>
+              Para professores particulares
+            </div>
+
+            <h1 class="reveal" data-delay="1">
+              Menos planilha.<br>
+              Mais <em>aula dada.</em>
+            </h1>
+
+            <p class="hero-sub reveal" data-delay="2">
+              Agenda, alunos, planejamento e financeiro numa interface limpa.
+              Clareza e controle desde o primeiro dia — sem curva de aprendizado.
+            </p>
+
+            <div class="hero-actions reveal" data-delay="3">
+              <a href="/signup/?tier=basic&plan=monthly" class="btn btn-primary cta-signup">
+                <i data-lucide="arrow-right"></i>
+                Começar 7 dias grátis
+              </a>
+              <a href="#how" class="btn btn-ghost">
+                <i data-lucide="play-circle"></i>
+                Ver como funciona
+              </a>
+            </div>
+
+            <div class="hero-micro reveal" data-delay="4">
+              <div class="hero-micro-item">
+                <i data-lucide="check"></i>
+                Sem cartão de crédito
+              </div>
+              <div class="hero-micro-item">
+                <i data-lucide="check"></i>
+                Cancele quando quiser
+              </div>
+              <div class="hero-micro-item">
+                <i data-lucide="check"></i>
+                Setup em 2 minutos
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: dashboard -->
+          <div class="hero-visual reveal" data-delay="2">
+            <div class="browser-frame">
+              <div class="browser-bar">
+                <div class="browser-dots">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="browser-url">educaflowone.com/dashboard</div>
+              </div>
+              <img src="{% static 'img/dash.png' %}" alt="Dashboard EDUCAflowOne" loading="eager" />
+            </div>
+
+            <!-- Floating cards for depth -->
+            <div class="hero-float-card card-1">
+              <div class="float-icon green"><i data-lucide="trending-up"></i></div>
+              <div class="float-text">
+                <strong>Faturamento do mês</strong>
+                <span>Atualizado em tempo real</span>
+              </div>
+            </div>
+            <div class="hero-float-card card-2">
+              <div class="float-icon indigo"><i data-lucide="calendar-check"></i></div>
+              <div class="float-text">
+                <strong>3 aulas hoje</strong>
+                <span>2 confirmadas · 1 pendente</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         PAIN SECTION — dark, high contrast
+         Empatia antes da solução: professor se vê aqui
+    ============================================================ -->
+    <section class="pain-section">
+      <div class="container">
+        <div class="pain-tag reveal">Isso soa familiar?</div>
+        <h2 class="pain-title reveal" data-delay="1">
+          A rotina do professor particular<br>
+          <em>sem um sistema</em>
+        </h2>
+
+        <div class="pain-grid reveal" data-delay="2">
+          <div class="pain-card">
+            <div class="pain-card-num">01</div>
+            <h4>WhatsApp como escritório</h4>
+            <p>Confirmações de aula, cobranças, reagendamentos e material misturados na mesma conversa. Nada organizado, tudo esquecido.</p>
+          </div>
+          <div class="pain-card">
+            <div class="pain-card-num">02</div>
+            <h4>Planilha que nunca fecha</h4>
+            <p>Aluno faltou, plano mudou, tem desconto esse mês — a planilha perde o fio toda semana. Você acaba refazendo do zero.</p>
+          </div>
+          <div class="pain-card">
+            <div class="pain-card-num">03</div>
+            <h4>Cobrar é constrangedor</h4>
+            <p>Escrever cada mensagem de cobrança na mão, com medo de soar grosseiro. Resultado: você deixa passar, e o caixa sangra.</p>
+          </div>
+          <div class="pain-card">
+            <div class="pain-card-num">04</div>
+            <h4>Sem clareza do que vai entrar</h4>
+            <p>Fim do mês sem saber quanto vai receber, quem ainda não pagou, e qual aluno está acumulando atraso.</p>
+          </div>
+        </div>
+
+        <div class="pain-bridge reveal" data-delay="3">
+          <p>
+            O EDUCAflowOne resolve exatamente isso — <em>agenda, alunos, financeiro e cobrança</em> centralizados, com clareza e sem burocracia.
+          </p>
+          <a href="/signup/?tier=basic&plan=monthly" class="btn btn-outline-white cta-signup">
+            <i data-lucide="arrow-right"></i>
+            Testar 7 dias grátis
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FEATURES
+    ============================================================ -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-header reveal">
+          <div class="section-tag">Recursos</div>
+          <h2 class="section-title">Tudo o que você precisa.<br><em>Nada que não precisa.</em></h2>
+          <p class="section-desc">Cada módulo elimina retrabalho e mantém o foco no que importa: ensinar.</p>
+        </div>
+
+        <div class="bento">
+          <div class="bento-card span-4 featured reveal">
+            <div class="bento-icon indigo"><i data-lucide="calendar"></i></div>
+            <h3>Agenda inteligente</h3>
+            <p>Visão mensal e semanal. Aulas confirmadas, pendentes e canceladas em um lugar. Reagende com um clique.</p>
+            <span class="bento-outcome"><i data-lucide="check-circle"></i> Zero aula esquecida</span>
+          </div>
+
+          <div class="bento-card span-2 reveal" data-delay="1">
+            <div class="bento-icon emerald"><i data-lucide="users"></i></div>
+            <h3>Alunos e planos</h3>
+            <p>Cadastro completo, pacotes e status. Tudo organizado por aluno.</p>
+          </div>
+
+          <div class="bento-card span-2 reveal" data-delay="2">
+            <div class="bento-icon amber"><i data-lucide="notebook-pen"></i></div>
+            <h3>Planejamento de aulas</h3>
+            <p>Links, objetivos e materiais por data e por aluno, em um único fluxo.</p>
+          </div>
+
+          <div class="bento-card span-2 reveal">
+            <div class="bento-icon indigo"><i data-lucide="message-circle"></i></div>
+            <h3>Cobrança via WhatsApp</h3>
+            <p>Mensagem gerada, formatada e pronta para copiar. Profissional e sem constrangimento.</p>
+            <span class="bento-outcome"><i data-lucide="check-circle"></i> 30 seg por cobrança</span>
+          </div>
+
+          <div class="bento-card span-2 reveal" data-delay="1">
+            <div class="bento-icon slate"><i data-lucide="wallet-cards"></i></div>
+            <h3>Financeiro completo</h3>
+            <p>Recebimentos, atrasos e previsões. Saúde financeira do mês em um painel limpo.</p>
+          </div>
+
+          <div class="bento-card span-3 reveal">
+            <div class="bento-icon emerald"><i data-lucide="check-square"></i></div>
+            <h3>Tarefas e pendências</h3>
+            <p>Follow-ups, correções e lembretes organizados. Nada cai no esquecimento.</p>
+          </div>
+
+          <div class="bento-card span-3 reveal" data-delay="1">
+            <div class="bento-icon slate"><i data-lucide="users-round"></i></div>
+            <h3>Professores parceiros</h3>
+            <p>Cresceu? O sistema cresce junto. Gerencie parceiros com a mesma simplicidade.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SCREENSHOTS
+    ============================================================ -->
+    <section class="section section-alt" id="screenshots">
+      <div class="container">
+        <div class="section-header center reveal">
+          <div class="section-tag">Sistema em ação</div>
+          <h2 class="section-title">Interface limpa.<br><em>Sem ruído visual.</em></h2>
+          <p class="section-desc">Cada tela foi desenhada para ser usada no celular, sem treinamento.</p>
+        </div>
+
+        <div class="screenshots-grid">
+          <figure class="screenshot-item reveal">
+            <img src="{% static 'img/dash.png' %}" alt="Dashboard" loading="lazy" />
+            <figcaption>Dashboard — visão geral do dia e indicadores do mês</figcaption>
+          </figure>
+          <figure class="screenshot-item reveal" data-delay="1">
+            <img src="{% static 'img/calendario.png' %}" alt="Calendário mensal" loading="lazy" />
+            <figcaption>Calendário mensal com status e ações rápidas por dia</figcaption>
+          </figure>
+          <figure class="screenshot-item reveal" data-delay="2">
+            <img src="{% static 'img/semanal.png' %}" alt="Visão semanal" loading="lazy" />
+            <figcaption>Visão semanal detalhada para planejamento diário</figcaption>
+          </figure>
+          <figure class="screenshot-item reveal" data-delay="3">
+            <img src="{% static 'img/finan.png' %}" alt="Financeiro" loading="lazy" />
+            <figcaption>Painel financeiro com recebimentos e vencimentos</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TESTIMONIALS — editorial pull-quote style (antes de how-it-works)
+    ============================================================ -->
+    <section class="section testimonials-section">
+      <div class="container">
+        <div class="testimonials-header">
+          <div>
+            <div class="section-tag">Depoimentos</div>
+            <h2 class="section-title" style="margin-bottom:0">Quem usa, <em>recomenda.</em></h2>
+          </div>
+          <div class="carousel-controls">
+            <button class="carousel-btn" id="carouselPrev" aria-label="Anterior"><i data-lucide="arrow-left"></i></button>
+            <button class="carousel-btn" id="carouselNext" aria-label="Próximo"><i data-lucide="arrow-right"></i></button>
+          </div>
+        </div>
+
+        <div class="carousel-track-wrap">
+          <div class="carousel-track" id="carouselTrack">
+
+            <div class="testimonial-card">
+              <div class="testimonial-quote-mark">&ldquo;</div>
+              <p class="testimonial-text">Recuperei umas 10 horas por semana que eu perdia com planilha e cobrança manual. Agora consigo focar no que importa: dar aula.</p>
+              <div class="testimonial-author">
+                <div class="testimonial-avatar">AC</div>
+                <div>
+                  <strong>Profa. Ana Clara</strong>
+                  <span>Inglês para negócios</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="testimonial-card">
+              <div class="testimonial-quote-mark">&ldquo;</div>
+              <p class="testimonial-text">A interface é tão limpa que meus alunos comentam. O link de agendamento reduziu minhas faltas em uns 40%.</p>
+              <div class="testimonial-author">
+                <div class="testimonial-avatar">RS</div>
+                <div>
+                  <strong>Prof. Ricardo Santos</strong>
+                  <span>Aulas de piano</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="testimonial-card">
+              <div class="testimonial-quote-mark">&ldquo;</div>
+              <p class="testimonial-text">Sair do WhatsApp e planilha para gerenciar meu financeiro foi a melhor decisão. Hoje tenho clareza total do faturamento.</p>
+              <div class="testimonial-author">
+                <div class="testimonial-avatar">JP</div>
+                <div>
+                  <strong>Profa. Júlia Paiva</strong>
+                  <span>Reforço escolar</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="testimonial-card">
+              <div class="testimonial-quote-mark">&ldquo;</div>
+              <p class="testimonial-text">Comecei sozinho e agora gerencio 3 professores parceiros. O sistema cresceu comigo, sem dor de cabeça.</p>
+              <div class="testimonial-author">
+                <div class="testimonial-avatar">ML</div>
+                <div>
+                  <strong>Prof. Marcos Lima</strong>
+                  <span>Matemática e física</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         HOW IT WORKS — decorative Fraunces numbers
+    ============================================================ -->
+    <section class="section section-alt" id="how">
+      <div class="container">
+        <div class="section-header center reveal">
+          <div class="section-tag">Como funciona</div>
+          <h2 class="section-title">Pronto para usar<br><em>em 3 passos.</em></h2>
+          <p class="section-desc">Setup rápido. Rotina mais leve desde o primeiro dia.</p>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card reveal">
+            <div class="step-bg-num">1</div>
+            <div class="step-num">1</div>
+            <h3>Cadastre seus alunos</h3>
+            <p>Nome, contato, plano e quantidade de aulas. Rápido e direto.</p>
+            <span class="step-time"><i data-lucide="clock"></i> ~2 min por aluno</span>
+          </div>
+          <div class="step-card reveal" data-delay="1">
+            <div class="step-bg-num">2</div>
+            <div class="step-num">2</div>
+            <h3>Organize a agenda</h3>
+            <p>Agende aulas, defina horários recorrentes e planeje o conteúdo por data.</p>
+            <span class="step-time"><i data-lucide="clock"></i> ~5 min de setup inicial</span>
+          </div>
+          <div class="step-card reveal" data-delay="2">
+            <div class="step-bg-num">3</div>
+            <div class="step-num">3</div>
+            <h3>Controle e cobre</h3>
+            <p>Acompanhe pendências e envie cobranças pelo WhatsApp com um clique.</p>
+            <span class="step-time"><i data-lucide="clock"></i> 30 seg por cobrança</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         PRICING
+    ============================================================ -->
+    <section class="section" id="pricing">
+      <div class="container">
+        <div class="section-header center reveal">
+          <div class="section-tag">Planos</div>
+          <h2 class="section-title">Preço justo.<br><em>Sem surpresas.</em></h2>
+          <p class="section-desc">7 dias grátis, sem cartão. Escolha o plano quando estiver pronto.</p>
+        </div>
+
+        <div style="text-align:center" class="reveal">
+          <div class="billing-toggle" id="billingToggle">
+            <button class="billing-btn active" data-period="monthly">Mensal</button>
+            <button class="billing-btn" data-period="semestral">Semestral<small>−10%</small></button>
+            <button class="billing-btn" data-period="annual">Anual<small>−20%</small></button>
+          </div>
+        </div>
+
+        <div class="pricing-grid reveal" id="pricingGrid">
+
+          <!-- Basic -->
+          <div class="price-card">
+            <div class="price-tier">Para começar</div>
+            <h3>Basic</h3>
+            <div class="price-sub">Organizar sem complicar</div>
+            <div class="price-amount-row">
+              <span class="price-value" data-monthly="R$ 49,90" data-semestral="R$ 44,90" data-annual="R$ 39,90">R$ 49,90</span>
+              <span class="price-period" data-monthly="/mês" data-semestral="/mês" data-annual="/mês">/mês</span>
+            </div>
+            <ul class="price-features">
+              <li><i data-lucide="check"></i> Até 15 alunos</li>
+              <li><i data-lucide="check"></i> Agenda completa</li>
+              <li><i data-lucide="check"></i> Financeiro completo</li>
+              <li><i data-lucide="check"></i> Planejamento de aulas</li>
+              <li><i data-lucide="check"></i> Recibos de pagamento</li>
+              <li class="disabled"><i data-lucide="x"></i> Professores parceiros</li>
+              <li class="disabled"><i data-lucide="x"></i> Agenda pública</li>
+            </ul>
+            <a href="/signup/?tier=basic&plan=monthly" class="btn-price btn-price-outline signup-link" data-tier="basic">Começar grátis</a>
+          </div>
+
+          <!-- Premium — dark inverted -->
+          <div class="price-card popular">
+            <div class="popular-badge">MAIS ESCOLHIDO</div>
+            <div class="price-tier">Para crescer</div>
+            <h3>Premium</h3>
+            <div class="price-sub">Recursos + praticidade</div>
+            <div class="price-amount-row">
+              <span class="price-value" data-monthly="R$ 69,90" data-semestral="R$ 62,90" data-annual="R$ 55,90">R$ 69,90</span>
+              <span class="price-period" data-monthly="/mês" data-semestral="/mês" data-annual="/mês">/mês</span>
+            </div>
+            <ul class="price-features">
+              <li><i data-lucide="check"></i> Alunos ilimitados</li>
+              <li><i data-lucide="check"></i> Até 2 professores parceiros</li>
+              <li><i data-lucide="check"></i> Agenda pública (link próprio)</li>
+              <li><i data-lucide="check"></i> Tudo do Basic</li>
+              <li><i data-lucide="check"></i> Suporte prioritário</li>
+            </ul>
+            <a href="/signup/?tier=premium&plan=monthly" class="btn-price btn-price-fill signup-link" data-tier="premium">Começar grátis</a>
+          </div>
+
+          <!-- Platinum -->
+          <div class="price-card">
+            <div class="price-tier">Para escolas</div>
+            <h3>Platinum</h3>
+            <div class="price-sub">Multi-professores sem limite</div>
+            <div class="price-amount-row">
+              <span class="price-value" data-monthly="R$ 89,90" data-semestral="R$ 80,90" data-annual="R$ 71,90">R$ 89,90</span>
+              <span class="price-period" data-monthly="/mês" data-semestral="/mês" data-annual="/mês">/mês</span>
+            </div>
+            <ul class="price-features">
+              <li><i data-lucide="check"></i> Alunos ilimitados</li>
+              <li><i data-lucide="check"></i> Parceiros ilimitados</li>
+              <li><i data-lucide="check"></i> Agenda pública</li>
+              <li><i data-lucide="check"></i> Tudo do Premium</li>
+              <li><i data-lucide="check"></i> Suporte VIP</li>
+            </ul>
+            <a href="/signup/?tier=platinum&plan=monthly" class="btn-price btn-price-outline signup-link" data-tier="platinum">Começar grátis</a>
+          </div>
+
+        </div>
+
+        <!-- Trust strip -->
+        <div class="trust-strip reveal">
+          <div class="trust-item"><i data-lucide="shield-check"></i> Pagamentos via Stripe</div>
+          <div class="trust-item"><i data-lucide="x-circle"></i> Cancele quando quiser</div>
+          <div class="trust-item"><i data-lucide="file-x"></i> Sem contrato de fidelidade</div>
+          <div class="trust-item"><i data-lucide="headphones"></i> Suporte humano incluído</div>
+        </div>
+
+        <p class="pricing-note reveal">
+          Precisa de nota fiscal ou personalização? <a href="#" class="js-contact-trigger">Fale conosco</a>.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FAQ
+    ============================================================ -->
+    <section class="section section-alt" id="faq">
+      <div class="container-sm">
+        <div class="section-header center reveal">
+          <div class="section-tag">FAQ</div>
+          <h2 class="section-title">Perguntas<br><em>frequentes.</em></h2>
+          <p class="section-desc">Ficou com alguma dúvida? <a href="#" class="js-contact-trigger" style="color: var(--color-primary); text-decoration: underline;">Fale diretamente com a gente</a>.</p>
+        </div>
+
+        <div class="faq-list reveal">
+          <div class="faq-item">
+            <button class="faq-question">Como funciona o período de teste?<i data-lucide="chevron-down"></i></button>
+            <div class="faq-answer">
+              <p>Você tem 7 dias de acesso completo. <strong>Não pedimos cartão de crédito</strong>. Se ao final do período você não assinar, a conta fica suspensa até a ativação de um plano.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question">Vale a pena para quem tem poucos alunos?<i data-lucide="chevron-down"></i></button>
+            <div class="faq-answer">
+              <p>Sim. Mesmo com 5 ou 8 alunos, a clareza financeira e a organização da agenda já valem o custo. O tempo que você economiza em cobranças e controle manual paga a assinatura no primeiro mês.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question">Precisa instalar alguma coisa?<i data-lucide="chevron-down"></i></button>
+            <div class="faq-answer">
+              <p>Não. É 100% online. Funciona no navegador do celular, tablet ou computador — sem app, sem instalação, sem configuração técnica.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question">Posso cancelar quando quiser?<i data-lucide="chevron-down"></i></button>
+            <div class="faq-answer">
+              <p>Sim. Cancele direto pelo painel, sem burocracia, sem telefonema. Sem multas ou período mínimo de fidelidade.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question">Como funciona a cobrança por WhatsApp?<i data-lucide="chevron-down"></i></button>
+            <div class="faq-answer">
+              <p>O sistema gera uma mensagem personalizada com os dados do aluno, valor e vencimento. Você copia e envia com um clique. Sem digitar, sem errar valor, sem constrangimento.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question">O que acontece com meus dados se eu cancelar?<i data-lucide="chevron-down"></i></button>
+            <div class="faq-answer">
+              <p>Seus dados ficam preservados por 30 dias após o cancelamento. Se você reativar nesse período, tudo estará exatamente como deixou.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question">Meus dados ficam seguros?<i data-lucide="chevron-down"></i></button>
+            <div class="faq-answer">
+              <p>Sim. Usamos criptografia, controle de acesso rigoroso, e pagamentos processados pelo Stripe — referência mundial em segurança financeira.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question">Posso importar alunos de uma planilha?<i data-lucide="chevron-down"></i></button>
+            <div class="faq-answer">
+              <p>Sim. Você pode importar dados básicos e ajustar em minutos. Se precisar de ajuda, nosso suporte faz a migração gratuitamente.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FINAL CTA — dark, Fraunces, impacto máximo
+    ============================================================ -->
+    <section class="final-cta">
+      <div class="container final-cta-inner">
+        <h2 class="reveal">
+          Chega de planilha.<br>
+          <em>Comece hoje.</em>
+        </h2>
+        <p class="reveal" data-delay="1">
+          7 dias grátis, sem cartão e sem compromisso.<br>
+          Se não gostar, não paga nada.
+        </p>
+        <div class="final-cta-actions reveal" data-delay="2">
+          <a href="/signup/?tier=basic&plan=monthly" class="btn btn-primary cta-signup">
+            <i data-lucide="arrow-right"></i>
+            Começar teste grátis
+          </a>
+          <a href="#pricing" class="btn btn-outline-white">
+            <i data-lucide="layout-grid"></i>
+            Ver planos
+          </a>
+        </div>
+        <div class="final-cta-micro reveal" data-delay="3">
+          <span><i data-lucide="shield"></i> Sem cartão de crédito</span>
+          <span><i data-lucide="x"></i> Cancele quando quiser</span>
+          <span><i data-lucide="clock"></i> Setup em 2 minutos</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================
+       CONTACT MODAL
+  ============================================================ -->
+  <div class="contact-overlay" id="contactModal" role="dialog" aria-modal="true">
+    <div class="contact-box">
+      <button type="button" class="contact-close" id="contactClose" aria-label="Fechar">&times;</button>
+      <h3>Entre em contato</h3>
+      <form id="contactForm">
+        {% csrf_token %}
+        <div class="contact-field">
+          <label for="contactName">Nome</label>
+          <input type="text" id="contactName" name="name" required placeholder="Seu nome" maxlength="100" />
+        </div>
+        <div class="contact-field">
+          <label for="contactContact">WhatsApp ou Email</label>
+          <input type="text" id="contactContact" name="contact" required placeholder="(11) 99999-9999 ou email@exemplo.com" maxlength="150" />
+        </div>
+        <div class="contact-field">
+          <label for="contactMessage">Dúvida</label>
+          <textarea id="contactMessage" name="message" required placeholder="Como podemos ajudar?" maxlength="500" rows="3"></textarea>
+        </div>
+        <button type="submit" class="contact-submit" id="contactSubmit">Enviar</button>
+        <p class="contact-feedback" id="contactFeedback"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       FOOTER — dark
+  ============================================================ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne">
+            EDUCAflowOne
+          </div>
+          <p class="footer-brand-text">
+            A plataforma de gestão para professores particulares que querem clareza, controle e mais tempo livre.
+          </p>
+          <div class="footer-socials">
+            <a href="https://www.instagram.com/educaflow.one/" target="_blank" rel="noopener" aria-label="Instagram"><i data-lucide="instagram"></i></a>
+            <a href="https://www.youtube.com/@Educaflowone" target="_blank" rel="noopener" aria-label="YouTube"><i data-lucide="youtube"></i></a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4>Produto</h4>
+          <ul>
+            <li><a href="#features">Recursos</a></li>
+            <li><a href="#pricing">Planos</a></li>
+            <li><a href="#screenshots">Sistema</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Empresa</h4>
+          <ul>
+            <li><a href="#">Sobre</a></li>
+            <li><a href="#" class="js-contact-trigger">Contato</a></li>
+            <li><a href="#">Blog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="#">Termos de uso</a></li>
+            <li><a href="#">Privacidade</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>&copy; 2026 EDUCAflowOne. Todos os direitos reservados.</span>
+        <div class="footer-trust">
+          <i data-lucide="shield-check"></i>
+          Ambiente seguro
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Mobile sticky CTA -->
+  <div class="mobile-sticky">
+    <div class="mobile-sticky-inner">
+      <div class="mobile-sticky-text">
+        Teste 7 dias grátis
+        <span>Sem cartão de crédito</span>
+      </div>
+      <a href="/signup/?tier=basic&plan=monthly" class="btn btn-primary cta-signup" style="padding:.65rem 1.25rem;font-size:.85rem;">
+        <i data-lucide="arrow-right"></i>
+        Começar
+      </a>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    /* ---- Navbar scroll ---- */
+    const navbar = document.getElementById('navbar');
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          navbar.classList.toggle('scrolled', window.scrollY > 50);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+
+    /* ---- Mobile menu ---- */
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const navLinks = document.querySelector('.nav-links');
+    let menuOpen = false;
+    mobileMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menuOpen = !menuOpen;
+      navLinks.style.display = menuOpen ? 'flex' : 'none';
+    });
+    navLinks.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', () => {
+        if (window.innerWidth <= 768) { menuOpen = false; navLinks.style.display = 'none'; }
+      });
+    });
+    document.addEventListener('click', (e) => {
+      if (menuOpen && !navLinks.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+        menuOpen = false; navLinks.style.display = 'none';
+      }
+    });
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768) { navLinks.style.display = ''; menuOpen = false; }
+    });
+
+    /* ---- Scroll reveal with stagger ---- */
+    const revealEls = document.querySelectorAll('.reveal');
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -32px 0px' });
+    revealEls.forEach(el => revealObserver.observe(el));
+
+    /* ---- Smooth scroll ---- */
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        const id = a.getAttribute('href');
+        if (!id || id === '#') return;
+        const el = document.querySelector(id);
+        if (!el) return;
+        e.preventDefault();
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.pageYOffset - 80, behavior: 'smooth' });
+      });
+    });
+
+    /* ---- Pricing toggle ---- */
+    const billingBtns = document.querySelectorAll('.billing-btn');
+    const pricingGrid = document.getElementById('pricingGrid');
+    billingBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        billingBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const period = btn.dataset.period;
+        pricingGrid.querySelectorAll('.price-value').forEach(el => { el.textContent = el.dataset[period]; });
+        pricingGrid.querySelectorAll('.price-period').forEach(el => { el.textContent = el.dataset[period]; });
+        pricingGrid.querySelectorAll('.signup-link').forEach(link => {
+          const url = new URL(link.href);
+          url.searchParams.set('plan', period);
+          link.href = url.toString();
+        });
+      });
+    });
+
+    /* ---- Carousel ---- */
+    let carouselIdx = 0;
+    const track = document.getElementById('carouselTrack');
+    const cards = track.querySelectorAll('.testimonial-card');
+    function moveCarousel(dir) {
+      const gap = parseFloat(getComputedStyle(track).gap) || 20;
+      const cardWidth = cards[0].offsetWidth + gap;
+      const wrapWidth = track.parentElement.offsetWidth;
+      const maxVisible = Math.max(1, Math.floor(wrapWidth / cardWidth));
+      const maxIdx = Math.max(0, cards.length - maxVisible);
+      carouselIdx = Math.max(0, Math.min(carouselIdx + dir, maxIdx));
+      track.style.transform = `translateX(-${carouselIdx * cardWidth}px)`;
+    }
+    document.getElementById('carouselPrev').addEventListener('click', () => moveCarousel(-1));
+    document.getElementById('carouselNext').addEventListener('click', () => moveCarousel(1));
+    let touchStartX = 0;
+    track.parentElement.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+    track.parentElement.addEventListener('touchend', e => {
+      const diff = touchStartX - e.changedTouches[0].screenX;
+      if (Math.abs(diff) > 50) moveCarousel(diff > 0 ? 1 : -1);
+    }, { passive: true });
+
+    /* ---- Contact modal ---- */
+    function getCookie(n) {
+      const v = '; ' + document.cookie;
+      const p = v.split('; ' + n + '=');
+      return p.length === 2 ? p.pop().split(';').shift() : null;
+    }
+    const contactModal = document.getElementById('contactModal');
+    const contactForm = document.getElementById('contactForm');
+    const contactFeedback = document.getElementById('contactFeedback');
+    const contactSubmitBtn = document.getElementById('contactSubmit');
+    document.querySelectorAll('.js-contact-trigger').forEach(a => {
+      a.addEventListener('click', e => { e.preventDefault(); contactModal.classList.add('open'); });
+    });
+    document.getElementById('contactClose').addEventListener('click', () => contactModal.classList.remove('open'));
+    contactModal.addEventListener('click', e => { if (e.target === contactModal) contactModal.classList.remove('open'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') contactModal.classList.remove('open'); });
+    contactForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      contactFeedback.className = 'contact-feedback'; contactFeedback.style.display = 'none';
+      const name = document.getElementById('contactName').value.trim();
+      const contact = document.getElementById('contactContact').value.trim();
+      const message = document.getElementById('contactMessage').value.trim();
+      if (!name || !contact || !message) {
+        contactFeedback.className = 'contact-feedback error';
+        contactFeedback.textContent = 'Preencha todos os campos.';
+        contactFeedback.style.display = 'block'; return;
+      }
+      contactSubmitBtn.disabled = true; contactSubmitBtn.textContent = 'Enviando…';
+      try {
+        let csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+        if (!csrf) { await fetch('/', { method: 'GET', credentials: 'same-origin' }); csrf = getCookie('csrftoken'); }
+        const res = await fetch('/api/landing/contact/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ name, contact, message })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          contactFeedback.className = 'contact-feedback success';
+          contactFeedback.textContent = data.message || 'Enviado!';
+          contactFeedback.style.display = 'block';
+          contactForm.reset();
+          setTimeout(() => contactModal.classList.remove('open'), 1500);
+        } else {
+          contactFeedback.className = 'contact-feedback error';
+          contactFeedback.textContent = data.error || 'Erro ao enviar.';
+          contactFeedback.style.display = 'block';
+        }
+      } catch {
+        contactFeedback.className = 'contact-feedback error';
+        contactFeedback.textContent = 'Erro de conexão. Tente novamente.';
+        contactFeedback.style.display = 'block';
+      }
+      contactSubmitBtn.disabled = false; contactSubmitBtn.textContent = 'Enviar';
+    });
+
+    /* ---- Meta Pixel: Lead on CTA click ---- */
+    document.querySelectorAll('.cta-signup, .signup-link').forEach(link => {
+      link.addEventListener('click', () => {
+        if (typeof fbq === 'function') fbq('track', 'Lead');
+      });
+    });
+
+    /* ---- FAQ accordion ---- */
+    document.querySelectorAll('.faq-question').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = btn.parentElement;
+        const isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('open'));
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+  </script>
+</body>
+</html>

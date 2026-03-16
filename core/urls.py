@@ -34,8 +34,10 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
-    path("landing/", TemplateView.as_view(template_name="landing.html"), name="landing"),
+    path("landing/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing"),
     path("landing-v3/", TemplateView.as_view(template_name="test_landing_v3.html"), name="landing-v3"),
+    path("landing-v4/", TemplateView.as_view(template_name="test_landing_v4.html"), name="landing-v4"),
+    path("landing-v5/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing-v5"),
     path("agendar/", PublicCalendarView.as_view(), name="public-calendar"),
     path("agendar/<slug:slug>/", PublicCalendarView.as_view(), name="public-calendar-slug"),
     path("api/public/<slug:slug>/availability/", public_availability_api, name="api-public-availability"),
