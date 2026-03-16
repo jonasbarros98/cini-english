@@ -3027,6 +3027,67 @@ function updateUsersKpis() {
   if (exemptEl) exemptEl.textContent = exempt;
 }
 
+// Helpers para datas de usuários (trial / cadastro)
+function formatDateBr(dateStr) {
+  if (!dateStr) return "";
+  // Aceita "2026-03-16" ou "2026-03-16T12:34:56Z"
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const ano = d.getFullYear();
+  return `${dia}/${mes}/${ano}`;
+}
+
+function getTrialInfo(user) {
+  // Considera "trial" quando não tem assinatura ativa e não é isento
+  const sub = user.subscription_summary;
+  const isTrialCandidate = !user.subscription_exempt && !(sub?.is_active);
+  if (!isTrialCandidate) return null;
+
+  const joinedStr = user.date_joined;
+  if (!joinedStr) return null;
+
+  const start = new Date(joinedStr);
+  if (isNaN(start.getTime())) return null;
+
+  // Trial de 7 dias a partir da data de cadastro
+  const end = new Date(start.getTime());
+  end.setDate(end.getDate() + 7);
+
+  const today = new Date();
+  // Zera horário pra evitar off-by-one visual
+  today.setHours(0, 0, 0, 0);
+  const endMid = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+  const diffMs = endMid - today;
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  let statusLabel = "";
+  let statusClass = "";
+
+  if (diffDays > 2) {
+    statusLabel = `Faltam ${diffDays} dias`;
+    statusClass = "trial-ok";
+  } else if (diffDays > 0) {
+    statusLabel = `Faltam ${diffDays} dia${diffDays === 1 ? "" : "s"}`;
+    statusClass = "trial-alert";
+  } else if (diffDays === 0) {
+    statusLabel = "Expira hoje";
+    statusClass = "trial-danger";
+  } else {
+    statusLabel = `Expirado há ${Math.abs(diffDays)} dia${Math.abs(diffDays) === 1 ? "" : "s"}`;
+    statusClass = "trial-expired";
+  }
+
+  return {
+    startLabel: formatDateBr(start.toISOString()),
+    endLabel: formatDateBr(endMid.toISOString()),
+    statusLabel,
+    statusClass,
+  };
+}
+
 function renderUsers() {
   const list = document.getElementById("usersList");
   if (!list) return;
@@ -3050,6 +3111,8 @@ function renderUsers() {
     const subTagClass = user.subscription_exempt ? "" : (sub?.is_active ? "sub-active" : (sub ? "sub-inactive" : "sub-pending"));
     const subTagText = user.subscription_exempt ? "Liberado" : (sub?.is_active ? sub.tier_display || "Ativo" : (sub ? sub.status_display || "Inativo" : "Sem plano"));
     const partnerCount = user.partner_teachers?.length || 0;
+    const trialInfo = getTrialInfo(user);
+    const joinedLabel = formatDateBr(user.date_joined);
 
     const card = document.createElement("div");
     card.className = "user-card";
@@ -3068,6 +3131,8 @@ function renderUsers() {
         <div class="user-card-meta">
           <span>${escapeHtml(user.email || "Sem email")}</span>
           <span>${user.is_active ? "Ativo" : "Inativo"}</span>
+          ${joinedLabel ? `<span title="Data de cadastro">Cadastrado em ${joinedLabel}</span>` : ""}
+          ${trialInfo ? `<span class="user-trial-pill ${trialInfo.statusClass}" title="Trial de 7 dias">Trial: ${trialInfo.startLabel} → ${trialInfo.endLabel} · ${trialInfo.statusLabel}</span>` : ""}
           ${partnerCount ? `<span>${partnerCount} parceiro(s)</span>` : ""}
           ${user.user_profile === 'prof_parceiro' && user.owner_teacher ? `<span class="user-card-owner" title="Professor dono da conta">Prof. dono: ${escapeHtml(user.owner_teacher.name || user.owner_teacher.username)}</span>` : ""}
         </div>
