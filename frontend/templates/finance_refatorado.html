@@ -765,6 +765,9 @@
       justify-content:center;
       padding: 18px;
       z-index: 100;
+      overflow-x: hidden;
+      overflow-y: auto; /* permite rolar quando o modal é maior que a viewport (iPad) */
+      -webkit-overflow-scrolling: touch;
     }
     .modal-backdrop.open{ display:flex; }
     .modal{
@@ -779,6 +782,9 @@
       animation: modalIn .16s ease-out forwards;
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 36px);
     }
     @keyframes modalIn{
       to{ transform: translateY(0); opacity: 1; }
@@ -801,6 +807,7 @@
     .modal-head p{ margin: 4px 0 0; color: var(--muted); font-weight: 750; font-size: 13px; }
     .modal-body{
       padding: 14px 16px 16px;
+      overflow: auto;
     }
 
     .form{
@@ -854,6 +861,17 @@
       border-top: 1px solid var(--border);
       background: rgba(255,255,255,.75);
       flex-wrap: wrap;
+    }
+
+    /* Touch/tablet: evita “travamento” de scroll no iPad */
+    @media (hover: none) and (pointer: coarse){
+      .modal-backdrop{
+        align-items: flex-start;
+        padding-top: 60px;
+      }
+      .modal{
+        max-height: calc(100vh - 84px);
+      }
     }
 
     /* Modal mobile - evitar overflow no iPhone */
