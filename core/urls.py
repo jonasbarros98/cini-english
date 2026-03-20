@@ -25,6 +25,7 @@ from .views import (
     StudentAreaView, student_share_link, student_share_link_regenerate,
     public_area_aluno_homework_comment,
     onboarding_progress_internal,
+    TasksV2View,
 )
 
 router = DefaultRouter()
@@ -60,6 +61,7 @@ urlpatterns = [
     path("cobranca/", RedirectView.as_view(url="/?view=view-billing", permanent=False), name="cobranca"),
     path("alunos/", AlunosView.as_view(), name="alunos"),
     path("alunos/<int:student_id>/", AlunoDetalheView.as_view(), name="aluno-detalhe-id"),
+    path("tasks-v2/", TasksV2View.as_view(), name="tasks-v2"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("signup/", TemplateView.as_view(template_name="signup.html"), name="signup"),
     path("payment-processing/", TemplateView.as_view(template_name="payment_processing.html"), name="payment-processing"),

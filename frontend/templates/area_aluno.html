@@ -1823,7 +1823,6 @@
           const prog = Number(hw.progress_percent || 0);
           const width = `${prog}%`;
           const teacherNote = (hw.teacher_feedback && String(hw.teacher_feedback).trim()) ? hw.teacher_feedback : '';
-          const response = (hw.student_response && String(hw.student_response).trim()) ? hw.student_response : '';
           const messages = Array.isArray(hw.messages) ? hw.messages : [];
           const historyHtml = messages.length
             ? `<div class="existing-comment" style="margin-bottom:10px;"><div class="chat-thread">${messages.map(msg => {
@@ -1865,7 +1864,7 @@
                 <div class="hw-comment-section">
                   <label>Seu comentário</label>
                   <div class="comment-area-wrap" id="comment-area-hw-${hw.id}">
-                    <textarea class="comment-textarea" placeholder="Teve dificuldade? Ficou com dúvida? Deixe um comentário para o professor…" rows="3">${esc(response)}</textarea>
+                    <textarea class="comment-textarea" placeholder="Teve dificuldade? Ficou com dúvida? Deixe um comentário para o professor…" rows="3"></textarea>
                     <div class="comment-submit-row">
                       <button class="btn-comment btn-comment-ghost" onclick="cancelComment('hw-${hw.id}')">Cancelar</button>
                       <button class="btn-comment btn-comment-primary" onclick="submitComment('hw-${hw.id}')">
@@ -1899,7 +1898,6 @@
 
         done.forEach(hw => {
           const teacherNote = (hw.teacher_feedback && String(hw.teacher_feedback).trim()) ? hw.teacher_feedback : '';
-          const response = (hw.student_response && String(hw.student_response).trim()) ? hw.student_response : '';
           const messages = Array.isArray(hw.messages) ? hw.messages : [];
           const historyHtml = messages.length
             ? `<div class="existing-comment"><div class="chat-thread">${messages.map(msg => {
@@ -1938,7 +1936,7 @@
                 ${teacherNote ? `<div class="hw-teacher-note"><strong>Feedback do professor</strong><p>${esc(teacherNote)}</p></div>` : ''}
                 <div class="hw-comment-section">
                   <label>Seu comentário</label>
-                  ${historyHtml || (response ? `<div class="existing-comment"><p>${esc(response)}</p></div>` : `<div class="existing-comment"><p>Sem mensagens ainda.</p></div>`)}
+                  ${historyHtml || `<div class="existing-comment"><p>Sem mensagens ainda.</p></div>`}
                 </div>
               </div>
             </div>

@@ -2420,22 +2420,8 @@ async function showView(viewId) {
 
   // Esconde menu de Tarefas e Cobrança para Prof. Parceiro
   const isPartnerTeacher = state.currentUser && state.currentUser.user_profile === "prof_parceiro";
-  const navTasks = document.querySelector('[data-view="view-tasks"]');
-  if (navTasks) navTasks.style.display = isPartnerTeacher ? "none" : "";
   const navBilling = document.querySelector('[data-view="view-billing"]');
   if (navBilling) navBilling.style.display = isPartnerTeacher ? "none" : "flex";
-
-  // Se abrir a visualização de tarefas
-  if (viewId === "view-tasks") {
-    try {
-      await loadTasks();
-      renderTasks();
-      renderTaskStats();
-      initTasksUI();
-    } catch (error) {
-      console.error("Erro ao carregar tarefas:", error);
-    }
-  }
   
   // Visualização de alunos removida - agora em /alunos/
   

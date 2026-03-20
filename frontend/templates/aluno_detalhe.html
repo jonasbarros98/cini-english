@@ -1056,7 +1056,7 @@
           </div>
         </a>
         {% if not is_partner_teacher %}
-        <a href="/?view=view-tasks" class="nav-item">
+        <a href="/tasks-v2/" class="nav-item">
           <span class="nav-emoji">✅</span>
           <div>
             <p class="nav-title">Tarefas</p>
@@ -1418,13 +1418,24 @@
             <div id="materiaisList">
               {% for mat in materiais %}
               <div class="material-item" data-type="{{ mat.file_type }}">
-                <div class="mat-icon {{ mat.file_type }}">{% if mat.file_type == 'pdf' %}<i data-lucide="file-text" style="width:16px;height:16px"></i>{% elif mat.file_type == 'audio' %}<i data-lucide="headphones" style="width:16px;height:16px"></i>{% elif mat.file_type == 'video' %}<i data-lucide="play-circle" style="width:16px;height:16px"></i>{% else %}<i data-lucide="file" style="width:16px;height:16px"></i>{% endif %}</div>
+                <div class="mat-icon {{ mat.file_type }}">{% if mat.file_type == 'pdf' %}<i data-lucide="file-text" style="width:16px;height:16px"></i>{% elif mat.file_type == 'audio' %}<i data-lucide="headphones" style="width:16px;height:16px"></i>{% elif mat.file_type == 'video' %}<i data-lucide="play-circle" style="width:16px;height:16px"></i>{% elif mat.file_type == 'link' %}<i data-lucide="link-2" style="width:16px;height:16px"></i>{% else %}<i data-lucide="file" style="width:16px;height:16px"></i>{% endif %}</div>
                 <div class="mat-info">
                   <strong><a href="{{ mat.url }}" target="_blank" rel="noopener">{{ mat.original_filename }}</a></strong>
-                  <span>{% if mat.file_type == 'pdf' %}PDF{% elif mat.file_type == 'audio' %}Áudio{% elif mat.file_type == 'video' %}Vídeo{% else %}Arquivo{% endif %} · Planejamento {{ mat.plan_date|date:"d/m/Y" }}</span>
+                  <span>{% if mat.file_type == 'pdf' %}PDF{% elif mat.file_type == 'audio' %}Áudio{% elif mat.file_type == 'video' %}Vídeo{% elif mat.file_type == 'link' %}Link{% else %}Arquivo{% endif %} · Planejamento {{ mat.plan_date|date:"d/m/Y" }}</span>
                 </div>
                 <div class="mat-actions">
-                  <a href="{{ mat.url }}" target="_blank" rel="noopener" class="icon-btn" title="Abrir/Download"><i data-lucide="download" style="width:13px;height:13px"></i></a>
+                  <a href="{{ mat.url }}" target="_blank" rel="noopener" class="icon-btn" title="Abrir/Download"><i data-lucide="{% if mat.file_type == 'link' %}external-link{% else %}download{% endif %}" style="width:13px;height:13px"></i></a>
+                  {% if mat.attachment_id %}
+                  <button
+                    type="button"
+                    class="icon-btn mat-delete-btn"
+                    data-attachment-id="{{ mat.attachment_id }}"
+                    title="Excluir material"
+                    aria-label="Excluir material"
+                  >
+                    <i data-lucide="trash-2" style="width:13px;height:13px"></i>
+                  </button>
+                  {% endif %}
                 </div>
               </div>
               {% empty %}
@@ -1491,14 +1502,27 @@
             </div>
 
             <!-- Log de aulas -->
-            <div class="panel">
+            <div class="panel panel--collapsible panel--collapsed" id="panelCalendarLessonsLog">
               <div class="panel-head">
                 <h3 id="calLogTitle">Log de Aulas</h3>
-                <button class="btn sm primary" type="button" id="btnOpenNewLesson">
-                  <i data-lucide="plus" style="width:12px;height:12px"></i> Registrar
-                </button>
+                <div class="panel-head-right">
+                  <button class="btn sm primary" type="button" id="btnOpenNewLesson">
+                    <i data-lucide="plus" style="width:12px;height:12px"></i> Registrar
+                  </button>
+                  <button
+                    type="button"
+                    class="panel-toggle-btn js-panel-toggle"
+                    data-panel-target="panelCalendarLessonsLog"
+                    aria-controls="panelCalendarLessonsLogBody"
+                    aria-expanded="false"
+                    title="Mostrar/ocultar log"
+                  >
+                    <i data-lucide="chevron-down"></i>
+                    <span style="font-size:11px;font-weight:800;color:var(--muted);">Ver</span>
+                  </button>
+                </div>
               </div>
-              <div class="panel-body">
+              <div class="panel-body" id="panelCalendarLessonsLogBody">
                 <div class="class-log" id="calLogList">
                   <p class="muted" style="padding:8px 0;margin:0">Carregando aulas…</p>
                 </div>
@@ -1796,6 +1820,13 @@
         </div>
         <div class="two-col">
           <div class="field">
+            <label for="matInputMode">Tipo de material</label>
+            <select id="matInputMode">
+              <option value="file">Arquivo</option>
+              <option value="link">Link externo</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="matFileKind">Tipo de arquivo</label>
             <select id="matFileKind">
               <option value="pdf" data-accept=".pdf">PDF</option>
@@ -1812,8 +1843,12 @@
             <input type="date" id="matPlanDate"/>
           </div>
         </div>
+        <div class="field" id="matExternalUrlWrap" style="display:none">
+          <label for="matExternalUrl">Link externo *</label>
+          <input type="url" id="matExternalUrl" placeholder="https://..." />
+        </div>
         <div class="field">
-          <label>Arquivo *</label>
+          <label id="matFileLabel">Arquivo *</label>
           <input type="file" id="materialFileInput" style="display:none"/>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button type="button" class="btn sm ghost" id="matPickFile">
@@ -1822,7 +1857,7 @@
             <span class="muted" id="matFileName" style="font-size:12px;font-weight:600">Nenhum arquivo selecionado</span>
           </div>
         </div>
-        <p class="muted" style="font-size:11px;margin:0;line-height:1.4">Para <strong>link externo</strong>, inclua o link no campo “links” ao editar o planejamento da aula na agenda.</p>
+        <p class="muted" style="font-size:11px;margin:0;line-height:1.4">Você pode enviar <strong>arquivo</strong> ou informar um <strong>link externo</strong>.</p>
       </div>
       <div class="modal-actions">
         <button class="btn ghost" type="button" onclick="closeModal('modalMaterial')">Cancelar</button>
@@ -2369,26 +2404,43 @@
       const input = document.getElementById('materialFileInput');
       const matPick = document.getElementById('matPickFile');
       const matKind = document.getElementById('matFileKind');
+      const matMode = document.getElementById('matInputMode');
       const matTitle = document.getElementById('matDisplayTitle');
       const matDate = document.getElementById('matPlanDate');
       const matFileName = document.getElementById('matFileName');
+      const matUrlWrap = document.getElementById('matExternalUrlWrap');
+      const matUrl = document.getElementById('matExternalUrl');
+      const matFileLabel = document.getElementById('matFileLabel');
       const getCookie = (name) => {
         const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
         return v ? v[2] : null;
       };
+      function syncMaterialMode() {
+        const mode = (matMode && matMode.value) || 'file';
+        const isLink = mode === 'link';
+        if (matUrlWrap) matUrlWrap.style.display = isLink ? '' : 'none';
+        if (matKind) matKind.closest('.field').style.display = isLink ? 'none' : '';
+        if (matPick) matPick.style.display = isLink ? 'none' : '';
+        if (matFileLabel) matFileLabel.textContent = isLink ? 'Arquivo (opcional)' : 'Arquivo *';
+        if (!isLink && input) syncMatAccept();
+      }
       function syncMatAccept() {
         if (!input || !matKind) return;
         const opt = matKind.options[matKind.selectedIndex];
         input.accept = (opt && opt.getAttribute('data-accept')) || '';
       }
       if (matKind) matKind.addEventListener('change', syncMatAccept);
+      if (matMode) matMode.addEventListener('change', syncMaterialMode);
 
       if (btnAdd) {
         btnAdd.addEventListener('click', () => {
           if (matDate) matDate.value = new Date().toISOString().slice(0, 10);
           if (matTitle) matTitle.value = '';
+          if (matMode) matMode.value = 'file';
+          if (matUrl) matUrl.value = '';
           if (input) input.value = '';
           if (matFileName) matFileName.textContent = 'Nenhum arquivo selecionado';
+          syncMaterialMode();
           syncMatAccept();
           openModal('modalMaterial');
           if (window.lucide && lucide.createIcons) lucide.createIcons();
@@ -2407,20 +2459,40 @@
       btnSubmit.addEventListener('click', async () => {
         const title = (matTitle && matTitle.value || '').trim();
         const planDate = (matDate && matDate.value || '').trim();
+        const mode = (matMode && matMode.value) || 'file';
+        const isLinkMode = mode === 'link';
+        const externalUrl = (matUrl && matUrl.value || '').trim();
         const file = input.files && input.files[0];
         if (!title) {
           showToast('Informe o título do material.', true);
           matTitle && matTitle.focus();
           return;
         }
-        if (!file) {
+        if (!isLinkMode && !file) {
           showToast('Selecione um arquivo.', true);
           return;
         }
-        const MAX_SIZE = 10 * 1024 * 1024;
-        if (file.size > MAX_SIZE) {
-          showToast('Arquivo muito grande. Máx. 10MB.', true);
+        if (isLinkMode && !externalUrl) {
+          showToast('Informe o link externo.', true);
+          matUrl && matUrl.focus();
           return;
+        }
+        if (externalUrl) {
+          try {
+            const parsed = new URL(externalUrl);
+            if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid');
+          } catch (e) {
+            showToast('Informe um link válido (http:// ou https://).', true);
+            matUrl && matUrl.focus();
+            return;
+          }
+        }
+        if (file) {
+          const MAX_SIZE = 10 * 1024 * 1024;
+          if (file.size > MAX_SIZE) {
+            showToast('Arquivo muito grande. Máx. 10MB.', true);
+            return;
+          }
         }
         const studentId = '{{ student.id }}';
         if (!studentId) {
@@ -2428,9 +2500,10 @@
           return;
         }
         const formData = new FormData();
-        formData.append('file', file);
+        if (file) formData.append('file', file);
         formData.append('plan_date', planDate || new Date().toISOString().slice(0, 10));
         formData.append('display_title', title);
+        if (externalUrl) formData.append('external_url', externalUrl);
         const prevHtml = btnSubmit.innerHTML;
         try {
           btnSubmit.disabled = true;
@@ -2447,7 +2520,7 @@
             if (window.lucide && lucide.createIcons) lucide.createIcons();
           } else {
             closeModal('modalMaterial');
-            showToast('Material anexado com sucesso!');
+            showToast(externalUrl ? 'Link adicionado com sucesso!' : 'Material anexado com sucesso!');
             setTimeout(function () { window.location.reload(); }, 400);
           }
         } catch (e) {
@@ -2457,6 +2530,40 @@
         } finally {
           btnSubmit.disabled = false;
         }
+      });
+
+      // Excluir material (anexo)
+      document.querySelectorAll('.mat-delete-btn').forEach((btn) => {
+        btn.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const attachmentId = btn.getAttribute('data-attachment-id');
+          if (!attachmentId) return;
+          if (!window.confirm('Deseja excluir este material?')) return;
+          const prev = btn.innerHTML;
+          try {
+            btn.disabled = true;
+            btn.innerHTML = '...';
+            const res = await fetch(`/api/planning/attachments/${attachmentId}/`, {
+              method: 'DELETE',
+              headers: { 'X-CSRFToken': getCookie('csrftoken') || '' },
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              showToast(err.error || err.detail || 'Erro ao excluir material.', true);
+              btn.innerHTML = prev;
+            } else {
+              showToast('Material excluído com sucesso!');
+              setTimeout(function () { window.location.reload(); }, 250);
+            }
+          } catch (e) {
+            showToast('Erro ao excluir material.', true);
+            btn.innerHTML = prev;
+          } finally {
+            btn.disabled = false;
+            if (window.lucide && lucide.createIcons) lucide.createIcons();
+          }
+        });
       });
     })();
 

@@ -1,0 +1,204 @@
+{
+  "name": "PRD - Onboarding EducaFlowOne - Check Ativação",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "93e4033f-008d-4f18-a5e3-a0a66d784543",
+        "options": {}
+      },
+      "id": "7b63d9f2-89d7-4785-9061-a7c4a98d4de4",
+      "name": "Webhook New User",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-304, 5328],
+      "webhookId": "e4d2606a-980c-49c5-9c0a-96321617e37a"
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "minutes"
+      },
+      "id": "cf2b3cba-5616-43da-9499-f2f9f5d84c80",
+      "name": "Delay 30min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [-96, 5328],
+      "webhookId": "f6f5b57c-d50f-4f8c-a4dc-7c2cf6435427"
+    },
+    {
+      "parameters": {
+        "url": "={{((($json.body.onboarding_check_url || $json.onboarding_check_url || '')).replace('127.0.0.1','host.docker.internal').replace('localhost','host.docker.internal'))}}?user_id={{($json.body.user_id || $json.user_id)}}&token={{($json.body.onboarding_check_token || $json.onboarding_check_token)}}",
+        "options": {}
+      },
+      "id": "d0e944b8-3ae1-4362-ae31-f484bcdd2a7d",
+      "name": "Check User Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [112, 5328]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.stage}}", "value2": "missing_student"}]
+        }
+      },
+      "id": "42f1b15e-b51e-4baf-987c-05885fd239f0",
+      "name": "IF Missing Student",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [304, 5168]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.stage}}", "value2": "missing_lesson"}]
+        }
+      },
+      "id": "0c803993-f0b3-4568-91f6-e18398c24593",
+      "name": "IF Missing Lesson",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [304, 5328]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.stage}}", "value2": "activated"}]
+        }
+      },
+      "id": "8d2ed92c-cd03-4654-84e0-27ac437862c8",
+      "name": "IF Activated",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [304, 5664]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.stage}}", "value2": "missing_financial"}]
+        }
+      },
+      "id": "648fe3c3-3f06-47dd-a8c0-778d99f89370",
+      "name": "IF Missing Financeiro",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [304, 5504]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\"Authorization\":\"Bearer re_3aKm81iz_PtQuHouxqFDMKe98keNf9zv3\",\"Content-Type\":\"application/json\"}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"EducaFlowOne <onboarding@educaflowone.com.br>\",\n  \"to\": [\"{{$json.email}}\"],\n  \"subject\": \"Crie seu primeiro aluno\",\n  \"html\": \"<div style='background:#f6f7fb;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;'><div style='max-width:620px;margin:0 auto;padding:24px;'><div style='background:#ffffff;border:1px solid #e7e9f0;border-radius:16px;padding:24px;'><div style='font-size:12px;color:#6b7280;margin-bottom:10px;'>Trilha de ativacao do EducaflowOne</div><h1 style='margin:0 0 8px 0;font-size:22px;letter-spacing:-0.01em;color:#111827;'>Crie seu primeiro aluno</h1><p style='margin:0 0 16px 0;font-size:15px;color:#374151;'>Fala {{$json.first_name || $json.username}}!</p><p style='margin:0 0 16px 0;font-size:15px;color:#374151;'>Vamos comecar pelo essencial: cadastro do aluno. A partir dai, voce agenda aulas e registra financeiro/pagamentos com clareza (e ve impacto no seu dinheiro) 💰.</p><ol style='padding-left:18px;margin:0 0 18px 0;color:#111827;font-size:14px;line-height:1.6;'><li><strong>Cadastre o aluno</strong> em <a href='https://www.educaflowone.com.br/alunos/' style='color:#4f46e5;text-decoration:underline;'>Alunos</a><div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 entendi o sistema</div></li><li><strong>Agende uma aula</strong> no <a href='https://www.educaflowone.com.br/calendar/' style='color:#4f46e5;text-decoration:underline;'>Calendario</a><div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 ok, isso organiza minha agenda</div></li><li><strong>Registre financeiro/pagamentos</strong> em <a href='https://www.educaflowone.com.br/financeiro/' style='color:#4f46e5;text-decoration:underline;'>Financeiro</a><div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 💰 isso impacta meu dinheiro</div></li></ol><div style='text-align:center;margin:22px 0 8px 0;'><a href='https://educaflowone.com.br/alunos/' style='display:inline-block;background:#4f46e5;color:#ffffff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;'>Criar meu primeiro aluno</a></div><p style='margin:10px 0 0 0;font-size:12px;color:#6b7280;'>Se travar em alguma etapa, responda este e-mail que a gente te ajuda.</p></div><div style='margin-top:14px;font-size:11px;color:#9ca3af;text-align:center;'>EDUCAflowOne • organizacao de alunos, aulas e pagamentos</div></div></div>\"\n}",
+        "options": {}
+      },
+      "id": "72259c81-18e6-45bd-803f-7a9da0dcc31f",
+      "name": "Email Missing Student",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [512, 5168]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\"Authorization\":\"Bearer re_3aKm81iz_PtQuHouxqFDMKe98keNf9zv3\",\"Content-Type\":\"application/json\"}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"EducaFlowOne <onboarding@educaflowone.com.br>\",\n  \"to\": [\"{{$json.email}}\"],\n  \"subject\": \"Agende sua primeira aula\",\n  \"html\": \"<div style='background:#f6f7fb;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;'><div style='max-width:620px;margin:0 auto;padding:24px;'><div style='background:#ffffff;border:1px solid #e7e9f0;border-radius:16px;padding:24px;'><div style='font-size:12px;color:#6b7280;margin-bottom:10px;'>Trilha de ativacao do EducaflowOne</div><h1 style='margin:0 0 8px 0;font-size:22px;letter-spacing:-0.01em;color:#111827;'>Agende sua primeira aula</h1><p style='margin:0 0 16px 0;font-size:15px;color:#374151;'>Fala {{$json.first_name || $json.username}}!</p><p style='margin:0 0 16px 0;font-size:15px;color:#374151;'>Seu primeiro aluno ja esta cadastrado. Agora o passo que mais organiza a rotina e colocar a aula no calendario. Em seguida, voce registra financeiro/pagamentos e sente o impacto no bolso 💰.</p><ol style='padding-left:18px;margin:0 0 18px 0;color:#111827;font-size:14px;line-height:1.6;'><li><strong>Cadastre o aluno</strong> — <span style='color:#059669;font-weight:700;'>feito</span><div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 entendi o sistema</div></li><li><strong>Agende uma aula</strong> no <a href='https://www.educaflowone.com.br/calendar/' style='color:#4f46e5;text-decoration:underline;'>Calendario</a><div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 ok, isso organiza minha agenda</div></li><li><strong>Registre financeiro/pagamentos</strong> em <a href='https://www.educaflowone.com.br/financeiro/' style='color:#4f46e5;text-decoration:underline;'>Financeiro</a><div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 💰 isso impacta meu dinheiro</div></li></ol><div style='text-align:center;margin:22px 0 8px 0;'><a href='https://www.educaflowone.com.br/calendar/' style='display:inline-block;background:#4f46e5;color:#ffffff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;'>Abrir o calendario</a></div><p style='margin:10px 0 0 0;font-size:12px;color:#6b7280;'>Se travar em alguma etapa, responda este e-mail que a gente te ajuda.</p></div><div style='margin-top:14px;font-size:11px;color:#9ca3af;text-align:center;'>EDUCAflowOne • organizacao de alunos, aulas e pagamentos</div></div></div>\"\n}",
+        "options": {}
+      },
+      "id": "629530b5-4b83-4c85-9e28-8bdd518511a0",
+      "name": "Email Missing Lesson",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [512, 5328]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\"Authorization\":\"Bearer re_3aKm81iz_PtQuHouxqFDMKe98keNf9zv3\",\"Content-Type\":\"application/json\"}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"EducaFlowOne <onboarding@educaflowone.com.br>\",\n  \"to\": [\"{{$json.email}}\"],\n  \"subject\": \"Registre seus pagamentos e sinta o impacto\",\n  \"html\": \"<div style='background:#f6f7fb;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;'><div style='max-width:620px;margin:0 auto;padding:24px;'><div style='background:#ffffff;border:1px solid #e7e9f0;border-radius:16px;padding:24px;'><div style='font-size:12px;color:#6b7280;margin-bottom:10px;'>Trilha de ativacao do EducaflowOne</div><h1 style='margin:0 0 8px 0;font-size:22px;letter-spacing:-0.01em;color:#111827;'>Registre seus pagamentos</h1><p style='margin:0 0 16px 0;font-size:15px;color:#374151;'>Fala {{$json.first_name || $json.username}}!</p><p style='margin:0 0 16px 0;font-size:15px;color:#374151;'>Agora que sua agenda esta organizada, falta o que transforma tudo em dinheiro: <strong>registrar financeiro/pagamentos</strong>.</p><ol style='padding-left:18px;margin:0 0 18px 0;color:#111827;font-size:14px;line-height:1.6;'><li><strong>Cadastro do aluno</strong> — feito <div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 entendi o sistema</div></li><li><strong>Agendar aula</strong> — feito <div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 ok, isso organiza minha agenda</div></li><li><strong>Registrar financeiro/pagamentos</strong> — proximo passo em <a href='https://www.educaflowone.com.br/financeiro/' style='color:#4f46e5;text-decoration:underline;'>Financeiro</a><div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 💰 isso impacta meu dinheiro</div></li></ol><div style='text-align:center;margin:22px 0 8px 0;'><a href='https://www.educaflowone.com.br/financeiro/' style='display:inline-block;background:#4f46e5;color:#ffffff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;'>Abrir financeiro</a></div><p style='margin:10px 0 0 0;font-size:12px;color:#6b7280;'>Se travar em alguma etapa, responda este e-mail que a gente te ajuda.</p></div><div style='margin-top:14px;font-size:11px;color:#9ca3af;text-align:center;'>EDUCAflowOne • organizacao de alunos, aulas e pagamentos</div></div></div>\"\n}",
+        "options": {}
+      },
+      "id": "6601b21d-54ed-436b-a693-805614e06a11",
+      "name": "Email Missing financeiro/pagamentos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [512, 5504]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\"Authorization\":\"Bearer re_3aKm81iz_PtQuHouxqFDMKe98keNf9zv3\",\"Content-Type\":\"application/json\"}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"EducaFlowOne <onboarding@educaflowone.com.br>\",\n  \"to\": [\"{{$json.email}}\"],\n  \"subject\": \"Boa! Você já entendeu como funciona 🎉\",\n  \"html\": \"<div style='background:#f6f7fb;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;'><div style='max-width:620px;margin:0 auto;padding:24px;'><div style='background:#ffffff;border:1px solid #e7e9f0;border-radius:16px;padding:24px;'><div style='font-size:12px;color:#6b7280;margin-bottom:10px;'>Trilha de ativacao do EducaflowOne</div><h1 style='margin:0 0 8px 0;font-size:22px;letter-spacing:-0.01em;color:#111827;'>Boa! Você já entendeu como funciona</h1><p style='margin:0 0 16px 0;font-size:15px;color:#374151;'>{{$json.first_name || $json.username}}! Agora sua base está pronta: <strong>aluno cadastrado</strong>, <strong>aula agendada</strong> e <strong>financeiro/pagamentos registrados</strong>.</p><ol style='padding-left:18px;margin:0 0 18px 0;color:#111827;font-size:14px;line-height:1.6;'><li><strong>Aluno cadastrado</strong> <div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 entendi o sistema</div></li><li><strong>Aula no calendário</strong> <div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 ok, isso organiza minha agenda</div></li><li><strong>Financeiro no lugar</strong> <div style='margin-top:6px;font-size:12px;color:#6b7280;font-weight:700;'>👉 💰 isso impacta meu dinheiro</div></li></ol><p style='margin:0 0 16px 0;font-size:15px;color:#374151;'>A partir daqui, é só repetir o fluxo no ritmo do seu trabalho e acompanhar tudo de forma clara.</p><div style='text-align:center;margin:22px 0 8px 0;'><a href='https://educaflowone.com.br/' style='display:inline-block;background:#4f46e5;color:#ffffff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;'>Ir para o dashboard</a></div><p style='margin:10px 0 0 0;font-size:12px;color:#6b7280;'>Se quiser, responda este e-mail com feedback. A gente lê tudo.</p></div><div style='margin-top:14px;font-size:11px;color:#9ca3af;text-align:center;'>EDUCAflowOne • organizacao de alunos, aulas e pagamentos</div></div></div>\"\n}",
+        "options": {}
+      },
+      "id": "7bcc429d-2735-4b45-b290-bb237963a120",
+      "name": "Email Activated",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [528, 5680]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook New User": {
+      "main": [[{"node": "Delay 30min", "type": "main", "index": 0}]]
+    },
+    "Delay 30min": {
+      "main": [[{"node": "Check User Status", "type": "main", "index": 0}]]
+    },
+    "Check User Status": {
+      "main": [[{"node": "IF Missing Student", "type": "main", "index": 0}]]
+    },
+    "IF Missing Student": {
+      "main": [
+        [{"node": "Email Missing Student", "type": "main", "index": 0}],
+        [{"node": "IF Missing Lesson", "type": "main", "index": 0}]
+      ]
+    },
+    "IF Missing Lesson": {
+      "main": [
+        [{"node": "Email Missing Lesson", "type": "main", "index": 0}],
+        [{"node": "IF Missing Financeiro", "type": "main", "index": 0}]
+      ]
+    },
+    "IF Missing Financeiro": {
+      "main": [
+        [{"node": "Email Missing financeiro/pagamentos", "type": "main", "index": 0}],
+        [{"node": "IF Activated", "type": "main", "index": 0}]
+      ]
+    },
+    "IF Activated": {
+      "main": [
+        [{"node": "Email Activated", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "prd-001",
+  "meta": {},
+  "tags": [{"name": "PRD"}]
+}

@@ -27,6 +27,7 @@ import re
 import uuid
 import threading
 from urllib import request as urllib_request
+from urllib.parse import urlparse
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
 from .models import Student, Lesson, Task, StudentHomework, StudentHomeworkMessage, StudentHomeworkMessageRead, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest, StudentShareToken
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer, StudentHomeworkSerializer
@@ -651,17 +652,44 @@ class AlunoDetalheView(TemplateView):
             if self.request:
                 url = self.request.build_absolute_uri(url)
             materiais_list.append({
+                "attachment_id": att.id,
                 "url": url,
                 "original_filename": att.original_filename or "Anexo",
                 "file_type": file_type,
                 "plan_date": att.lesson_plan.date,
                 "uploaded_at": att.uploaded_at,
             })
+        # Incluir links dos planejamentos como materiais do tipo "link"
+        link_count = 0
+        plans_with_links = (
+            LessonPlan.objects.filter(student=student)
+            .exclude(links__isnull=True)
+            .exclude(links__exact="")
+            .order_by("-date", "-updated_at")
+        )
+        for plan in plans_with_links:
+            for raw_link in plan.get_links_list():
+                href = (raw_link or "").strip()
+                if not href:
+                    continue
+                if not (href.startswith("http://") or href.startswith("https://")):
+                    continue
+                parsed = urlparse(href)
+                display_name = parsed.netloc or href
+                materiais_list.append({
+                    "attachment_id": None,
+                    "url": href,
+                    "original_filename": display_name,
+                    "file_type": "link",
+                    "plan_date": plan.date,
+                    "uploaded_at": plan.updated_at,
+                })
+                link_count += 1
         context["materiais"] = materiais_list
         from django.db.models import Sum
         total_bytes = attachments_qs.aggregate(total=Sum("file_size")).get("total") or 0
         context["materiais_total_bytes"] = total_bytes
-        context["materiais_count"] = attachments_qs.count()
+        context["materiais_count"] = attachments_qs.count() + link_count
 
         # Homework (KPI + resumo)
         from django.db.models import Count, Q as Qm
@@ -724,7 +752,7 @@ class StudentAreaView(TemplateView):
             "dezembro",
         ]
         months_pt_short = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
-        weekdays_pt = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"]
+        weekdays_pt = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
 
         # --- Next lesson highlight (current & upcoming) ---
         next_lesson = (
@@ -916,6 +944,35 @@ class StudentAreaView(TemplateView):
                     "obs": obs,
                 }
             )
+        # Também incluir links salvos no planejamento como materiais públicos.
+        plans_with_links = (
+            LessonPlan.objects.filter(student=student)
+            .exclude(links__isnull=True)
+            .exclude(links__exact="")
+            .order_by("-date", "-updated_at")
+        )
+        for plan in plans_with_links:
+            plan_date = plan.date
+            month_label = f"{months_pt[plan_date.month - 1].capitalize()} {plan_date.year}"
+            date_label = f"{plan_date.day:02d} de {months_pt[plan_date.month - 1]}"
+            for raw_link in plan.get_links_list():
+                href = (raw_link or "").strip()
+                if not href:
+                    continue
+                if not (href.startswith("http://") or href.startswith("https://")):
+                    continue
+                parsed = urlparse(href)
+                display_name = parsed.netloc or href
+                materials_map.setdefault(month_label, {}).setdefault(date_label, []).append(
+                    {
+                        "url": href,
+                        "original_filename": display_name,
+                        "file_type": "link",
+                        "type_tag": "Link",
+                        "plan_date": plan_date.isoformat() if plan_date else None,
+                        "obs": plan.goals or "",
+                    }
+                )
 
         materials_months = []
         for month_label, date_groups in materials_map.items():
@@ -1075,10 +1132,14 @@ def upload_student_material(request, student_id):
     except Student.DoesNotExist:
         return Response({"error": "Aluno não encontrado ou sem permissão."}, status=status.HTTP_404_NOT_FOUND)
 
-    if "file" not in request.FILES:
-        return Response({"error": "Nenhum arquivo enviado."}, status=status.HTTP_400_BAD_REQUEST)
-
     django_request = getattr(request, "_request", None)
+    external_url = ""
+    if django_request:
+        external_url = (django_request.POST.get("external_url") or "").strip()
+    has_file = "file" in request.FILES
+    if (not has_file) and (not external_url):
+        return Response({"error": "Envie um arquivo ou informe um link externo."}, status=status.HTTP_400_BAD_REQUEST)
+
     today = timezone.now().date()
     plan_date = today
     if django_request:
@@ -1103,11 +1164,21 @@ def upload_student_material(request, student_id):
             goals="Materiais anexados pela ficha do aluno.",
         )
 
+    # Caso de material por link (sem upload de arquivo)
+    if external_url and not has_file:
+        if not (external_url.startswith("http://") or external_url.startswith("https://")):
+            return Response({"error": "Informe um link válido iniciando com http:// ou https://"}, status=status.HTTP_400_BAD_REQUEST)
+        current_links = plan.get_links_list()
+        if external_url not in current_links:
+            merged = current_links + [external_url]
+            plan.links = "\n".join(merged)
+            plan.save(update_fields=["links", "updated_at"])
+        return Response({"ok": True, "type": "link", "url": external_url}, status=status.HTTP_201_CREATED)
+
     # Reaproveitar a lógica de upload_planning_attachment, sem duplicar validações.
     # Nota: upload_planning_attachment é um endpoint DRF (@api_view) que espera um
     # django.http.HttpRequest. Aqui recebemos rest_framework.request.Request,
     # então precisamos repassar o request Django subjacente.
-    django_request = getattr(request, "_request", None)
     if django_request is None:
         return Response({"error": "Request inválido."}, status=status.HTTP_400_BAD_REQUEST)
     return upload_planning_attachment(django_request, plan.id)
@@ -1251,6 +1322,8 @@ class HomeView(View):
             return redirect('planos')
         view_param = request.GET.get('view')
         if view_param:
+            if view_param == 'view-tasks':
+                return redirect('tasks-v2')
             context = self._get_index_context(request)
             return render(request, "index.html", context)
         try:
@@ -1316,6 +1389,8 @@ class DashboardView(TemplateView):
         # Se houver parâmetro view na URL, renderizar index.html (para view-tasks, view-billing, etc)
         view_param = request.GET.get('view')
         if view_param:
+            if view_param == 'view-tasks':
+                return redirect('tasks-v2')
             return super().dispatch(request, *args, **kwargs)
         
         # Caso contrário: Prof. Parceiro vai para calendário; demais para dashboard
@@ -1330,6 +1405,33 @@ class DashboardHomeView(TemplateView):
     template_name = "dashboard_home.html"
     login_required = True
     
+    def dispatch(self, request, *args, **kwargs):
+        from django.shortcuts import redirect
+        if not request.user.is_authenticated:
+            return redirect('login')
+        if not _user_has_active_subscription(request.user):
+            return redirect('planos')
+        return super().dispatch(request, *args, **kwargs)
+
+
+class TasksV2View(TemplateView):
+    """
+    Página standalone para testar o novo layout de Tarefas (tasks_v2.html).
+    Não integra ainda no menu sidebar / index.
+    """
+    template_name = "tasks_v2.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        try:
+            profile = self.request.user.profile
+            ctx["user_is_admin"] = profile.is_admin
+            ctx["is_partner_teacher"] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+        except Exception:
+            ctx["user_is_admin"] = False
+            ctx["is_partner_teacher"] = False
+        return ctx
+
     def dispatch(self, request, *args, **kwargs):
         from django.shortcuts import redirect
         if not request.user.is_authenticated:
@@ -4112,11 +4214,20 @@ def _trigger_n8n_onboarding_webhook(request, user):
     Dispara webhook no n8n após signup/trial.
     Fire-and-forget para não bloquear o signup.
     """
-    if not _safe_bool_env("N8N_ONBOARDING_WEBHOOK_ENABLED", default=False):
+    enabled = _safe_bool_env("N8N_ONBOARDING_WEBHOOK_ENABLED", default=False)
+    if not enabled:
+        print(
+            f"[N8N onboarding] skip user_id={getattr(user, 'id', None)} "
+            f"reason=disabled N8N_ONBOARDING_WEBHOOK_ENABLED={os.environ.get('N8N_ONBOARDING_WEBHOOK_ENABLED', '')!r}"
+        )
         return
 
     webhook_url = os.environ.get("N8N_ONBOARDING_WEBHOOK_URL", "").strip()
     if not webhook_url:
+        print(
+            f"[N8N onboarding] skip user_id={getattr(user, 'id', None)} "
+            f"reason=empty_webhook_url"
+        )
         return
 
     status_token = os.environ.get("N8N_ONBOARDING_STATUS_TOKEN", "").strip()
@@ -4136,6 +4247,10 @@ def _trigger_n8n_onboarding_webhook(request, user):
         "onboarding_check_url": check_url,
         "onboarding_check_token": status_token,
     }
+    print(
+        f"[N8N onboarding] enqueue user_id={user.id} url={webhook_url} "
+        f"check_url={check_url} status_token_len={len(status_token)}"
+    )
 
     def _worker():
         try:
@@ -4150,7 +4265,12 @@ def _trigger_n8n_onboarding_webhook(request, user):
                 method="POST",
             )
             with urllib_request.urlopen(req, timeout=8) as resp:
-                _ = resp.read()
+                body = resp.read()
+                print(
+                    f"[N8N onboarding] success user_id={user.id} "
+                    f"http_status={getattr(resp, 'status', 'unknown')} "
+                    f"response_len={len(body) if body else 0}"
+                )
         except Exception as e:
             print(f"[N8N onboarding] Falha ao disparar webhook: {e}")
 
