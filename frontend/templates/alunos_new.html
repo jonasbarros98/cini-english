@@ -185,6 +185,7 @@
     }
     .panel-head h2{margin:0;font-size:14px;font-weight:900;letter-spacing:-.01em}
     .panel-head .meta{color:var(--muted);font-size:12px;font-weight:800}
+    #editorMeta{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
     /* Student list cards - altura fixa com scroll interno para não crescer a página */
     .list{
@@ -215,9 +216,22 @@
       box-shadow: 0 16px 34px rgba(37,99,235,.10);
     }
 
-    .row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
-    .name{font-weight:900;font-size:14px;letter-spacing:-.01em;margin:0;}
-    .badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0;}
+    .name{
+      font-weight:900;
+      font-size:14px;
+      letter-spacing:-.01em;
+      margin:0;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .name-link{color:inherit;text-decoration:none;}
+    .name-link:hover{color:var(--primary);}
+    .name-link{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;flex: 0 0 auto;min-width:0;}
     .badge{
       display:inline-flex;align-items:center;gap:8px;
       padding:7px 10px;border-radius:999px;
@@ -249,6 +263,7 @@
     .btn-link-sm:hover{color:rgba(37,99,235,1);}
 
     .quick-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
+    .quick-actions a{text-decoration:none;}
     .btn.primary{
       border:none;
       background: linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.70));
@@ -346,45 +361,46 @@
       .two{ grid-template-columns: 1fr; }
     }
 
-    /* Mobile: botão recolher filtros */
+    /* Filtros: botão recolher/expandir (desktop e mobile) */
     .filters-toggle-mobile{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.92);
+      font-weight: 900;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      box-shadow: var(--shadow-soft);
+      transition: .2s ease;
+    }
+    .filters-toggle-mobile:hover{
+      border-color: rgba(37,99,235,.25);
+      box-shadow: 0 12px 24px rgba(2,6,23,.08);
+    }
+    .filters-toggle-mobile .filters-chevron{
+      font-size: 10px;
+      transition: transform .2s ease;
+    }
+    .filters.filters--collapsed .filters-toggle-mobile .filters-chevron{
+      transform: rotate(-90deg); /* ▼ vira ► ao recolher */
+    }
+    .filters.filters--collapsed .filters-inner{
       display: none;
     }
-    @media (max-width: 768px){
-      .filters-toggle-mobile{
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: 100%;
-        padding: 10px 12px;
-        margin-bottom: 8px;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        background: rgba(255,255,255,.92);
-        font-weight: 900;
-        font-size: 13px;
-        color: var(--text);
-        cursor: pointer;
-        box-shadow: var(--shadow-soft);
-        transition: .2s ease;
-      }
-      .filters-toggle-mobile:hover{
-        border-color: rgba(37,99,235,.25);
-        box-shadow: 0 12px 24px rgba(2,6,23,.08);
-      }
-      .filters-toggle-mobile .filters-chevron{
-        font-size: 10px;
-        transition: transform .2s ease;
-      }
-      .filters.filters--collapsed .filters-toggle-mobile .filters-chevron{
-        transform: rotate(-90deg); /* ▼ vira ► ao recolher */
-      }
-      .filters.filters--collapsed .filters-inner{
-        display: none;
-      }
-      .filters.filters--collapsed .filters-toggle-mobile{
-        margin-bottom: 0;
-      }
+    .filters.filters--collapsed .filters-toggle-mobile{
+      margin-bottom: 0;
+    }
+    .filters.filters--collapsed{
+      padding: 4px 0 8px;
+    }
+    #filtersWrapper.filters--collapsed + .grid{
+      margin-top: 6px;
     }
 
     .footer-actions{
@@ -655,9 +671,9 @@
       {% if not is_partner_teacher %}<button class="btn-primary" type="button" id="btnNew">+ Novo aluno</button>{% endif %}
     </div>
 
-    <div class="filters" id="filtersWrapper">
-      <button type="button" class="filters-toggle-mobile" id="filtersToggleMobile" aria-expanded="true" aria-controls="filtersFields">
-        <span>Filtros</span>
+    <div class="filters filters--collapsed" id="filtersWrapper">
+      <button type="button" class="filters-toggle-mobile" id="filtersToggleMobile" aria-expanded="false" aria-controls="filtersFields">
+        <span>Filtros - Clique aqui para usar os filtros</span>
         <span class="filters-chevron" aria-hidden="true">▼</span>
       </button>
       <div class="filters-inner" id="filtersFields">
@@ -725,7 +741,7 @@
             <div class="section-body">
               <div class="field">
                 <label>Nome completo *</label>
-                <input type="text" id="f_name" placeholder="Nome do aluno"/>
+                <input type="text" id="f_name" placeholder="Nome do aluno" maxlength="120"/>
               </div>
               <div class="field">
                 <label>Responsável</label>
@@ -777,14 +793,26 @@
                   </select>
                 </div>
                 <div class="field">
-                  <label for="f_billing_type">Tipo de Cobrança (Como você cobra esse aluno)</label>
-                  <select id="f_billing_type">
-                    <option value="package">Pacote de aulas</option>
-                    <option value="monthly_fixed">Mensal fixo</option>
-                    <option value="per_lesson">Por aula realizada</option>
-                    <option value="other">Outro</option>
+                  <label for="f_level">Nível (CEFR)</label>
+                  <select id="f_level">
+                    <option value="">Não informado</option>
+                    <option value="A1">A1</option>
+                    <option value="A2">A2</option>
+                    <option value="B1">B1</option>
+                    <option value="B2">B2</option>
+                    <option value="C1">C1</option>
+                    <option value="C2">C2</option>
                   </select>
                 </div>
+              </div>
+              <div class="field">
+                <label for="f_billing_type">Tipo de Cobrança (Como você cobra esse aluno)</label>
+                <select id="f_billing_type">
+                  <option value="package">Pacote de aulas</option>
+                  <option value="monthly_fixed">Mensal fixo</option>
+                  <option value="per_lesson">Por aula realizada</option>
+                  <option value="other">Outro</option>
+                </select>
               </div>
 
               <!-- Pacote de aulas -->
@@ -920,7 +948,7 @@
           <div class="section-body">
             <div class="field">
               <label for="n_name">Nome completo *</label>
-              <input id="n_name" type="text" placeholder="Ex: Maria Silva" autocomplete="name"/>
+              <input id="n_name" type="text" placeholder="Ex: Maria Silva" autocomplete="name" maxlength="120"/>
               <div class="help">Obrigatório. O resto você pode preencher depois.</div>
             </div>
 
@@ -955,14 +983,27 @@
                 </select>
               </div>
               <div class="field">
-                <label for="n_billing_type">Tipo de Cobrança (Como você cobra esse aluno)</label>
-                <select id="n_billing_type">
-                  <option value="package" selected>Pacote de aulas</option>
-                  <option value="monthly_fixed">Mensal fixo</option>
-                  <option value="per_lesson">Por aula realizada</option>
-                  <option value="other">Outro</option>
+                <label for="n_level">Nível (CEFR)</label>
+                <select id="n_level">
+                  <option value="" selected>Não informado</option>
+                  <option value="A1">A1</option>
+                  <option value="A2">A2</option>
+                  <option value="B1">B1</option>
+                  <option value="B2">B2</option>
+                  <option value="C1">C1</option>
+                  <option value="C2">C2</option>
                 </select>
+                <div class="help">Padrão para idiomas; opcional para outros tipos de aula.</div>
               </div>
+            </div>
+            <div class="field">
+              <label for="n_billing_type">Tipo de Cobrança (Como você cobra esse aluno)</label>
+              <select id="n_billing_type">
+                <option value="package" selected>Pacote de aulas</option>
+                <option value="monthly_fixed">Mensal fixo</option>
+                <option value="per_lesson">Por aula realizada</option>
+                <option value="other">Outro</option>
+              </select>
             </div>
 
             <!-- Pacote de aulas: Plano + Aulas do plano -->
@@ -1384,6 +1425,10 @@
           const badgePlan = plan 
             ? `<span class="badge ok"><span class="dot"></span>${escapeHtml(plan)}</span>`
             : `<span class="badge warn"><span class="dot"></span>Sem plano</span>`;
+          const level = student.level || '';
+          const badgeLevel = level
+            ? `<span class="badge primary"><span class="dot"></span>${escapeHtml(level)}</span>`
+            : '';
           
           const badgeStatus = status === 'active'
             ? `<span class="badge ok"><span class="dot"></span>Ativo</span>`
@@ -1412,6 +1457,7 @@
                      data-name="${escapeHtml(student.name)}"
                      data-status="${status}"
                      data-plan="${escapeHtml(plan)}"
+                     data-level="${escapeHtml(level)}"
                      data-phone="${escapeHtml(student.phone || '')}"
                      data-email="${escapeHtml(student.email || '')}"
                      data-address="${escapeHtml(student.address || '')}"
@@ -1419,9 +1465,10 @@
                      data-classes-total="${total}"
                      data-classes-done="${done}">
               <div class="row">
-                <p class="name">${escapeHtml(student.name)}</p>
+                <p class="name"><a href="/alunos/${student.id}/" class="name-link">${escapeHtml(student.name)}</a></p>
                 <div class="badges">
                   ${badgePlan}
+                  ${badgeLevel}
                   ${badgeStatus}
                 </div>
               </div>
@@ -1432,6 +1479,7 @@
               </div>
               ${progressHtml}
               <div class="quick-actions">
+                <a href="/alunos/${student.id}/" class="btn primary">Ver detalhes</a>
                 <button class="btn primary js-plan" type="button">Criar planejamento</button>
                 ${student.billing_type === 'per_lesson' && !isPartnerTeacher ? `<button class="btn primary js-generate-billing" type="button" data-student-id="${student.id}">Gerar cobrança do mês</button>` : ''}
                 ${!isPartnerTeacher ? `<button class="btn js-edit" type="button">Editar</button><button class="btn danger js-toggle" type="button">${status === 'active' ? 'Inativar' : 'Ativar'}</button>${status === 'ended' ? `<button class="btn danger js-delete" type="button" title="Excluir aluno da base">Excluir</button>` : ''}` : ''}
@@ -1856,6 +1904,8 @@
         $('#f_email').value = student.email || '';
         $('#f_address').value = student.address || '';
         $('#f_status').value = student.status || 'active';
+        const fLevel = $('#f_level');
+        if (fLevel) fLevel.value = student.level || '';
         $('#f_billing_type').value = student.billing_type || 'package';
         $('#f_monthly_amount').value = student.monthly_amount ?? '';
         $('#f_per_lesson_amount').value = student.per_lesson_amount ?? '';
@@ -1934,6 +1984,7 @@
               formData.append('email', student.email || '');
               formData.append('address', student.address || '');
               formData.append('status', student.status || 'active');
+              if (student.level) formData.append('level', student.level);
               formData.append('billing_type', student.billing_type || 'package');
               formData.append('plan_name', student.plan_name || '');
               formData.append('lessons_total', student.lessons_total || 0);
@@ -1959,12 +2010,25 @@
         }
       }
 
+      const MAX_STUDENT_NAME_LEN = 120;
+      function validateStudentNameFront(name, inputId){
+        if (!name) {
+          showToast('Preencha o nome do aluno.', true);
+          $(inputId)?.focus();
+          return false;
+        }
+        if (name.length > MAX_STUDENT_NAME_LEN) {
+          showToast(`Nome muito longo. Use no máximo ${MAX_STUDENT_NAME_LEN} caracteres.`, true);
+          $(inputId)?.focus();
+          return false;
+        }
+        return true;
+      }
+
       // Salvar aluno (criar ou editar)
       btnSave?.addEventListener('click', async () => {
         const name = ($('#n_name')?.value || '').trim();
-        if(!name){
-          showToast('Preencha o nome do aluno.', true);
-          $('#n_name')?.focus();
+        if(!validateStudentNameFront(name, 'n_name')){
           return;
         }
 
@@ -1980,6 +2044,7 @@
             email: ($('#n_email')?.value || '').trim(),
             address: ($('#n_address')?.value || '').trim(),
             status: $('#n_status')?.value || 'active',
+            level: ($('#n_level')?.value || '').trim() || null,
             billing_type: billingType,
             plan_name: billingType === 'package' && planValue !== 'none' ? planValue : '',
             lessons_total: billingType === 'package' ? (parseInt(($('#n_total')?.value || '0'), 10) || 0) : 0,
@@ -1994,7 +2059,7 @@
           if (nAt && nAt.value) data.assigned_teacher = parseInt(nAt.value, 10);
 
           // Limpar campos vazios (manter campos obrigatórios)
-          const optionalFields = ['phone', 'email', 'address', 'plan_name', 'pix_key', 'preferred_payment_method'];
+          const optionalFields = ['phone', 'email', 'address', 'plan_name', 'level', 'pix_key', 'preferred_payment_method'];
           optionalFields.forEach(key => {
             if (data[key] === '') delete data[key];
           });
@@ -2019,6 +2084,7 @@
             formData.append('email', ($('#n_email')?.value || '').trim() || '');
             formData.append('address', ($('#n_address')?.value || '').trim() || '');
             formData.append('status', $('#n_status')?.value || 'active');
+            if (data.level) formData.append('level', data.level);
             formData.append('billing_type', billingType);
             formData.append('plan_name', data.plan_name || '');
             formData.append('lessons_total', data.lessons_total || 0);
@@ -2086,8 +2152,7 @@
         }
 
         const name = ($('#f_name')?.value || '').trim();
-        if(!name){
-          showToast('Preencha o nome do aluno.', true);
+        if(!validateStudentNameFront(name, 'f_name')){
           return;
         }
 
@@ -2105,6 +2170,7 @@
         const editorPayload = {
           billing_type: billingType,
           plan_name: billingType === 'package' ? (($('#f_plan')?.value || '').trim() || '') : '',
+          level: ($('#f_level')?.value || '').trim() || null,
           lessons_total: billingType === 'package' ? (parseInt(($('#f_total')?.value || '0'), 10) || 0) : 0,
           monthly_amount: billingType === 'monthly_fixed' && $('#f_monthly_amount')?.value ? parseFloat($('#f_monthly_amount').value) : null,
           per_lesson_amount: billingType === 'per_lesson' && $('#f_per_lesson_amount')?.value ? parseFloat($('#f_per_lesson_amount').value) : null,
@@ -2119,6 +2185,7 @@
           formData.append('email', ($('#f_email')?.value || '').trim() || '');
           formData.append('address', ($('#f_address')?.value || '').trim() || '');
           formData.append('status', $('#f_status')?.value || 'active');
+          if (editorPayload.level) formData.append('level', editorPayload.level);
           formData.append('billing_type', editorPayload.billing_type);
           formData.append('plan_name', editorPayload.plan_name);
           formData.append('lessons_total', editorPayload.lessons_total);
@@ -2156,6 +2223,7 @@
             email: ($('#f_email')?.value || '').trim() || '',
             address: ($('#f_address')?.value || '').trim() || '',
             status: $('#f_status')?.value || 'active',
+            level: editorPayload.level,
             billing_type: editorPayload.billing_type,
             plan_name: editorPayload.plan_name,
             lessons_total: editorPayload.lessons_total,
@@ -2190,13 +2258,14 @@
       });
 
         function clearNewForm(){
-        ['n_name','n_phone','n_email','n_responsible','n_address','n_total','n_start','n_due','n_due_monthly','n_monthly_amount','n_per_lesson_amount','n_pix','n_assigned_teacher'].forEach(id=>{
+        ['n_name','n_phone','n_email','n_responsible','n_address','n_level','n_total','n_start','n_due','n_due_monthly','n_monthly_amount','n_per_lesson_amount','n_pix','n_assigned_teacher'].forEach(id=>{
           const el = document.getElementById(id);
           if(el) el.value = '';
         });
         $('#n_status') && ($('#n_status').value = 'active');
         $('#n_billing_type') && ($('#n_billing_type').value = 'package');
         $('#n_plan') && ($('#n_plan').value = 'none');
+        $('#n_level') && ($('#n_level').value = '');
         toggleBillingFields('n');
         $('#n_payment') && ($('#n_payment').value = '');
         const f = $('#n_contract'); if(f) f.value = '';

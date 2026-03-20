@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import date
+from django.utils import timezone
+import secrets
 
 class Student(models.Model):
     STATUS_ACTIVE = "active"
@@ -62,6 +64,21 @@ class Student(models.Model):
         help_text="Tipo de cobrança do aluno",
     )
     plan_name = models.CharField(max_length=255, blank=True, help_text="Plano do aluno (pacote)")
+    # Nível CEFR (A1–C2): padrão internacional para proficiência em idiomas. Opcional para outros tipos de aula.
+    level = models.CharField(
+        max_length=3,
+        blank=True,
+        null=True,
+        choices=[
+            ("A1", "A1"),
+            ("A2", "A2"),
+            ("B1", "B1"),
+            ("B2", "B2"),
+            ("C1", "C1"),
+            ("C2", "C2"),
+        ],
+        help_text="Nível do aluno (CEFR). Usado principalmente por professores de idiomas; opcional para outros.",
+    )
     monthly_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -92,6 +109,13 @@ class Student(models.Model):
         help_text="Forma de pagamento preferida"
     )
     
+    teacher_notes = models.TextField(
+        blank=True,
+        null=True,
+        default="",
+        help_text="Observações do professor sobre o aluno (visível na ficha do aluno)"
+    )
+
     # Financeiro
     pix_key = models.CharField(max_length=255, blank=True, help_text="Chave Pix")
     contract_pdf = models.FileField(
@@ -121,6 +145,48 @@ class Student(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class StudentShareToken(models.Model):
+    """
+    Token para acesso público (sem login) à "Área do Aluno".
+    Cada aluno pode ter no máximo 1 token ativo; ao regenerar, o anterior é revogado.
+    """
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="share_tokens")
+    token = models.CharField(max_length=100, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    revoked_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @staticmethod
+    def generate_token() -> str:
+        # Ex: tok_a1b2c3... (sem caracteres especiais que atrapalhem URL)
+        raw = secrets.token_urlsafe(18)
+        raw = raw.replace("-", "").replace("_", "")
+        return f"tok_{raw}"
+
+    @classmethod
+    def get_active_token(cls, student: "Student"):
+        return cls.objects.filter(student=student, revoked_at__isnull=True).order_by("-created_at").first()
+
+    @classmethod
+    def revoke_active_token(cls, student: "Student"):
+        cls.objects.filter(student=student, revoked_at__isnull=True).update(revoked_at=timezone.now())
+
+    @classmethod
+    def create_new_active_token(cls, student: "Student"):
+        cls.revoke_active_token(student)
+
+        # Retry pequeno por segurança caso colida token por acaso
+        for _ in range(5):
+            token_val = cls.generate_token()
+            if not cls.objects.filter(token=token_val).exists():
+                return cls.objects.create(student=student, token=token_val)
+
+        return cls.objects.create(student=student, token=f"tok_{secrets.token_hex(16)}")
 
 
 class Lesson(models.Model):
@@ -208,6 +274,112 @@ class Task(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class StudentHomework(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_DONE = "done"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pendente"),
+        (STATUS_DONE, "Concluído"),
+    ]
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="homeworks",
+    )
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="assigned_homeworks",
+        help_text="Professor que atribuiu o homework",
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+    )
+    student_response = models.TextField(blank=True, help_text="Resposta/entrega em texto (opcional)")
+    teacher_feedback = models.TextField(blank=True, help_text="Feedback do professor (opcional)")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Homework do Aluno"
+        verbose_name_plural = "Homeworks dos Alunos"
+
+    def __str__(self) -> str:
+        return f"{self.student.name} - {self.title}"
+
+
+class StudentHomeworkMessage(models.Model):
+    SENDER_STUDENT = "student"
+    SENDER_TEACHER = "teacher"
+    SENDER_CHOICES = [
+        (SENDER_STUDENT, "Aluno"),
+        (SENDER_TEACHER, "Professor"),
+    ]
+
+    homework = models.ForeignKey(
+        StudentHomework,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
+    message = models.TextField()
+    # Para mensagens de professor, registramos o usuário autor.
+    # Em mensagens públicas do aluno, esse campo fica nulo.
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="student_homework_messages",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        verbose_name = "Mensagem da Tarefa do Aluno"
+        verbose_name_plural = "Mensagens das Tarefas dos Alunos"
+
+    def __str__(self) -> str:
+        return f"{self.get_sender_display()} - HW#{self.homework_id}"
+
+
+class StudentHomeworkMessageRead(models.Model):
+    """
+    Registro de mensagens "lidas" pelo professor (por usuário).
+    Usado para exibir badge/sininho com contagem de mensagens ainda não lidas.
+    """
+
+    message = models.ForeignKey(
+        StudentHomeworkMessage,
+        on_delete=models.CASCADE,
+        related_name="reads",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="student_homework_message_reads",
+    )
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-read_at", "-id"]
+        unique_together = [("message", "user")]
+        verbose_name = "Mensagem da Tarefa do Aluno (Lida)"
+        verbose_name_plural = "Mensagens das Tarefas dos Alunos (Lidas)"
+
+    def __str__(self) -> str:
+        return f"Read by {self.user_id} - HW#{self.message.homework_id}"
 
 
 class Invoice(models.Model):

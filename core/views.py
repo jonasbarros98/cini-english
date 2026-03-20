@@ -1,13 +1,13 @@
 from datetime import datetime, date, timedelta
 from calendar import monthrange
 from django.utils import timezone
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Sum, Count, Max
 from decimal import Decimal
 from django.conf import settings
 from django.urls import reverse
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.contrib.auth import authenticate, login, logout
@@ -17,7 +17,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse, HttpResponse
 from django.views.generic import TemplateView, View
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 import stripe
@@ -26,9 +26,10 @@ import os
 import re
 import uuid
 import threading
+from urllib import request as urllib_request
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
-from .models import Student, Lesson, Task, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest
-from .serializers import StudentSerializer, LessonSerializer, TaskSerializer
+from .models import Student, Lesson, Task, StudentHomework, StudentHomeworkMessage, StudentHomeworkMessageRead, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest, StudentShareToken
+from .serializers import StudentSerializer, LessonSerializer, TaskSerializer, StudentHomeworkSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
@@ -104,12 +105,18 @@ class StudentViewSet(viewsets.ModelViewSet):
         # assigned_teacher pode vir em validated_data; validar que é parceiro do dono
         serializer.save(user=user)
     
+    def _is_admin(self):
+        try:
+            return self.request.user.profile.is_admin
+        except UserProfile.DoesNotExist:
+            return False
+
     def perform_update(self, serializer):
         if self._is_partner_teacher():
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Apenas o professor dono da conta pode editar alunos.")
         instance = self.get_object()
-        if instance.user_id != self.request.user.id:
+        if not self._is_admin() and instance.user_id != self.request.user.id:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Você não pode editar este aluno.")
         serializer.save()
@@ -133,9 +140,8 @@ class StudentViewSet(viewsets.ModelViewSet):
         if self._is_partner_teacher():
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Apenas o professor dono da conta pode editar alunos.")
-        partial = kwargs.get('partial', False)
         instance = self.get_object()
-        if instance.user_id != request.user.id:
+        if not self._is_admin() and instance.user_id != request.user.id:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Você não pode editar este aluno.")
         return super().update(request, *args, **kwargs)
@@ -149,7 +155,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Apenas o professor dono da conta pode excluir alunos.")
         instance = self.get_object()
-        if instance.user_id != request.user.id:
+        if not self._is_admin() and instance.user_id != request.user.id:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Você não pode excluir este aluno.")
         # Impedir exclusão se houver qualquer lançamento financeiro ou planejamento futuro
@@ -530,6 +536,583 @@ class AlunosView(TemplateView):
         return context
 
 
+class AlunoDetalheView(TemplateView):
+    """Página de detalhe de um aluno (ficha completa). Acesso: /alunos/<student_id>/"""
+    template_name = "aluno_detalhe.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        from django.http import Http404
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        if not _user_has_active_subscription(request.user):
+            return redirect('planos')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset_students(self):
+        """Mesmo critério do StudentViewSet: dono vê os seus; parceiro vê os atribuídos a ele; admin vê todos."""
+        qs = Student.objects.select_related("user", "assigned_teacher").all()
+        try:
+            is_admin = self.request.user.profile.is_admin
+            user_profile = self.request.user.profile.user_profile
+        except UserProfile.DoesNotExist:
+            is_admin = False
+            user_profile = None
+        if is_admin:
+            return qs
+        if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            qs = qs.filter(user__profile__partner_teachers=self.request.user.profile).filter(assigned_teacher=self.request.user)
+        else:
+            qs = qs.filter(user=self.request.user)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        student_id = kwargs.get('student_id')
+        qs = self.get_queryset_students()
+        student = get_object_or_404(qs, id=student_id)
+        context['student'] = student
+        try:
+            context['is_partner_teacher'] = self.request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+        except UserProfile.DoesNotExist:
+            context['is_partner_teacher'] = False
+
+        # --- Parte 1: Aulas (Lesson) ---
+        today = timezone.now().date()
+        lessons_qs = student.lessons.all()
+        context['next_lesson'] = (
+            lessons_qs.filter(realized=False)
+            .exclude(status='canceled')
+            .filter(date__gte=today)
+            .order_by('date', 'time')
+            .first()
+        )
+        context['last_lessons'] = lessons_qs.order_by('-date', '-time')[:5]
+        context['lessons_realized_count'] = lessons_qs.filter(realized=True).count()
+        context['lessons_total'] = student.lessons_total or 0
+
+        # Calendário: mês atual com dias de aula realizada vs agendada
+        start_month = today.replace(day=1)
+        _, last_day = monthrange(today.year, today.month)
+        end_month = today.replace(day=last_day)
+        lessons_in_month = lessons_qs.filter(date__gte=start_month, date__lte=end_month)
+        cal_done = [l.date.day for l in lessons_in_month if l.realized]
+        cal_upcoming = [
+            l.date.day for l in lessons_in_month
+            if not l.realized and l.status != 'canceled'
+        ]
+        cal_key = f"{today.year}-{today.month - 1}"  # JS month 0-indexed
+        context['cal_class_data'] = json.dumps({
+            cal_key: {"done": cal_done, "upcoming": cal_upcoming}
+        })
+        context['current_cal_year'] = today.year
+        context['current_cal_month'] = today.month - 1
+
+        # --- Parte 2: Financeiro (FinancialEntry = lançamentos a receber) ---
+        entries_pending = student.financial_entries.exclude(
+            status__in=[FinancialEntry.STATUS_PAID, FinancialEntry.STATUS_CANCELLED]
+        )
+        has_overdue = entries_pending.filter(
+            Q(status=FinancialEntry.STATUS_OVERDUE) |
+            Q(status=FinancialEntry.STATUS_PENDING, due_date__lt=today)
+        ).exists()
+        next_entry = (
+            entries_pending
+            .order_by('due_date')
+            .first()
+        )
+        if has_overdue:
+            context['finance_status'] = 'overdue'
+        elif next_entry:
+            context['finance_status'] = 'pending'
+        else:
+            context['finance_status'] = 'ok'
+        context['next_invoice'] = next_entry  # FinancialEntry; template usa .due_date igual
+
+        # --- Parte 4: Materiais (LessonPlanAttachment do aluno) ---
+        attachments_qs = LessonPlanAttachment.objects.filter(lesson_plan__student=student)
+        attachments = (
+            attachments_qs.select_related("lesson_plan")
+            .order_by("-lesson_plan__date", "-uploaded_at")
+        )
+        AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".aac"}
+        VIDEO_EXT = {".mp4", ".webm", ".mov", ".avi", ".mkv"}
+        materiais_list = []
+        for att in attachments:
+            ext = os.path.splitext(att.original_filename or "")[1].lower()
+            if ext == ".pdf":
+                file_type = "pdf"
+            elif ext in AUDIO_EXT:
+                file_type = "audio"
+            elif ext in VIDEO_EXT:
+                file_type = "video"
+            else:
+                file_type = "other"
+            url = att.file.url
+            if self.request:
+                url = self.request.build_absolute_uri(url)
+            materiais_list.append({
+                "url": url,
+                "original_filename": att.original_filename or "Anexo",
+                "file_type": file_type,
+                "plan_date": att.lesson_plan.date,
+                "uploaded_at": att.uploaded_at,
+            })
+        context["materiais"] = materiais_list
+        from django.db.models import Sum
+        total_bytes = attachments_qs.aggregate(total=Sum("file_size")).get("total") or 0
+        context["materiais_total_bytes"] = total_bytes
+        context["materiais_count"] = attachments_qs.count()
+
+        # Homework (KPI + resumo)
+        from django.db.models import Count, Q as Qm
+        hw_agg = StudentHomework.objects.filter(student=student).aggregate(
+            hw_total=Count("id"),
+            hw_done=Count("id", filter=Qm(status=StudentHomework.STATUS_DONE)),
+        )
+        hw_total = hw_agg["hw_total"] or 0
+        hw_done = hw_agg["hw_done"] or 0
+        context["hw_total"] = hw_total
+        context["hw_done"] = hw_done
+        context["hw_pct"] = int(round(100 * hw_done / hw_total)) if hw_total else 0
+
+        try:
+            profile = self.request.user.profile
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partners = list(profile.partner_teachers.select_related("user").all())
+                context["assignable_teachers"] = [
+                    {"id": self.request.user.id, "name": self.request.user.get_full_name() or self.request.user.username}
+                ] + [{"id": p.user.id, "name": p.user.get_full_name() or p.user.username} for p in partners]
+            else:
+                context["assignable_teachers"] = []
+        except UserProfile.DoesNotExist:
+            context["assignable_teachers"] = []
+
+        return context
+
+
+class StudentAreaView(TemplateView):
+    """
+    Área do Aluno pública (sem login), acessada via token:
+    /aluno/<token>/
+    """
+
+    template_name = "area_aluno.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        token_val = kwargs.get("token") or ""
+        token_obj = get_object_or_404(StudentShareToken, token=token_val, revoked_at__isnull=True)
+        student = token_obj.student
+        teacher_name = student.user.get_full_name() or student.user.username
+        context["student"] = student
+        context["teacher_name"] = teacher_name
+        context["share_token"] = token_obj.token
+
+        today = timezone.now().date()
+        months_pt = [
+            "janeiro",
+            "fevereiro",
+            "março",
+            "abril",
+            "maio",
+            "junho",
+            "julho",
+            "agosto",
+            "setembro",
+            "outubro",
+            "novembro",
+            "dezembro",
+        ]
+        months_pt_short = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+        weekdays_pt = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"]
+
+        # --- Next lesson highlight (current & upcoming) ---
+        next_lesson = (
+            student.lessons.all()
+            .filter(realized=False)
+            .exclude(status="canceled")
+            .filter(date__gte=today)
+            .order_by("date", "time")
+            .first()
+        )
+        if next_lesson:
+            context["next_lesson"] = {
+                "title": next_lesson.title,
+                "info": next_lesson.info or "",
+                "date_day": next_lesson.date.day,
+                "date_month": months_pt[next_lesson.date.month - 1],
+                "date_weekday": weekdays_pt[next_lesson.date.weekday()],
+                "date_display": next_lesson.date.strftime("%d/%m"),
+                "time_str": next_lesson.time.strftime("%H:%M") if next_lesson.time else "",
+            }
+        else:
+            context["next_lesson"] = None
+
+        # --- Last realized lesson (for stats) ---
+        realized_lessons_qs = student.lessons.all().filter(
+            Q(realized=True) | Q(status__in=["done", "realized", "realizada"])
+        )
+        last_realized = realized_lessons_qs.order_by("-date", "-time").first()
+        if last_realized:
+            context["last_realized"] = {
+                "date_display": last_realized.date.strftime("%d/%m"),
+                "title": last_realized.title,
+            }
+        else:
+            context["last_realized"] = None
+
+        # --- KPIs ---
+        # Usa contagem real de aulas realizadas para evitar KPI desatualizado.
+        lessons_realized_count = realized_lessons_qs.count()
+        lessons_total_count = int(getattr(student, "lessons_total", 0) or 0)
+        context["lessons_realized_count"] = lessons_realized_count
+        context["lessons_total_count"] = lessons_total_count
+
+        # "Desde ..." for display
+        first_realized = realized_lessons_qs.order_by("date", "time").first()
+        if first_realized:
+            context["lessons_realized_since"] = first_realized.date.strftime("%b/%Y").replace("Jan", "jan").replace("Feb", "fev").replace("Mar", "mar").replace("Apr", "abr").replace("May", "mai").replace("Jun", "jun").replace("Jul", "jul").replace("Aug", "ago").replace("Sep", "set").replace("Oct", "out").replace("Nov", "nov").replace("Dec", "dez")
+        else:
+            context["lessons_realized_since"] = "—"
+
+        # --- Homework KPIs + cards data ---
+        homeworks_qs = student.homeworks.prefetch_related("messages").all().order_by("-updated_at", "-created_at")
+        hw_total = homeworks_qs.count()
+        hw_done = homeworks_qs.filter(status=StudentHomework.STATUS_DONE).count()
+        context["hw_total"] = hw_total
+        context["hw_done"] = hw_done
+        context["hw_pct"] = int(round(100 * hw_done / hw_total)) if hw_total else 0
+
+        hw_pending = homeworks_qs.filter(status=StudentHomework.STATUS_PENDING)
+        hw_in_progress_count = hw_pending.filter(student_response__isnull=False).exclude(student_response__exact="").count()
+        hw_not_started_count = hw_pending.count() - hw_in_progress_count
+        context["hw_in_progress_count"] = hw_in_progress_count
+        context["hw_not_started_count"] = hw_not_started_count
+
+        # Cards (public read-only)
+        pending_cards = []
+        for hw in hw_pending:
+            due_label = hw.due_date.strftime("%d/%m") if hw.due_date else "—"
+            messages = list(hw.messages.all().order_by("created_at", "id"))
+            msg_payload = [
+                {
+                    "id": m.id,
+                    "sender": m.sender,
+                    "sender_label": "Aluno" if m.sender == StudentHomeworkMessage.SENDER_STUDENT else "Professor",
+                    "message": m.message,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in messages
+            ]
+            # Sem mock: tarefa pendente começa em 0% e só vai a 100% quando concluída.
+            progress_percent = 0
+            pending_cards.append(
+                {
+                    "id": hw.id,
+                    "title": hw.title,
+                    "description": hw.description or "",
+                    "due_label": due_label,
+                    "progress_percent": progress_percent,
+                    "progress_width": f"{progress_percent}%",
+                    "teacher_feedback": hw.teacher_feedback or "",
+                    "student_response": hw.student_response or "",
+                    "messages": msg_payload,
+                }
+            )
+
+        done_cards = []
+        for hw in homeworks_qs.filter(status=StudentHomework.STATUS_DONE):
+            submitted_label = hw.updated_at.date().strftime("%d/%m") if hw.updated_at else "—"
+            messages = list(hw.messages.all().order_by("created_at", "id"))
+            msg_payload = [
+                {
+                    "id": m.id,
+                    "sender": m.sender,
+                    "sender_label": "Aluno" if m.sender == StudentHomeworkMessage.SENDER_STUDENT else "Professor",
+                    "message": m.message,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in messages
+            ]
+            done_cards.append(
+                {
+                    "id": hw.id,
+                    "title": hw.title,
+                    "description": hw.description or "",
+                    "submitted_label": submitted_label,
+                    "progress_percent": 100,
+                    "progress_width": "100%",
+                    "teacher_feedback": hw.teacher_feedback or "",
+                    "student_response": hw.student_response or "",
+                    "messages": msg_payload,
+                }
+            )
+
+        context["hw_pending_cards"] = pending_cards
+        context["hw_done_cards"] = done_cards
+
+        # --- Dedication breakdown (simple, based on pending due + comments + lessons) ---
+        hw_no_prazo = hw_pending.filter(due_date__gte=today).count() if hw_pending.exists() else 0
+        hw_comment_count = homeworks_qs.exclude(student_response__exact="").exclude(student_response__isnull=True).count()
+        context["ded_hw_no_prazo"] = hw_no_prazo
+        context["ded_hw_comments"] = hw_comment_count
+        context["ded_lessons"] = lessons_total_count
+        # dedication dots: 0..5
+        # Normalize comments vs total homework to decide how many dots fill.
+        if hw_total:
+            dot_fill = int(round(4 * (hw_comment_count / hw_total)))
+        else:
+            dot_fill = 0
+        context["ded_dot_fill"] = min(5, max(0, dot_fill))
+        if context["ded_dot_fill"] >= 4:
+            context["dedication_label"] = "Alta dedicação"
+        elif context["ded_dot_fill"] >= 2:
+            context["dedication_label"] = "Boa consistência"
+        else:
+            context["dedication_label"] = "Começando agora"
+
+        # --- Materials (attachments) grouped by month and date ---
+        attachments_qs = (
+            LessonPlanAttachment.objects.filter(lesson_plan__student=student)
+            .select_related("lesson_plan")
+            .order_by("-lesson_plan__date", "-uploaded_at")
+        )
+        AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".aac"}
+        VIDEO_EXT = {".mp4", ".webm", ".mov", ".avi", ".mkv"}
+
+        def _file_type(att):
+            ext = os.path.splitext(att.original_filename or "")[1].lower()
+            if ext == ".pdf":
+                return "pdf"
+            if ext in AUDIO_EXT:
+                return "audio"
+            if ext in VIDEO_EXT:
+                return "video"
+            return "file"
+
+        materials_map = {}  # month_label -> date_label -> [items]
+        for att in attachments_qs:
+            plan_date = att.lesson_plan.date
+            month_label = f"{months_pt[plan_date.month - 1].capitalize()} {plan_date.year}"
+            date_label = f"{plan_date.day:02d} de {months_pt[plan_date.month - 1]}"
+            ftype = _file_type(att)
+            if ftype == "pdf":
+                type_tag = "PDF"
+            elif ftype == "audio":
+                type_tag = "Áudio"
+            elif ftype == "video":
+                type_tag = "Vídeo"
+            else:
+                type_tag = "Arquivo"
+
+            obs = att.lesson_plan.goals or ""
+            materials_map.setdefault(month_label, {}).setdefault(date_label, []).append(
+                {
+                    "url": self.request.build_absolute_uri(att.file.url),
+                    "original_filename": att.original_filename or "Anexo",
+                    "file_type": ftype,
+                    "type_tag": type_tag,
+                    "plan_date": plan_date.isoformat() if plan_date else None,
+                    "obs": obs,
+                }
+            )
+
+        materials_months = []
+        for month_label, date_groups in materials_map.items():
+            # date_groups is an ordered dict by insertion (we already ordered by date desc)
+            date_items = []
+            for date_label, items in date_groups.items():
+                date_items.append({"date_label": date_label, "items": items})
+            materials_months.append({"month_label": month_label, "date_groups": date_items})
+        # Keep newest month first
+        materials_months.sort(key=lambda mg: mg["month_label"], reverse=True)
+        context["materials_months"] = materials_months
+
+        # --- Calendar: this month ---
+        cal_year = today.year
+        cal_month0 = today.month - 1  # JS uses 0-indexed
+        cal_month_label = f"{months_pt[cal_month0].capitalize()} {cal_year}"
+        context["cal_year"] = cal_year
+        context["cal_month0"] = cal_month0
+        context["cal_month_label"] = cal_month_label
+
+        lessons_in_month = (
+            student.lessons.all()
+            .filter(date__year=cal_year, date__month=cal_month0 + 1)
+            .order_by("date", "time")
+        )
+
+        done_days = sorted({l.date.day for l in lessons_in_month if l.realized})
+        upcoming_days = sorted({l.date.day for l in lessons_in_month if (not l.realized and l.status != "canceled")})
+        context["cal_class_done_days"] = done_days
+        context["cal_class_upcoming_days"] = upcoming_days
+
+        lessons_in_month_list = []
+        for l in lessons_in_month:
+            badge_class = "realizada" if l.realized else ("cancelada" if l.status == "canceled" else "agendada")
+            badge_label = "Realizada" if l.realized else ("Cancelada" if l.status == "canceled" else "Agendada")
+            lessons_in_month_list.append(
+                {
+                    "date_day": l.date.day,
+                    "date_month_short": months_pt_short[l.date.month - 1],
+                    "time_str": l.time.strftime("%H:%M") if l.time else "",
+                    "topic": l.title,
+                    "obs": l.info or "",
+                    "badge_class": badge_class,
+                    "badge_label": badge_label,
+                }
+            )
+        context["lessons_in_month_list"] = lessons_in_month_list
+
+        # --- JS-friendly JSON blobs (for rendering public mock -> real data) ---
+        context["materials_months_json"] = json.dumps(materials_months, ensure_ascii=False)
+        context["hw_pending_cards_json"] = json.dumps(pending_cards, ensure_ascii=False)
+        context["hw_done_cards_json"] = json.dumps(done_cards, ensure_ascii=False)
+        context["lessons_in_month_list_json"] = json.dumps(lessons_in_month_list, ensure_ascii=False)
+        context["cal_class_done_days_json"] = json.dumps(done_days, ensure_ascii=False)
+        context["cal_class_upcoming_days_json"] = json.dumps(upcoming_days, ensure_ascii=False)
+
+        return context
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def student_share_link(request, student_id):
+    """
+    Retorna URL do link de acesso público da Área do Aluno.
+    Gera token se não existir.
+    """
+    view = AlunoDetalheView()
+    view.request = request
+    try:
+        qs = view.get_queryset_students()
+        student = qs.get(id=student_id)
+    except Student.DoesNotExist:
+        return Response({"detail": "Aluno não encontrado ou sem permissão."}, status=status.HTTP_404_NOT_FOUND)
+
+    token_obj = StudentShareToken.get_active_token(student)
+    if not token_obj:
+        token_obj = StudentShareToken.create_new_active_token(student)
+
+    url = request.build_absolute_uri(reverse("aluno-area-token", kwargs={"token": token_obj.token}))
+    return Response({"url": url})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def student_share_link_regenerate(request, student_id):
+    """
+    Revoga o token ativo e gera um novo.
+    """
+    view = AlunoDetalheView()
+    view.request = request
+    try:
+        qs = view.get_queryset_students()
+        student = qs.get(id=student_id)
+    except Student.DoesNotExist:
+        return Response({"detail": "Aluno não encontrado ou sem permissão."}, status=status.HTTP_404_NOT_FOUND)
+
+    token_obj = StudentShareToken.create_new_active_token(student)
+    url = request.build_absolute_uri(reverse("aluno-area-token", kwargs={"token": token_obj.token}))
+    return Response({"url": url})
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def public_area_aluno_homework_comment(request, token, homework_id):
+    """
+    Permite que o aluno (via token público) envie/atualize student_response do homework.
+    Endpoint para uso na Área do Aluno (pública, sem login).
+    """
+    try:
+        token_obj = StudentShareToken.objects.select_related("student").get(
+            token=token, revoked_at__isnull=True
+        )
+    except StudentShareToken.DoesNotExist:
+        return Response({"detail": "Token inválido ou revogado."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        hw = StudentHomework.objects.get(id=homework_id, student=token_obj.student)
+    except StudentHomework.DoesNotExist:
+        return Response({"detail": "Homework não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    # DRF parseia JSON automaticamente quando Content-Type = application/json
+    payload = request.data if hasattr(request, "data") else {}
+    student_response = (payload.get("student_response") or "").strip()
+
+    if not student_response:
+        return Response({"detail": "Mensagem vazia."}, status=status.HTTP_400_BAD_REQUEST)
+
+    StudentHomeworkMessage.objects.create(
+        homework=hw,
+        sender=StudentHomeworkMessage.SENDER_STUDENT,
+        message=student_response,
+        created_by=None,
+    )
+    # Mantém compatibilidade com campos legados.
+    hw.student_response = student_response
+    hw.save(update_fields=["student_response", "updated_at"])
+
+    return Response({"ok": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def upload_student_material(request, student_id):
+    """
+    Upload rápido de material na ficha do aluno.
+    Cria (ou reutiliza) um LessonPlan para o aluno e delega a lógica de anexo
+    para LessonPlanAttachment / LessonPlanAttachmentSerializer.
+    """
+    # Reutiliza a mesma validação de permissão da tela de detalhe
+    # (dono da conta, parceiro atribuído ou admin).
+    view = AlunoDetalheView()
+    view.request = request
+    try:
+        qs = view.get_queryset_students()
+        student = qs.get(id=student_id)
+    except Student.DoesNotExist:
+        return Response({"error": "Aluno não encontrado ou sem permissão."}, status=status.HTTP_404_NOT_FOUND)
+
+    if "file" not in request.FILES:
+        return Response({"error": "Nenhum arquivo enviado."}, status=status.HTTP_400_BAD_REQUEST)
+
+    django_request = getattr(request, "_request", None)
+    today = timezone.now().date()
+    plan_date = today
+    if django_request:
+        raw = (django_request.POST.get("plan_date") or "").strip()
+        if raw:
+            try:
+                plan_date = datetime.strptime(raw, "%Y-%m-%d").date()
+            except ValueError:
+                plan_date = today
+
+    plan = (
+        LessonPlan.objects.filter(student=student, date=plan_date)
+        .order_by("-created_at")
+        .first()
+    )
+    if not plan:
+        plan = LessonPlan.objects.create(
+            student=student,
+            user=request.user,
+            date=plan_date,
+            links="",
+            goals="Materiais anexados pela ficha do aluno.",
+        )
+
+    # Reaproveitar a lógica de upload_planning_attachment, sem duplicar validações.
+    # Nota: upload_planning_attachment é um endpoint DRF (@api_view) que espera um
+    # django.http.HttpRequest. Aqui recebemos rest_framework.request.Request,
+    # então precisamos repassar o request Django subjacente.
+    django_request = getattr(request, "_request", None)
+    if django_request is None:
+        return Response({"error": "Request inválido."}, status=status.HTTP_400_BAD_REQUEST)
+    return upload_planning_attachment(django_request, plan.id)
+
+
 class FinanceView(TemplateView):
     """View para renderizar a página financeira (lançamentos a receber)"""
     template_name = "finance_refatorado.html"
@@ -870,8 +1453,14 @@ def upload_planning_attachment(request, plan_id):
     Aceita apenas: PDF, Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx)
     Tamanho máximo: 10MB por arquivo
     """
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-    ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.odt', '.ods', '.odp']
+    # Limites (podem ser promovidos para settings por tier futuramente)
+    MAX_FILE_SIZE = getattr(settings, "PLANNING_ATTACHMENT_MAX_FILE_SIZE", 10 * 1024 * 1024)  # 10MB padrão
+    MAX_FILES_PER_STUDENT = getattr(settings, "PLANNING_ATTACHMENT_MAX_FILES_PER_STUDENT", 60)
+    MAX_TOTAL_BYTES_PER_STUDENT = getattr(settings, "PLANNING_ATTACHMENT_MAX_TOTAL_BYTES_PER_STUDENT", 120 * 1024 * 1024)  # 120MB
+    ALLOWED_EXTENSIONS = [
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.odt', '.ods', '.odp',
+        '.mp3', '.m4a', '.wav', '.ogg', '.mp4', '.webm', '.mov',
+    ]
     
     try:
         plan = LessonPlan.objects.select_related('student', 'student__user', 'student__user__profile').get(id=plan_id)
@@ -937,7 +1526,24 @@ def upload_planning_attachment(request, plan_id):
         # Validar tamanho
         if file.size > MAX_FILE_SIZE:
             return Response(
-                {'error': f'Arquivo muito grande. Tamanho máximo: 10MB'},
+                {'error': f'Arquivo muito grande. Tamanho máximo: {int(MAX_FILE_SIZE / (1024*1024))}MB'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validar limites por aluno (anti-abuso): quantidade e total armazenado
+        from django.db.models import Sum
+        existing = LessonPlanAttachment.objects.filter(lesson_plan__student=plan.student)
+        existing_count = existing.count()
+        if existing_count >= MAX_FILES_PER_STUDENT:
+            return Response(
+                {'error': f'Limite de arquivos atingido para este aluno ({MAX_FILES_PER_STUDENT}). Remova anexos antigos para continuar.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        existing_bytes = existing.aggregate(total=Sum('file_size')).get('total') or 0
+        if (existing_bytes + file.size) > MAX_TOTAL_BYTES_PER_STUDENT:
+            remaining = max(0, MAX_TOTAL_BYTES_PER_STUDENT - existing_bytes)
+            return Response(
+                {'error': f'Limite de armazenamento atingido para este aluno. Restante: {int(remaining / (1024*1024))}MB.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -948,7 +1554,14 @@ def upload_planning_attachment(request, plan_id):
             original_filename=original_filename,
             file_size=file.size
         )
-        
+        display_title = (request.POST.get("display_title") or "").strip()
+        if display_title:
+            import re
+            base = re.sub(r"[^\w\s\-.àáâãéêíóôõúçÀÁÂÃÉÊÍÓÔÕÚÇ]", "", display_title).strip()[:180]
+            if base:
+                attachment.original_filename = base + ext
+                attachment.save()
+
         serializer = LessonPlanAttachmentSerializer(attachment, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
         
@@ -1824,6 +2437,101 @@ class BillingLogViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class StudentHomeworkViewSet(viewsets.ModelViewSet):
+    queryset = StudentHomework.objects.select_related("student", "assigned_by", "student__user", "student__assigned_teacher").prefetch_related("messages").all()
+    serializer_class = StudentHomeworkSerializer
+    permission_classes = [IsAuthenticated]
+
+    def _students_queryset_for_request(self):
+        """Mesma regra do detalhe do aluno / StudentViewSet (dono, parceiro, admin)."""
+        qs = Student.objects.select_related("user", "assigned_teacher").all()
+        try:
+            is_admin = self.request.user.profile.is_admin
+            user_profile = self.request.user.profile.user_profile
+        except UserProfile.DoesNotExist:
+            is_admin = False
+            user_profile = None
+        if is_admin:
+            return qs
+        if user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            return qs.filter(user__profile__partner_teachers=self.request.user.profile).filter(assigned_teacher=self.request.user)
+        return qs.filter(user=self.request.user)
+
+    def get_queryset(self):
+        students_qs = self._students_queryset_for_request()
+        qs = super().get_queryset().filter(student__in=students_qs)
+        student_id = self.request.query_params.get("student")
+        if student_id:
+            qs = qs.filter(student_id=student_id)
+        status_q = self.request.query_params.get("status")
+        if status_q:
+            qs = qs.filter(status=status_q)
+        return qs.order_by("-created_at")
+
+    def list(self, request, *args, **kwargs):
+        """
+        Mantém as mensagens como "não lidas" até o professor abrir a conversa
+        (acionado pelo endpoint mark-read na expansão do card).
+        """
+        return super().list(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        serializer.save(assigned_by=self.request.user)
+
+    @action(detail=True, methods=["POST"], permission_classes=[IsAuthenticated])
+    def messages(self, request, pk=None):
+        hw = self.get_object()
+        text = (request.data.get("message") or "").strip()
+        if not text:
+            return Response({"detail": "Mensagem vazia."}, status=status.HTTP_400_BAD_REQUEST)
+        msg = StudentHomeworkMessage.objects.create(
+            homework=hw,
+            sender=StudentHomeworkMessage.SENDER_TEACHER,
+            message=text,
+            created_by=request.user,
+        )
+
+        # Mantém compatibilidade com campo legado.
+        hw.teacher_feedback = text
+        hw.save(update_fields=["teacher_feedback", "updated_at"])
+
+        return Response(
+            {
+                "id": msg.id,
+                "sender": msg.sender,
+                "sender_label": "Professor",
+                "message": msg.message,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["POST"], permission_classes=[IsAuthenticated], url_path="mark-read")
+    def mark_read(self, request, pk=None):
+        """
+        Marca as mensagens do aluno (sender=student) desta tarefa como lidas
+        para o professor logado.
+        """
+        hw = self.get_object()
+        user = request.user
+
+        unread_msg_ids_qs = (
+            StudentHomeworkMessage.objects.filter(
+                homework=hw,
+                sender=StudentHomeworkMessage.SENDER_STUDENT,
+            ).exclude(reads__user=user)
+            .values_list("id", flat=True)
+        )
+        msg_ids = list(unread_msg_ids_qs[:1000])
+        if msg_ids:
+            read_objs = [
+                StudentHomeworkMessageRead(message_id=mid, user=user) for mid in msg_ids
+            ]
+            StudentHomeworkMessageRead.objects.bulk_create(read_objs, ignore_conflicts=True)
+
+        return Response({"ok": True, "marked": len(msg_ids)}, status=status.HTTP_200_OK)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -3338,6 +4046,12 @@ Aproveite! Se tiver dúvidas, responda este email ou fale conosco no WhatsApp.
             )
         except Exception as e:
             print(f"[Signup] Erro ao enviar email de boas-vindas: {e}")
+
+        # Dispara automação no n8n (fire-and-forget) para jornada de ativação no trial
+        try:
+            _trigger_n8n_onboarding_webhook(request, user)
+        except Exception as e:
+            print(f"[Signup] Erro ao disparar webhook onboarding n8n: {e}")
         
         return Response({
             'success': True,
@@ -3350,6 +4064,145 @@ Aproveite! Se tiver dúvidas, responda este email ou fale conosco no WhatsApp.
             {'error': f'Erro ao criar usuário: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+def _safe_bool_env(name: str, default: bool = False) -> bool:
+    raw = str(os.environ.get(name, "")).strip().lower()
+    if not raw:
+        return default
+    return raw in ("1", "true", "yes", "on")
+
+
+def _build_onboarding_progress_for_user(user):
+    students_qs = Student.objects.filter(user=user)
+    student_count = students_qs.count()
+    lesson_count = Lesson.objects.filter(student__user=user).count()
+    # Financeiro/pagamentos = lançamentos criados (FinancialEntry) para alunos do professor
+    financial_count = FinancialEntry.objects.filter(student__user=user).count()
+
+    has_student = student_count > 0
+    has_lesson = lesson_count > 0
+    has_financial = financial_count > 0
+
+    if not has_student:
+        stage = "missing_student"
+    elif not has_lesson:
+        stage = "missing_lesson"
+    elif not has_financial:
+        stage = "missing_financial"
+    else:
+        stage = "activated"
+
+    return {
+        "stage": stage,
+        "has_student": has_student,
+        "has_lesson": has_lesson,
+        "has_financial": has_financial,
+        "student_count": student_count,
+        "lesson_count": lesson_count,
+        "financial_count": financial_count,
+        # Mantido para compatibilidade com payload antigo (não usado agora)
+        "has_homework": False,
+        "homework_count": 0,
+    }
+
+
+def _trigger_n8n_onboarding_webhook(request, user):
+    """
+    Dispara webhook no n8n após signup/trial.
+    Fire-and-forget para não bloquear o signup.
+    """
+    if not _safe_bool_env("N8N_ONBOARDING_WEBHOOK_ENABLED", default=False):
+        return
+
+    webhook_url = os.environ.get("N8N_ONBOARDING_WEBHOOK_URL", "").strip()
+    if not webhook_url:
+        return
+
+    status_token = os.environ.get("N8N_ONBOARDING_STATUS_TOKEN", "").strip()
+    check_url = request.build_absolute_uri("/api/internal/onboarding/progress/")
+    user_profile = getattr(user, "profile", None)
+    trial_ends_at = getattr(user_profile, "trial_ends_at", None) if user_profile else None
+
+    payload = {
+        "event": "trial_started",
+        "user_id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name or "",
+        "last_name": user.last_name or "",
+        "trial_ends_at": trial_ends_at.isoformat() if trial_ends_at else None,
+        "started_at": timezone.now().isoformat(),
+        "onboarding_check_url": check_url,
+        "onboarding_check_token": status_token,
+    }
+
+    def _worker():
+        try:
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib_request.Request(
+                webhook_url,
+                data=data,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                method="POST",
+            )
+            with urllib_request.urlopen(req, timeout=8) as resp:
+                _ = resp.read()
+        except Exception as e:
+            print(f"[N8N onboarding] Falha ao disparar webhook: {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def onboarding_progress_internal(request):
+    """
+    Endpoint para o n8n consultar evolução do onboarding/trial.
+    Segurança: header X-Internal-Token deve bater com N8N_ONBOARDING_STATUS_TOKEN.
+    """
+    expected_token = os.environ.get("N8N_ONBOARDING_STATUS_TOKEN", "").strip()
+    # Header é o caminho ideal, mas como o n8n varia na forma de enviar headers,
+    # aceitamos também token via query param (mantendo a mesma validação).
+    provided_token = (
+        request.headers.get("X-Internal-Token")
+        or request.query_params.get("token")
+        or request.query_params.get("onboarding_check_token")
+        or ""
+    ).strip()
+    # Debug sem vazar segredo: só tamanho/estado
+    try:
+        print(
+            f"[onboarding_progress_internal] expected_len={len(expected_token)} "
+            f"provided_len={len(provided_token)} provided_empty={not bool(provided_token)}"
+        )
+    except Exception:
+        pass
+    if not expected_token or provided_token != expected_token:
+        return Response({"detail": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    raw_user_id = request.query_params.get("user_id")
+    try:
+        user_id = int(raw_user_id)
+    except (TypeError, ValueError):
+        return Response({"detail": "user_id inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"detail": "Usuário não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    progress = _build_onboarding_progress_for_user(user)
+    return Response({
+        "user_id": user.id,
+        "email": user.email,
+        "username": user.username,
+        "first_name": user.first_name or "",
+        **progress,
+    })
 
 
 # ==========================
@@ -3612,6 +4465,90 @@ def dashboard_summary_view(request):
         return Response(
             {'error': f'Erro ao carregar dados do dashboard: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# ==========================
+# Unread Homework Messages API
+# ==========================
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def dashboard_unread_homework_messages(request):
+    """
+    Retorna notificações (sininho) com mensagens de homework enviadas pelo aluno
+    que ainda não foram marcadas como "lidas" pelo professor logado.
+    """
+    try:
+        user = request.user
+
+        # Mesma regra do detalhe do aluno / StudentViewSet (dono, parceiro, admin).
+        try:
+            is_admin = user.profile.is_admin
+            user_profile = user.profile.user_profile
+        except UserProfile.DoesNotExist:
+            is_admin = False
+            user_profile = None
+
+        if is_admin:
+            students_qs = Student.objects.select_related("user", "assigned_teacher").all()
+        elif user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            students_qs = (
+                Student.objects.select_related("user", "assigned_teacher")
+                .filter(user__profile__partner_teachers=user.profile)
+                .filter(assigned_teacher=user)
+            )
+        else:
+            students_qs = Student.objects.select_related("user", "assigned_teacher").filter(user=user)
+
+        unread_qs = (
+            StudentHomeworkMessage.objects.filter(
+                sender=StudentHomeworkMessage.SENDER_STUDENT,
+                homework__student__in=students_qs,
+            )
+            .exclude(reads__user=user)
+            .select_related("homework", "homework__student")
+            .order_by("-created_at", "-id")
+        )
+
+        # Contagem total de mensagens não lidas (para o badge do dashboard).
+        unread_count = unread_qs.count()
+
+        # Agrupar por aluno: 1 card por aluno, exibindo quantas mensagens não lidas cada um tem.
+        grouped = (
+            unread_qs.values("homework__student_id", "homework__student__name")
+            .annotate(
+                unread_messages=Count("id"),
+                latest_created_at=Max("created_at"),
+            )
+            .order_by("-latest_created_at")
+        )
+
+        unread_students_total = grouped.count()
+        limit = 8
+        grouped_items = list(grouped[:limit])
+
+        msg_items = [
+            {
+                "student_id": row["homework__student_id"],
+                "student_name": row["homework__student__name"],
+                "unread_count": row["unread_messages"],
+                "url": f"/alunos/{row['homework__student_id']}/",
+            }
+            for row in grouped_items
+        ]
+
+        return Response(
+            {
+                "unread_count": unread_count,
+                "unread_students_count": unread_students_total,
+                "items": msg_items,
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"Erro ao carregar notificações: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -4398,10 +5335,12 @@ def calendar_event_create(request):
                     status=status.HTTP_404_NOT_FOUND
                 )
         
-        # Aluno: dono vê alunos da conta; parceiro vê apenas alunos atribuídos a ele (assigned_teacher)
+        # Aluno: admin vê todos; dono vê alunos da conta; parceiro vê apenas alunos atribuídos a ele
         try:
             profile = request.user.profile
-            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+            if getattr(profile, 'is_admin', False):
+                student = Student.objects.get(id=student_id)
+            elif profile.user_profile == UserProfile.PROFILE_TEACHER:
                 partner_ids = list(profile.partner_teachers.values_list('user_id', flat=True))
                 partner_ids.append(request.user.id)
                 student = Student.objects.get(id=student_id, user_id__in=partner_ids)

@@ -232,7 +232,7 @@ if RESEND_API_KEY:
     # Resend exige domínio verificado; use DEFAULT_FROM_EMAIL com email do domínio que você adicionou no painel Resend
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'contato@educaflowone.com.br')
     EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
-    print("✅ EMAIL: Configurado para Resend (API)")
+    print("[OK] EMAIL: Configurado para Resend (API)")
     print(f"   From: {DEFAULT_FROM_EMAIL}")
 elif EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     # Produção: usar SMTP real
@@ -251,7 +251,7 @@ elif EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@educaflowone.com')
     # Timeout de 10 segundos para evitar que email bloqueie a resposta HTTP
     EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
-    print(f"✅ EMAIL: Configurado para SMTP real")
+    print(f"[OK] EMAIL: Configurado para SMTP real")
     print(f"   Host: {EMAIL_HOST}:{EMAIL_PORT}")
     print(f"   From: {DEFAULT_FROM_EMAIL}")
     print(f"   SSL: {EMAIL_USE_SSL if EMAIL_PORT == 465 else False}")
@@ -261,7 +261,7 @@ else:
     # Desenvolvimento: usar console backend (imprime no terminal)
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@educaflowone.com')
-    print("⚠️  EMAIL: Usando console backend (desenvolvimento). Configure EMAIL_HOST_USER e EMAIL_HOST_PASSWORD para envio real.")
+    print("[WARN] EMAIL: Usando console backend (desenvolvimento). Configure EMAIL_HOST_USER e EMAIL_HOST_PASSWORD para envio real.")
 
 # Support email
 SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'educaflowone@gmail.com')

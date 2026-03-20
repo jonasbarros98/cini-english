@@ -98,3 +98,31 @@ Crie outro serviço Cron (ou combine com o existente em um script):
 
 - **Start Command:** `python manage.py send_pending_subscription_recovery_email`
 - **Cron Schedule:** `0 10 * * *` (todo dia às 10h UTC, ou ajuste para horário desejado)
+
+---
+
+## Email 3: Trial terminando em 2 dias — "Seu trial do Educaflow termina em 2 dias"
+
+Para usuários em **trial gratuito** cujo trial termina em ~2 dias (dia 5 do trial), induzindo a regularizar a assinatura.
+
+### Comando
+
+```bash
+python manage.py send_trial_ending_email
+```
+
+### Configuração no Railway
+
+Crie outro serviço Cron:
+
+- **Start Command:** `python manage.py send_trial_ending_email`
+- **Cron Schedule:** `0 */6 * * *` (a cada 6 horas — assim a janela de “2 dias faltando” é coberta)
+- **Variáveis:** mesmas do app principal (DATABASE_URL, EMAIL_*, SITE_URL, DJANGO_SECRET_KEY etc.)
+
+### Testar manualmente
+
+```bash
+python manage.py send_trial_ending_email
+```
+
+Só envia para quem está com trial_ends_at entre ~1d20h e ~2d4h no futuro e ainda não recebeu o email.

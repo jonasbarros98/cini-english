@@ -5,28 +5,33 @@ from django.views.generic import TemplateView, RedirectView
 from .views import (
     StudentViewSet, LessonViewSet, TaskViewSet, HomeView, DashboardView, DashboardHomeView,
     InvoiceViewSet, FinancialEntryViewSet, UserViewSet, LessonPlanViewSet, BillingLogViewSet,
+    StudentHomeworkViewSet,
     login_view, logout_view, current_user_view,
     create_checkout_session, stripe_webhook, subscription_status, subscription_sync, verify_checkout_session, signup_view,
-    create_portal_session, upgrade_portal_session, PlanosView, dashboard_summary_view, PerfilView, TutorialView,
+    create_portal_session, upgrade_portal_session, PlanosView, dashboard_summary_view, dashboard_unread_homework_messages, PerfilView, TutorialView,
     profile_get_view, profile_update_view, profile_partner_teachers_lookup,
     profile_partner_teachers_create, profile_partner_teachers_remove,
     profile_partner_teachers_update,
     welcome_dismiss_view,
     PlanningListView, planning_list_api,
     planning_edit_redirect, planning_new_redirect,
-    upload_planning_attachment, delete_planning_attachment,
-    AlunosView, CalendarNewView, FinanceView, ReciboView, TicketsView,
+    upload_planning_attachment, delete_planning_attachment, upload_student_material,
+    AlunosView, AlunoDetalheView, CalendarNewView, FinanceView, ReciboView, TicketsView,
     calendar_events, calendar_event_status, calendar_event_create, calendar_event_update,
     calendar_day_note, calendar_day_note_update,
     support_ticket_create, support_tickets_list, support_ticket_detail, landing_contact_view,
     PublicCalendarView, public_availability_api, public_reservation_create,
     public_booking_confirm, public_booking_reject,
+    StudentAreaView, student_share_link, student_share_link_regenerate,
+    public_area_aluno_homework_comment,
+    onboarding_progress_internal,
 )
 
 router = DefaultRouter()
 router.register(r"students", StudentViewSet, basename="student")
 router.register(r"lessons", LessonViewSet, basename="lesson")
 router.register(r"tasks", TaskViewSet, basename="task")
+router.register(r"student-homeworks", StudentHomeworkViewSet, basename="student-homework")
 router.register(r"invoices", InvoiceViewSet, basename="invoice")
 router.register(r"financial-entries", FinancialEntryViewSet, basename="financial-entry")
 router.register(r"billing-logs", BillingLogViewSet, basename="billing-log")
@@ -34,21 +39,27 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
+    path("tarefas-v2/", TemplateView.as_view(template_name="tasks_v2.html"), name="tasks-v2"),
     path("landing/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing"),
     path("landing-v3/", TemplateView.as_view(template_name="test_landing_v3.html"), name="landing-v3"),
     path("landing-v4/", TemplateView.as_view(template_name="test_landing_v4.html"), name="landing-v4"),
     path("landing-v5/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing-v5"),
+    path("area-aluno/", TemplateView.as_view(template_name="area_aluno.html"), name="area-aluno"),
+    path("aluno/<str:token>/", StudentAreaView.as_view(), name="aluno-area-token"),
+    path("aluno-detalhe/", TemplateView.as_view(template_name="aluno_detalhe.html", extra_context={"is_partner_teacher": False}), name="aluno-detalhe"),
     path("agendar/", PublicCalendarView.as_view(), name="public-calendar"),
     path("agendar/<slug:slug>/", PublicCalendarView.as_view(), name="public-calendar-slug"),
     path("api/public/<slug:slug>/availability/", public_availability_api, name="api-public-availability"),
     path("api/public/<slug:slug>/reservations/", public_reservation_create, name="api-public-reservations"),
     path("api/public/booking/<int:booking_id>/confirm/", public_booking_confirm, name="api-public-booking-confirm"),
     path("api/public/booking/<int:booking_id>/reject/", public_booking_reject, name="api-public-booking-reject"),
+    path("api/internal/onboarding/progress/", onboarding_progress_internal, name="api-internal-onboarding-progress"),
     path("dashboard/", DashboardHomeView.as_view(), name="dashboard-home"),
     path("perfil/", PerfilView.as_view(), name="perfil"),
     path("", HomeView.as_view(), name="home"),
     path("cobranca/", RedirectView.as_view(url="/?view=view-billing", permanent=False), name="cobranca"),
     path("alunos/", AlunosView.as_view(), name="alunos"),
+    path("alunos/<int:student_id>/", AlunoDetalheView.as_view(), name="aluno-detalhe-id"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("signup/", TemplateView.as_view(template_name="signup.html"), name="signup"),
     path("payment-processing/", TemplateView.as_view(template_name="payment_processing.html"), name="payment-processing"),
@@ -65,6 +76,11 @@ urlpatterns = [
     path("api/profile/partner-teachers/<int:user_id>/", profile_partner_teachers_update, name="profile-partner-teachers-update"),
     path("api/profile/welcome-dismiss/", welcome_dismiss_view, name="welcome-dismiss"),
     path("api/dashboard/summary/", dashboard_summary_view, name="dashboard-summary"),
+    path(
+        "api/dashboard/unread-homework-messages/",
+        dashboard_unread_homework_messages,
+        name="dashboard-unread-homework-messages",
+    ),
     path("api/subscription/create-checkout/", create_checkout_session, name="create-checkout"),
     path("api/subscription/status/", subscription_status, name="subscription-status"),
     path("api/subscription/sync/", subscription_sync, name="subscription-sync"),
@@ -80,6 +96,14 @@ urlpatterns = [
     path("api/planning/list/", planning_list_api, name="api-planning-list"),
     path("api/planning/<int:plan_id>/attachments/", upload_planning_attachment, name="api-planning-upload-attachment"),
     path("api/planning/attachments/<int:attachment_id>/", delete_planning_attachment, name="api-planning-delete-attachment"),
+    path("api/students/<int:student_id>/materials/", upload_student_material, name="api-student-upload-material"),
+    path("api/students/<int:student_id>/share-link/", student_share_link, name="api-student-share-link"),
+    path("api/students/<int:student_id>/share-link/regenerate/", student_share_link_regenerate, name="api-student-share-link-regenerate"),
+    path(
+        "api/public/area-aluno/<str:token>/homeworks/<int:homework_id>/comment/",
+        public_area_aluno_homework_comment,
+        name="api-public-area-aluno-homework-comment",
+    ),
     # Calendar endpoints
     path("calendar/", CalendarNewView.as_view(), name="calendar-new"),
     path("financeiro/", FinanceView.as_view(), name="finance"),

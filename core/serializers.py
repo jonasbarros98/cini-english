@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription
+from .models import StudentHomework, StudentHomeworkMessage
 from rest_framework import serializers as drf_serializers
 
 
@@ -41,6 +42,8 @@ class StudentSerializer(serializers.ModelSerializer):
             "status",
             "billing_type",
             "plan_name",
+            "level",
+            "teacher_notes",
             "plan_start_date",
             "lessons_total",
             "lessons_done",
@@ -82,6 +85,13 @@ class StudentSerializer(serializers.ModelSerializer):
         if allowed and pk not in allowed:
             raise serializers.ValidationError("Professor selecionado não é permitido para esta conta.")
         return value
+
+    def validate_name(self, value):
+        name = (value or "").strip()
+        # Limite de segurança para evitar estouro de layout na UI.
+        if len(name) > 120:
+            raise serializers.ValidationError("Nome muito longo. Use no máximo 120 caracteres.")
+        return name
     
     def get_contract_pdf_url(self, obj):
         if obj.contract_pdf:
@@ -151,6 +161,63 @@ class TaskSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["user"]
+
+
+class StudentHomeworkSerializer(serializers.ModelSerializer):
+    assigned_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    assigned_by_username = serializers.CharField(source="assigned_by.username", read_only=True)
+    student_name = serializers.CharField(source="student.name", read_only=True)
+    messages = serializers.SerializerMethodField()
+    unread_student_messages_count = serializers.SerializerMethodField()
+
+    def get_messages(self, obj):
+        return [
+            {
+                "id": m.id,
+                "sender": m.sender,
+                "sender_label": "Aluno" if m.sender == StudentHomeworkMessage.SENDER_STUDENT else "Professor",
+                "message": m.message,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in obj.messages.all().order_by("created_at", "id")
+        ]
+
+    def get_unread_student_messages_count(self, obj):
+        """
+        Quantas mensagens do aluno ainda não foram marcadas como lidas pelo professor logado.
+        Usamos o related_name `reads` do modelo StudentHomeworkMessageRead.
+        """
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return 0
+        # Mensagens enviadas pelo aluno que não possuem registro de "read" para este usuário.
+        return (
+            obj.messages.filter(sender=StudentHomeworkMessage.SENDER_STUDENT)
+            .exclude(reads__user=user)
+            .count()
+        )
+
+    class Meta:
+        model = StudentHomework
+        fields = [
+            "id",
+            "student",
+            "student_name",
+            "title",
+            "description",
+            "due_date",
+            "status",
+            "student_response",
+            "teacher_feedback",
+            "messages",
+            "unread_student_messages_count",
+            "assigned_by",
+            "assigned_by_username",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["assigned_by", "assigned_by_username", "student_name", "created_at", "updated_at"]
 
 class InvoiceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)

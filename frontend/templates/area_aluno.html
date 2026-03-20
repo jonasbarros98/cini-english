@@ -1,0 +1,2098 @@
+{% load static %}
+<!DOCTYPE html>
+<!--
+  ÁREA DO ALUNO — EDUCAflowOne
+  Design Mockup · Acesso via link único (token, sem login)
+  URL exemplo: /aluno/tok_abc123xyz/
+
+  Archetype  : Organic / Natural
+  Differentiator : Saudação Fraunces personalizada + cards de tarefas expandíveis estilo notebook
+  Fonts      : Fraunces (display) + DM Sans (body)
+  Palette    : Cream #faf9f6 · Sage #52796f · Amber #b45309 · Coral #c84f3a
+-->
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Área do Aluno · EDUCAflowOne</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ============================================================
+       TOKENS — Organic / Natural
+    ============================================================ */
+    :root {
+      --font-display : 'Fraunces', Georgia, serif;
+      --font-body    : 'DM Sans', system-ui, sans-serif;
+
+      /* Warm palette */
+      --bg           : #faf9f6;
+      --surface      : #ffffff;
+      --surface-2    : #f4f1eb;
+      --surface-3    : #ede9e1;
+      --text         : #2d2926;
+      --muted        : #7a6e66;
+      --subtle       : #b0a49a;
+      --border       : #e8e2d8;
+      --border-2     : #ddd6cc;
+
+      /* Status — sage / amber / coral */
+      --sage         : #52796f;
+      --sage-soft    : #eef3f1;
+      --sage-mid     : #c8dcd7;
+      --amber        : #b45309;
+      --amber-soft   : #fef9ee;
+      --amber-mid    : #fde68a;
+      --coral        : #c84f3a;
+      --coral-soft   : #fef3f1;
+      --coral-mid    : #fecaca;
+
+      /* Brand (mínimo, para coerência) */
+      --indigo       : #4f46e5;
+      --indigo-soft  : #eef2ff;
+
+      /* Shadows — warm tinted */
+      --sh-xs : 0 1px 3px rgba(45,41,38,.05);
+      --sh-sm : 0 2px 10px rgba(45,41,38,.07);
+      --sh-md : 0 8px 28px rgba(45,41,38,.09);
+      --sh-lg : 0 20px 56px rgba(45,41,38,.12);
+
+      /* Radius */
+      --r-sm   : 10px;
+      --r-md   : 16px;
+      --r-lg   : 22px;
+      --r-xl   : 28px;
+      --r-full : 999px;
+
+      /* Spacing */
+      --sp-2  : 0.5rem;
+      --sp-3  : 0.75rem;
+      --sp-4  : 1rem;
+      --sp-5  : 1.25rem;
+      --sp-6  : 1.5rem;
+      --sp-8  : 2rem;
+      --sp-10 : 2.5rem;
+      --sp-12 : 3rem;
+      --sp-16 : 4rem;
+
+      /* Easing */
+      --ease-out : cubic-bezier(.16,1,.3,1);
+      --ease-spring : cubic-bezier(.22,.68,0,1.2);
+    }
+
+    /* ============================================================
+       RESET
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      min-height: 100vh;
+      overflow-x: hidden; /* evita “card cortado” com barra horizontal no desktop */
+    }
+    img { display: block; max-width: 100%; }
+    a { color: inherit; }
+    button { font-family: var(--font-body); }
+    ::selection { background: var(--sage-soft); color: var(--sage); }
+
+    /* ============================================================
+       SHARED LINK BANNER — top of page
+    ============================================================ */
+    .shared-banner {
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      padding: .5rem var(--sp-6);
+      display: flex; align-items: center; justify-content: center;
+      gap: var(--sp-2);
+      font-size: .75rem; font-weight: 600; color: var(--muted);
+    }
+    .shared-banner i { width: 13px; height: 13px; color: var(--sage); flex-shrink: 0; }
+
+    /* ============================================================
+       STUDENT HEADER
+    ============================================================ */
+    .student-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 50;
+    }
+
+    .header-top {
+      max-width: 860px; margin: 0 auto;
+      padding: var(--sp-5) var(--sp-6);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: var(--sp-4);
+    }
+
+    .header-left {
+      display: flex; align-items: center; gap: var(--sp-4);
+      min-width: 0;
+    }
+
+    .student-avatar {
+      width: 46px; height: 46px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--sage-soft), var(--sage-mid));
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-size: 1rem; font-weight: 700; color: var(--sage);
+      flex-shrink: 0; border: 2px solid var(--sage-mid);
+    }
+
+    .header-info { min-width: 0; }
+    .header-info h1 {
+      font-family: var(--font-display);
+      font-size: 1.25rem; font-weight: 700;
+      color: var(--text); letter-spacing: -.025em;
+      line-height: 1.2; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .header-info p {
+      font-size: .78rem; color: var(--muted); font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* Dedication badge */
+    .dedication-badge {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      padding: .35rem .85rem; border-radius: var(--r-full);
+      font-size: .73rem; font-weight: 700;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .dedication-badge i { width: 12px; height: 12px; }
+    .dedication-badge.alta   { background: var(--sage-soft);  color: var(--sage);  border: 1px solid var(--sage-mid); }
+    .dedication-badge.media  { background: var(--amber-soft); color: var(--amber); border: 1px solid var(--amber-mid); }
+    .dedication-badge.baixa  { background: var(--coral-soft); color: var(--coral); border: 1px solid var(--coral-mid); }
+
+    /* ============================================================
+       TAB NAVIGATION
+    ============================================================ */
+    .tab-nav {
+      max-width: 860px; margin: 0 auto;
+      padding: 0 var(--sp-6);
+      display: flex; gap: 0;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .tab-nav::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      display: flex; align-items: center; gap: var(--sp-2);
+      padding: var(--sp-3) var(--sp-5);
+      background: none; border: none; cursor: pointer;
+      font-size: .875rem; font-weight: 600; color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .tab-btn i { width: 15px; height: 15px; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active {
+      color: var(--sage);
+      border-bottom-color: var(--sage);
+    }
+    /* badge on tab */
+    .tab-badge {
+      min-width: 18px; height: 18px;
+      background: var(--amber-soft); color: var(--amber);
+      border: 1px solid var(--amber-mid);
+      border-radius: var(--r-full);
+      font-size: .65rem; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0 5px;
+    }
+
+    /* ============================================================
+       MAIN CONTENT WRAPPER
+    ============================================================ */
+    .main {
+      max-width: 860px; width: 100%; margin: 0 auto;
+      padding: var(--sp-8) var(--sp-6) var(--sp-16);
+    }
+
+    /* Tab sections */
+    .tab-section { display: none; }
+    .tab-section.active { display: block; }
+
+    /* Section block */
+    .section-block {
+      margin-bottom: var(--sp-8);
+    }
+
+    /* Chapter label */
+    .chapter-label {
+      display: flex; align-items: center; gap: var(--sp-3);
+      margin-bottom: var(--sp-5);
+    }
+    .chapter-label span {
+      font-family: var(--font-display);
+      font-size: 1.1rem; font-weight: 600;
+      color: var(--text); letter-spacing: -.02em;
+    }
+    .chapter-label::after {
+      content: '';
+      flex: 1; height: 1px;
+      background: var(--border);
+    }
+
+    /* ============================================================
+       TAB: RESUMO
+    ============================================================ */
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-6);
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-5) var(--sp-6);
+      transition: box-shadow .2s var(--ease-out), transform .2s var(--ease-out);
+    }
+    .stat-card:hover { box-shadow: var(--sh-sm); transform: translateY(-2px); }
+
+    .stat-label {
+      font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .07em;
+      color: var(--subtle); margin-bottom: var(--sp-2);
+    }
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 2rem; font-weight: 700;
+      color: var(--text); letter-spacing: -.04em;
+      line-height: 1; margin-bottom: var(--sp-1);
+    }
+    .stat-value.sage   { color: var(--sage); }
+    .stat-value.amber  { color: var(--amber); }
+    .stat-sub {
+      font-size: .78rem; color: var(--muted); font-weight: 500;
+    }
+
+    /* Next class card */
+    .next-class-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-5) var(--sp-6);
+      display: flex; align-items: center; gap: var(--sp-4);
+      margin-bottom: var(--sp-6);
+    }
+    .next-class-icon {
+      width: 44px; height: 44px; border-radius: var(--r-md);
+      background: var(--indigo-soft); color: var(--indigo);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .next-class-icon i { width: 20px; height: 20px; }
+    .next-class-info { flex: 1; min-width: 0; }
+    .next-class-info .label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--subtle); margin-bottom: .2rem; }
+    .next-class-info .date {
+      font-family: var(--font-display);
+      font-size: 1.05rem; font-weight: 600; color: var(--text);
+      letter-spacing: -.02em;
+    }
+    .next-class-info .detail { font-size: .82rem; color: var(--muted); }
+
+    /* Progresso de tarefas */
+    .progress-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-6);
+      margin-bottom: var(--sp-6);
+    }
+    .progress-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: var(--sp-4);
+    }
+    .progress-header span:first-child {
+      font-family: var(--font-display);
+      font-size: .95rem; font-weight: 600; color: var(--text); letter-spacing: -.01em;
+    }
+    .progress-pct {
+      font-family: var(--font-display);
+      font-size: 1.35rem; font-weight: 700; color: var(--sage); letter-spacing: -.03em;
+    }
+    .progress-bar-wrap {
+      height: 10px; background: var(--surface-2);
+      border-radius: var(--r-full); overflow: hidden;
+      margin-bottom: var(--sp-3);
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: var(--r-full);
+      background: linear-gradient(90deg, var(--sage), #6a9d93);
+      transition: width .8s var(--ease-out);
+    }
+    .progress-detail {
+      display: flex; gap: var(--sp-5); flex-wrap: wrap;
+    }
+    .progress-detail-item {
+      display: flex; align-items: center; gap: var(--sp-2);
+      font-size: .78rem; font-weight: 600; color: var(--muted);
+    }
+    .progress-detail-item .dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .dot-sage  { background: var(--sage); }
+    .dot-amber { background: var(--amber); }
+    .dot-subtle { background: var(--subtle); }
+
+    /* Dedication score */
+    .dedication-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-6);
+    }
+    .dedication-title {
+      font-family: var(--font-display);
+      font-size: .95rem; font-weight: 600;
+      color: var(--text); letter-spacing: -.01em;
+      margin-bottom: var(--sp-4);
+    }
+    .dedication-dots {
+      display: flex; gap: var(--sp-2); align-items: center;
+      margin-bottom: var(--sp-4);
+    }
+    .ded-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--surface-3);
+      transition: background .3s;
+    }
+    .ded-dot.filled.alta  { background: var(--sage); }
+    .ded-dot.filled.media { background: var(--amber); }
+    .ded-dot.filled.baixa { background: var(--coral); }
+    .dedication-breakdown {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: var(--sp-3);
+    }
+    .ded-item {
+      text-align: center;
+      background: var(--surface-2);
+      border-radius: var(--r-md);
+      padding: var(--sp-3) var(--sp-2);
+    }
+    .ded-item .ded-num {
+      font-family: var(--font-display);
+      font-size: 1.35rem; font-weight: 700; color: var(--text);
+      letter-spacing: -.03em; line-height: 1;
+    }
+    .ded-item .ded-label { font-size: .68rem; color: var(--muted); font-weight: 600; margin-top: .25rem; }
+
+    /* ============================================================
+       TAB: MATERIAIS
+    ============================================================ */
+    .material-date-group { margin-bottom: var(--sp-6); }
+    .material-date-chip {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      font-size: .75rem; font-weight: 700; color: var(--muted);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: .3rem .75rem; border-radius: var(--r-full);
+      margin-bottom: var(--sp-3);
+    }
+    .material-date-chip i { width: 12px; height: 12px; }
+
+    .material-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-5);
+      margin-bottom: var(--sp-3);
+      display: flex; align-items: flex-start; gap: var(--sp-4);
+      transition: box-shadow .2s var(--ease-out), transform .2s var(--ease-out);
+    }
+    .material-card:hover { box-shadow: var(--sh-sm); transform: translateY(-2px); }
+
+    .material-type-icon {
+      width: 40px; height: 40px; border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .material-type-icon i { width: 18px; height: 18px; }
+    .mat-icon-pdf   { background: #fef2f2; color: #dc2626; }
+    .mat-icon-audio { background: var(--sage-soft); color: var(--sage); }
+    .mat-icon-video { background: var(--indigo-soft); color: var(--indigo); }
+    .mat-icon-link  { background: var(--amber-soft); color: var(--amber); }
+    .mat-icon-file  { background: var(--surface-2); color: var(--muted); }
+
+    .material-body { flex: 1; min-width: 0; }
+    .material-title {
+      font-weight: 700; font-size: .92rem; color: var(--text);
+      margin-bottom: .25rem; line-height: 1.3;
+    }
+    .material-desc { font-size: .82rem; color: var(--muted); line-height: 1.5; margin-bottom: var(--sp-3); }
+
+    .material-meta {
+      display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+    }
+    .mat-type-tag {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--muted);
+      background: var(--surface-2); border: 1px solid var(--border);
+      padding: .2em .6em; border-radius: var(--r-full);
+    }
+    .mat-link-btn {
+      display: inline-flex; align-items: center; gap: var(--sp-1);
+      font-size: .78rem; font-weight: 700; color: var(--sage);
+      text-decoration: none; border: none; background: none; cursor: pointer;
+      transition: color .15s;
+    }
+    .mat-link-btn:hover { color: var(--text); }
+    .mat-link-btn i { width: 13px; height: 13px; }
+
+    .material-obs {
+      margin-top: var(--sp-3);
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--surface-2);
+      border-left: 3px solid var(--border-2);
+      border-radius: 0 var(--r-sm) var(--r-sm) 0;
+      font-size: .8rem; color: var(--muted);
+      font-style: italic; line-height: 1.55;
+    }
+    .material-obs strong {
+      display: block; font-style: normal; font-size: .7rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--subtle); margin-bottom: .2rem;
+    }
+
+    /* ============================================================
+       TAB: TAREFAS
+    ============================================================ */
+    .hw-group { margin-bottom: var(--sp-8); }
+    .hw-filter-bar{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom: var(--sp-6);
+    }
+    .hw-filter-btn{
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--muted);
+      padding: .5rem .85rem;
+      border-radius: var(--r-full);
+      font-weight: 800;
+      font-size: .8rem;
+      cursor:pointer;
+      transition: transform .12s var(--ease-out), background .12s var(--ease-out), border-color .12s var(--ease-out), color .12s var(--ease-out);
+      user-select:none;
+    }
+    .hw-filter-btn:hover{ transform: translateY(-1px); }
+    .hw-filter-btn.active{
+      background: var(--sage-soft);
+      border-color: rgba(82,121,111,.35);
+      color: var(--sage);
+    }
+    .hw-filter-btn-count{
+      margin-left: .35rem;
+      font-size: .75rem;
+      font-weight: 900;
+      opacity: .85;
+    }
+    .hw-group-header {
+      display: flex; align-items: center; gap: var(--sp-3);
+      margin-bottom: var(--sp-4);
+    }
+    .hw-group-label {
+      font-size: .72rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+    .hw-group-label.concluido { color: var(--sage); }
+    .hw-group-label.andamento { color: var(--amber); }
+    .hw-group-label.nao-iniciado { color: var(--subtle); }
+    .hw-group-count {
+      font-size: .7rem; font-weight: 700;
+      padding: .15em .6em; border-radius: var(--r-full);
+    }
+    .hw-group-count.concluido { background: var(--sage-soft); color: var(--sage); }
+    .hw-group-count.andamento { background: var(--amber-soft); color: var(--amber); }
+    .hw-group-count.nao-iniciado { background: var(--surface-3); color: var(--subtle); }
+
+    /* Card de tarefa — expansível */
+    .hw-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      margin-bottom: var(--sp-3);
+      overflow: hidden;
+      transition: box-shadow .2s var(--ease-out);
+      max-width: 100%;
+    }
+    .hw-card:hover { box-shadow: var(--sh-sm); }
+    .hw-card.expanded { box-shadow: var(--sh-md); border-color: var(--border-2); }
+
+    /* left accent bar by status */
+    .hw-card.concluido   { border-left: 3px solid var(--sage); }
+    .hw-card.andamento   { border-left: 3px solid var(--amber); }
+    .hw-card.nao-iniciado { border-left: 3px solid var(--border-2); }
+
+    .hw-card-summary {
+      display: flex; align-items: center; gap: var(--sp-4);
+      padding: var(--sp-5);
+      cursor: pointer; user-select: none;
+    }
+    .hw-status-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .hw-status-dot.concluido   { background: var(--sage); }
+    .hw-status-dot.andamento   { background: var(--amber); }
+    .hw-status-dot.nao-iniciado { background: var(--border-2); border: 2px solid var(--subtle); }
+
+    .hw-summary-body { flex: 1; min-width: 0; }
+    .hw-title {
+      font-weight: 700; font-size: .92rem; color: var(--text);
+      margin-bottom: .2rem; line-height: 1.3;
+    }
+    .hw-meta-row {
+      display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap;
+    }
+    .hw-prazo {
+      display: flex; align-items: center; gap: var(--sp-1);
+      font-size: .75rem; font-weight: 600; color: var(--muted);
+    }
+    .hw-prazo i { width: 12px; height: 12px; }
+    .hw-prazo.overdue { color: var(--coral); }
+
+    /* mini progress pill */
+    .hw-progress-pill {
+      display: flex; align-items: center; gap: var(--sp-2);
+    }
+    .hw-mini-bar {
+      width: 60px; height: 5px; background: var(--surface-2);
+      border-radius: var(--r-full); overflow: hidden;
+    }
+    .hw-mini-fill {
+      height: 100%; border-radius: var(--r-full);
+      background: var(--sage);
+    }
+    .hw-mini-fill.amber { background: var(--amber); }
+    .hw-pct-text { font-size: .72rem; font-weight: 700; color: var(--muted); }
+
+    .hw-expand-icon {
+      color: var(--subtle); flex-shrink: 0;
+      transition: transform .3s var(--ease-out);
+    }
+    .hw-expand-icon i { width: 16px; height: 16px; }
+    .hw-card.expanded .hw-expand-icon i { transform: rotate(180deg); }
+
+    /* Corpo expandido da tarefa */
+    .hw-card-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height .4s var(--ease-out);
+    }
+    /* Mantém a expansão sem criar uma nova área de scroll na página inteira.
+       Quem controla o scroll do histórico é a caixa `.existing-comment`. */
+    .hw-card.expanded .hw-card-body {
+      max-height: 9999px;
+      overflow-y: visible;
+      overflow-x: hidden;
+    }
+
+    .hw-card-inner {
+      padding: 0 var(--sp-5) var(--sp-5);
+      border-top: 1px solid var(--border);
+      max-width: 100%;
+    }
+
+    .hw-desc {
+      font-size: .88rem; color: var(--muted);
+      line-height: 1.65; padding: var(--sp-4) 0 var(--sp-5);
+    }
+
+    /* full progress bar inside expanded */
+    .hw-full-bar-wrap {
+      height: 8px; background: var(--surface-2);
+      border-radius: var(--r-full); overflow: hidden;
+      margin-bottom: var(--sp-2);
+    }
+    .hw-full-bar-fill {
+      height: 100%; border-radius: var(--r-full);
+      background: linear-gradient(90deg, var(--sage), #6a9d93);
+    }
+    .hw-full-bar-fill.amber {
+      background: linear-gradient(90deg, var(--amber), #d97706);
+    }
+    .hw-bar-label {
+      display: flex; justify-content: space-between;
+      font-size: .72rem; color: var(--subtle); font-weight: 600;
+      margin-bottom: var(--sp-4);
+    }
+
+    /* teacher note */
+    .hw-teacher-note {
+      background: var(--surface-2);
+      border-left: 3px solid var(--sage-mid);
+      border-radius: 0 var(--r-sm) var(--r-sm) 0;
+      padding: var(--sp-3) var(--sp-4);
+      margin-bottom: var(--sp-5);
+    }
+    .hw-teacher-note strong {
+      display: block; font-size: .7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: var(--sage); margin-bottom: .25rem;
+    }
+    .hw-teacher-note p { font-size: .82rem; color: var(--muted); line-height: 1.55; }
+
+    /* student comment area */
+    .hw-comment-section {}
+    .hw-comment-section label {
+      display: block; font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .07em;
+      color: var(--subtle); margin-bottom: var(--sp-2);
+    }
+    /* textarea + botões devem ficar abaixo do histórico */
+    .hw-card.expanded .hw-comment-section {
+      position: static;
+      background: transparent;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-top: none;
+    }
+    /* existing comment */
+    .existing-comment {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: var(--sp-3);
+      margin-bottom: var(--sp-3);
+      max-height: 280px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .hw-card.expanded .existing-comment {
+      /* histórico com scroll interno (mantém textarea/botões visíveis) */
+      max-height: 280px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .existing-comment p { font-size: .85rem; color: var(--text); line-height: 1.55; }
+    .existing-comment-meta {
+      display: flex; align-items: center; gap: var(--sp-2);
+      margin-top: var(--sp-2);
+    }
+    .existing-comment-meta i { width: 12px; height: 12px; color: var(--sage); }
+    .existing-comment-meta span { font-size: .7rem; color: var(--muted); }
+    .chat-thread {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 100%;
+    }
+    .chat-row {
+      display: flex;
+      width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
+      box-sizing: border-box;
+    }
+    .chat-row.student { justify-content: flex-start; }
+    .chat-row.teacher { justify-content: flex-end; }
+    .chat-bubble {
+      max-width: 100%;
+      width: auto;
+      padding: 9px 12px;
+      border-radius: 14px;
+      font-size: .84rem;
+      line-height: 1.5;
+      border: 1px solid var(--border);
+      word-break: break-word;
+      overflow-wrap: anywhere; /* garante quebra mesmo com palavras/strings muito longas */
+      white-space: pre-wrap;
+      box-shadow: var(--sh-xs);
+      box-sizing: border-box;
+    }
+    .chat-row.student .chat-bubble {
+      background: var(--surface);
+      border-color: var(--border-2);
+      border-top-left-radius: 6px;
+    }
+    .chat-row.teacher .chat-bubble {
+      background: var(--sage-soft);
+      border-color: var(--sage-mid);
+      border-top-right-radius: 6px;
+    }
+    .chat-meta {
+      margin-top: 4px;
+      font-size: .66rem;
+      color: var(--subtle);
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    .chat-ts {
+      font-size: .6rem;
+      color: var(--muted);
+      font-weight: 650;
+      letter-spacing: .01em;
+      margin-left: 6px;
+      display: inline;
+    }
+    /* textarea */
+    .comment-textarea {
+      width: 100%; min-height: 72px; max-height: 160px; resize: vertical;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-md);
+      padding: var(--sp-3) var(--sp-4);
+      font-family: var(--font-body);
+      font-size: .88rem; color: var(--text); line-height: 1.55;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .comment-textarea:focus {
+      outline: none; border-color: var(--sage);
+      box-shadow: 0 0 0 3px var(--sage-soft);
+    }
+    .comment-textarea::placeholder { color: var(--subtle); }
+    .comment-submit-row {
+      display: flex; justify-content: flex-end; gap: var(--sp-3);
+      margin-top: var(--sp-3);
+      width: 100%;
+      box-sizing: border-box;
+      flex-wrap: wrap;
+    }
+
+    .comment-area-wrap{
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .btn-comment {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      padding: .55rem 1.1rem; border-radius: var(--r-full);
+      font-family: var(--font-body); font-size: .82rem; font-weight: 700;
+      border: none; cursor: pointer;
+      transition: transform .15s var(--ease-spring), filter .15s;
+    }
+    .btn-comment i { width: 14px; height: 14px; }
+    .btn-comment-primary {
+      background: var(--sage); color: #fff;
+      box-shadow: 0 2px 8px rgba(82,121,111,.25);
+    }
+    .btn-comment-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-comment-ghost {
+      background: var(--surface-2); color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-comment-ghost:hover { background: var(--surface-3); }
+    .comment-success {
+      display: flex; align-items: center; gap: var(--sp-2);
+      font-size: .82rem; font-weight: 600; color: var(--sage);
+      padding: var(--sp-2) 0;
+    }
+    .comment-success i { width: 15px; height: 15px; }
+
+    /* ============================================================
+       TAB: CALENDÁRIO
+    ============================================================ */
+    .calendar-grid-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-6);
+      margin-bottom: var(--sp-6);
+    }
+    .calendar-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--sp-5);
+    }
+    .calendar-month {
+      font-family: var(--font-display);
+      font-size: 1.1rem; font-weight: 600;
+      color: var(--text); letter-spacing: -.02em;
+    }
+    .cal-weekdays {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 2px; margin-bottom: var(--sp-2);
+    }
+    .cal-weekday {
+      text-align: center; font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em; color: var(--subtle);
+      padding: var(--sp-2) 0;
+    }
+    .cal-days {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .cal-day {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      border-radius: var(--r-sm); font-size: .82rem; font-weight: 500;
+      color: var(--text); cursor: default; position: relative;
+    }
+    .cal-day.empty { }
+    .cal-day.other-month { color: var(--subtle); }
+    .cal-day.today {
+      background: var(--surface-2); font-weight: 700;
+      border: 1.5px solid var(--border-2);
+    }
+    .cal-day.class-done {
+      background: var(--sage-soft); color: var(--sage); font-weight: 700;
+    }
+    .cal-day.class-done::after {
+      content: '';
+      position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+      width: 4px; height: 4px; border-radius: 50%; background: var(--sage);
+    }
+    .cal-day.class-upcoming {
+      background: var(--indigo-soft); color: var(--indigo); font-weight: 700;
+    }
+    .cal-day.class-upcoming::after {
+      content: '';
+      position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+      width: 4px; height: 4px; border-radius: 50%; background: var(--indigo);
+    }
+
+    .calendar-legend {
+      display: flex; gap: var(--sp-5); flex-wrap: wrap;
+      margin-top: var(--sp-4); padding-top: var(--sp-4);
+      border-top: 1px solid var(--border);
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: var(--sp-2);
+      font-size: .75rem; font-weight: 600; color: var(--muted);
+    }
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+    }
+    .legend-dot.done     { background: var(--sage-soft); border: 1.5px solid var(--sage-mid); }
+    .legend-dot.upcoming { background: var(--indigo-soft); border: 1.5px solid var(--indigo); opacity: .5; }
+    .legend-dot.today    { background: var(--surface-3); border: 1.5px solid var(--border-2); }
+
+    /* Class list */
+    .class-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+    .class-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-4) var(--sp-5);
+      display: flex; align-items: center; gap: var(--sp-4);
+    }
+    .class-date-col {
+      text-align: center; flex-shrink: 0; min-width: 48px;
+    }
+    .class-date-day {
+      font-family: var(--font-display);
+      font-size: 1.5rem; font-weight: 700; color: var(--text);
+      letter-spacing: -.04em; line-height: 1;
+    }
+    .class-date-month { font-size: .65rem; font-weight: 700; color: var(--subtle); text-transform: uppercase; letter-spacing: .06em; }
+    .class-divider { width: 1px; height: 36px; background: var(--border); flex-shrink: 0; }
+    .class-info { flex: 1; min-width: 0; }
+    .class-time { font-size: .75rem; font-weight: 600; color: var(--muted); margin-bottom: .2rem; }
+    .class-topic {
+      font-weight: 700; font-size: .88rem; color: var(--text); margin-bottom: .2rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .class-obs { font-size: .78rem; color: var(--muted); }
+    .class-status-badge {
+      flex-shrink: 0; font-size: .68rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: .25rem .7rem; border-radius: var(--r-full);
+    }
+    .class-status-badge.realizada  { background: var(--sage-soft);  color: var(--sage);  }
+    .class-status-badge.agendada   { background: var(--indigo-soft); color: var(--indigo); }
+    .class-status-badge.cancelada  { background: var(--coral-soft);  color: var(--coral); }
+
+    /* ============================================================
+       EMPTY STATE
+    ============================================================ */
+    .empty-state {
+      text-align: center; padding: var(--sp-12) var(--sp-6);
+    }
+    .empty-state i { width: 32px; height: 32px; color: var(--border-2); margin: 0 auto var(--sp-4); }
+    .empty-state p { font-size: .9rem; color: var(--subtle); }
+
+    /* ============================================================
+       FOOTER
+    ============================================================ */
+    .student-footer {
+      text-align: center;
+      padding: var(--sp-8) var(--sp-6);
+      border-top: 1px solid var(--border);
+      font-size: .75rem; color: var(--subtle);
+    }
+    .student-footer a { color: var(--sage); text-decoration: underline; }
+    .student-footer .brand-link { color: var(--indigo); font-weight: 700; }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+    @media (min-width: 600px) {
+      .stats-grid { grid-template-columns: repeat(4, 1fr); }
+      .dedication-breakdown { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 599px) {
+      .header-top { padding: var(--sp-4); }
+      .tab-nav { padding: 0 var(--sp-4); }
+      .main { padding: var(--sp-6) var(--sp-4) var(--sp-12); }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stat-value { font-size: 1.6rem; }
+      .hw-card-summary { padding: var(--sp-4); }
+      .hw-card-inner { padding: 0 var(--sp-4) var(--sp-4); }
+      .chat-bubble { max-width: 78%; }
+      .material-card { padding: var(--sp-4); }
+      .cal-day { font-size: .75rem; }
+      .class-item { flex-wrap: wrap; gap: var(--sp-3); }
+      .class-divider { display: none; }
+    }
+
+    /* Toast (public area) */
+    .student-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%) translateY(10px);
+      background: rgba(15,23,42,.92);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 13px;
+      box-shadow: 0 18px 50px rgba(2,6,23,.25);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2500;
+      transition: opacity .18s var(--ease-out), transform .18s var(--ease-out);
+      max-width: calc(100vw - 24px);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .student-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0px);
+    }
+    .student-toast.error {
+      background: rgba(200, 60, 60, .92);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ============================================================
+       SHARED LINK BANNER
+  ============================================================ -->
+  <div class="shared-banner">
+    <i data-lucide="link-2"></i>
+    Você está visualizando seu espaço compartilhado pelo <strong style="margin-left:3px">{{ teacher_name|default:"Professor" }}</strong>
+  </div>
+
+  <!-- ============================================================
+       STUDENT HEADER (sticky)
+  ============================================================ -->
+  <header class="student-header">
+    <div class="header-top">
+      <div class="header-left">
+        <div class="student-avatar">AC</div>
+        <div class="header-info">
+          <h1>{{ student.name|default:"Aluno" }}</h1>
+          <p>{{ teacher_name|default:"Professor" }} &middot; {{ student.plan_name|default:"Inglês para Negócios" }} &middot; {{ student.level|default:"—" }}</p>
+        </div>
+      </div>
+      <div class="dedication-badge alta">
+        <i data-lucide="flame"></i>
+        Alta dedicação
+      </div>
+    </div>
+
+    <!-- Tab nav -->
+    <nav class="tab-nav" role="tablist">
+      <button class="tab-btn active" data-tab="resumo" role="tab">
+        <i data-lucide="layout-dashboard"></i>
+        Resumo
+      </button>
+      <button class="tab-btn" data-tab="materiais" role="tab">
+        <i data-lucide="folder-open"></i>
+        Materiais
+      </button>
+      <button class="tab-btn" data-tab="homework" role="tab">
+        <i data-lucide="check-square"></i>
+        Tarefas
+        <span class="tab-badge" id="tabHomeworkBadge">0</span>
+      </button>
+      <button class="tab-btn" data-tab="calendario" role="tab">
+        <i data-lucide="calendar"></i>
+        Calendário
+      </button>
+    </nav>
+  </header>
+
+  <!-- ============================================================
+       MAIN CONTENT
+  ============================================================ -->
+  <main class="main">
+
+    <!-- ==================== TAB: RESUMO ==================== -->
+    <section id="tab-resumo" class="tab-section active" role="tabpanel">
+
+      <!-- Greeting -->
+      <div class="section-block" style="margin-bottom: var(--sp-6);">
+        <p style="font-family: var(--font-display); font-size: clamp(1.4rem, 4vw, 1.8rem); font-weight: 600; color: var(--text); letter-spacing: -.03em; line-height: 1.2;">
+          Olá, <em style="font-style: italic; color: var(--sage);">{{ student.name|default:"Aluno" }}</em>. Aqui está sua evolução.
+        </p>
+        <p style="font-size: .88rem; color: var(--muted); margin-top: var(--sp-2);">Última atualização feita pelo prof. {{ teacher_name|default:"Professor" }}.</p>
+      </div>
+
+      <!-- Stats grid -->
+      <div class="stats-grid section-block">
+        <div class="stat-card">
+          <div class="stat-label">Aulas realizadas</div>
+          <div class="stat-value">{{ lessons_realized_count|default:0 }}</div>
+          <div class="stat-sub">desde {{ lessons_realized_since|default:"—" }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Tarefas concluídas</div>
+          <div class="stat-value sage">{{ hw_pct|default:0 }}%</div>
+          <div class="stat-sub">
+            {% if hw_total %}
+              {{ hw_done|default:0 }} de {{ hw_total|default:0 }} tarefas
+            {% else %}
+              Nenhuma tarefa
+            {% endif %}
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Última aula</div>
+          {% if last_realized %}
+            <div class="stat-value" style="font-size: 1.35rem;">{{ last_realized.date_display }}</div>
+            <div class="stat-sub">{{ last_realized.title }}</div>
+          {% else %}
+            <div class="stat-value" style="font-size: 1.35rem;">—</div>
+            <div class="stat-sub">Sem aulas realizadas</div>
+          {% endif %}
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Próxima aula</div>
+          {% if next_lesson %}
+            <div class="stat-value" style="font-size: 1.35rem; color: var(--indigo);">{{ next_lesson.date_display }}</div>
+            <div class="stat-sub">{{ next_lesson.date_weekday|capfirst }} · {{ next_lesson.time_str }}</div>
+          {% else %}
+            <div class="stat-value" style="font-size: 1.35rem; color: var(--indigo);">—</div>
+            <div class="stat-sub">Sem aulas futuras</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Next class highlight -->
+      <div class="next-class-card section-block">
+        <div class="next-class-icon"><i data-lucide="calendar-check"></i></div>
+        <div class="next-class-info">
+          <div class="label">Próxima aula</div>
+          {% if next_lesson %}
+            <div class="date">
+              {{ next_lesson.date_weekday|capfirst }}, {{ next_lesson.date_day }} de {{ next_lesson.date_month }} · {{ next_lesson.time_str }}
+            </div>
+            <div class="detail">{{ next_lesson.title }}</div>
+          {% else %}
+            <div class="date">Sem aulas futuras</div>
+            <div class="detail">Assim que uma aula for agendada, você verá aqui.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Progresso de tarefas -->
+      <div class="progress-card section-block">
+        <div class="progress-header">
+          <span>Progresso de tarefas</span>
+          <span class="progress-pct">{{ hw_pct|default:0 }}%</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" style="width: {{ hw_pct|default:0 }}%;"></div>
+        </div>
+        <div class="progress-detail">
+          <div class="progress-detail-item">
+            <span class="dot dot-sage"></span>
+            {{ hw_done|default:0 }} concluídos
+          </div>
+          <div class="progress-detail-item">
+            <span class="dot dot-amber"></span>
+            {{ hw_in_progress_count|default:0 }} em andamento
+          </div>
+          <div class="progress-detail-item">
+            <span class="dot dot-subtle"></span>
+            {{ hw_not_started_count|default:0 }} não iniciados
+          </div>
+        </div>
+      </div>
+
+      <!-- Dedication score -->
+      <div class="dedication-card section-block">
+        <div class="dedication-title">Nível de dedicação</div>
+        <div class="dedication-dots">
+          <span class="ded-dot {% if 0 < ded_dot_fill %}filled alta{% endif %}"></span>
+          <span class="ded-dot {% if 1 < ded_dot_fill %}filled alta{% endif %}"></span>
+          <span class="ded-dot {% if 2 < ded_dot_fill %}filled alta{% endif %}"></span>
+          <span class="ded-dot {% if 3 < ded_dot_fill %}filled alta{% endif %}"></span>
+          <span class="ded-dot {% if 4 < ded_dot_fill %}filled alta{% endif %}"></span>
+          <span style="font-size:.78rem; font-weight:700; color: var(--sage); margin-left: var(--sp-2);">{{ dedication_label|default:"—" }}</span>
+        </div>
+        <div class="dedication-breakdown">
+          <div class="ded-item">
+            <div class="ded-num">{{ ded_hw_no_prazo|default:0 }}</div>
+            <div class="ded-label">Tarefas no prazo</div>
+          </div>
+          <div class="ded-item">
+            <div class="ded-num">{{ ded_hw_comments|default:0 }}</div>
+            <div class="ded-label">Comentários</div>
+          </div>
+          <div class="ded-item">
+            <div class="ded-num">{{ ded_lessons|default:0 }}</div>
+            <div class="ded-label">Aulas</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== TAB: MATERIAIS ==================== -->
+    <section id="tab-materiais" class="tab-section" role="tabpanel">
+
+      <div class="section-block">
+        <div class="chapter-label"><span>Março 2026</span></div>
+
+        <div class="material-date-group">
+          <div class="material-date-chip"><i data-lucide="calendar"></i> 10 de março</div>
+
+          <div class="material-card">
+            <div class="material-type-icon mat-icon-pdf"><i data-lucide="file-text"></i></div>
+            <div class="material-body">
+              <div class="material-title">Vocabulary Review — Business Terms</div>
+              <div class="material-desc">Lista completa de vocabulário cobrado nas últimas 3 aulas com exemplos de uso em contexto corporativo.</div>
+              <div class="material-meta">
+                <span class="mat-type-tag">PDF</span>
+                <button class="mat-link-btn"><i data-lucide="external-link"></i> Abrir material</button>
+              </div>
+              <div class="material-obs">
+                <strong>Obs. do professor</strong>
+                Revise antes da próxima aula. Foque especialmente nos termos de seção 3.
+              </div>
+            </div>
+          </div>
+
+          <div class="material-card">
+            <div class="material-type-icon mat-icon-pdf"><i data-lucide="file-text"></i></div>
+            <div class="material-body">
+              <div class="material-title">Business Email Templates</div>
+              <div class="material-desc">Modelos de e-mail profissional para diferentes situações: follow-up, proposta, reclamação e agradecimento.</div>
+              <div class="material-meta">
+                <span class="mat-type-tag">PDF</span>
+                <button class="mat-link-btn"><i data-lucide="external-link"></i> Abrir material</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="material-date-group">
+          <div class="material-date-chip"><i data-lucide="calendar"></i> 03 de março</div>
+
+          <div class="material-card">
+            <div class="material-type-icon mat-icon-audio"><i data-lucide="headphones"></i></div>
+            <div class="material-body">
+              <div class="material-title">Listening Exercise — B1 Level</div>
+              <div class="material-desc">Áudio de 8 minutos com sotaque britânico. Transcrição disponível no link.</div>
+              <div class="material-meta">
+                <span class="mat-type-tag">Áudio</span>
+                <button class="mat-link-btn"><i data-lucide="external-link"></i> Abrir material</button>
+              </div>
+              <div class="material-obs">
+                <strong>Obs. do professor</strong>
+                Tente fazer sem a transcrição primeiro. Use depois para conferir.
+              </div>
+            </div>
+          </div>
+
+          <div class="material-card">
+            <div class="material-type-icon mat-icon-pdf"><i data-lucide="file-text"></i></div>
+            <div class="material-body">
+              <div class="material-title">Present Perfect — Grammar Review</div>
+              <div class="material-desc">Revisão completa do Present Perfect com exercícios. Base para as tarefas desta semana.</div>
+              <div class="material-meta">
+                <span class="mat-type-tag">PDF</span>
+                <button class="mat-link-btn"><i data-lucide="external-link"></i> Abrir material</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="chapter-label"><span>Fevereiro 2026</span></div>
+
+        <div class="material-date-group">
+          <div class="material-date-chip"><i data-lucide="calendar"></i> 24 de fevereiro</div>
+
+          <div class="material-card">
+            <div class="material-type-icon mat-icon-pdf"><i data-lucide="file-text"></i></div>
+            <div class="material-body">
+              <div class="material-title">Conditional Sentences — If Clauses</div>
+              <div class="material-desc">Estrutura de condicionais Types 1, 2 e 3 com exercícios graduais.</div>
+              <div class="material-meta">
+                <span class="mat-type-tag">PDF</span>
+                <button class="mat-link-btn"><i data-lucide="external-link"></i> Abrir material</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== TAB: TAREFAS ==================== -->
+    <section id="tab-homework" class="tab-section" role="tabpanel">
+
+      <!-- Em andamento -->
+      <div class="hw-group section-block">
+        <div class="hw-group-header">
+          <span class="hw-group-label andamento">Em andamento</span>
+          <span class="hw-group-count andamento">2</span>
+        </div>
+
+        <!-- Tarefa 1: Vocabulary Practice -->
+        <div class="hw-card andamento" id="hw-1">
+          <div class="hw-card-summary" onclick="toggleHW('hw-1')">
+            <span class="hw-status-dot andamento"></span>
+            <div class="hw-summary-body">
+              <div class="hw-title">Vocabulary Practice — Business Terms</div>
+              <div class="hw-meta-row">
+                <span class="hw-prazo"><i data-lucide="clock"></i> Prazo: 17/03</span>
+                <div class="hw-progress-pill">
+                  <div class="hw-mini-bar"><div class="hw-mini-fill amber" style="width:60%"></div></div>
+                  <span class="hw-pct-text">60%</span>
+                </div>
+              </div>
+            </div>
+            <div class="hw-expand-icon"><i data-lucide="chevron-down"></i></div>
+          </div>
+          <div class="hw-card-body">
+            <div class="hw-card-inner">
+              <p class="hw-desc">Pratique as 30 palavras da lista de Vocabulary Review usando cada termo em uma frase original relacionada ao seu trabalho.</p>
+              <div class="hw-full-bar-wrap">
+                <div class="hw-full-bar-fill amber" style="width:60%"></div>
+              </div>
+              <div class="hw-bar-label"><span>Progresso</span><span>60% concluído</span></div>
+              <div class="hw-teacher-note">
+                <strong>Nota do professor</strong>
+                <p>Foque nas palavras marcadas com ★ na lista. Essas serão cobradas na próxima aula.</p>
+              </div>
+              <div class="hw-comment-section">
+                <label>Seu comentário</label>
+                <div class="comment-area-wrap" id="comment-area-hw-1">
+                  <textarea class="comment-textarea" placeholder="Teve dificuldade? Ficou com dúvida? Deixe um comentário para o professor…" rows="3"></textarea>
+                  <div class="comment-submit-row">
+                    <button class="btn-comment btn-comment-ghost" onclick="cancelComment('hw-1')">Cancelar</button>
+                    <button class="btn-comment btn-comment-primary" onclick="submitComment('hw-1')">
+                      <i data-lucide="send"></i>
+                      Enviar comentário
+                    </button>
+                  </div>
+                </div>
+                <div class="comment-success" id="comment-success-hw-1" style="display:none;">
+                  <i data-lucide="check-circle"></i>
+                  Comentário enviado para o professor!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarefa 2: Listening Exercise -->
+        <div class="hw-card andamento" id="hw-2">
+          <div class="hw-card-summary" onclick="toggleHW('hw-2')">
+            <span class="hw-status-dot andamento"></span>
+            <div class="hw-summary-body">
+              <div class="hw-title">Listening Exercise — Transcrição</div>
+              <div class="hw-meta-row">
+                <span class="hw-prazo"><i data-lucide="clock"></i> Prazo: 17/03</span>
+                <div class="hw-progress-pill">
+                  <div class="hw-mini-bar"><div class="hw-mini-fill amber" style="width:30%"></div></div>
+                  <span class="hw-pct-text">30%</span>
+                </div>
+              </div>
+            </div>
+            <div class="hw-expand-icon"><i data-lucide="chevron-down"></i></div>
+          </div>
+          <div class="hw-card-body">
+            <div class="hw-card-inner">
+              <p class="hw-desc">Ouça o áudio e escreva a transcrição completa. Compare com o gabarito e anote as diferenças que encontrou.</p>
+              <div class="hw-full-bar-wrap">
+                <div class="hw-full-bar-fill amber" style="width:30%"></div>
+              </div>
+              <div class="hw-bar-label"><span>Progresso</span><span>30% concluído</span></div>
+              <div class="hw-comment-section">
+                <label>Seu comentário</label>
+                <div class="comment-area-wrap" id="comment-area-hw-2">
+                  <textarea class="comment-textarea" placeholder="Teve dificuldade? Ficou com dúvida? Deixe um comentário para o professor…" rows="3"></textarea>
+                  <div class="comment-submit-row">
+                    <button class="btn-comment btn-comment-ghost" onclick="cancelComment('hw-2')">Cancelar</button>
+                    <button class="btn-comment btn-comment-primary" onclick="submitComment('hw-2')">
+                      <i data-lucide="send"></i>
+                      Enviar comentário
+                    </button>
+                  </div>
+                </div>
+                <div class="comment-success" id="comment-success-hw-2" style="display:none;">
+                  <i data-lucide="check-circle"></i>
+                  Comentário enviado para o professor!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Concluídos -->
+      <div class="hw-group section-block">
+        <div class="hw-group-header">
+          <span class="hw-group-label concluido">Concluído</span>
+          <span class="hw-group-count concluido">7</span>
+        </div>
+
+        <!-- Tarefa 3: Business Email -->
+        <div class="hw-card concluido" id="hw-3">
+          <div class="hw-card-summary" onclick="toggleHW('hw-3')">
+            <span class="hw-status-dot concluido"></span>
+            <div class="hw-summary-body">
+              <div class="hw-title">Business Email Writing</div>
+              <div class="hw-meta-row">
+                <span class="hw-prazo"><i data-lucide="check"></i> Entregue em 09/03</span>
+                <div class="hw-progress-pill">
+                  <div class="hw-mini-bar"><div class="hw-mini-fill" style="width:100%"></div></div>
+                  <span class="hw-pct-text">100%</span>
+                </div>
+              </div>
+            </div>
+            <div class="hw-expand-icon"><i data-lucide="chevron-down"></i></div>
+          </div>
+          <div class="hw-card-body">
+            <div class="hw-card-inner">
+              <p class="hw-desc">Escreva 3 e-mails de negócios usando os templates da aula: um de follow-up, um de proposta e um de agradecimento.</p>
+              <div class="hw-full-bar-wrap">
+                <div class="hw-full-bar-fill" style="width:100%"></div>
+              </div>
+              <div class="hw-bar-label"><span>Progresso</span><span>100% — Concluído ✓</span></div>
+              <div class="hw-teacher-note">
+                <strong>Feedback do professor</strong>
+                <p>Excelente! Seus e-mails ficaram muito naturais. No follow-up, experimente uma abertura mais direta — sem "I hope this email finds you well".</p>
+              </div>
+              <div class="hw-comment-section">
+                <label>Seu comentário</label>
+                <div class="existing-comment">
+                  <p>Tive dificuldade no e-mail de proposta, principalmente no tom formal mas não muito rígido. Acabei usando o template como base e adaptando.</p>
+                  <div class="existing-comment-meta">
+                    <i data-lucide="check-circle"></i>
+                    <span>Enviado em 09/03 às 21h</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarefa 4: Present Perfect -->
+        <div class="hw-card concluido" id="hw-4">
+          <div class="hw-card-summary" onclick="toggleHW('hw-4')">
+            <span class="hw-status-dot concluido"></span>
+            <div class="hw-summary-body">
+              <div class="hw-title">Exercise 3 — Present Perfect</div>
+              <div class="hw-meta-row">
+                <span class="hw-prazo"><i data-lucide="check"></i> Entregue em 06/03</span>
+                <div class="hw-progress-pill">
+                  <div class="hw-mini-bar"><div class="hw-mini-fill" style="width:100%"></div></div>
+                  <span class="hw-pct-text">100%</span>
+                </div>
+              </div>
+            </div>
+            <div class="hw-expand-icon"><i data-lucide="chevron-down"></i></div>
+          </div>
+          <div class="hw-card-body">
+            <div class="hw-card-inner">
+              <p class="hw-desc">Complete os exercícios 3.1 a 3.5 do PDF de Present Perfect. Atenção ao uso de "ever", "never", "already" e "yet".</p>
+              <div class="hw-full-bar-wrap">
+                <div class="hw-full-bar-fill" style="width:100%"></div>
+              </div>
+              <div class="hw-bar-label"><span>Progresso</span><span>100% — Concluído ✓</span></div>
+              <div class="hw-teacher-note">
+                <strong>Feedback do professor</strong>
+                <p>Muito bom! Só 2 erros no exercício 3.4 — confusão entre "yet" e "already". Vamos revisar na próxima aula.</p>
+              </div>
+              <div class="hw-comment-section">
+                <label>Seu comentário</label>
+                <div class="existing-comment">
+                  <p>Não consegui fazer o exercício 3.4, fiquei confusa com o "yet" e "already". Precisaria de mais exemplos antes.</p>
+                  <div class="existing-comment-meta">
+                    <i data-lucide="check-circle"></i>
+                    <span>Enviado em 06/03 às 18h</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarefas 5–9 recolhidas -->
+        <div class="hw-card concluido" id="hw-5">
+          <div class="hw-card-summary" onclick="toggleHW('hw-5')">
+            <span class="hw-status-dot concluido"></span>
+            <div class="hw-summary-body">
+              <div class="hw-title">Conditional Sentences — Exercises 1 e 2</div>
+              <div class="hw-meta-row">
+                <span class="hw-prazo"><i data-lucide="check"></i> Entregue em 27/02</span>
+                <div class="hw-progress-pill">
+                  <div class="hw-mini-bar"><div class="hw-mini-fill" style="width:100%"></div></div>
+                  <span class="hw-pct-text">100%</span>
+                </div>
+              </div>
+            </div>
+            <div class="hw-expand-icon"><i data-lucide="chevron-down"></i></div>
+          </div>
+          <div class="hw-card-body">
+            <div class="hw-card-inner">
+              <p class="hw-desc">Complete os exercícios das Conditionals Types 1 e 2. Foco em situações hipotéticas no contexto profissional.</p>
+              <div class="hw-full-bar-wrap"><div class="hw-full-bar-fill" style="width:100%"></div></div>
+              <div class="hw-bar-label"><span>Progresso</span><span>100% — Concluído ✓</span></div>
+              <div class="hw-comment-section">
+                <label>Seu comentário</label>
+                <div class="comment-area-wrap" id="comment-area-hw-5">
+                  <textarea class="comment-textarea" placeholder="Adicionar comentário…" rows="2"></textarea>
+                  <div class="comment-submit-row">
+                    <button class="btn-comment btn-comment-primary" onclick="submitComment('hw-5')">
+                      <i data-lucide="send"></i> Enviar
+                    </button>
+                  </div>
+                </div>
+                <div class="comment-success" id="comment-success-hw-5" style="display:none;">
+                  <i data-lucide="check-circle"></i> Comentário enviado!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ==================== TAB: CALENDÁRIO ==================== -->
+    <section id="tab-calendario" class="tab-section" role="tabpanel">
+
+      <!-- Mini calendar -->
+      <div class="calendar-grid-wrap section-block">
+        <div class="calendar-nav">
+          <span class="calendar-month" id="calMonthLabel">Março 2026</span>
+        </div>
+        <div class="cal-weekdays">
+          <div class="cal-weekday">Dom</div>
+          <div class="cal-weekday">Seg</div>
+          <div class="cal-weekday">Ter</div>
+          <div class="cal-weekday">Qua</div>
+          <div class="cal-weekday">Qui</div>
+          <div class="cal-weekday">Sex</div>
+          <div class="cal-weekday">Sáb</div>
+        </div>
+        <div class="cal-days" id="calDays"></div>
+        <div class="calendar-legend">
+          <div class="legend-item"><span class="legend-dot done"></span>Aula realizada</div>
+          <div class="legend-item"><span class="legend-dot upcoming"></span>Aula agendada</div>
+          <div class="legend-item"><span class="legend-dot today"></span>Hoje</div>
+        </div>
+      </div>
+
+      <!-- Aulas list -->
+      <div class="section-block">
+        <div class="chapter-label"><span>Aulas — Março 2026</span></div>
+        <div class="class-list">
+
+          <div class="class-item">
+            <div class="class-date-col">
+              <div class="class-date-day">31</div>
+              <div class="class-date-month">mar</div>
+            </div>
+            <div class="class-divider"></div>
+            <div class="class-info">
+              <div class="class-time">14h às 15h</div>
+              <div class="class-topic">Business Presentations</div>
+              <div class="class-obs">Preparação para apresentação corporativa</div>
+            </div>
+            <span class="class-status-badge agendada">Agendada</span>
+          </div>
+
+          <div class="class-item">
+            <div class="class-date-col">
+              <div class="class-date-day">24</div>
+              <div class="class-date-month">mar</div>
+            </div>
+            <div class="class-divider"></div>
+            <div class="class-info">
+              <div class="class-time">14h às 15h</div>
+              <div class="class-topic">Negotiation Language</div>
+              <div class="class-obs">Vocabulário de negociação e persuasão</div>
+            </div>
+            <span class="class-status-badge agendada">Agendada</span>
+          </div>
+
+          <div class="class-item">
+            <div class="class-date-col">
+              <div class="class-date-day">17</div>
+              <div class="class-date-month">mar</div>
+            </div>
+            <div class="class-divider"></div>
+            <div class="class-info">
+              <div class="class-time">14h às 15h</div>
+              <div class="class-topic">Business Vocabulary — cont.</div>
+              <div class="class-obs">Revisão + novos termos de finanças</div>
+            </div>
+            <span class="class-status-badge agendada">Agendada</span>
+          </div>
+
+          <div class="class-item">
+            <div class="class-date-col">
+              <div class="class-date-day">10</div>
+              <div class="class-date-month">mar</div>
+            </div>
+            <div class="class-divider"></div>
+            <div class="class-info">
+              <div class="class-time">14h às 15h</div>
+              <div class="class-topic">Business Vocabulary</div>
+              <div class="class-obs">Foco em vocabulário corporativo. Exercícios práticos com e-mails.</div>
+            </div>
+            <span class="class-status-badge realizada">Realizada</span>
+          </div>
+
+          <div class="class-item">
+            <div class="class-date-col">
+              <div class="class-date-day">03</div>
+              <div class="class-date-month">mar</div>
+            </div>
+            <div class="class-divider"></div>
+            <div class="class-info">
+              <div class="class-time">14h às 15h</div>
+              <div class="class-topic">Present Perfect — Review</div>
+              <div class="class-obs">Revisão completa + listening exercise. Bom ritmo na aula.</div>
+            </div>
+            <span class="class-status-badge realizada">Realizada</span>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="student-footer">
+    <strong class="brand-link">EDUCAflowOne</strong> &middot; Área do Aluno &middot; <a href="#">Política de Privacidade</a>
+  </footer>
+
+  <div id="studentToast" class="student-toast" role="status" aria-live="polite"></div>
+
+  <script>
+    lucide.createIcons();
+
+    // Simple toast for public area feedback
+    (function () {
+      let _t;
+      window.showToast = function (msg, isError) {
+        const el = document.getElementById('studentToast');
+        const text = msg == null ? '' : String(msg);
+        if (!el) {
+          try { alert(text); } catch (e) {}
+          return;
+        }
+        el.textContent = text;
+        el.classList.toggle('error', !!isError);
+        el.classList.add('show');
+        clearTimeout(_t);
+        _t = setTimeout(() => { el.classList.remove('show'); }, 2800);
+      };
+    })();
+
+    /* ---- Tab switching ---- */
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'homework') {
+          // Default ao abrir Tarefas: Em andamento
+          hwFilter = 'pending';
+          renderHomework();
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    /* ---- Tarefas: expandir/recolher card ---- */
+    function toggleHW(id) {
+      const card = document.getElementById(id);
+      const isExpanded = card.classList.contains('expanded');
+      // close all
+      document.querySelectorAll('.hw-card').forEach(c => c.classList.remove('expanded'));
+      // open if it wasn't open
+      if (!isExpanded) card.classList.add('expanded');
+    }
+
+    /* ---- Comment submit (public by token) ---- */
+    async function submitComment(hwId) {
+      const textarea = document.querySelector(`#comment-area-${hwId} textarea`);
+      const area = document.getElementById(`comment-area-${hwId}`);
+      const success = document.getElementById(`comment-success-${hwId}`);
+      if (!textarea || !area || !success) return;
+
+      const text = (textarea.value || '').trim();
+      if (!text) {
+        showToast('Escreva um comentário antes de enviar.', true);
+        return;
+      }
+
+      const m = String(hwId).match(/^hw-(\d+)$/);
+      if (!m) {
+        showToast('Tarefa inválida.', true);
+        return;
+      }
+      const homeworkId = parseInt(m[1], 10);
+
+      const token = __AREA_ALUNO_DATA.share_token;
+      if (!token) {
+        showToast('Token inválido (carregue a área novamente).', true);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/public/area-aluno/${encodeURIComponent(token)}/homeworks/${homeworkId}/comment/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ student_response: text }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.detail || body.error || ('Erro ' + res.status));
+
+        const sharedData = (window.__AREA_ALUNO_DATA || __AREA_ALUNO_DATA || {});
+        const list = sharedData.hw_pending_cards || [];
+        const item = list.find(x => String(x.id) === String(homeworkId));
+        if (item) {
+          if (!Array.isArray(item.messages)) item.messages = [];
+          item.messages.push({
+            sender: 'student',
+            sender_label: 'Aluno',
+            message: text,
+            created_at: new Date().toISOString(),
+          });
+          // Limpa o campo após envio (histórico fica em messages).
+          item.student_response = '';
+        }
+        textarea.value = '';
+        renderHomework();
+        lucide.createIcons();
+        showToast('Mensagem enviada para o professor!');
+      } catch (e) {
+        showToast(e.message || 'Erro ao enviar comentário.', true);
+      }
+    }
+    function cancelComment(hwId) {
+      const textarea = document.querySelector(`#comment-area-${hwId} textarea`);
+      const area = document.getElementById(`comment-area-${hwId}`);
+      const success = document.getElementById(`comment-success-${hwId}`);
+      if (area) area.style.display = 'block';
+      if (success) success.style.display = 'none';
+      if (textarea) textarea.value = '';
+    }
+
+    /* ---- Public data render (replace mock HTML) ---- */
+    const __AREA_ALUNO_DATA = {
+      materials_months: {{ materials_months_json|safe }},
+      hw_pending_cards: {{ hw_pending_cards_json|safe }},
+      hw_done_cards: {{ hw_done_cards_json|safe }},
+      lessons_in_month_list: {{ lessons_in_month_list_json|safe }},
+      share_token: '{{ share_token|escapejs }}',
+      cal_year: {{ cal_year|default:"0" }},
+      cal_month0: {{ cal_month0|default:"0" }},
+      cal_month_label: '{{ cal_month_label|escapejs }}',
+      cal_class_done_days: {{ cal_class_done_days_json|safe }},
+      cal_class_upcoming_days: {{ cal_class_upcoming_days_json|safe }},
+    };
+    window.__AREA_ALUNO_DATA = __AREA_ALUNO_DATA;
+
+    // Filtro do tab de tarefas na área pública.
+    // Default: Em andamento.
+    let hwFilter = 'pending';
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+
+    function fileIconFor(type) {
+      if (type === 'pdf') return { wrapper: 'mat-icon-pdf', icon: 'file-text' };
+      if (type === 'audio') return { wrapper: 'mat-icon-audio', icon: 'headphones' };
+      if (type === 'video') return { wrapper: 'mat-icon-video', icon: 'video' };
+      if (type === 'link') return { wrapper: 'mat-icon-link', icon: 'link-2' };
+      return { wrapper: 'mat-icon-file', icon: 'file' };
+    }
+
+    function renderMaterials() {
+      const tab = document.getElementById('tab-materiais');
+      if (!tab) return;
+      const data = __AREA_ALUNO_DATA;
+
+      if (!data.materials_months || !data.materials_months.length) {
+        tab.innerHTML = '<div class="section-block"><p class="muted">Nenhum material anexado.</p></div>';
+        return;
+      }
+
+      let html = '';
+      data.materials_months.forEach(mg => {
+        html += `<div class="section-block">`;
+        html += `<div class="chapter-label"><span>${esc(mg.month_label)}</span></div>`;
+        mg.date_groups.forEach(dg => {
+          html += `<div class="material-date-group">`;
+          html += `<div class="material-date-chip"><i data-lucide="calendar"></i> ${esc(dg.date_label)}</div>`;
+          dg.items.forEach(it => {
+            const ico = fileIconFor(it.file_type);
+            const obs = (it.obs && String(it.obs).trim()) ? it.obs : 'Sem observações.';
+            html += `<div class="material-card">
+              <div class="material-type-icon ${ico.wrapper}"><i data-lucide="${ico.icon}"></i></div>
+              <div class="material-body">
+                <div class="material-title">${esc(it.original_filename)}</div>
+                <div class="material-desc">${esc(obs)}</div>
+                <div class="material-meta">
+                  <span class="mat-type-tag">${esc(it.type_tag)}</span>
+                  <a class="mat-link-btn" href="${esc(it.url)}" target="_blank" rel="noopener">
+                    <i data-lucide="external-link"></i> Abrir material
+                  </a>
+                </div>
+                <div class="material-obs"><strong>Obs. do professor</strong>${esc(obs)}</div>
+              </div>
+            </div>`;
+          });
+          html += `</div>`;
+        });
+        html += `</div>`;
+      });
+
+      tab.innerHTML = html;
+    }
+
+    function renderHomework() {
+      const tab = document.getElementById('tab-homework');
+      if (!tab) return;
+      const data = __AREA_ALUNO_DATA;
+
+      const pending = data.hw_pending_cards || [];
+      const done = data.hw_done_cards || [];
+
+      const totalCount = pending.length + done.length;
+      let html = `
+        <div class="hw-filter-bar" aria-label="Filtros de tarefas">
+          <button class="hw-filter-btn ${hwFilter === 'all' ? 'active' : ''}" type="button" data-hwfilter="all">
+            Todos <span class="hw-filter-btn-count">${totalCount}</span>
+          </button>
+          <button class="hw-filter-btn ${hwFilter === 'pending' ? 'active' : ''}" type="button" data-hwfilter="pending">
+            Em andamento <span class="hw-filter-btn-count">${pending.length}</span>
+          </button>
+          <button class="hw-filter-btn ${hwFilter === 'done' ? 'active' : ''}" type="button" data-hwfilter="done">
+            Concluídos <span class="hw-filter-btn-count">${done.length}</span>
+          </button>
+        </div>
+      `;
+
+      let anyRendered = false;
+
+      if (hwFilter === 'all' || hwFilter === 'pending') {
+        if (pending.length) {
+        html += `<div class="hw-group">
+          `;
+
+        pending.forEach(hw => {
+          const prog = Number(hw.progress_percent || 0);
+          const width = `${prog}%`;
+          const teacherNote = (hw.teacher_feedback && String(hw.teacher_feedback).trim()) ? hw.teacher_feedback : '';
+          const response = (hw.student_response && String(hw.student_response).trim()) ? hw.student_response : '';
+          const messages = Array.isArray(hw.messages) ? hw.messages : [];
+          const historyHtml = messages.length
+            ? `<div class="existing-comment" style="margin-bottom:10px;"><div class="chat-thread">${messages.map(msg => {
+                const sender = msg.sender === 'teacher' ? 'teacher' : 'student';
+                const who = esc(msg.sender_label || (sender === 'teacher' ? 'Professor' : 'Aluno'));
+                const dt = msg.created_at ? new Date(msg.created_at) : null;
+                let when = '';
+                if (dt && !isNaN(dt.getTime())) {
+                  const pad = (n) => String(n).padStart(2, '0');
+                  when = `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+                }
+                const whenHtml = when ? ` <span class="chat-ts">${when}</span>` : '';
+                return `<div class="chat-row ${sender}"><div class="chat-bubble">${esc(msg.message || '')}<div class="chat-meta">${who}${whenHtml}</div></div></div>`;
+              }).join('')}</div></div>`
+            : '';
+
+          html += `<div class="hw-card andamento" id="hw-${hw.id}">
+            <div class="hw-card-summary" onclick="toggleHW('hw-${hw.id}')">
+              <span class="hw-status-dot andamento"></span>
+              <div class="hw-summary-body">
+                <div class="hw-title">${esc(hw.title)}</div>
+                <div class="hw-meta-row">
+                  <span class="hw-prazo"><i data-lucide="clock"></i> Prazo: ${esc(hw.due_label)}</span>
+                  <div class="hw-progress-pill">
+                    <div class="hw-mini-bar"><div class="hw-mini-fill amber" style="width:${width}"></div></div>
+                    <span class="hw-pct-text">${prog}%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="hw-expand-icon"><i data-lucide="chevron-down"></i></div>
+            </div>
+            <div class="hw-card-body">
+              <div class="hw-card-inner">
+                <p class="hw-desc">${esc(hw.description)}</p>
+                <div class="hw-full-bar-wrap"><div class="hw-full-bar-fill amber" style="width:${width}"></div></div>
+                <div class="hw-bar-label"><span>Progresso</span><span>${prog}% concluído</span></div>
+                ${(teacherNote && !messages.length) ? `<div class="hw-teacher-note"><strong>Nota do professor</strong><p>${esc(teacherNote)}</p></div>` : ''}
+                ${historyHtml}
+                <div class="hw-comment-section">
+                  <label>Seu comentário</label>
+                  <div class="comment-area-wrap" id="comment-area-hw-${hw.id}">
+                    <textarea class="comment-textarea" placeholder="Teve dificuldade? Ficou com dúvida? Deixe um comentário para o professor…" rows="3">${esc(response)}</textarea>
+                    <div class="comment-submit-row">
+                      <button class="btn-comment btn-comment-ghost" onclick="cancelComment('hw-${hw.id}')">Cancelar</button>
+                      <button class="btn-comment btn-comment-primary" onclick="submitComment('hw-${hw.id}')">
+                        <i data-lucide="send"></i>
+                        Enviar comentário
+                      </button>
+                    </div>
+                  </div>
+                  <div class="comment-success" id="comment-success-hw-${hw.id}" style="display:none;">
+                    <i data-lucide="check-circle"></i>
+                    Comentário enviado para o professor!
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        });
+
+        html += `</div>`;
+          anyRendered = true;
+        }
+      }
+
+      if (hwFilter === 'all' || hwFilter === 'done') {
+        if (done.length) {
+        html += `<div class="hw-group section-block">
+          <div class="hw-group-header">
+            <span class="hw-group-label concluido">Concluído</span>
+            <span class="hw-group-count concluido">${done.length}</span>
+          </div>`;
+
+        done.forEach(hw => {
+          const teacherNote = (hw.teacher_feedback && String(hw.teacher_feedback).trim()) ? hw.teacher_feedback : '';
+          const response = (hw.student_response && String(hw.student_response).trim()) ? hw.student_response : '';
+          const messages = Array.isArray(hw.messages) ? hw.messages : [];
+          const historyHtml = messages.length
+            ? `<div class="existing-comment"><div class="chat-thread">${messages.map(msg => {
+                const sender = msg.sender === 'teacher' ? 'teacher' : 'student';
+                const who = esc(msg.sender_label || (sender === 'teacher' ? 'Professor' : 'Aluno'));
+                const dt = msg.created_at ? new Date(msg.created_at) : null;
+                let when = '';
+                if (dt && !isNaN(dt.getTime())) {
+                  const pad = (n) => String(n).padStart(2, '0');
+                  when = `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+                }
+                const whenHtml = when ? ` <span class="chat-ts">${when}</span>` : '';
+                return `<div class="chat-row ${sender}"><div class="chat-bubble">${esc(msg.message || '')}<div class="chat-meta">${who}${whenHtml}</div></div></div>`;
+              }).join('')}</div></div>`
+            : '';
+          html += `<div class="hw-card concluido" id="hw-${hw.id}">
+            <div class="hw-card-summary" onclick="toggleHW('hw-${hw.id}')">
+              <span class="hw-status-dot concluido"></span>
+              <div class="hw-summary-body">
+                <div class="hw-title">${esc(hw.title)}</div>
+                <div class="hw-meta-row">
+                  <span class="hw-prazo"><i data-lucide="check"></i> Entregue em ${esc(hw.submitted_label)}</span>
+                  <div class="hw-progress-pill">
+                    <div class="hw-mini-bar"><div class="hw-mini-fill" style="width:100%"></div></div>
+                    <span class="hw-pct-text">100%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="hw-expand-icon"><i data-lucide="chevron-down"></i></div>
+            </div>
+            <div class="hw-card-body">
+              <div class="hw-card-inner">
+                <p class="hw-desc">${esc(hw.description)}</p>
+                <div class="hw-full-bar-wrap"><div class="hw-full-bar-fill" style="width:100%"></div></div>
+                <div class="hw-bar-label"><span>Progresso</span><span>100% — Concluído ✓</span></div>
+                ${teacherNote ? `<div class="hw-teacher-note"><strong>Feedback do professor</strong><p>${esc(teacherNote)}</p></div>` : ''}
+                <div class="hw-comment-section">
+                  <label>Seu comentário</label>
+                  ${historyHtml || (response ? `<div class="existing-comment"><p>${esc(response)}</p></div>` : `<div class="existing-comment"><p>Sem mensagens ainda.</p></div>`)}
+                </div>
+              </div>
+            </div>
+          </div>`;
+        });
+
+        html += `</div>`;
+          anyRendered = true;
+        }
+      }
+
+      if (!anyRendered) {
+        const msg = (hwFilter === 'all')
+          ? 'Nenhuma tarefa atribuída.'
+          : (hwFilter === 'pending')
+            ? 'Nenhuma tarefa em andamento.'
+            : 'Nenhuma tarefa concluída.';
+        html += `<div class="section-block"><p class="muted" style="padding:16px 0">${msg}</p></div>`;
+      }
+
+      tab.innerHTML = html;
+
+      tab.querySelectorAll('[data-hwfilter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          hwFilter = btn.getAttribute('data-hwfilter') || 'all';
+          renderHomework();
+        });
+      });
+    }
+
+    function renderCalendar() {
+      const tab = document.getElementById('tab-calendario');
+      if (!tab) return;
+      const data = __AREA_ALUNO_DATA;
+
+      const monthLabel = data.cal_month_label || '';
+      let html = '';
+
+      html += `<div class="calendar-grid-wrap section-block">
+        <div class="calendar-nav">
+          <span class="calendar-month" id="calMonthLabel">${esc(monthLabel)}</span>
+        </div>
+        <div class="cal-weekdays">
+          <div class="cal-weekday">Dom</div>
+          <div class="cal-weekday">Seg</div>
+          <div class="cal-weekday">Ter</div>
+          <div class="cal-weekday">Qua</div>
+          <div class="cal-weekday">Qui</div>
+          <div class="cal-weekday">Sex</div>
+          <div class="cal-weekday">Sáb</div>
+        </div>
+        <div class="cal-days" id="calDays"></div>
+        <div class="calendar-legend">
+          <div class="legend-item"><span class="legend-dot done"></span>Aula realizada</div>
+          <div class="legend-item"><span class="legend-dot upcoming"></span>Aula agendada</div>
+          <div class="legend-item"><span class="legend-dot today"></span>Hoje</div>
+        </div>
+      </div>`;
+
+      html += `<div class="section-block">
+        <div class="chapter-label"><span>Aulas — ${esc(monthLabel)}</span></div>
+        <div class="class-list">`;
+
+      const list = data.lessons_in_month_list || [];
+      if (!list.length) {
+        html += `<div class="muted" style="padding:12px 0">Nenhuma aula neste mês.</div>`;
+      } else {
+        list.forEach(l => {
+          const time = l.time_str ? l.time_str.replace(':', 'h') : '';
+          html += `<div class="class-item">
+            <div class="class-date-col">
+              <div class="class-date-day">${l.date_day}</div>
+              <div class="class-date-month">${esc(l.date_month_short)}</div>
+            </div>
+            <div class="class-divider"></div>
+            <div class="class-info">
+              <div class="class-time">${esc(time)}</div>
+              <div class="class-topic">${esc(l.topic)}</div>
+              <div class="class-obs">${esc(l.obs)}</div>
+            </div>
+            <span class="class-status-badge ${esc(l.badge_class)}">${esc(l.badge_label)}</span>
+          </div>`;
+        });
+      }
+      html += `</div></div>`;
+
+      tab.innerHTML = html;
+    }
+
+    renderMaterials();
+    renderHomework();
+    renderCalendar();
+    lucide.createIcons();
+
+    function updateHomeworkTabBadge() {
+      const badge = document.getElementById('tabHomeworkBadge');
+      if (!badge) return;
+      const data = window.__AREA_ALUNO_DATA || __AREA_ALUNO_DATA || {};
+      const pending = Array.isArray(data.hw_pending_cards) ? data.hw_pending_cards : [];
+      const done = Array.isArray(data.hw_done_cards) ? data.hw_done_cards : [];
+      const total = pending.length + done.length;
+      badge.textContent = String(total);
+      badge.style.display = total > 0 ? 'inline-flex' : 'none';
+    }
+
+    updateHomeworkTabBadge();
+
+    /* ---- Calendar generation ---- */
+    (function buildCalendar() {
+      const year = __AREA_ALUNO_DATA.cal_year;
+      const month = __AREA_ALUNO_DATA.cal_month0; // 0-indexed
+      const today = new Date();
+      const classDays = __AREA_ALUNO_DATA.cal_class_done_days || [];
+      const upcomingDays = __AREA_ALUNO_DATA.cal_class_upcoming_days || [];
+
+      const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const grid = document.getElementById('calDays');
+      if (!grid) return;
+
+      // empty cells before start
+      for (let i = 0; i < firstDay; i++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day empty';
+        grid.appendChild(el);
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day';
+        el.textContent = d;
+
+        const isToday = (today.getFullYear() === year && today.getMonth() === month && today.getDate() === d);
+        if (isToday) el.classList.add('today');
+        if (classDays.includes(d)) el.classList.add('class-done');
+        if (upcomingDays.includes(d)) el.classList.add('class-upcoming');
+
+        grid.appendChild(el);
+      }
+    })();
+
+    /* ---- Animate progress bars on reveal ---- */
+    const progressFills = document.querySelectorAll('.progress-bar-fill');
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          // width is already set inline; the CSS transition handles animation
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: .5 });
+    progressFills.forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>

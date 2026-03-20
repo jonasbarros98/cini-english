@@ -660,6 +660,20 @@
       .footnote{ font-size: 11px; margin-top: 12px; padding: 0 4px; }
     }
 
+    /* Homework unread (dashboard, discreet) */
+    .hw-bell-dash-link{
+      display: block;
+      text-decoration: none;
+      color: inherit;
+    }
+    .hw-bell-dash-link:hover .item{
+      background: rgba(30, 136, 255, 0.06);
+    }
+    #hwBellDashList .item{
+      margin-top: 6px;
+      border-radius: 12px;
+    }
+
     /* Telas muito estreitas (≤400px) - reduzir padding para caber melhor */
     @media (max-width: 400px){
       .page{ padding: 10px 8px 20px; }
@@ -1019,6 +1033,19 @@
               <span>Prepare as cobranças antes do prazo e evite “correria de última hora”.</span>
             </div>
           </div>
+        </div>
+
+        <!-- Homework unread messages (discreet KPI/link) -->
+        <div class="panel-header" style="margin:12px 0 10px;">
+          <div class="panel-title">
+            <h2>Mensagens</h2>
+            <p>do aluno (tarefas)</p>
+          </div>
+          <span class="badge info" id="hwBellDashBadge">0</span>
+        </div>
+
+        <div class="list">
+          <div id="hwBellDashList" aria-live="polite"></div>
         </div>
 
         <div class="divider"></div>
@@ -1568,8 +1595,105 @@
         } catch (_) {}
       }
 
+      // ====== Sininho discreto (dashboard) ======
+      const BELL_API_URL = "/api/dashboard/unread-homework-messages/";
+
+      function escapeHtmlDash(str) {
+        return String(str || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      async function loadUnreadBellDash() {
+        const badge = document.getElementById("hwBellDashBadge");
+        const listEl = document.getElementById("hwBellDashList");
+        if (!badge || !listEl) return;
+
+        try {
+          const response = await fetch(BELL_API_URL, {
+            method: "GET",
+            headers: { "Accept": "application/json" },
+            credentials: "same-origin",
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+
+          const unreadCount = Number(data.unread_count || 0);
+          badge.textContent = unreadCount;
+          badge.style.display = unreadCount > 0 ? "inline-flex" : "none";
+
+          const items = Array.isArray(data.items) ? data.items : [];
+          const unreadStudentsTotal = Number(data.unread_students_count || items.length || 0);
+          if (unreadCount <= 0 || items.length === 0) {
+            listEl.innerHTML = `
+              <div class="item">
+                <div class="time">—</div>
+                <div class="content">
+                  <p class="title">Sem mensagens novas</p>
+                  <p class="sub">Tudo em dia</p>
+                </div>
+              </div>
+            `;
+            return;
+          }
+
+          listEl.innerHTML = items
+            .map((item) => {
+              const url = item.url || "/alunos/";
+              const studentName = escapeHtmlDash(item.student_name || "Aluno");
+              const unreadByStudent = Number(item.unread_count || 0);
+
+              return `
+                <a class="hw-bell-dash-link" href="${escapeHtmlDash(url)}">
+                  <div class="item">
+                    <div class="time">🔔</div>
+                    <div class="content">
+                      <p class="title">${studentName}</p>
+                      <p class="sub">
+                        <span class="badge warn">${unreadByStudent}</span>
+                        <span>não lidas</span>
+                      </p>
+                    </div>
+                  </div>
+                </a>
+              `;
+            })
+            .join("");
+
+          // Se houver mais alunos com mensagens não lidas, mostramos um resumo.
+          const remaining = unreadStudentsTotal - items.length;
+          if (remaining > 0) {
+            listEl.innerHTML += `
+              <div class="item">
+                <div class="time">…</div>
+                <div class="content">
+                  <p class="title">+ ${remaining} outro(s)</p>
+                  <p class="sub">com mensagens não lidas</p>
+                </div>
+              </div>
+            `;
+          }
+        } catch (e) {
+          // Sem quebrar o dashboard
+          listEl.innerHTML = `
+            <div class="item">
+              <div class="time">—</div>
+              <div class="content">
+                <p class="title">Sem resposta</p>
+                <p class="sub">Tente novamente</p>
+              </div>
+            </div>
+          `;
+        }
+      }
+
       // ====== Inicializar ======
       loadDashboardData();
+      loadUnreadBellDash();
+      setInterval(loadUnreadBellDash, 30000);
       checkAdminAndShowUsersMenu();
       
       // Inicializar colapso do grupo Conta (com pequeno delay para garantir DOM)

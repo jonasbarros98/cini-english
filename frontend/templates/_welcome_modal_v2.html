@@ -1,0 +1,572 @@
+{% comment %}
+  Modal de boas-vindas v2 — Frontend Design Skill aplicada.
+  Archetype : Editorial / Magazine
+  Differentiator : Masthead tipográfico — Playfair Display como headline de capa,
+                   kicker em small-caps com régua dourada, paleta escura com acento ouro.
+  Lógica idêntica ao v1:
+  - "Pular": fecha sem persistir.
+  - "Ir para tutorial rápido": redireciona /tutorial/.
+  - "Não mostrar novamente" + X / overlay / ESC: persiste no backend.
+{% endcomment %}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  /* ─── Design Tokens ─────────────────────────────── */
+  #wmV2Overlay {
+    --wm-surface     : #0b0b0f;
+    --wm-surface-2   : #111117;
+    --wm-surface-3   : #17171f;
+    --wm-text        : #f2ede6;
+    --wm-muted       : rgba(242,237,230,.46);
+    --wm-subtle      : rgba(242,237,230,.08);
+    --wm-gold        : #c9a24a;
+    --wm-gold-dim    : rgba(201,162,74,.14);
+    --wm-gold-rule   : rgba(201,162,74,.55);
+    --wm-border      : rgba(242,237,230,.08);
+    --wm-border-mid  : rgba(242,237,230,.13);
+
+    --wm-shadow-sm   : 0 1px 4px rgba(0,0,0,.45);
+    --wm-shadow-md   : 0 6px 20px rgba(0,0,0,.55);
+    --wm-shadow-lg   : 0 28px 72px rgba(0,0,0,.75), 0 0 0 1px rgba(242,237,230,.04);
+
+    --wm-space-xs    : 6px;
+    --wm-space-sm    : 12px;
+    --wm-space-md    : 22px;
+    --wm-space-lg    : 36px;
+    --wm-space-xl    : 52px;
+
+    --wm-font-display: 'Playfair Display', Georgia, serif;
+    --wm-font-body   : 'DM Sans', system-ui, sans-serif;
+
+    --wm-ease-spring : cubic-bezier(.22, 1, .36, 1);
+    --wm-ease-out    : cubic-bezier(.16, 1, .3, 1);
+  }
+
+  /* ─── Local reset ───────────────────────────────── */
+  #wmV2Overlay *, #wmV2Overlay *::before, #wmV2Overlay *::after {
+    box-sizing: border-box; margin: 0; padding: 0;
+  }
+
+  /* ─── Overlay ───────────────────────────────────── */
+  #wmV2Overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    z-index: 99999;
+    background:
+      radial-gradient(900px 520px at 20% 10%, rgba(124,92,255,.24), transparent 60%),
+      radial-gradient(700px 450px at 90% 20%, rgba(34,211,238,.18), transparent 55%),
+      rgba(10,14,25,.55);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    overflow-y: auto;
+  }
+
+  @media (max-height: 760px){
+    #wmV2Overlay { align-items: flex-start; padding-top: 12px; padding-bottom: 12px; }
+    .wmv2-modal { max-height: calc(100vh - 24px); }
+    .wmv2-head { padding: 18px 18px 10px; }
+    .wmv2-body { padding: 14px 18px; }
+    .wmv2-footer { padding: 10px 18px 12px; }
+    .wmv2-title { font-size: 30px; }
+    .wmv2-deck { font-size: 12.5px; }
+  }
+  #wmV2Overlay.is-open { display: flex; }
+
+  /* ─── Modal shell ───────────────────────────────── */
+  .wmv2-modal {
+    width: min(660px, 94vw);
+    max-height: calc(100vh - 40px);
+    font-family: var(--wm-font-body);
+    color: var(--wm-text);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+    border-radius: 6px;
+    border: 1px solid var(--wm-border-mid);
+    /* top gold rule — the editorial signature mark */
+    border-top: 2px solid var(--wm-gold-rule);
+    box-shadow: var(--wm-shadow-lg);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    /* entrance */
+    opacity: 0;
+    transform: translateY(28px) scale(.96);
+    transition:
+      transform .38s var(--wm-ease-spring),
+      opacity .30s ease;
+  }
+  #wmV2Overlay.is-open .wmv2-modal {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  #wmV2Overlay.is-closing .wmv2-modal {
+    opacity: 0;
+    transform: translateY(16px) scale(.96);
+    transition: transform .22s ease, opacity .20s ease;
+  }
+
+  /* Subtle noise grain overlay */
+  .wmv2-modal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    pointer-events: none;
+    z-index: 0;
+    border-radius: inherit;
+  }
+
+  /* ─── Close ─────────────────────────────────────── */
+  .wmv2-close {
+    position: absolute;
+    top: var(--wm-space-md);
+    right: var(--wm-space-md);
+    z-index: 10;
+    background: none;
+    border: none;
+    color: var(--wm-muted);
+    font-family: var(--wm-font-body);
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: color .15s, transform .15s;
+  }
+  .wmv2-close:hover { color: var(--wm-text); transform: scale(1.15); }
+  .wmv2-close:focus { outline: none; box-shadow: 0 0 0 2px var(--wm-gold-rule); border-radius: 2px; }
+
+  /* ─── Masthead header ───────────────────────────── */
+  .wmv2-head {
+    position: relative;
+    z-index: 1;
+    padding: var(--wm-space-lg) var(--wm-space-lg) var(--wm-space-md);
+    border-bottom: 1px solid var(--wm-border);
+    flex: 0 0 auto;
+  }
+
+  /* Kicker — small-caps label above headline */
+  .wmv2-kicker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--wm-gold);
+    margin-bottom: 14px;
+  }
+  .wmv2-kicker-rule {
+    flex: 1;
+    max-width: 40px;
+    height: 1px;
+    background: var(--wm-gold-rule);
+  }
+
+  /* Headline — the masthead */
+  .wmv2-title {
+    font-family: var(--wm-font-display);
+    font-size: clamp(26px, 5vw, 36px);
+    font-weight: 900;
+    line-height: 1.10;
+    letter-spacing: -.02em;
+    color: var(--wm-text);
+    margin-bottom: 12px;
+  }
+  /* Italic second line — editorial accent */
+  .wmv2-title em {
+    font-style: italic;
+    font-weight: 700;
+    color: rgba(242,237,230,.70);
+  }
+
+  /* Deck — the subtitle below the headline */
+  .wmv2-deck {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--wm-muted);
+    max-width: 420px;
+    font-weight: 400;
+  }
+  .wmv2-deck strong {
+    color: rgba(242,237,230,.78);
+    font-weight: 700;
+  }
+
+  /* ─── Feature body ──────────────────────────────── */
+  .wmv2-body {
+    position: relative;
+    z-index: 1;
+    padding: var(--wm-space-md) var(--wm-space-lg);
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wmv2-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  @media (max-width: 520px) { .wmv2-grid { grid-template-columns: 1fr; } }
+
+  .wmv2-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--wm-border);
+    background: var(--wm-surface-2);
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+    /* stagger entrance */
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      background .2s ease,
+      border-color .2s ease,
+      transform .28s var(--wm-ease-spring),
+      opacity .28s ease;
+  }
+  #wmV2Overlay.is-open .wmv2-card {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  #wmV2Overlay.is-open .wmv2-card:nth-child(1) { transition-delay: .09s; }
+  #wmV2Overlay.is-open .wmv2-card:nth-child(2) { transition-delay: .15s; }
+  #wmV2Overlay.is-open .wmv2-card:nth-child(3) { transition-delay: .21s; }
+  #wmV2Overlay.is-open .wmv2-card:nth-child(4) { transition-delay: .27s; }
+
+  /* Gold left accent that slides in on hover */
+  .wmv2-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--wm-gold);
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: transform .22s var(--wm-ease-out);
+  }
+  .wmv2-card:hover {
+    background: var(--wm-surface-3);
+    border-color: var(--wm-border-mid);
+    transform: translateX(2px) !important;
+  }
+  .wmv2-card:hover::before { transform: scaleY(1); }
+
+  .wmv2-card-icon {
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 2px;
+    filter: grayscale(20%);
+  }
+
+  .wmv2-card-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--wm-text);
+    letter-spacing: -.01em;
+    line-height: 1.3;
+  }
+  .wmv2-card-sub {
+    font-size: 11.5px;
+    color: var(--wm-muted);
+    margin-top: 3px;
+    line-height: 1.45;
+  }
+
+  /* ─── Footer ────────────────────────────────────── */
+  .wmv2-footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--wm-space-sm);
+    padding: var(--wm-space-sm) var(--wm-space-lg) var(--wm-space-md);
+    border-top: 1px solid var(--wm-border);
+    flex: 0 0 auto;
+  }
+
+  /* Mobile/smaller heights: evitar corte e reduzir densidade */
+  @media (max-width: 620px) {
+    #wmV2Overlay { padding: 14px; }
+    .wmv2-modal { max-height: calc(100vh - 28px); }
+    .wmv2-head { padding: 16px 16px 10px; }
+    .wmv2-kicker { margin-bottom: 10px; }
+    .wmv2-title { font-size: 30px; line-height: 1.06; }
+    .wmv2-deck { font-size: 12.5px; }
+    .wmv2-body { padding: 16px; }
+    .wmv2-footer { padding: 10px 16px 12px; }
+    .wmv2-btn { font-size: 12px; padding: 8px 14px; }
+    .wmv2-close { top: 12px; right: 12px; }
+  }
+
+  /* Custom checkbox */
+  .wmv2-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--wm-muted);
+    cursor: pointer;
+    user-select: none;
+    transition: color .15s;
+  }
+  .wmv2-check:hover { color: rgba(242,237,230,.68); }
+  .wmv2-check input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 3px;
+    border: 1.5px solid var(--wm-border-mid);
+    background: var(--wm-surface-2);
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    transition: background .15s, border-color .15s;
+  }
+  .wmv2-check input[type="checkbox"]:checked {
+    background: var(--wm-gold);
+    border-color: var(--wm-gold);
+  }
+  .wmv2-check input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 3.5px; top: 1.5px;
+    width: 4px; height: 8px;
+    border: 1.5px solid #0b0b0f;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+    display: block;
+  }
+  .wmv2-check input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--wm-gold-dim);
+  }
+
+  /* Buttons */
+  .wmv2-actions { display: flex; gap: 8px; align-items: center; }
+
+  .wmv2-btn {
+    font-family: var(--wm-font-body);
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    padding: 9px 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+    user-select: none;
+  }
+  .wmv2-btn:focus { outline: none; }
+  .wmv2-btn:active { transform: scale(.97) !important; }
+
+  /* Ghost */
+  .wmv2-btn-ghost {
+    background: none;
+    color: var(--wm-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: transparent;
+    padding: 9px 10px;
+    transition: color .15s, text-decoration-color .15s;
+  }
+  .wmv2-btn-ghost:hover {
+    color: rgba(242,237,230,.75);
+    text-decoration-color: rgba(242,237,230,.25);
+    transform: none;
+  }
+
+  /* Primary — gold fill, dark text */
+  .wmv2-btn-primary {
+    background: var(--wm-gold);
+    color: #0b0b0f;
+    box-shadow: 0 4px 16px rgba(201,162,74,.28);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .wmv2-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(201,162,74,.38);
+    background: #d4a94f;
+  }
+  .wmv2-btn-primary:focus {
+    box-shadow: 0 0 0 2px var(--wm-surface), 0 0 0 4px var(--wm-gold);
+  }
+  .wmv2-btn-arrow {
+    display: inline-block;
+    font-family: var(--wm-font-display);
+    font-weight: 700;
+    transition: transform .15s ease;
+  }
+  .wmv2-btn-primary:hover .wmv2-btn-arrow { transform: translateX(3px); }
+</style>
+
+<!-- ── Modal ── -->
+<div id="wmV2Overlay" aria-hidden="true">
+  <div class="wmv2-modal" role="dialog" aria-modal="true" aria-labelledby="wmV2Title" aria-describedby="wmV2Desc">
+
+    <button class="wmv2-close" id="wmV2Close" type="button" aria-label="Fechar">&#x2715;</button>
+
+    <!-- Masthead header -->
+    <div class="wmv2-head">
+      <div class="wmv2-kicker">
+        <span class="wmv2-kicker-rule"></span>
+        Primeiro Acesso
+        <span class="wmv2-kicker-rule"></span>
+      </div>
+      <h2 id="wmV2Title" class="wmv2-title">
+        Bem-vindo ao<br>
+        <em>EDUCAflowOne</em>
+      </h2>
+      <p id="wmV2Desc" class="wmv2-deck">
+        Em <strong>2 minutos</strong> você deixa tudo redondo —
+        calendário, alunos, financeiro e cobrança.
+      </p>
+    </div>
+
+    <!-- Feature cards -->
+    <div class="wmv2-body">
+      <div class="wmv2-grid">
+        <div class="wmv2-card">
+          <div class="wmv2-card-icon">📅</div>
+          <div>
+            <div class="wmv2-card-title">Agenda</div>
+            <div class="wmv2-card-sub">Crie aulas, recorrência e lembretes.</div>
+          </div>
+        </div>
+        <div class="wmv2-card">
+          <div class="wmv2-card-icon">🧑‍🎓</div>
+          <div>
+            <div class="wmv2-card-title">Alunos</div>
+            <div class="wmv2-card-sub">Controle pacotes e histórico.</div>
+          </div>
+        </div>
+        <div class="wmv2-card">
+          <div class="wmv2-card-icon">💰</div>
+          <div>
+            <div class="wmv2-card-title">Financeiro</div>
+            <div class="wmv2-card-sub">Lançamentos e vencimentos.</div>
+          </div>
+        </div>
+        <div class="wmv2-card">
+          <div class="wmv2-card-icon">📲</div>
+          <div>
+            <div class="wmv2-card-title">Cobrança</div>
+            <div class="wmv2-card-sub">Templates + WhatsApp + log.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="wmv2-footer">
+      <label class="wmv2-check">
+        <input type="checkbox" id="wmV2DontShow" />
+        Não mostrar novamente
+      </label>
+      <div class="wmv2-actions">
+        <button class="wmv2-btn wmv2-btn-ghost" id="wmV2Skip" type="button">Pular</button>
+        <button class="wmv2-btn wmv2-btn-primary" id="wmV2GoTutorial" type="button">
+          Tutorial rápido
+          <span class="wmv2-btn-arrow">→</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const overlay     = document.getElementById('wmV2Overlay');
+  if (!overlay) return;
+
+  const btnClose      = document.getElementById('wmV2Close');
+  const btnSkip       = document.getElementById('wmV2Skip');
+  const btnGoTutorial = document.getElementById('wmV2GoTutorial');
+  const chkDontShow   = document.getElementById('wmV2DontShow');
+  const SESSION_KEY   = 'educaflowone_welcome_shown_session';
+
+  function getCookie(name) {
+    const v = '; ' + document.cookie;
+    const p = v.split('; ' + name + '=');
+    if (p.length === 2) return p.pop().split(';').shift();
+    return null;
+  }
+
+  function open() {
+    overlay.classList.add('is-open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.documentElement.style.overflow = 'hidden';
+    try { sessionStorage.setItem(SESSION_KEY, '1'); } catch (_) {}
+  }
+
+  function close(persistForever) {
+    overlay.classList.add('is-closing');
+    overlay.setAttribute('aria-hidden', 'true');
+    window.setTimeout(function() {
+      overlay.classList.remove('is-open', 'is-closing');
+      document.documentElement.style.overflow = '';
+    }, 260);
+    if (persistForever) {
+      fetch('/api/profile/welcome-dismiss/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') || '' },
+        credentials: 'same-origin',
+      }).catch(function() {});
+    }
+  }
+
+  function shouldPersist() { return !!(chkDontShow && chkDontShow.checked); }
+
+  btnClose      && btnClose.addEventListener('click',      function() { close(shouldPersist()); });
+  btnSkip       && btnSkip.addEventListener('click',       function() { close(false); });
+  btnGoTutorial && btnGoTutorial.addEventListener('click', function() { close(false); window.location.href = '/tutorial/'; });
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) close(shouldPersist()); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && overlay.classList.contains('is-open')) close(shouldPersist());
+  });
+
+  function tryShow() {
+    fetch('/api/auth/current-user/', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+    })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(user) {
+        if (!user || user.welcome_dismissed_forever) return;
+        try { if (sessionStorage.getItem(SESSION_KEY) === '1') return; } catch (_) {}
+        window.setTimeout(open, 350);
+      })
+      .catch(function() {});
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tryShow);
+  } else {
+    tryShow();
+  }
+})();
+</script>

@@ -1747,3 +1747,192 @@ textarea:focus {
   .user-card { flex-direction: column; align-items: stretch; }
   .user-card-actions { justify-content: flex-start; }
 }
+
+/* ============================================================
+   Homework unread notifications (bell widget)
+   ============================================================ */
+.hw-bell-widget {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10000;
+  pointer-events: auto;
+}
+
+@media (max-width: 980px) {
+  .hw-bell-widget { top: 12px; right: 12px; }
+}
+
+.hw-bell-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+.hw-bell-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+  border-color: rgba(30, 136, 255, 0.25);
+}
+
+.hw-bell-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.hw-bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 900;
+  font-size: 11px;
+  display: none; /* JS controla */
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 22px rgba(30,136,255,.25);
+}
+
+.hw-bell-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+  display: none; /* JS controla */
+  overflow: hidden;
+}
+
+.hw-bell-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hw-bell-head strong {
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+.hw-bell-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.hw-bell-list {
+  max-height: 330px;
+  overflow: auto;
+  padding: 6px 0;
+}
+
+.hw-bell-empty {
+  padding: 14px 14px;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.hw-bell-item {
+  display: block;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: var(--text);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  transition: background .12s ease;
+}
+
+.hw-bell-item:last-child {
+  border-bottom: none;
+}
+
+.hw-bell-item:hover {
+  background: rgba(30, 136, 255, 0.08);
+}
+
+.hw-bell-item-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hw-bell-student {
+  font-size: 13px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.hw-bell-strong {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--muted2);
+  flex: 0 0 auto;
+}
+
+.hw-bell-item-sub {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hw-bell-item-preview {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.9;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hw-bell-foot {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hw-bell-viewall {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.hw-bell-viewall:hover {
+  text-decoration: underline;
+}

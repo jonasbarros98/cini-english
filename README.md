@@ -1,6 +1,8 @@
 "# aula0305" 
 # EDUCAflowOne – Dashboard inicial
 
+📚 **Documentação organizada:** ver pasta [`docs/`](docs/README.md) (Stripe, deploy, aluno detalhe, QA, etc.).
+
 Protótipo estático (HTML/CSS/JS puro) para o painel da professora de inglês. Ele oferece o esqueleto de navegação, calendário, cadastro de alunos, pré-visualização de cobranças e cards de tarefas – pronto para receber um back-end futuro.
 
 ## Como executar
