@@ -15,7 +15,7 @@ from .views import (
     welcome_dismiss_view,
     PlanningListView, planning_list_api,
     planning_edit_redirect, planning_new_redirect,
-    upload_planning_attachment, delete_planning_attachment, upload_student_material,
+    upload_planning_attachment, delete_planning_attachment, upload_student_material, delete_student_material, update_student_material,
     AlunosView, AlunoDetalheView, CalendarNewView, FinanceView, ReciboView, TicketsView,
     calendar_events, calendar_event_status, calendar_event_create, calendar_event_update,
     calendar_day_note, calendar_day_note_update,
@@ -99,6 +99,8 @@ urlpatterns = [
     path("api/planning/<int:plan_id>/attachments/", upload_planning_attachment, name="api-planning-upload-attachment"),
     path("api/planning/attachments/<int:attachment_id>/", delete_planning_attachment, name="api-planning-delete-attachment"),
     path("api/students/<int:student_id>/materials/", upload_student_material, name="api-student-upload-material"),
+    path("api/students/<int:student_id>/materials/<int:material_id>/", update_student_material, name="api-student-update-material"),
+    path("api/students/<int:student_id>/materials/<int:material_id>/delete/", delete_student_material, name="api-student-delete-material"),
     path("api/students/<int:student_id>/share-link/", student_share_link, name="api-student-share-link"),
     path("api/students/<int:student_id>/share-link/regenerate/", student_share_link_regenerate, name="api-student-share-link-regenerate"),
     path(

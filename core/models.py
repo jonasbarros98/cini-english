@@ -646,6 +646,44 @@ class LessonPlanAttachment(models.Model):
         return f"{size:.1f} TB"
 
 
+class StudentMaterial(models.Model):
+    """Materiais compartilhados com o aluno na aba Materiais (independente de Planejamento)."""
+    TYPE_FILE = "file"
+    TYPE_LINK = "link"
+    TYPE_CHOICES = [
+        (TYPE_FILE, "Arquivo"),
+        (TYPE_LINK, "Link"),
+    ]
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="materials",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="student_materials",
+        help_text="Professor que criou o material",
+    )
+    title = models.CharField(max_length=200, help_text="Título exibido para o aluno")
+    material_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default=TYPE_FILE)
+    file = models.FileField(upload_to="student_materials/%Y/%m/", blank=True, null=True)
+    external_url = models.URLField(blank=True, default="")
+    file_size = models.PositiveIntegerField(default=0)
+    material_date = models.DateField(help_text="Data de referência para organização dos materiais")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-material_date", "-created_at"]
+        verbose_name = "Material do Aluno"
+        verbose_name_plural = "Materiais dos Alunos"
+
+    def __str__(self):
+        return f"{self.student.name} - {self.title}"
+
+
 class UserProfile(models.Model):
     """Perfil estendido do usuário"""
     PROFILE_TEACHER = "professor"

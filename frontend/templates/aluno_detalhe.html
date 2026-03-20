@@ -1425,11 +1425,24 @@
                 </div>
                 <div class="mat-actions">
                   <a href="{{ mat.url }}" target="_blank" rel="noopener" class="icon-btn" title="Abrir/Download"><i data-lucide="{% if mat.file_type == 'link' %}external-link{% else %}download{% endif %}" style="width:13px;height:13px"></i></a>
-                  {% if mat.attachment_id %}
+                  <button
+                    type="button"
+                    class="icon-btn mat-edit-btn"
+                    data-material-id="{{ mat.material_id }}"
+                    data-material-title="{{ mat.original_filename|escape }}"
+                    data-material-type="{{ mat.file_type }}"
+                    data-material-url="{{ mat.external_url|default:''|escape }}"
+                    data-material-date="{{ mat.plan_date|date:'Y-m-d' }}"
+                    title="Editar material"
+                    aria-label="Editar material"
+                  >
+                    <i data-lucide="pencil" style="width:13px;height:13px"></i>
+                  </button>
+                  {% if mat.material_id %}
                   <button
                     type="button"
                     class="icon-btn mat-delete-btn"
-                    data-attachment-id="{{ mat.attachment_id }}"
+                    data-material-id="{{ mat.material_id }}"
                     title="Excluir material"
                     aria-label="Excluir material"
                   >
@@ -2411,6 +2424,7 @@
       const matUrlWrap = document.getElementById('matExternalUrlWrap');
       const matUrl = document.getElementById('matExternalUrl');
       const matFileLabel = document.getElementById('matFileLabel');
+      let editingMaterialId = null;
       const getCookie = (name) => {
         const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
         return v ? v[2] : null;
@@ -2434,12 +2448,14 @@
 
       if (btnAdd) {
         btnAdd.addEventListener('click', () => {
+          editingMaterialId = null;
           if (matDate) matDate.value = new Date().toISOString().slice(0, 10);
           if (matTitle) matTitle.value = '';
           if (matMode) matMode.value = 'file';
           if (matUrl) matUrl.value = '';
           if (input) input.value = '';
           if (matFileName) matFileName.textContent = 'Nenhum arquivo selecionado';
+          btnSubmit.innerHTML = '<i data-lucide="upload" style="width:13px;height:13px"></i> Enviar material';
           syncMaterialMode();
           syncMatAccept();
           openModal('modalMaterial');
@@ -2499,28 +2515,45 @@
           showToast('Aluno inválido para anexar material.', true);
           return;
         }
-        const formData = new FormData();
-        if (file) formData.append('file', file);
-        formData.append('plan_date', planDate || new Date().toISOString().slice(0, 10));
-        formData.append('display_title', title);
-        if (externalUrl) formData.append('external_url', externalUrl);
         const prevHtml = btnSubmit.innerHTML;
         try {
           btnSubmit.disabled = true;
-          btnSubmit.textContent = 'Enviando...';
-          const res = await fetch(`/api/students/${studentId}/materials/`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': getCookie('csrftoken') || '' },
-            body: formData,
-          });
+          btnSubmit.textContent = editingMaterialId ? 'Salvando...' : 'Enviando...';
+          let res;
+          if (editingMaterialId) {
+            const payload = {
+              title,
+              material_date: planDate || new Date().toISOString().slice(0, 10),
+            };
+            if (isLinkMode && externalUrl) payload.external_url = externalUrl;
+            res = await fetch(`/api/students/${studentId}/materials/${editingMaterialId}/`, {
+              method: 'PATCH',
+              headers: {
+                'X-CSRFToken': getCookie('csrftoken') || '',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload),
+            });
+          } else {
+            const formData = new FormData();
+            if (file) formData.append('file', file);
+            formData.append('plan_date', planDate || new Date().toISOString().slice(0, 10));
+            formData.append('display_title', title);
+            if (externalUrl) formData.append('external_url', externalUrl);
+            res = await fetch(`/api/students/${studentId}/materials/`, {
+              method: 'POST',
+              headers: { 'X-CSRFToken': getCookie('csrftoken') || '' },
+              body: formData,
+            });
+          }
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            showToast((err.error || err.detail || 'Erro ao enviar material.'), true);
+            showToast((err.error || err.detail || 'Erro ao salvar material.'), true);
             btnSubmit.innerHTML = prevHtml;
             if (window.lucide && lucide.createIcons) lucide.createIcons();
           } else {
             closeModal('modalMaterial');
-            showToast(externalUrl ? 'Link adicionado com sucesso!' : 'Material anexado com sucesso!');
+            showToast(editingMaterialId ? 'Material atualizado com sucesso!' : (externalUrl ? 'Link adicionado com sucesso!' : 'Material anexado com sucesso!'));
             setTimeout(function () { window.location.reload(); }, 400);
           }
         } catch (e) {
@@ -2532,19 +2565,43 @@
         }
       });
 
-      // Excluir material (anexo)
+      // Editar material
+      document.querySelectorAll('.mat-edit-btn').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          editingMaterialId = btn.getAttribute('data-material-id');
+          if (!editingMaterialId) return;
+          const type = btn.getAttribute('data-material-type') || 'file';
+          const title = btn.getAttribute('data-material-title') || '';
+          const date = btn.getAttribute('data-material-date') || new Date().toISOString().slice(0, 10);
+          const url = btn.getAttribute('data-material-url') || '';
+          if (matTitle) matTitle.value = title;
+          if (matDate) matDate.value = date;
+          if (matMode) matMode.value = (type === 'link' ? 'link' : 'file');
+          if (matUrl) matUrl.value = url;
+          if (input) input.value = '';
+          if (matFileName) matFileName.textContent = 'Nenhum arquivo selecionado';
+          btnSubmit.innerHTML = '<i data-lucide="check" style="width:13px;height:13px"></i> Salvar alterações';
+          syncMaterialMode();
+          openModal('modalMaterial');
+          if (window.lucide && lucide.createIcons) lucide.createIcons();
+        });
+      });
+
+      // Excluir material
       document.querySelectorAll('.mat-delete-btn').forEach((btn) => {
         btn.addEventListener('click', async (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
-          const attachmentId = btn.getAttribute('data-attachment-id');
-          if (!attachmentId) return;
+          const materialId = btn.getAttribute('data-material-id');
+          if (!materialId) return;
           if (!window.confirm('Deseja excluir este material?')) return;
           const prev = btn.innerHTML;
           try {
             btn.disabled = true;
             btn.innerHTML = '...';
-            const res = await fetch(`/api/planning/attachments/${attachmentId}/`, {
+            const res = await fetch(`/api/students/${studentId}/materials/${materialId}/delete/`, {
               method: 'DELETE',
               headers: { 'X-CSRFToken': getCookie('csrftoken') || '' },
             });

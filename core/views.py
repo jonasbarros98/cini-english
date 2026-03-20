@@ -27,9 +27,8 @@ import re
 import uuid
 import threading
 from urllib import request as urllib_request
-from urllib.parse import urlparse
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
-from .models import Student, Lesson, Task, StudentHomework, StudentHomeworkMessage, StudentHomeworkMessageRead, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest, StudentShareToken
+from .models import Student, Lesson, Task, StudentHomework, StudentHomeworkMessage, StudentHomeworkMessageRead, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest, StudentShareToken, StudentMaterial
 from .serializers import StudentSerializer, LessonSerializer, TaskSerializer, StudentHomeworkSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
 
@@ -629,67 +628,42 @@ class AlunoDetalheView(TemplateView):
             context['finance_status'] = 'ok'
         context['next_invoice'] = next_entry  # FinancialEntry; template usa .due_date igual
 
-        # --- Parte 4: Materiais (LessonPlanAttachment do aluno) ---
-        attachments_qs = LessonPlanAttachment.objects.filter(lesson_plan__student=student)
-        attachments = (
-            attachments_qs.select_related("lesson_plan")
-            .order_by("-lesson_plan__date", "-uploaded_at")
-        )
+        # --- Parte 4: Materiais do aluno (separados de Planejamento) ---
+        materiais_list = []
+        materials_qs = StudentMaterial.objects.filter(student=student).order_by("-material_date", "-created_at")
         AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".aac"}
         VIDEO_EXT = {".mp4", ".webm", ".mov", ".avi", ".mkv"}
-        materiais_list = []
-        for att in attachments:
-            ext = os.path.splitext(att.original_filename or "")[1].lower()
-            if ext == ".pdf":
-                file_type = "pdf"
-            elif ext in AUDIO_EXT:
-                file_type = "audio"
-            elif ext in VIDEO_EXT:
-                file_type = "video"
+        for mat in materials_qs:
+            if mat.material_type == StudentMaterial.TYPE_LINK:
+                file_type = "link"
+                url = mat.external_url
             else:
-                file_type = "other"
-            url = att.file.url
-            if self.request:
-                url = self.request.build_absolute_uri(url)
+                ext = os.path.splitext((mat.file.name if mat.file else "") or "")[1].lower()
+                if ext == ".pdf":
+                    file_type = "pdf"
+                elif ext in AUDIO_EXT:
+                    file_type = "audio"
+                elif ext in VIDEO_EXT:
+                    file_type = "video"
+                else:
+                    file_type = "other"
+                url = mat.file.url if mat.file else ""
+                if self.request and url:
+                    url = self.request.build_absolute_uri(url)
             materiais_list.append({
-                "attachment_id": att.id,
+                "material_id": mat.id,
                 "url": url,
-                "original_filename": att.original_filename or "Anexo",
+                "original_filename": mat.title or "Material",
                 "file_type": file_type,
-                "plan_date": att.lesson_plan.date,
-                "uploaded_at": att.uploaded_at,
+                "plan_date": mat.material_date,
+                "uploaded_at": mat.created_at,
+                "external_url": mat.external_url or "",
             })
-        # Incluir links dos planejamentos como materiais do tipo "link"
-        link_count = 0
-        plans_with_links = (
-            LessonPlan.objects.filter(student=student)
-            .exclude(links__isnull=True)
-            .exclude(links__exact="")
-            .order_by("-date", "-updated_at")
-        )
-        for plan in plans_with_links:
-            for raw_link in plan.get_links_list():
-                href = (raw_link or "").strip()
-                if not href:
-                    continue
-                if not (href.startswith("http://") or href.startswith("https://")):
-                    continue
-                parsed = urlparse(href)
-                display_name = parsed.netloc or href
-                materiais_list.append({
-                    "attachment_id": None,
-                    "url": href,
-                    "original_filename": display_name,
-                    "file_type": "link",
-                    "plan_date": plan.date,
-                    "uploaded_at": plan.updated_at,
-                })
-                link_count += 1
         context["materiais"] = materiais_list
         from django.db.models import Sum
-        total_bytes = attachments_qs.aggregate(total=Sum("file_size")).get("total") or 0
+        total_bytes = materials_qs.aggregate(total=Sum("file_size")).get("total") or 0
         context["materiais_total_bytes"] = total_bytes
-        context["materiais_count"] = attachments_qs.count() + link_count
+        context["materiais_count"] = materials_qs.count()
 
         # Homework (KPI + resumo)
         from django.db.models import Count, Q as Qm
@@ -899,17 +873,15 @@ class StudentAreaView(TemplateView):
         else:
             context["dedication_label"] = "Começando agora"
 
-        # --- Materials (attachments) grouped by month and date ---
-        attachments_qs = (
-            LessonPlanAttachment.objects.filter(lesson_plan__student=student)
-            .select_related("lesson_plan")
-            .order_by("-lesson_plan__date", "-uploaded_at")
-        )
+        # --- Materials grouped by month/date (somente StudentMaterial) ---
+        materials_qs = StudentMaterial.objects.filter(student=student).order_by("-material_date", "-created_at")
         AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".aac"}
         VIDEO_EXT = {".mp4", ".webm", ".mov", ".avi", ".mkv"}
 
-        def _file_type(att):
-            ext = os.path.splitext(att.original_filename or "")[1].lower()
+        def _file_type(mat):
+            if mat.material_type == StudentMaterial.TYPE_LINK:
+                return "link"
+            ext = os.path.splitext((mat.file.name if mat.file else "") or "")[1].lower()
             if ext == ".pdf":
                 return "pdf"
             if ext in AUDIO_EXT:
@@ -919,60 +891,33 @@ class StudentAreaView(TemplateView):
             return "file"
 
         materials_map = {}  # month_label -> date_label -> [items]
-        for att in attachments_qs:
-            plan_date = att.lesson_plan.date
+        for mat in materials_qs:
+            plan_date = mat.material_date
             month_label = f"{months_pt[plan_date.month - 1].capitalize()} {plan_date.year}"
             date_label = f"{plan_date.day:02d} de {months_pt[plan_date.month - 1]}"
-            ftype = _file_type(att)
+            ftype = _file_type(mat)
             if ftype == "pdf":
                 type_tag = "PDF"
             elif ftype == "audio":
                 type_tag = "Áudio"
             elif ftype == "video":
                 type_tag = "Vídeo"
+            elif ftype == "link":
+                type_tag = "Link"
             else:
                 type_tag = "Arquivo"
-
-            obs = att.lesson_plan.goals or ""
+            obs = ""
+            url = mat.external_url if mat.material_type == StudentMaterial.TYPE_LINK else (self.request.build_absolute_uri(mat.file.url) if mat.file else "")
             materials_map.setdefault(month_label, {}).setdefault(date_label, []).append(
                 {
-                    "url": self.request.build_absolute_uri(att.file.url),
-                    "original_filename": att.original_filename or "Anexo",
+                    "url": url,
+                    "original_filename": mat.title or "Material",
                     "file_type": ftype,
                     "type_tag": type_tag,
                     "plan_date": plan_date.isoformat() if plan_date else None,
                     "obs": obs,
                 }
             )
-        # Também incluir links salvos no planejamento como materiais públicos.
-        plans_with_links = (
-            LessonPlan.objects.filter(student=student)
-            .exclude(links__isnull=True)
-            .exclude(links__exact="")
-            .order_by("-date", "-updated_at")
-        )
-        for plan in plans_with_links:
-            plan_date = plan.date
-            month_label = f"{months_pt[plan_date.month - 1].capitalize()} {plan_date.year}"
-            date_label = f"{plan_date.day:02d} de {months_pt[plan_date.month - 1]}"
-            for raw_link in plan.get_links_list():
-                href = (raw_link or "").strip()
-                if not href:
-                    continue
-                if not (href.startswith("http://") or href.startswith("https://")):
-                    continue
-                parsed = urlparse(href)
-                display_name = parsed.netloc or href
-                materials_map.setdefault(month_label, {}).setdefault(date_label, []).append(
-                    {
-                        "url": href,
-                        "original_filename": display_name,
-                        "file_type": "link",
-                        "type_tag": "Link",
-                        "plan_date": plan_date.isoformat() if plan_date else None,
-                        "obs": plan.goals or "",
-                    }
-                )
 
         materials_months = []
         for month_label, date_groups in materials_map.items():
@@ -1150,38 +1095,94 @@ def upload_student_material(request, student_id):
             except ValueError:
                 plan_date = today
 
-    plan = (
-        LessonPlan.objects.filter(student=student, date=plan_date)
-        .order_by("-created_at")
-        .first()
-    )
-    if not plan:
-        plan = LessonPlan.objects.create(
-            student=student,
-            user=request.user,
-            date=plan_date,
-            links="",
-            goals="Materiais anexados pela ficha do aluno.",
-        )
-
     # Caso de material por link (sem upload de arquivo)
     if external_url and not has_file:
         if not (external_url.startswith("http://") or external_url.startswith("https://")):
             return Response({"error": "Informe um link válido iniciando com http:// ou https://"}, status=status.HTTP_400_BAD_REQUEST)
-        current_links = plan.get_links_list()
-        if external_url not in current_links:
-            merged = current_links + [external_url]
-            plan.links = "\n".join(merged)
-            plan.save(update_fields=["links", "updated_at"])
-        return Response({"ok": True, "type": "link", "url": external_url}, status=status.HTTP_201_CREATED)
+        material = StudentMaterial.objects.create(
+            student=student,
+            user=request.user,
+            title=(django_request.POST.get("display_title") or "").strip()[:200] or external_url,
+            material_type=StudentMaterial.TYPE_LINK,
+            external_url=external_url,
+            file_size=0,
+            material_date=plan_date,
+        )
+        return Response({"ok": True, "material_id": material.id, "type": "link", "url": external_url}, status=status.HTTP_201_CREATED)
 
-    # Reaproveitar a lógica de upload_planning_attachment, sem duplicar validações.
-    # Nota: upload_planning_attachment é um endpoint DRF (@api_view) que espera um
-    # django.http.HttpRequest. Aqui recebemos rest_framework.request.Request,
-    # então precisamos repassar o request Django subjacente.
-    if django_request is None:
-        return Response({"error": "Request inválido."}, status=status.HTTP_400_BAD_REQUEST)
-    return upload_planning_attachment(django_request, plan.id)
+    file = request.FILES.get("file")
+    if not file:
+        return Response({"error": "Arquivo inválido."}, status=status.HTTP_400_BAD_REQUEST)
+    MAX_FILE_SIZE = getattr(settings, "PLANNING_ATTACHMENT_MAX_FILE_SIZE", 10 * 1024 * 1024)
+    if file.size > MAX_FILE_SIZE:
+        return Response({"error": f"Arquivo muito grande. Tamanho máximo: {int(MAX_FILE_SIZE / (1024*1024))}MB"}, status=status.HTTP_400_BAD_REQUEST)
+    title = (django_request.POST.get("display_title") or "").strip()[:200] or file.name
+    material = StudentMaterial.objects.create(
+        student=student,
+        user=request.user,
+        title=title,
+        material_type=StudentMaterial.TYPE_FILE,
+        file=file,
+        file_size=file.size,
+        material_date=plan_date,
+    )
+    return Response({"ok": True, "material_id": material.id, "type": "file"}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_student_material(request, student_id, material_id):
+    view = AlunoDetalheView()
+    view.request = request
+    try:
+        qs = view.get_queryset_students()
+        _student = qs.get(id=student_id)
+    except Student.DoesNotExist:
+        return Response({"error": "Aluno não encontrado ou sem permissão."}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        material = StudentMaterial.objects.get(id=material_id, student_id=student_id)
+    except StudentMaterial.DoesNotExist:
+        return Response({"error": "Material não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    if material.file:
+        material.file.delete()
+    material.delete()
+    return Response({"ok": True}, status=status.HTTP_200_OK)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_student_material(request, student_id, material_id):
+    view = AlunoDetalheView()
+    view.request = request
+    try:
+        qs = view.get_queryset_students()
+        _student = qs.get(id=student_id)
+    except Student.DoesNotExist:
+        return Response({"error": "Aluno não encontrado ou sem permissão."}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        material = StudentMaterial.objects.get(id=material_id, student_id=student_id)
+    except StudentMaterial.DoesNotExist:
+        return Response({"error": "Material não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    payload = request.data if hasattr(request, "data") else {}
+    title = (payload.get("title") or "").strip()
+    raw_date = (payload.get("material_date") or "").strip()
+    external_url = (payload.get("external_url") or "").strip()
+
+    if title:
+        material.title = title[:200]
+    if raw_date:
+        try:
+            material.material_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+        except ValueError:
+            return Response({"error": "Data inválida."}, status=status.HTTP_400_BAD_REQUEST)
+    if material.material_type == StudentMaterial.TYPE_LINK and external_url:
+        if not (external_url.startswith("http://") or external_url.startswith("https://")):
+            return Response({"error": "Informe um link válido iniciando com http:// ou https://"}, status=status.HTTP_400_BAD_REQUEST)
+        material.external_url = external_url
+
+    material.save(update_fields=["title", "material_date", "external_url", "updated_at"])
+    return Response({"ok": True}, status=status.HTTP_200_OK)
 
 
 class FinanceView(TemplateView):
