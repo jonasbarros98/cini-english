@@ -4278,6 +4278,31 @@ def _trigger_n8n_onboarding_webhook(request, user):
     threading.Thread(target=_worker, daemon=True).start()
 
 
+def _n8n_internal_token_ok(request):
+    """
+    Valida token interno compartilhado com n8n (onboarding, trial ending, etc.).
+    Aceita header X-Internal-Token ou query ?token= / ?onboarding_check_token=
+    Retorna (True, None) ou (False, Response 401).
+    """
+    expected_token = os.environ.get("N8N_ONBOARDING_STATUS_TOKEN", "").strip()
+    provided_token = (
+        request.headers.get("X-Internal-Token")
+        or request.query_params.get("token")
+        or request.query_params.get("onboarding_check_token")
+        or ""
+    ).strip()
+    try:
+        print(
+            f"[n8n_internal_token] expected_len={len(expected_token)} "
+            f"provided_len={len(provided_token)} provided_empty={not bool(provided_token)}"
+        )
+    except Exception:
+        pass
+    if not expected_token or provided_token != expected_token:
+        return False, Response({"detail": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+    return True, None
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def onboarding_progress_internal(request):
@@ -4285,25 +4310,9 @@ def onboarding_progress_internal(request):
     Endpoint para o n8n consultar evolução do onboarding/trial.
     Segurança: header X-Internal-Token deve bater com N8N_ONBOARDING_STATUS_TOKEN.
     """
-    expected_token = os.environ.get("N8N_ONBOARDING_STATUS_TOKEN", "").strip()
-    # Header é o caminho ideal, mas como o n8n varia na forma de enviar headers,
-    # aceitamos também token via query param (mantendo a mesma validação).
-    provided_token = (
-        request.headers.get("X-Internal-Token")
-        or request.query_params.get("token")
-        or request.query_params.get("onboarding_check_token")
-        or ""
-    ).strip()
-    # Debug sem vazar segredo: só tamanho/estado
-    try:
-        print(
-            f"[onboarding_progress_internal] expected_len={len(expected_token)} "
-            f"provided_len={len(provided_token)} provided_empty={not bool(provided_token)}"
-        )
-    except Exception:
-        pass
-    if not expected_token or provided_token != expected_token:
-        return Response({"detail": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+    ok, err = _n8n_internal_token_ok(request)
+    if not ok:
+        return err
 
     raw_user_id = request.query_params.get("user_id")
     try:
@@ -4324,6 +4333,88 @@ def onboarding_progress_internal(request):
         "first_name": user.first_name or "",
         **progress,
     })
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def trial_ending_users(request):
+    """
+    Lista usuários com trial encerrando em ~2 dias que ainda não receberam o e-mail de aviso.
+    Usado pelo workflow n8n "Trial Ending" (cron diário).
+
+    Janela: trial_ends_at entre now+44h e now+52h (~2 dias, com folga).
+    Filtros: trial_ending_email_sent_at vazio, não exempt, sem Subscription ativa.
+
+    Auth: mesmo token de N8N_ONBOARDING_STATUS_TOKEN (header ou query).
+    """
+    ok, err = _n8n_internal_token_ok(request)
+    if not ok:
+        return err
+
+    now = timezone.now()
+    window_start = now + timedelta(hours=44)
+    window_end = now + timedelta(hours=52)
+
+    active_sub_user_ids = Subscription.objects.filter(
+        status=Subscription.STATUS_ACTIVE
+    ).values_list("user_id", flat=True)
+
+    profiles = (
+        UserProfile.objects.select_related("user")
+        .filter(
+            trial_ends_at__gte=window_start,
+            trial_ends_at__lte=window_end,
+            trial_ending_email_sent_at__isnull=True,
+            subscription_exempt=False,
+        )
+        .exclude(user_id__in=active_sub_user_ids)
+    )
+
+    users = []
+    for profile in profiles:
+        users.append(
+            {
+                "user_id": profile.user.id,
+                "email": profile.user.email,
+                "first_name": profile.user.first_name or "",
+                "username": profile.user.username,
+                "trial_ends_at": profile.trial_ends_at.isoformat()
+                if profile.trial_ends_at
+                else None,
+            }
+        )
+
+    return Response({"users": users})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def mark_trial_email_sent(request):
+    """
+    Marca trial_ending_email_sent_at após o n8n enviar o e-mail de fim de trial.
+    Body JSON: {"user_id": 123}
+
+    Auth: mesmo token de N8N_ONBOARDING_STATUS_TOKEN (header ou query).
+    """
+    ok, err = _n8n_internal_token_ok(request)
+    if not ok:
+        return err
+
+    raw_user_id = request.data.get("user_id")
+    try:
+        user_id = int(raw_user_id)
+    except (TypeError, ValueError):
+        return Response({"detail": "user_id inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        profile = UserProfile.objects.get(user_id=user_id)
+    except UserProfile.DoesNotExist:
+        return Response({"detail": "UserProfile não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    profile.trial_ending_email_sent_at = timezone.now()
+    profile.save(update_fields=["trial_ending_email_sent_at"])
+
+    return Response({"success": True})
 
 
 # ==========================

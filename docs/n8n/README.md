@@ -12,9 +12,10 @@
 2. [Ambiente Local — WhatsApp (Evolution API + n8n)](#2-ambiente-local--whatsapp-evolution-api--n8n)
 3. [Workflow: Bom Dia Bianca](#3-workflow-bom-dia-bianca)
 4. [Workflow: Onboarding EducaFlowOne](#4-workflow-onboarding-educaflowone)
-5. [Produção — n8n no Railway](#5-produção--n8n-no-railway)
-6. [Variáveis de Ambiente (referência completa)](#6-variáveis-de-ambiente-referência-completa)
-7. [Manutenção e Troubleshooting](#7-manutenção-e-troubleshooting)
+5. [Workflow: Trial Ending (e-mail fim de trial)](#5-workflow-trial-ending-e-mail-fim-de-trial)
+6. [Produção — n8n no Railway](#6-produção--n8n-no-railway)
+7. [Variáveis de Ambiente (referência completa)](#7-variáveis-de-ambiente-referência-completa)
+8. [Manutenção e Troubleshooting](#8-manutenção-e-troubleshooting)
 
 ---
 
@@ -267,7 +268,7 @@ O node monta a URL a partir do payload recebido:
 ### 4.5 Emails (Resend API)
 
 - **From:** `EducaFlowOne <onboarding@educaflowone.com.br>`
-- **API Key:** configurada nos headers dos nodes (`re_3aKm81iz_...`)
+- **API Key:** variável `RESEND_API_KEY` no n8n (Railway) ou credencial Header Auth — **nunca** commitar chave no JSON
 - **Endpoint:** `POST https://api.resend.com/emails`
 
 **Diferença DEV → PRD:**
@@ -280,9 +281,40 @@ O node monta a URL a partir do payload recebido:
 
 ---
 
-## 5. Produção — n8n no Railway
+## 5. Workflow: Trial Ending (e-mail fim de trial)
 
-### 5.1 Serviços Railway
+Automação **diária** (cron `0 8 * * *`) que avisa usuários cujo **trial gratuito termina em ~2 dias**, marca envio idempotente no Django e usa **Resend** para o e-mail.
+
+### 5.1 Arquivo e importação
+
+| Arquivo | Uso |
+|---------|-----|
+| `docs/n8n/Trial Ending - EducaFlowOne - oficial.json` | Importar no n8n (Railway ou local) |
+| `docs/n8n/trial_ending_endpoints.py` | Referência; **a implementação vive em** `core/views.py` |
+
+### 5.2 Endpoints Django (já integrados)
+
+| Método | Caminho | Descrição |
+|--------|---------|-----------|
+| `GET` | `/api/internal/trial-ending-users/` | Lista `{ "users": [ { user_id, email, first_name, username, trial_ends_at } ] }` |
+| `POST` | `/api/internal/mark-trial-email-sent/` | Body JSON `{"user_id": 123}` — define `trial_ending_email_sent_at` |
+
+**Auth:** mesmo token que o onboarding — `N8N_ONBOARDING_STATUS_TOKEN` via header `X-Internal-Token` ou query `?token=` / `?onboarding_check_token=`.
+
+**Critérios da lista (resumo):** `trial_ends_at` entre **now+44h e now+52h**, `trial_ending_email_sent_at` nulo, `subscription_exempt=False`, sem `Subscription` com status `active`.
+
+### 5.3 Configuração no n8n
+
+1. Substituir `{{ COLOCAR_TOKEN_AQUI }}` nos nodes HTTP pelo **mesmo** valor de `N8N_ONBOARDING_STATUS_TOKEN` (ou usar variável/credencial n8n).
+2. No serviço n8n (Railway), definir **`RESEND_API_KEY`** — o workflow usa `Authorization: Bearer {{ $env.RESEND_API_KEY }}`.
+3. Ajustar URLs dos nodes se o domínio não for produção (ex.: `localhost` em DEV).
+4. No node **IF Has Users**, se o HTTP Request devolver o JSON dentro de `body`, use algo como `{{ $json.body.users.length }}` em vez de `{{ $json.users.length }}`.
+
+---
+
+## 6. Produção — n8n no Railway
+
+### 6.1 Serviços Railway
 
 | Serviço       | Descrição                   | URL / Host interno              |
 |---------------|-----------------------------|---------------------------------|
@@ -291,7 +323,7 @@ O node monta a URL a partir do payload recebido:
 | n8n           | Automação (workflows PRD)   | `n8n-cini-english.up.railway.app` |
 | Postgres-ECuC | Banco exclusivo do n8n      | `postgres-ecuc.railway.internal`|
 
-### 5.2 Variáveis do serviço n8n no Railway
+### 6.2 Variáveis do serviço n8n no Railway
 
 ```env
 # Servidor
@@ -319,11 +351,14 @@ N8N_ENCRYPTION_KEY=c6ce8f6545bc5675d1e606614b3c4f68a268644e005793dfec4f40a7ea04f
 
 # Timezone
 GENERIC_TIMEZONE=America/Sao_Paulo
+
+# Resend (workflows que enviam e-mail: onboarding nodes manuais, Trial Ending, etc.)
+RESEND_API_KEY=re_xxxxxxxx
 ```
 
 > ⚠️ **IMPORTANTE:** `N8N_ENCRYPTION_KEY` não pode ser alterada após criada. Se mudar, todas as credenciais salvas no n8n são perdidas.
 
-### 5.3 Variáveis do Django (cini-english) para o n8n
+### 6.3 Variáveis do Django (cini-english) para o n8n
 
 ```env
 N8N_ONBOARDING_WEBHOOK_ENABLED=true
@@ -331,7 +366,7 @@ N8N_ONBOARDING_WEBHOOK_URL=https://n8n-cini-english.up.railway.app/webhook/93e40
 N8N_ONBOARDING_STATUS_TOKEN=<token secreto compartilhado>
 ```
 
-### 5.4 Importar workflow no n8n Railway
+### 6.4 Importar workflow no n8n Railway
 
 1. Acessar `https://n8n-cini-english.up.railway.app`
 2. Login: admin / senha configurada
@@ -341,7 +376,7 @@ N8N_ONBOARDING_STATUS_TOKEN=<token secreto compartilhado>
 6. Confirmar que a URL bate com `N8N_ONBOARDING_WEBHOOK_URL` no Django
 7. Toggle **Active** → ON
 
-### 5.5 Teste de produção
+### 6.5 Teste de produção
 
 ```powershell
 # Disparar webhook manualmente para testar (sem fazer signup real)
@@ -364,7 +399,7 @@ Invoke-WebRequest `
 
 ---
 
-## 6. Variáveis de Ambiente (referência completa)
+## 7. Variáveis de Ambiente (referência completa)
 
 ### Django (Railway — cini-english)
 
@@ -388,12 +423,12 @@ Invoke-WebRequest `
 | Serviço     | Variável / Header | Onde configurar      |
 |-------------|-------------------|----------------------|
 | Anthropic   | `x-api-key`       | Node n8n local       |
-| Resend      | `Authorization`   | Nodes email n8n PRD  |
+| Resend      | `RESEND_API_KEY` (n8n env) → `Authorization: Bearer …` | Trial Ending + nodes de e-mail PRD |
 | Open-Meteo  | —                 | Sem autenticação     |
 
 ---
 
-## 7. Manutenção e Troubleshooting
+## 8. Manutenção e Troubleshooting
 
 ### WhatsApp desconectou
 

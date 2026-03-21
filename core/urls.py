@@ -25,6 +25,8 @@ from .views import (
     StudentAreaView, student_share_link, student_share_link_regenerate,
     public_area_aluno_homework_comment,
     onboarding_progress_internal,
+    trial_ending_users,
+    mark_trial_email_sent,
     TasksV2View,
 )
 
@@ -55,6 +57,8 @@ urlpatterns = [
     path("api/public/booking/<int:booking_id>/confirm/", public_booking_confirm, name="api-public-booking-confirm"),
     path("api/public/booking/<int:booking_id>/reject/", public_booking_reject, name="api-public-booking-reject"),
     path("api/internal/onboarding/progress/", onboarding_progress_internal, name="api-internal-onboarding-progress"),
+    path("api/internal/trial-ending-users/", trial_ending_users, name="api-internal-trial-ending-users"),
+    path("api/internal/mark-trial-email-sent/", mark_trial_email_sent, name="api-internal-mark-trial-email-sent"),
     path("dashboard/", DashboardHomeView.as_view(), name="dashboard-home"),
     path("perfil/", PerfilView.as_view(), name="perfil"),
     path("", HomeView.as_view(), name="home"),
