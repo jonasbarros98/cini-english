@@ -19,6 +19,36 @@
     html,body{ height:100%; }
     .page{ max-width: 100%; margin: 0; padding: 0; }
 
+    /* Mesmo DNA de alunos / aluno detalhe / planejamento: fundo fixo + degradê no fim da viewport */
+    body.page-finance{
+      background-color: #d8e3f4;
+      background-image:
+        radial-gradient(1050px 580px at 12vw 6vh, rgba(37,99,235,.055), transparent 58%),
+        radial-gradient(850px 480px at 98vw min(82vh, 900px), rgba(59,130,246,.048), transparent 62%),
+        linear-gradient(
+          180deg,
+          #f5f8fc 0vh,
+          #f5f8fc 82vh,
+          #f0f5fc 88vh,
+          #e6f0fa 94vh,
+          #dce8f5 100vh
+        );
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      background-size: auto, auto, auto;
+    }
+    body.page-finance .app-shell > main.main{
+      background: linear-gradient(180deg, rgba(255,255,255,.14) 0vh, rgba(255,255,255,.06) 82vh, transparent 92vh);
+      border-radius: var(--radius);
+      min-height: 0;
+    }
+    @media (max-width: 980px){
+      body.page-finance .app-shell > main.main{
+        background: transparent;
+        border-radius: 0;
+      }
+    }
+
     /* Aproveitar melhor o espaço: menos gap entre sidebar e conteúdo */
     body.page-finance .app-shell{
       gap: 12px !important;

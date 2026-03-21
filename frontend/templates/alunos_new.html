@@ -32,20 +32,51 @@
 
       --radius: 18px;
       --radius-sm: 14px;
+
+      /* Lista de alunos: quantos cards “visíveis” antes do scroll interno */
+      --alunos-list-visible-cards: 4;
+      --alunos-list-gap: 8px;
+      --alunos-list-pad-y: 20px; /* padding top+bottom da .list */
+      /* Altura estimada do card compacto (ajuste se mudar o layout do card) */
+      --alunos-card-estimate: 168px;
     }
 
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{
+    body.page-alunos{
       margin:0;
       font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(900px 500px at 15% 0%, rgba(37,99,235,.10), transparent 60%),
-                  radial-gradient(700px 450px at 90% 15%, rgba(59,130,246,.10), transparent 55%),
-                  var(--bg);
       color: var(--text);
+      /* fixed + vh: a faixa azul acompanha a viewport (fica abaixo do painel da lista, não “no meio” do scroll) */
+      background-color: #d8e3f4;
+      background-image:
+        radial-gradient(1050px 580px at 12vw 6vh, rgba(37,99,235,.055), transparent 58%),
+        radial-gradient(850px 480px at 98vw min(82vh, 900px), rgba(59,130,246,.048), transparent 62%),
+        linear-gradient(
+          180deg,
+          #f5f8fc 0vh,
+          #f5f8fc 82vh,
+          #f0f5fc 88vh,
+          #e6f0fa 94vh,
+          #dce8f5 100vh
+        );
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      background-size: auto, auto, auto;
     }
     
-    /* Ajustes para sidebar - removido, agora padronizado no styles.css */
+    /* Coluna principal: véu alinhado à mesma lógica (viewport) */
+    body.page-alunos .app-shell > main.main{
+      background: linear-gradient(180deg, rgba(255,255,255,.14) 0vh, rgba(255,255,255,.06) 82vh, transparent 92vh);
+      border-radius: var(--radius);
+      min-height: 0;
+    }
+    @media (max-width: 980px){
+      body.page-alunos .app-shell > main.main{
+        background: transparent;
+        border-radius: 0;
+      }
+    }
 
     .wrap{max-width:100%;margin:0;padding:18px 18px 90px;width:100%;}
 
@@ -157,66 +188,655 @@
       line-height: 1.4;
     }
 
-    /* Layout split */
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 420px;
-      gap: 12px;
+    /* Lista full-width — edição rápida no modal */
+    .alunos-layout{
       margin-top: 12px;
     }
-    @media (max-width: 980px){
-      .grid{grid-template-columns:1fr;}
-    }
 
-    .panel{
-      background: rgba(255,255,255,.86);
-      border: 1px solid var(--border);
+    /* Lista: funde com o gradiente da página (vidro fosco, sem “caixa flutuante”) */
+    .alunos-layout .panel{
+      background: rgba(255,255,255,.38);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,.52);
       border-radius: var(--radius);
-      box-shadow: var(--shadow-soft);
-      overflow:hidden;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.55),
+        0 10px 36px rgba(15,23,42,.05);
+      overflow: hidden;
     }
-    .panel-head{
+    .alunos-layout .panel-head{
       padding: 14px;
-      border-bottom: 1px solid rgba(15,23,42,.06);
+      border-bottom: 1px solid rgba(15,23,42,.07);
+      background: rgba(255,255,255,.22);
       display:flex;
       align-items:flex-start;
       justify-content:space-between;
       gap:10px;
     }
-    .panel-head h2{margin:0;font-size:14px;font-weight:900;letter-spacing:-.01em}
-    .panel-head .meta{color:var(--muted);font-size:12px;font-weight:800}
-    #editorMeta{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-
-    /* Student list cards - altura fixa com scroll interno para não crescer a página */
-    .list{
-      padding:12px;
-      display:grid;
-      gap:10px;
-      max-height:calc(100vh - 280px);
-      overflow-y:auto;
-      overflow-x:hidden;
-      -webkit-overflow-scrolling:touch;
+    .alunos-layout .panel-head h2{margin:0;font-size:14px;font-weight:900;letter-spacing:-.01em}
+    .alunos-layout .panel-head .meta{color:var(--muted);font-size:12px;font-weight:800}
+    #editorMeta{max-width:100%;}
+    /* ========== Modal editar aluno — estilo premium (ref. calendário / replicar aula) ========== */
+    @keyframes edit-stu-modal-enter {
+      from { opacity: 0; transform: scale(0.94) translateY(12px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
     }
-    .list::-webkit-scrollbar{width:8px;}
-    .list::-webkit-scrollbar-track{background:rgba(15,23,42,.04);border-radius:999px;}
-    .list::-webkit-scrollbar-thumb{background:rgba(15,23,42,.15);border-radius:999px;}
-    .list::-webkit-scrollbar-thumb:hover{background:rgba(15,23,42,.25);}
-    .student-card{
+    #editStudentOverlay.modal-overlay.is-open .modal.modal--edit-student{
+      animation: edit-stu-modal-enter 0.28s cubic-bezier(0.34, 1.38, 0.64, 1) both;
+    }
+    #editStudentOverlay .modal.modal--edit-student{
+      width: min(920px, 96vw);
+      max-height: min(92vh, 900px);
+      border-radius: 24px;
+      background: #fff;
+      border: 1px solid rgba(15,23,42,.07);
+      box-shadow:
+        0 0 0 1px rgba(37,99,235,.06),
+        0 8px 16px rgba(2,6,23,.06),
+        0 28px 56px rgba(2,6,23,.14),
+        0 56px 88px rgba(2,6,23,.06);
+    }
+    #editStudentOverlay .edit-modal-head{
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 22px 24px 20px;
+      background: linear-gradient(135deg, #3730a3 0%, #2563eb 55%, #3b82f6 100%);
+      border-bottom: none;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #editStudentOverlay .edit-modal-head::before{
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, rgba(255,255,255,.14) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    #editStudentOverlay .edit-modal-head::after{
+      content: '';
+      position: absolute;
+      top: -48px;
+      right: -48px;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.07);
+      pointer-events: none;
+    }
+    #editStudentOverlay .edit-modal-head__left{
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+      flex: 1;
+      position: relative;
+      z-index: 1;
+    }
+    #editStudentOverlay .edit-modal-head__icon{
+      flex-shrink: 0;
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.30);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 2px 10px rgba(2,6,23,.18);
+    }
+    #editStudentOverlay .edit-modal-head__text{ flex: 1; min-width: 0; }
+    #editStudentOverlay .edit-modal-head #editStudentTitle{
+      margin: 0 0 4px;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #fff;
+      line-height: 1.2;
+    }
+    #editStudentOverlay .edit-modal-head #editorMeta{
+      margin: 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,.72);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    #editStudentOverlay .edit-modal-head__close{
+      flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.22);
+      color: rgba(255,255,255,.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 0;
+      position: relative;
+      z-index: 1;
+      transition: background .15s ease, transform .15s ease;
+    }
+    #editStudentOverlay .edit-modal-head__close:hover{
+      background: rgba(255,255,255,.26);
+      transform: scale(1.06);
+    }
+    #editStudentOverlay .edit-modal-body{
+      padding: 20px 24px 10px;
+    }
+    #editStudentOverlay .edit-modal-hint{
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      background: rgba(37,99,235,.06);
+      border-radius: 12px;
+      border-left: 3px solid rgba(37,99,235,.35);
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #1e40af;
+    }
+    #editStudentOverlay .edit-modal-hint--muted{
+      background: rgba(15,23,42,.04);
+      border-left-color: rgba(15,23,42,.2);
+      color: #475569;
+    }
+    #editStudentOverlay .edit-modal-hint strong{ font-weight: 800; color: #2563eb; }
+    #editStudentOverlay .edit-modal-hint--muted strong{ color: #334155; }
+    #editStudentOverlay .edit-modal-hint__ic{ font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    #editStudentOverlay .editor{
+      display: grid;
+      gap: 14px;
+      padding: 0;
+    }
+    #editStudentOverlay .editor .section{
+      margin: 0;
+      background: linear-gradient(145deg, #f8faff 0%, #f1f5f9 100%);
+      border: 1.5px solid rgba(37,99,235,.14);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow:
+        inset 0 1px 4px rgba(37,99,235,.05),
+        0 2px 10px rgba(37,99,235,.06);
+    }
+    #editStudentOverlay .section-head{
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255,255,255,.55);
+      border-bottom: 1px solid rgba(37,99,235,.1);
+      gap: 12px;
+    }
+    #editStudentOverlay .section-head strong{
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    #editStudentOverlay .section-head span{
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #2563eb;
+      border: 1px solid rgba(37,99,235,.22);
+      background: rgba(255,255,255,.9);
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+    #editStudentOverlay .section-body{
+      padding: 16px 16px 18px;
+      gap: 12px;
+      background: rgba(255,255,255,.45);
+    }
+    #editStudentOverlay .field label{
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #475569;
+    }
+    #editStudentOverlay .field input,
+    #editStudentOverlay .field select,
+    #editStudentOverlay .field textarea{
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      border-color: rgba(15,23,42,.1);
+      box-shadow: 0 2px 8px rgba(2,6,23,.04);
+    }
+    #editStudentOverlay .field input:focus,
+    #editStudentOverlay .field select:focus{
+      border-color: rgba(37,99,235,.35);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+    #editStudentOverlay .modal-actions{
+      flex-shrink: 0;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 18px 24px 22px;
+      border-top: 1px solid rgba(15,23,42,.08);
+      background: linear-gradient(180deg, #fafbfc 0%, #fff 100%);
+    }
+    #editStudentOverlay .modal-actions #editStudentCancel{
+      background: transparent;
+      border: 1.5px solid rgba(15,23,42,.16);
+      color: #475569;
+      border-radius: 11px;
+      padding: 10px 22px;
+      font-size: 13.5px;
+      font-weight: 600;
+      min-width: 108px;
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
+      box-shadow: none;
+    }
+    #editStudentOverlay .modal-actions #editStudentCancel:hover{
+      background: rgba(15,23,42,.05);
+      border-color: rgba(15,23,42,.28);
+      color: #1e293b;
+    }
+    #editStudentOverlay .modal-actions #editStudentSave{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+      border: none;
+      color: #fff;
+      border-radius: 11px;
+      padding: 10px 22px;
+      font-size: 13.5px;
+      font-weight: 700;
+      min-width: 132px;
+      cursor: pointer;
+      box-shadow:
+        0 2px 6px rgba(37,99,235,.30),
+        0 6px 18px rgba(37,99,235,.22);
+      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    #editStudentOverlay .modal-actions #editStudentSave:hover{
+      transform: translateY(-2px);
+      box-shadow:
+        0 4px 12px rgba(37,99,235,.36),
+        0 12px 28px rgba(37,99,235,.26);
+      filter: brightness(1.05);
+    }
+    #editStudentOverlay .modal-actions #editStudentSave::after{
+      content: ' →';
+      display: inline-block;
+      transition: transform .15s ease;
+    }
+    #editStudentOverlay .modal-actions #editStudentSave:hover::after{
+      transform: translateX(3px);
+    }
+    @media (max-width: 600px){
+      #editStudentOverlay .edit-modal-head{ padding: 18px 18px 16px; gap: 11px; }
+      #editStudentOverlay .edit-modal-head__icon{ width: 42px; height: 42px; font-size: 20px; }
+      #editStudentOverlay .edit-modal-body{ padding: 16px 16px 8px; }
+      #editStudentOverlay .modal-actions{ padding: 14px 16px 18px; }
+      #editStudentOverlay .modal-actions #editStudentCancel,
+      #editStudentOverlay .modal-actions #editStudentSave{ flex: 1; justify-content: center; min-width: 0; }
+    }
+
+    /* ========== Modal Novo aluno — mesmo DNA premium (ref. editar / calendário) ========== */
+    @keyframes new-stu-modal-enter {
+      from { opacity: 0; transform: scale(0.94) translateY(12px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    #newStudentOverlay.modal-overlay.is-open .modal.modal--new-student{
+      animation: new-stu-modal-enter 0.28s cubic-bezier(0.34, 1.38, 0.64, 1) both;
+    }
+    #newStudentOverlay .modal.modal--new-student{
+      width: min(860px, 96vw);
+      max-height: 90vh;
+      border-radius: 24px;
+      background: #fff;
+      border: 1px solid rgba(15,23,42,.07);
+      box-shadow:
+        0 0 0 1px rgba(37,99,235,.06),
+        0 8px 16px rgba(2,6,23,.06),
+        0 28px 56px rgba(2,6,23,.14),
+        0 56px 88px rgba(2,6,23,.06);
+    }
+    #newStudentOverlay .new-modal-head{
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 22px 24px 20px;
+      background: linear-gradient(135deg, #312e81 0%, #2563eb 52%, #0ea5e9 100%);
+      border-bottom: none;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #newStudentOverlay .new-modal-head::before{
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, rgba(255,255,255,.15) 0%, transparent 52%);
+      pointer-events: none;
+    }
+    #newStudentOverlay .new-modal-head::after{
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -36px;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+      pointer-events: none;
+    }
+    #newStudentOverlay .new-modal-head__left{
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+      flex: 1;
+      position: relative;
+      z-index: 1;
+    }
+    #newStudentOverlay .new-modal-head__icon{
+      flex-shrink: 0;
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      background: rgba(255,255,255,.2);
+      border: 1px solid rgba(255,255,255,.32);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 2px 10px rgba(2,6,23,.2);
+    }
+    #newStudentOverlay .new-modal-head__text{ flex: 1; min-width: 0; }
+    #newStudentOverlay .new-modal-head #newStudentTitle{
+      margin: 0 0 4px;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #fff;
+      line-height: 1.2;
+    }
+    #newStudentOverlay .new-modal-head .new-modal-head__sub{
+      margin: 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,.74);
+      line-height: 1.45;
+    }
+    #newStudentOverlay .new-modal-head__close{
+      flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.22);
+      color: rgba(255,255,255,.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 0;
+      position: relative;
+      z-index: 1;
+      transition: background .15s ease, transform .15s ease;
+    }
+    #newStudentOverlay .new-modal-head__close:hover{
+      background: rgba(255,255,255,.26);
+      transform: scale(1.06);
+    }
+    #newStudentOverlay .new-modal-body{
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 20px 24px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    /* Filhos não podem encolher: .section tem overflow:hidden e, em flex column,
+       isso zera o min-height automático — o card “comprime” e corta campos no fim. */
+    #newStudentOverlay .new-modal-body > *{
+      flex-shrink: 0;
+    }
+    #newStudentOverlay .new-modal-hint{
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      background: rgba(14,165,233,.07);
+      border-radius: 12px;
+      border-left: 3px solid rgba(14,165,233,.45);
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #0369a1;
+    }
+    #newStudentOverlay .new-modal-hint strong{ font-weight: 800; color: #0c4a6e; }
+    #newStudentOverlay .new-modal-hint__ic{ font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    #newStudentOverlay .new-modal-body > .section{
+      margin: 0;
+      background: linear-gradient(145deg, #f8fafc 0%, #f0f9ff 100%);
+      border: 1.5px solid rgba(14,165,233,.16);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow:
+        inset 0 1px 4px rgba(14,165,233,.06),
+        0 2px 10px rgba(2,6,23,.05);
+    }
+    #newStudentOverlay .new-modal-body .section-head{
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255,255,255,.58);
+      border-bottom: 1px solid rgba(14,165,233,.12);
+      gap: 12px;
+    }
+    #newStudentOverlay .new-modal-body .section-head strong{
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    #newStudentOverlay .new-modal-body .section-head span{
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #0284c7;
+      border: 1px solid rgba(14,165,233,.25);
       background: rgba(255,255,255,.92);
-      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+    #newStudentOverlay .new-modal-body .section-body{
+      padding: 16px 16px 18px;
+      gap: 12px;
+      background: rgba(255,255,255,.5);
+    }
+    #newStudentOverlay .new-modal-body .field label{
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #475569;
+    }
+    #newStudentOverlay .new-modal-body .field input,
+    #newStudentOverlay .new-modal-body .field select,
+    #newStudentOverlay .new-modal-body .field textarea{
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      border-color: rgba(15,23,42,.1);
+      box-shadow: 0 2px 8px rgba(2,6,23,.04);
+    }
+    #newStudentOverlay .new-modal-body .field input:focus,
+    #newStudentOverlay .new-modal-body .field select:focus,
+    #newStudentOverlay .new-modal-body .field textarea:focus{
+      border-color: rgba(14,165,233,.45);
+      box-shadow: 0 0 0 3px rgba(14,165,233,.12);
+    }
+    #newStudentOverlay .new-modal-body .help{
+      margin-top: 6px;
+      font-size: 11.5px;
+      color: #64748b;
+      font-weight: 650;
+      line-height: 1.4;
+    }
+    #newStudentOverlay .modal-actions{
+      flex-shrink: 0;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 18px 24px 22px;
+      border-top: 1px solid rgba(15,23,42,.08);
+      background: linear-gradient(180deg, #fafbfc 0%, #fff 100%);
+    }
+    #newStudentOverlay .modal-actions #newStudentCancel{
+      background: transparent;
+      border: 1.5px solid rgba(15,23,42,.16);
+      color: #475569;
+      border-radius: 11px;
+      padding: 10px 22px;
+      font-size: 13.5px;
+      font-weight: 600;
+      min-width: 108px;
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
+      box-shadow: none;
+    }
+    #newStudentOverlay .modal-actions #newStudentCancel:hover{
+      background: rgba(15,23,42,.05);
+      border-color: rgba(15,23,42,.28);
+      color: #1e293b;
+    }
+    #newStudentOverlay .modal-actions #newStudentSave{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      border: none;
+      color: #fff;
+      border-radius: 11px;
+      padding: 10px 22px;
+      font-size: 13.5px;
+      font-weight: 700;
+      min-width: 132px;
+      cursor: pointer;
+      box-shadow:
+        0 2px 6px rgba(2,132,199,.28),
+        0 6px 18px rgba(37,99,235,.2);
+      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    #newStudentOverlay .modal-actions #newStudentSave:hover:not(:disabled){
+      transform: translateY(-2px);
+      box-shadow:
+        0 4px 12px rgba(2,132,199,.35),
+        0 12px 28px rgba(37,99,235,.25);
+      filter: brightness(1.05);
+    }
+    #newStudentOverlay .modal-actions #newStudentSave::after{
+      content: ' →';
+      display: inline-block;
+      transition: transform .15s ease;
+    }
+    #newStudentOverlay .modal-actions #newStudentSave:hover:not(:disabled)::after{
+      transform: translateX(3px);
+    }
+    #newStudentOverlay .modal-actions #newStudentSave:disabled{
+      opacity: .7;
+      cursor: wait;
+      transform: none;
+    }
+    @media (max-width: 600px){
+      #newStudentOverlay .new-modal-head{ padding: 18px 18px 16px; }
+      #newStudentOverlay .new-modal-head__icon{ width: 42px; height: 42px; font-size: 20px; }
+      #newStudentOverlay .new-modal-body{ padding: 16px 16px 10px; }
+      #newStudentOverlay .modal-actions{ padding: 14px 16px 18px; }
+      #newStudentOverlay .modal-actions #newStudentCancel,
+      #newStudentOverlay .modal-actions #newStudentSave{ flex: 1; justify-content: center; min-width: 0; }
+    }
+
+    .alunos-layout .list{
+      padding:10px;
+      display:grid;
+      gap: var(--alunos-list-gap);
+      max-height: calc(
+        var(--alunos-list-visible-cards) * var(--alunos-card-estimate) +
+        (var(--alunos-list-visible-cards) - 1) * var(--alunos-list-gap) +
+        var(--alunos-list-pad-y)
+      );
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      min-height: 0;
+    }
+    @media (max-width: 768px){
+      .alunos-layout .list{
+        --alunos-card-estimate: 158px;
+        max-height: min(
+          calc(
+            var(--alunos-list-visible-cards) * var(--alunos-card-estimate) +
+            (var(--alunos-list-visible-cards) - 1) * var(--alunos-list-gap) +
+            var(--alunos-list-pad-y)
+          ),
+          calc(100vh - 200px)
+        );
+      }
+    }
+    .alunos-layout .list::-webkit-scrollbar{width:8px;}
+    .alunos-layout .list::-webkit-scrollbar-track{background:rgba(15,23,42,.06);border-radius:999px;}
+    .alunos-layout .list::-webkit-scrollbar-thumb{background:rgba(15,23,42,.18);border-radius:999px;}
+    .alunos-layout .list::-webkit-scrollbar-thumb:hover{background:rgba(15,23,42,.28);}
+    .student-card{
+      background: rgba(255,255,255,.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.55);
       border-radius: var(--radius-sm);
-      box-shadow: 0 12px 26px rgba(2,6,23,.05);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.65),
+        0 6px 22px rgba(2,6,23,.04);
       padding: 12px;
       cursor:pointer;
       transition:.15s;
     }
-    .student-card:hover{transform: translateY(-1px); box-shadow: var(--shadow-soft);}
+    /* Variante compacta só na lista de alunos */
+    .alunos-layout .student-card{
+      padding: 9px 10px;
+      border-radius: 12px;
+    }
+    .student-card:hover{
+      transform: translateY(-1px);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.75),
+        0 10px 28px rgba(2,6,23,.07);
+    }
     .student-card.active{
-      border-color: rgba(37,99,235,.25);
-      box-shadow: 0 16px 34px rgba(37,99,235,.10);
+      border-color: rgba(37,99,235,.35);
+      background: rgba(255,255,255,.82);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.85),
+        0 12px 32px rgba(37,99,235,.12);
     }
 
     .row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0;}
+    .alunos-layout .student-card .row{
+      gap: 8px;
+      align-items: center;
+    }
     .name{
       font-weight:900;
       font-size:14px;
@@ -231,7 +851,13 @@
     .name-link{color:inherit;text-decoration:none;}
     .name-link:hover{color:var(--primary);}
     .name-link{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .alunos-layout .student-card .name{
+      font-size: 13px;
+    }
     .badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;flex: 0 0 auto;min-width:0;}
+    .alunos-layout .student-card .badges{
+      gap: 5px;
+    }
     .badge{
       display:inline-flex;align-items:center;gap:8px;
       padding:7px 10px;border-radius:999px;
@@ -242,6 +868,15 @@
       white-space:nowrap;
     }
     .dot{width:8px;height:8px;border-radius:999px;background:var(--muted2);}
+    .alunos-layout .student-card .badge{
+      padding: 4px 8px;
+      font-size: 11px;
+      gap: 5px;
+    }
+    .alunos-layout .student-card .badge .dot{
+      width: 6px;
+      height: 6px;
+    }
     .badge.ok{background: rgba(22,163,74,.08); border-color: rgba(22,163,74,.14); color: rgba(22,163,74,.95);}
     .badge.ok .dot{background: var(--ok);}
     .badge.warn{background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.18); color: rgba(180,83,9,.95);}
@@ -252,18 +887,57 @@
     .info{margin-top:8px;color:var(--muted);font-size:12px;font-weight:700;display:grid;gap:4px;line-height:1.35;}
     .info .line{display:flex;gap:8px;align-items:flex-start;}
     .info b{color: var(--text); font-weight: 900;}
+    .alunos-layout .student-card .info{
+      margin-top: 5px;
+      font-size: 11px;
+      gap: 2px;
+      line-height: 1.28;
+    }
+    .alunos-layout .student-card .info .line{
+      gap: 6px;
+    }
 
     .progress-wrap{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
     .progress-wrap.progress-per-lesson{flex-wrap:wrap;align-items:flex-start;}
     .progress-per-lesson .progress-meta{margin-bottom:4px;}
+    .alunos-layout .student-card .progress-wrap{
+      margin-top: 6px;
+      gap: 8px;
+    }
+    .alunos-layout .student-card .progress-wrap.progress-per-lesson .progress-meta{
+      margin-bottom: 2px;
+    }
     .progress{flex:1;height:10px;border-radius:999px;background: rgba(15,23,42,.06);overflow:hidden;border:1px solid rgba(15,23,42,.06);}
+    .alunos-layout .student-card .progress{
+      height: 7px;
+    }
     .bar{height:100%;width:18%;border-radius:999px;background: linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.70));}
     .progress-meta{font-size:12px;font-weight:900;color:var(--muted);white-space:nowrap;}
+    .alunos-layout .student-card .progress-meta{
+      font-size: 11px;
+    }
     .btn-link-sm{background:none;border:none;padding:0;font-size:12px;font-weight:700;color:rgba(37,99,235,.9);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+    .alunos-layout .student-card .btn-link-sm{
+      font-size: 11px;
+    }
     .btn-link-sm:hover{color:rgba(37,99,235,1);}
 
     .quick-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
     .quick-actions a{text-decoration:none;}
+    .alunos-layout .student-card .quick-actions{
+      margin-top: 7px;
+      gap: 6px;
+    }
+    .alunos-layout .student-card .quick-actions .btn{
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      border-radius: 10px;
+      line-height: 1.2;
+    }
+    .alunos-layout .student-card .quick-actions .btn.primary{
+      box-shadow: 0 8px 20px rgba(37,99,235,.14);
+    }
     .btn.primary{
       border:none;
       background: linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.70));
@@ -336,11 +1010,11 @@
       }
       .field label{ font-size: 11px; }
       .field input, .field select, .field textarea{ padding: 9px 10px; font-size: 13px; }
-      .grid{ gap: 10px; margin-top: 10px; }
+      .alunos-layout{ margin-top: 10px; }
       .panel-head{ padding: 10px 12px; }
       .panel-head h2{ font-size: 13px; }
       .panel-head .meta{ font-size: 11px; }
-      .list{ padding: 10px; gap: 8px; }
+      .alunos-layout .list{ padding: 10px; gap: 8px; }
       .student-card{ padding: 10px; }
       .row{ flex-wrap: wrap; }
       .name{ font-size: 13px; }
@@ -399,7 +1073,7 @@
     .filters.filters--collapsed{
       padding: 4px 0 8px;
     }
-    #filtersWrapper.filters--collapsed + .grid{
+    #filtersWrapper.filters--collapsed + .alunos-layout{
       margin-top: 6px;
     }
 
@@ -542,7 +1216,7 @@
   </style>
 </head>
 
-<body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+<body class="page-alunos" data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
   {% include '_mobile_nav.html' %}
   <div class="app-shell">
     <aside class="sidebar">
@@ -706,13 +1380,12 @@
       </div>
     </div>
 
-    <div class="grid">
-      <!-- LEFT: LIST -->
+    <div class="alunos-layout">
       <section class="panel" aria-label="Lista de alunos">
         <div class="panel-head">
           <div>
             <h2>Lista</h2>
-            <div class="meta">Cards com ações rápidas</div>
+            <div class="meta">Cards com ações rápidas · use <strong>Editar</strong> no card para alterar dados</div>
           </div>
           <div class="meta">Ativos primeiro</div>
         </div>
@@ -721,16 +1394,36 @@
           <!-- Alunos serão carregados via JavaScript -->
         </div>
       </section>
+    </div>
+  </div>
 
-      <!-- RIGHT: EDITOR -->
-      <aside class="panel" aria-label="Editar aluno">
-        <div class="panel-head">
-          <div>
-            <h2>{% if is_partner_teacher %}Detalhes do aluno{% else %}Edição rápida{% endif %}</h2>
-            <div class="meta" id="editorMeta">Selecione um aluno</div>
+  {% if not is_partner_teacher %}<button class="fab" type="button" title="Novo aluno" id="fabNew">+</button>{% endif %}
+
+  <!-- MODAL: EDITAR ALUNO (ex-edição rápida lateral) -->
+  <div class="modal-overlay" id="editStudentOverlay" aria-hidden="true">
+    <div class="modal modal--edit-student" role="dialog" aria-modal="true" aria-labelledby="editStudentTitle">
+      <div class="modal-head edit-modal-head">
+        <div class="edit-modal-head__left">
+          <div class="edit-modal-head__icon" aria-hidden="true">{% if is_partner_teacher %}👤{% else %}✏️{% endif %}</div>
+          <div class="edit-modal-head__text">
+            <h3 id="editStudentTitle">{% if is_partner_teacher %}Detalhes do aluno{% else %}Editar aluno{% endif %}</h3>
+            <p id="editorMeta">Selecione um aluno</p>
           </div>
         </div>
-
+        <button type="button" class="modal-close edit-modal-head__close" id="editStudentClose" aria-label="Fechar">×</button>
+      </div>
+      <div class="modal-body edit-modal-body">
+        {% if is_partner_teacher %}
+        <div class="edit-modal-hint edit-modal-hint--muted">
+          <span class="edit-modal-hint__ic" aria-hidden="true">ℹ️</span>
+          <span>Visualização dos dados do aluno. Para alterar conteúdo, use a conta do professor titular.</span>
+        </div>
+        {% else %}
+        <div class="edit-modal-hint">
+          <span class="edit-modal-hint__ic" aria-hidden="true">ℹ️</span>
+          <span><strong>Nome</strong> é obrigatório. Use os blocos para organizar identidade, plano e <strong>financeiro</strong> (Pix, contrato PDF).</span>
+        </div>
+        {% endif %}
         <div class="editor {% if is_partner_teacher %}editor-readonly{% endif %}" id="studentEditor">
           <!-- Section: Identity -->
           <section class="section" data-open="true">
@@ -914,31 +1607,36 @@
             </div>
           </section>
 
-          {% if not is_partner_teacher %}
-          <div class="footer-actions">
-            <button class="btn" type="button" id="btnCancel">Cancelar</button>
-            <button class="btn primary" type="button" id="btnSave">Salvar</button>
-          </div>
-          {% endif %}
         </div>
-      </aside>
+      </div>
+      {% if not is_partner_teacher %}
+      <div class="modal-actions">
+        <button type="button" id="editStudentCancel">Cancelar</button>
+        <button type="button" id="editStudentSave">Salvar alterações</button>
+      </div>
+      {% endif %}
     </div>
   </div>
 
-  {% if not is_partner_teacher %}<button class="fab" type="button" title="Novo aluno" id="fabNew">+</button>{% endif %}
-
   <!-- MODAL: NOVO ALUNO -->
   <div class="modal-overlay" id="newStudentOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="newStudentTitle">
-      <div class="modal-head">
-        <div>
-          <h3 id="newStudentTitle">Novo aluno</h3>
-          <p>Cadastro rápido. O resto é opcional e colapsado.</p>
+    <div class="modal modal--new-student" role="dialog" aria-modal="true" aria-labelledby="newStudentTitle">
+      <div class="modal-head new-modal-head">
+        <div class="new-modal-head__left">
+          <div class="new-modal-head__icon" aria-hidden="true">✨</div>
+          <div class="new-modal-head__text">
+            <h3 id="newStudentTitle">Novo aluno</h3>
+            <p class="new-modal-head__sub">Cadastro rápido — complete o essencial agora e o restante nos blocos.</p>
+          </div>
         </div>
-        <button class="modal-close" type="button" id="newStudentClose" aria-label="Fechar">✕</button>
+        <button type="button" class="modal-close new-modal-head__close" id="newStudentClose" aria-label="Fechar">×</button>
       </div>
 
-      <div class="modal-body">
+      <div class="modal-body new-modal-body">
+        <div class="new-modal-hint">
+          <span class="new-modal-hint__ic" aria-hidden="true">ℹ️</span>
+          <span>O <strong>nome</strong> é obrigatório. Plano, vencimento e <strong>contrato PDF</strong> podem ir no bloco <strong>Financeiro (opcional)</strong>.</span>
+        </div>
         <!-- ESSENCIAL -->
         <section class="section" data-open="true">
           <button class="section-head" type="button">
@@ -1102,11 +1800,11 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn" type="button" id="newStudentCancel">Cancelar</button>
-        <button class="btn primary" type="button" id="newStudentSave">Salvar aluno</button>
+        <button type="button" id="newStudentCancel">Cancelar</button>
+        <button type="button" id="newStudentSave">Salvar aluno</button>
       </div>
     </div>
-      </div>
+  </div>
     </main>
   </div>
 
@@ -1160,11 +1858,15 @@
       const PLANNING_URL_BASE = "/planejamento/novo";
 
       const overlay = $('#newStudentOverlay');
+      const editOverlay = $('#editStudentOverlay');
       const btnOpen = $('#btnNew');
       const fabOpen = $('#fabNew');
       const btnClose = $('#newStudentClose');
       const btnCancel = $('#newStudentCancel');
       const btnSave = $('#newStudentSave');
+      const editStudentClose = $('#editStudentClose');
+      const editStudentCancel = $('#editStudentCancel');
+      const editStudentSave = $('#editStudentSave');
       const toast = $('#toast');
       const studentsList = $('#studentsList');
       const qInput = $('#q');
@@ -1268,11 +1970,17 @@
         showToast._t = setTimeout(() => toast.classList.remove('show'), 3000);
       }
 
+      function refreshBodyScrollLock(){
+        const newOpen = overlay?.classList.contains('is-open');
+        const editOpen = editOverlay?.classList.contains('is-open');
+        document.documentElement.style.overflow = (newOpen || editOpen) ? 'hidden' : '';
+      }
+
       function openModal(){
         if(!overlay) return;
         overlay.classList.add('is-open');
         overlay.setAttribute('aria-hidden','false');
-        document.documentElement.style.overflow = 'hidden';
+        refreshBodyScrollLock();
         toggleBillingFields('n');
         setTimeout(() => $('#n_name')?.focus(), 0);
       }
@@ -1281,7 +1989,31 @@
         if(!overlay) return;
         overlay.classList.remove('is-open');
         overlay.setAttribute('aria-hidden','true');
-        document.documentElement.style.overflow = '';
+        refreshBodyScrollLock();
+      }
+
+      function openEditStudentModal(){
+        if(!editOverlay) return;
+        editOverlay.classList.add('is-open');
+        editOverlay.setAttribute('aria-hidden','false');
+        refreshBodyScrollLock();
+        toggleBillingFields('f');
+        setTimeout(() => { try { $('#f_name')?.focus(); } catch(_){} }, 0);
+      }
+
+      function closeEditStudentModal(){
+        if(!editOverlay) return;
+        editOverlay.classList.remove('is-open');
+        editOverlay.setAttribute('aria-hidden','true');
+        refreshBodyScrollLock();
+      }
+
+      function resetEditModalState(){
+        closeEditStudentModal();
+        currentEditingId = null;
+        const meta = $('#editorMeta');
+        if (meta) meta.textContent = 'Selecione um aluno';
+        $$('.student-card').forEach(c => c.classList.remove('active'));
       }
 
       $('#n_billing_type')?.addEventListener('change', () => toggleBillingFields('n'));
@@ -1290,6 +2022,8 @@
       fabOpen?.addEventListener('click', openModal);
       btnClose?.addEventListener('click', closeModal);
       btnCancel?.addEventListener('click', closeModal);
+      editStudentClose?.addEventListener('click', () => resetEditModalState());
+      editStudentCancel?.addEventListener('click', () => resetEditModalState());
       $('#lessonsDetailClose')?.addEventListener('click', () => {
         const o = $('#lessonsDetailOverlay');
         if (o) { o.style.display = 'none'; o.classList.remove('is-open'); o.setAttribute('aria-hidden', 'true'); }
@@ -1780,8 +2514,7 @@
           if (student) {
             loadStudentIntoEditor(student);
             currentEditingId = student.id;
-            // Scroll para o editor
-            $('.panel[aria-label="Editar aluno"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            openEditStudentModal();
           }
           return;
         }
@@ -1881,15 +2614,18 @@
           return;
         }
 
-        // Selecionar aluno ao clicar no card
+        // Selecionar aluno ao clicar no card (prof. parceiro: abre modal só leitura)
         const card = el.closest('.student-card');
         if (card && !el.closest('.quick-actions')) {
           $$('.student-card').forEach(c => c.classList.remove('active'));
           card.classList.add('active');
-          const student = allStudents.find(s => s.id === parseInt(card.dataset.studentId));
-          if (student) {
-            loadStudentIntoEditor(student);
-            currentEditingId = student.id;
+          if (isPartnerTeacher) {
+            const student = allStudents.find(s => s.id === parseInt(card.dataset.studentId));
+            if (student) {
+              loadStudentIntoEditor(student);
+              currentEditingId = student.id;
+              openEditStudentModal();
+            }
           }
         }
       });
@@ -2144,8 +2880,8 @@
         }
       });
 
-      // Salvar do editor lateral
-      $('#btnSave')?.addEventListener('click', async () => {
+      // Salvar do modal de edição
+      editStudentSave?.addEventListener('click', async () => {
         if (!currentEditingId) {
           showToast('Selecione um aluno para editar', true);
           return;
@@ -2202,15 +2938,9 @@
           try {
             await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PUT');
             showToast('Aluno atualizado com sucesso!');
-            // Limpar o input de arquivo
             if ($('#f_contract')) $('#f_contract').value = '';
-            // Recarregar lista de alunos para obter dados atualizados
             await loadStudents();
-            // Recarregar aluno no editor para atualizar todos os dados incluindo o contrato
-            const student = allStudents.find(s => s.id === currentEditingId);
-            if (student) {
-              loadStudentIntoEditor(student);
-            }
+            resetEditModalState();
           } catch (error) {
             showToast(`Erro ao atualizar: ${error.message}`, true);
           }
@@ -2244,17 +2974,11 @@
             });
             showToast('Aluno atualizado com sucesso!');
             await loadStudents();
+            resetEditModalState();
           } catch (error) {
             showToast(`Erro ao atualizar: ${error.message}`, true);
           }
         }
-      });
-
-      $('#btnCancel')?.addEventListener('click', () => {
-        currentEditingId = null;
-        const meta = $('#editorMeta');
-        if (meta) meta.textContent = 'Selecione um aluno';
-        $$('.student-card').forEach(c => c.classList.remove('active'));
       });
 
         function clearNewForm(){
@@ -2281,10 +3005,15 @@
           .replaceAll("'","&#039;");
       }
 
-      // Optional: Enter to save inside modal (ctrl+enter)
+      // Ctrl+Enter: salvar no modal aberto (novo aluno ou edição)
       document.addEventListener('keydown', (e) => {
-        if(!overlay?.classList.contains('is-open')) return;
-        if(e.ctrlKey && e.key === 'Enter'){
+        if (!e.ctrlKey || e.key !== 'Enter') return;
+        if (editOverlay?.classList.contains('is-open')) {
+          e.preventDefault();
+          editStudentSave?.click();
+          return;
+        }
+        if (overlay?.classList.contains('is-open')) {
           e.preventDefault();
           btnSave?.click();
         }

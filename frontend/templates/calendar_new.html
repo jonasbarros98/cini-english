@@ -572,12 +572,17 @@
       gap:8px;
     }
     .lesson-top{
-      display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:8px;
+      /* Coluna direita estreita (notebook): nowrap evita pill “solta” numa linha e ações desalinhadas */
+      flex-wrap:nowrap;
     }
     .lesson-title{
       display:flex;flex-direction:column;gap:2px;
       min-width:0;
-      flex: 1 1 220px;
+      flex: 1 1 auto;
     }
     .lesson-title .n{
       font-weight:900;
@@ -597,6 +602,7 @@
       border:1px solid transparent;
       white-space:nowrap;
       flex: 0 0 auto;
+      flex-shrink:0;
     }
     .status-pill.ok{background: rgba(22,163,74,.10); border-color: rgba(22,163,74,.18); color: rgba(22,163,74,.95);}
     .status-pill.warn{background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.22); color: rgba(180,83,9,.95);}
@@ -618,12 +624,12 @@
     }
     .evt .public-badge { margin-left: 4px; }
 
+    /* Grade: ordem estável (linha a linha) em qualquer largura da sidebar */
     .lesson-actions{
-      display:flex;
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
       gap:6px;
-      flex-wrap:wrap;
       width:100%;
-      overflow-x:auto;
       padding-bottom: 2px;
     }
     .act{
@@ -634,7 +640,8 @@
       cursor:pointer;transition:.15s;
       line-height:1.2;
       box-shadow: 0 4px 12px rgba(2,6,23,.03);
-      flex: 0 0 auto;
+      min-width:0;
+      text-align:center;
     }
     .act:hover:not(:disabled){transform: translateY(-1px); box-shadow: var(--shadow-soft);}
     .act:disabled{
@@ -1180,7 +1187,11 @@
       .evt .time{ min-width: 24px; font-size: 7px; }
       .evt .name{ max-width: 60px; }
       .more{ font-size: 8px; padding: 2px 4px; }
+      .lesson-top{
+        flex-wrap: wrap;
+      }
       .lesson-title{
+        flex: 1 1 100%;
         flex-basis: 100%;
       }
       .status-pill{
@@ -1188,6 +1199,7 @@
       }
       .lesson-actions{
         gap: 5px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .act{
         padding: 5px 8px;
