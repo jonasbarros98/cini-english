@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(python manage.py migrate core 0050)",
+      "Bash(python3 manage.py migrate core 0050)",
+      "Bash(py manage.py migrate core 0050)",
+      "Bash(py manage.py check)"
     ]
   }
 }

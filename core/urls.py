@@ -28,6 +28,7 @@ from .views import (
     trial_ending_users,
     mark_trial_email_sent,
     TasksV2View,
+    AdminPanelView, admin_panel_users_api, admin_panel_user_update,
 )
 
 router = DefaultRouter()
@@ -42,6 +43,7 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
+    path("painel-admin/", AdminPanelView.as_view(), name="admin-panel"),
     path("tarefas-v2/", TemplateView.as_view(template_name="tasks_v2.html"), name="tasks-v2"),
     path("landing/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing"),
     path("landing-v3/", TemplateView.as_view(template_name="test_landing_v3.html"), name="landing-v3"),
@@ -105,6 +107,8 @@ urlpatterns = [
     path("api/students/<int:student_id>/materials/", upload_student_material, name="api-student-upload-material"),
     path("api/students/<int:student_id>/materials/<int:material_id>/", update_student_material, name="api-student-update-material"),
     path("api/students/<int:student_id>/materials/<int:material_id>/delete/", delete_student_material, name="api-student-delete-material"),
+    path("api/admin/users/", admin_panel_users_api, name="api-admin-users"),
+    path("api/admin/users/<int:user_id>/", admin_panel_user_update, name="api-admin-user-update"),
     path("api/students/<int:student_id>/share-link/", student_share_link, name="api-student-share-link"),
     path("api/students/<int:student_id>/share-link/regenerate/", student_share_link_regenerate, name="api-student-share-link-regenerate"),
     path(

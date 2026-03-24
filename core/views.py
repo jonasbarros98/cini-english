@@ -18,7 +18,7 @@ from django.utils.decorators import method_decorator
 from django.http import JsonResponse, HttpResponse
 from django.views.generic import TemplateView, View
 from django.shortcuts import redirect, render, get_object_or_404
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.template.loader import render_to_string
 import stripe
 import json
@@ -4052,6 +4052,52 @@ class PlanosView(TemplateView):
         return context
 
 
+def _send_internal_signup_notification(request, user):
+    """
+    E-mail interno quando um novo usuário se cadastra (trial).
+    Usa o mesmo backend configurado em settings (Resend via Anymail quando RESEND_API_KEY).
+    """
+    if not getattr(settings, "INTERNAL_SIGNUP_NOTIFY_ENABLED", True):
+        return
+    to_addr = (getattr(settings, "INTERNAL_SIGNUP_NOTIFY_TO", "") or "").strip()
+    if not to_addr:
+        return
+    cc_raw = getattr(settings, "INTERNAL_SIGNUP_NOTIFY_CC", "") or ""
+    cc_list = [
+        x.strip()
+        for x in re.split(r"[,;]", cc_raw)
+        if x and x.strip()
+    ]
+    trial_end = None
+    try:
+        trial_end = user.profile.trial_ends_at
+    except Exception:
+        pass
+    trial_str = trial_end.isoformat() if trial_end else "-"
+    subject = f"[EducaflowOne] Novo cadastro: {user.username}"
+    body = f"""Novo usuário registrado (trial).
+
+ID: {user.id}
+Username: {user.username}
+E-mail: {user.email}
+Nome: {(user.first_name or '').strip()} {(user.last_name or '').strip()}
+Trial até: {trial_str}
+
+Login: {request.build_absolute_uri('/login/')}
+"""
+    try:
+        msg = EmailMessage(
+            subject=subject,
+            body=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[to_addr],
+            cc=cc_list,
+        )
+        msg.send(fail_silently=True)
+    except Exception as e:
+        print(f"[Signup] Erro ao enviar notificação interna de cadastro: {e}")
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def signup_view(request):
@@ -4149,6 +4195,11 @@ Aproveite! Se tiver dúvidas, responda este email ou fale conosco no WhatsApp.
             )
         except Exception as e:
             print(f"[Signup] Erro ao enviar email de boas-vindas: {e}")
+
+        try:
+            _send_internal_signup_notification(request, user)
+        except Exception as e:
+            print(f"[Signup] Erro ao notificar cadastro interno: {e}")
 
         # Dispara automação no n8n (fire-and-forget) para jornada de ativação no trial
         try:
@@ -6707,3 +6758,214 @@ Enviado em: {timezone.now().strftime('%Y-%m-%d %H:%M')}"""
             {'error': f'Erro ao enviar mensagem: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+# ==============================================================
+# ADMIN PANEL — Painel Interno de Gestão de Usuários
+# ==============================================================
+
+class AdminPanelView(TemplateView):
+    """Página standalone do painel admin. Acesso restrito a is_admin=True."""
+    template_name = "admin_panel.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        try:
+            if not request.user.profile.is_admin:
+                return redirect('home')
+        except Exception:
+            return redirect('home')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['user_is_admin'] = True
+        return ctx
+
+
+def _classify_segment(profile, subscription, now):
+    """Retorna o segmento de retenção de um usuário."""
+    has_active_sub = (
+        subscription is not None and
+        subscription.status == Subscription.STATUS_ACTIVE
+    )
+    if has_active_sub:
+        if subscription.cancel_at_period_end:
+            return 'canceling'
+        return 'subscriber'
+    if subscription is not None and subscription.status in (
+        Subscription.STATUS_PAST_DUE, Subscription.STATUS_UNPAID
+    ):
+        return 'past_due'
+
+    trial_end = profile.trial_ends_at
+    if trial_end:
+        days_left = (trial_end - now).total_seconds() / 86400
+        if days_left > 0:
+            if days_left <= 3:
+                return 'trial_expiring'
+            return 'trial_active'
+        return 'trial_expired'
+
+    # Usuário recém-cadastrado sem trial configurado
+    days_since = (now - profile.created_at).total_seconds() / 86400
+    if days_since <= 7:
+        return 'new'
+    return 'no_sub'
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_panel_users_api(request):
+    """
+    Retorna todos os usuários com dados de perfil, assinatura e engajamento.
+    Restrito a admin.
+    """
+    try:
+        if not request.user.profile.is_admin:
+            return Response({'detail': 'Forbidden'}, status=403)
+    except Exception:
+        return Response({'detail': 'Forbidden'}, status=403)
+
+    now = timezone.now()
+
+    # Busca todos os perfis com subscription e usuário
+    profiles = (
+        UserProfile.objects
+        .select_related('user')
+        .prefetch_related('user__subscription')
+        .exclude(is_admin=True)
+        .order_by('-created_at')
+    )
+
+    # Engajamento: contagem de alunos, aulas e lançamentos financeiros por usuário
+    from django.db.models import Count, Max
+    student_counts = dict(
+        Student.objects.values('user_id')
+        .annotate(cnt=Count('id'))
+        .values_list('user_id', 'cnt')
+    )
+    lesson_stats = {
+        row['user_id']: {'count': row['cnt'], 'last': row['last']}
+        for row in Lesson.objects
+        .values('user_id')
+        .annotate(cnt=Count('id'), last=Max('date'))
+    }
+    financial_counts = dict(
+        FinancialEntry.objects.values('user_id')
+        .annotate(cnt=Count('id'))
+        .values_list('user_id', 'cnt')
+    )
+
+    users = []
+    for profile in profiles:
+        user = profile.user
+        try:
+            sub = user.subscription
+        except Exception:
+            sub = None
+
+        segment = _classify_segment(profile, sub, now)
+        u_id = user.id
+
+        sub_data = None
+        if sub:
+            sub_data = {
+                'status': sub.status,
+                'tier': sub.tier,
+                'plan': sub.plan,
+                'current_period_end': sub.current_period_end.isoformat() if sub.current_period_end else None,
+                'cancel_at_period_end': sub.cancel_at_period_end,
+            }
+
+        eng = lesson_stats.get(u_id, {})
+        last_lesson = eng.get('last')
+
+        users.append({
+            'id': u_id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name or '',
+            'last_name': user.last_name or '',
+            'phone': profile.phone or '',
+            'city': profile.city or '',
+            'state': profile.state or '',
+            'subscription_exempt': profile.subscription_exempt,
+            'trial_ends_at': profile.trial_ends_at.isoformat() if profile.trial_ends_at else None,
+            'trial_ending_email_sent_at': profile.trial_ending_email_sent_at.isoformat() if profile.trial_ending_email_sent_at else None,
+            'admin_notes': profile.admin_notes or '',
+            'last_contacted_at': profile.last_contacted_at.isoformat() if profile.last_contacted_at else None,
+            'created_at': profile.created_at.isoformat(),
+            'subscription': sub_data,
+            'engagement': {
+                'student_count': student_counts.get(u_id, 0),
+                'lesson_count': eng.get('count', 0),
+                'last_lesson_date': last_lesson.isoformat() if last_lesson else None,
+                'financial_entry_count': financial_counts.get(u_id, 0),
+            },
+            'segment': segment,
+        })
+
+    return Response({'users': users, 'generated_at': now.isoformat()})
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def admin_panel_user_update(request, user_id):
+    """
+    Atualiza campos de gestão de um usuário pelo admin.
+    Campos aceitos: trial_ends_at, subscription_exempt, admin_notes, last_contacted_at
+    """
+    try:
+        if not request.user.profile.is_admin:
+            return Response({'detail': 'Forbidden'}, status=403)
+    except Exception:
+        return Response({'detail': 'Forbidden'}, status=403)
+
+    try:
+        profile = UserProfile.objects.select_related('user').get(user_id=user_id)
+    except UserProfile.DoesNotExist:
+        return Response({'detail': 'Usuário não encontrado'}, status=404)
+
+    data = request.data
+    update_fields = []
+
+    if 'trial_ends_at' in data:
+        val = data['trial_ends_at']
+        if val:
+            from django.utils.dateparse import parse_datetime
+            parsed = parse_datetime(val)
+            if not parsed:
+                # Tenta apenas data, adiciona fim do dia
+                from django.utils.dateparse import parse_date
+                d = parse_date(val)
+                if d:
+                    parsed = timezone.make_aware(
+                        timezone.datetime(d.year, d.month, d.day, 23, 59, 59)
+                    )
+            profile.trial_ends_at = parsed
+        else:
+            profile.trial_ends_at = None
+        update_fields.append('trial_ends_at')
+
+    if 'subscription_exempt' in data:
+        profile.subscription_exempt = bool(data['subscription_exempt'])
+        update_fields.append('subscription_exempt')
+
+    if 'admin_notes' in data:
+        profile.admin_notes = str(data['admin_notes'])
+        update_fields.append('admin_notes')
+
+    if 'mark_contacted' in data and data['mark_contacted']:
+        profile.last_contacted_at = timezone.now()
+        update_fields.append('last_contacted_at')
+
+    if update_fields:
+        update_fields.append('updated_at')
+        profile.save(update_fields=update_fields)
+
+    return Response({
+        'success': True,
+        'user_id': user_id,
+        'updated_fields': update_fields,
+    })

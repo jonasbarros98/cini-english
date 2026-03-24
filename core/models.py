@@ -770,6 +770,18 @@ class UserProfile(models.Model):
         help_text="Data em que o email de aviso (trial terminando em 2 dias) foi enviado"
     )
 
+    # Campos de gestão interna (Admin Panel)
+    admin_notes = models.TextField(
+        blank=True,
+        default='',
+        help_text="Notas internas do admin sobre este usuário (não visível para o usuário)"
+    )
+    last_contacted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Data/hora do último contato realizado pelo admin com este usuário"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

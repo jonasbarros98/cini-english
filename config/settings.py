@@ -269,6 +269,17 @@ SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'educaflowone@gmail.com')
 # Landing page contact form (visitantes não logados)
 CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'educaflowone@gmail.com')
 
+# Notificação interna: novo cadastro (envia via mesmo backend de email — Resend quando RESEND_API_KEY)
+INTERNAL_SIGNUP_NOTIFY_ENABLED = os.environ.get('INTERNAL_SIGNUP_NOTIFY_ENABLED', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+INTERNAL_SIGNUP_NOTIFY_TO = os.environ.get('INTERNAL_SIGNUP_NOTIFY_TO', 'educaflowone@gmail.com').strip()
+# Vários CC separados por vírgula
+INTERNAL_SIGNUP_NOTIFY_CC = os.environ.get(
+    'INTERNAL_SIGNUP_NOTIFY_CC',
+    'jonasbarros98@gmail.com',
+).strip()
+
 # URL base do site (para links em emails - login, etc.)
 SITE_URL = os.environ.get('SITE_URL', 'https://educaflowone.com.br')
 
