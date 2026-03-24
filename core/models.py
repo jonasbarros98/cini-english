@@ -781,6 +781,17 @@ class UserProfile(models.Model):
         blank=True,
         help_text="Data/hora do último contato realizado pelo admin com este usuário"
     )
+    last_retention_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Data/hora do último e-mail de retenção enviado manualmente pelo admin"
+    )
+    last_retention_email_type = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        help_text="Tipo do último e-mail de retenção enviado (trial_expiring, trial_expired, canceling)"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1178,3 +1189,37 @@ class PublicBookingRequest(models.Model):
 
     def __str__(self):
         return f"{self.student_name} → {self.teacher.get_full_name()} {self.requested_date} {self.requested_time}"
+
+
+class RetentionEmailLog(models.Model):
+    """Histórico de e-mails de retenção enviados pelo admin manualmente."""
+
+    EMAIL_TYPE_CHOICES = [
+        ('trial_expiring', '⏰ Trial expirando'),
+        ('trial_expired',  '🔴 Trial vencido'),
+        ('canceling',      '⚠️ Cancelamento'),
+    ]
+
+    user = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='retention_email_logs',
+    )
+    email_type = models.CharField(max_length=50, choices=EMAIL_TYPE_CHOICES)
+    subject = models.CharField(max_length=255, blank=True)
+    personal_note = models.TextField(blank=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+    sent_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='retention_emails_sent',
+    )
+
+    class Meta:
+        ordering = ['-sent_at']
+        verbose_name = 'Log de e-mail de retenção'
+        verbose_name_plural = 'Logs de e-mails de retenção'
+
+    def __str__(self):
+        return f"{self.user.email} — {self.email_type} em {self.sent_at:%d/%m/%Y %H:%M}"

@@ -2965,7 +2965,7 @@ def _send_subscription_activated_email(subscription):
             return
         nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
         plano = f"{subscription.get_tier_display()} - {subscription.get_plan_display()}"
-        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br').rstrip('/')
+        site_url = getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')
         link_planos = f"{site_url}/planos/"
         link_login = f"{site_url}/login/"
         signature = getattr(settings, 'EMAIL_SIGNATURE', '')
@@ -3004,7 +3004,7 @@ def _send_subscription_cancel_scheduled_email(subscription, period_end_date=None
             return
         nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
         plano = f"{subscription.get_tier_display()} - {subscription.get_plan_display()}"
-        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br').rstrip('/')
+        site_url = getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')
         link_planos = f"{site_url}/planos/"
         signature = getattr(settings, 'EMAIL_SIGNATURE', '')
         data_fim = period_end_date or subscription.current_period_end
@@ -3046,7 +3046,7 @@ def _send_subscription_canceled_email(subscription):
             return
         nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
         plano = f"{subscription.get_tier_display()} - {subscription.get_plan_display()}"
-        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br').rstrip('/')
+        site_url = getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')
         link_planos = f"{site_url}/planos/"
         signature = getattr(settings, 'EMAIL_SIGNATURE', '')
         body = f"""Olá, {nome},
@@ -3084,7 +3084,7 @@ def _send_payment_failed_email(subscription):
         if not user or not user.email:
             return
         nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
-        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br').rstrip('/')
+        site_url = getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')
         link_planos = f"{site_url}/planos/"
         signature = getattr(settings, 'EMAIL_SIGNATURE', '')
         body = f"""Olá, {nome},
@@ -4083,7 +4083,7 @@ E-mail: {user.email}
 Nome: {(user.first_name or '').strip()} {(user.last_name or '').strip()}
 Trial até: {trial_str}
 
-Login: {request.build_absolute_uri('/login/')}
+Login: {getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')}/login/
 """
     try:
         msg = EmailMessage(
@@ -4164,7 +4164,7 @@ def signup_view(request):
 
         # Enviar email de boas-vindas
         nome = (first_name or '').strip() or (user.get_full_name() or username).strip() or 'Você'
-        link_login = request.build_absolute_uri('/login/')
+        link_login = f"{getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')}/login/"
         welcome_body = f"""Olá, {nome}! 👋
 
 Que bom ter você no EducaflowOne 😊
@@ -4182,9 +4182,15 @@ No 5º dia avisaremos que o trial está terminando. No 7º dia, para continuar, 
 👉 Acessar minha conta agora
 {link_login}
 
-Aproveite! Se tiver dúvidas, responda este email ou fale conosco no WhatsApp.
+Aproveite! Se tiver dúvidas, responda este e-mail.
 
-""" + getattr(settings, 'EMAIL_SIGNATURE', '')
+"""
+        _sig_raw = getattr(settings, 'EMAIL_SIGNATURE', '')
+        _sig_welcome = '\n'.join(
+            ln for ln in _sig_raw.splitlines() if 'whatsapp' not in ln.lower()
+        ).strip()
+        if _sig_welcome:
+            welcome_body = welcome_body + _sig_welcome + '\n'
         try:
             send_mail(
                 subject='Bem-vindo ao Educaflow 🎉',
@@ -4283,7 +4289,8 @@ def _trigger_n8n_onboarding_webhook(request, user):
         return
 
     status_token = os.environ.get("N8N_ONBOARDING_STATUS_TOKEN", "").strip()
-    check_url = request.build_absolute_uri("/api/internal/onboarding/progress/")
+    _site = getattr(settings, "SITE_URL", "https://www.educaflowone.com.br").rstrip("/")
+    check_url = f"{_site}/api/internal/onboarding/progress/"
     user_profile = getattr(user, "profile", None)
     trial_ends_at = getattr(user_profile, "trial_ends_at", None) if user_profile else None
 
@@ -6904,7 +6911,26 @@ def admin_panel_users_api(request):
                 'financial_entry_count': financial_counts.get(u_id, 0),
             },
             'segment': segment,
+            'email_logs': [],  # preenchido abaixo
         })
+
+    # Busca logs de email em batch para evitar N+1
+    from .models import RetentionEmailLog
+    user_ids = [u['id'] for u in users]
+    logs_qs = RetentionEmailLog.objects.filter(user_id__in=user_ids).values(
+        'user_id', 'email_type', 'sent_at', 'subject'
+    )
+    from collections import defaultdict
+    logs_by_user = defaultdict(list)
+    for log in logs_qs:
+        logs_by_user[log['user_id']].append({
+            'email_type': log['email_type'],
+            'sent_at': log['sent_at'].isoformat(),
+            'subject': log['subject'],
+        })
+
+    for u in users:
+        u['email_logs'] = logs_by_user.get(u['id'], [])
 
     return Response({'users': users, 'generated_at': now.isoformat()})
 
@@ -6968,4 +6994,144 @@ def admin_panel_user_update(request, user_id):
         'success': True,
         'user_id': user_id,
         'updated_fields': update_fields,
+    })
+
+
+# ── Admin: E-mails de Retenção ────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_email_preview(request):
+    """
+    Retorna assunto e HTML (com placeholder __PERSONAL_NOTE__) para preview.
+    Query params: user_id, email_type
+    """
+    try:
+        if not request.user.profile.is_admin:
+            return Response({'detail': 'Forbidden'}, status=403)
+    except Exception:
+        return Response({'detail': 'Forbidden'}, status=403)
+
+    user_id    = request.query_params.get('user_id')
+    email_type = request.query_params.get('email_type')
+
+    from .retention_emails import get_retention_email, EMAIL_TYPE_META
+    if email_type not in EMAIL_TYPE_META:
+        return Response({'detail': 'Tipo inválido'}, status=400)
+
+    try:
+        target_user = User.objects.get(id=user_id)
+    except (User.DoesNotExist, ValueError):
+        return Response({'detail': 'Usuário não encontrado'}, status=404)
+
+    try:
+        sub = target_user.subscription
+    except Exception:
+        sub = None
+
+    subject, html = get_retention_email(email_type, target_user, sub)
+
+    return Response({
+        'subject': subject,
+        'html': html,
+        'meta': EMAIL_TYPE_META[email_type],
+        'user_email': target_user.email,
+        'user_name': (target_user.first_name or target_user.username).strip(),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_send_retention_email(request):
+    """
+    Envia e-mail de retenção para um usuário específico.
+    Body: { user_id, email_type, subject, personal_note }
+    """
+    try:
+        if not request.user.profile.is_admin:
+            return Response({'detail': 'Forbidden'}, status=403)
+    except Exception:
+        return Response({'detail': 'Forbidden'}, status=403)
+
+    from .retention_emails import get_retention_email, render_final_email, EMAIL_TYPE_META
+    from django.core.mail import EmailMessage as DjangoEmailMessage
+
+    user_id       = request.data.get('user_id')
+    email_type    = request.data.get('email_type', '')
+    subject       = request.data.get('subject', '').strip()
+    personal_note = request.data.get('personal_note', '').strip()
+
+    if email_type not in EMAIL_TYPE_META:
+        return Response({'detail': 'Tipo inválido'}, status=400)
+    if not subject:
+        return Response({'detail': 'Assunto obrigatório'}, status=400)
+
+    try:
+        target_user = User.objects.select_related('profile').get(id=user_id)
+    except (User.DoesNotExist, ValueError):
+        return Response({'detail': 'Usuário não encontrado'}, status=404)
+
+    if not target_user.email:
+        return Response({'detail': 'Usuário sem e-mail cadastrado'}, status=400)
+
+    try:
+        sub = target_user.subscription
+    except Exception:
+        sub = None
+
+    _, html_with_placeholder = get_retention_email(email_type, target_user, sub)
+    accent_color = EMAIL_TYPE_META[email_type]['color']
+    final_html   = render_final_email(html_with_placeholder, personal_note, accent_color)
+
+    try:
+        msg = DjangoEmailMessage(
+            subject=subject,
+            body=final_html,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[target_user.email],
+        )
+        msg.content_subtype = 'html'
+        msg.send(fail_silently=False)
+    except Exception as e:
+        return Response({'detail': f'Erro ao enviar: {str(e)}'}, status=500)
+
+    # Registra o envio no perfil (compat. legado), marca contato automático e no log histórico
+    sent_at_now = timezone.now()
+    last_contacted_iso = None
+    try:
+        profile = target_user.profile
+        profile.last_retention_email_sent_at = sent_at_now
+        profile.last_retention_email_type    = email_type
+        profile.last_contacted_at = sent_at_now
+        profile.save(
+            update_fields=[
+                'last_retention_email_sent_at',
+                'last_retention_email_type',
+                'last_contacted_at',
+                'updated_at',
+            ]
+        )
+        last_contacted_iso = profile.last_contacted_at.isoformat()
+    except Exception:
+        pass
+
+    from .models import RetentionEmailLog
+    log_entry = RetentionEmailLog.objects.create(
+        user=target_user,
+        email_type=email_type,
+        subject=subject,
+        personal_note=personal_note,
+        sent_by=request.user,
+    )
+
+    return Response({
+        'success': True,
+        'sent_to': target_user.email,
+        'email_type': email_type,
+        'last_contacted_at': last_contacted_iso,
+        'log': {
+            'email_type': log_entry.email_type,
+            'sent_at': log_entry.sent_at.isoformat(),
+            'subject': log_entry.subject,
+        },
     })

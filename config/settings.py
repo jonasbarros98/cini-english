@@ -281,14 +281,14 @@ INTERNAL_SIGNUP_NOTIFY_CC = os.environ.get(
 ).strip()
 
 # URL base do site (para links em emails - login, etc.)
-SITE_URL = os.environ.get('SITE_URL', 'https://educaflowone.com.br')
+SITE_URL = os.environ.get('SITE_URL', 'https://www.educaflowone.com.br')
 
 # Assinatura dos emails automáticos (boas-vindas, etc). Use \\n para quebras de linha.
 EMAIL_SIGNATURE = os.environ.get('EMAIL_SIGNATURE', '''—
 Equipe EducaflowOne
 Plataforma de gestão para professores particulares
 
-🌐 https://educaflowone.com.br
+🌐 https://www.educaflowone.com.br
 
 📧 educaflowone@gmail.com
 

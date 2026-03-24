@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel Admin — Cini English</title>
+  <title>Painel Admin — EducaflowOne</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
@@ -463,6 +463,148 @@
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast.err  { background: var(--xpd-c); }
 
+    /* ── EMAIL BUTTONS in drawer ─────────────────────────── */
+    .email-btn-grid { display: flex; flex-direction: column; gap: 8px; }
+    .email-btn-item {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 12px 14px;
+      border: 1.5px solid var(--border); border-radius: var(--r);
+      background: var(--surface); cursor: pointer;
+      transition: border-color .15s, background .12s;
+    }
+    .email-btn-item:hover { background: var(--surface-2); border-color: var(--border-2); }
+    .email-btn-left { display: flex; align-items: center; gap: 10px; }
+    .email-btn-icon { font-size: 20px; flex-shrink: 0; }
+    .email-btn-label { font-size: 13.5px; font-weight: 700; }
+    .email-btn-sub   { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+    .email-btn-arrow {
+      font-size: 12px; color: var(--muted); flex-shrink: 0;
+      padding: 4px 10px; border: 1px solid var(--border);
+      border-radius: 99px; font-weight: 600;
+      transition: background .12s, color .12s;
+    }
+    .email-btn-item:hover .email-btn-arrow {
+      background: var(--new-bg); color: var(--new-c); border-color: var(--new-b);
+    }
+    /* Email history list */
+    .email-history { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+    .email-history-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11.5px; color: var(--text-2);
+      padding: 6px 10px; background: var(--surface-2);
+      border-radius: var(--r-xs); border: 1px solid var(--border);
+    }
+    .email-history-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .email-history-date { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .email-history-empty { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 6px; }
+
+    /* Resend confirm popup */
+    .resend-popup-overlay {
+      position: fixed; inset: 0; z-index: 700;
+      background: rgba(28,25,23,.45); backdrop-filter: blur(6px);
+      display: none; align-items: center; justify-content: center;
+    }
+    .resend-popup-overlay.open { display: flex; }
+    .resend-popup {
+      background: #fff; border-radius: var(--r-lg); padding: 28px 32px;
+      max-width: 380px; width: 100%; box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+    .resend-popup-icon { font-size: 36px; margin-bottom: 12px; }
+    .resend-popup h3 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .resend-popup p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    .resend-popup-actions { display: flex; gap: 10px; justify-content: center; }
+    .resend-popup-actions .btn { min-width: 120px; }
+
+    /* ── EMAIL MODAL ──────────────────────────────────────── */
+    .em-overlay {
+      position: fixed; inset: 0; z-index: 600;
+      background: rgba(28,25,23,.5);
+      backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .em-overlay.open { display: flex; }
+
+    @keyframes em-enter {
+      from { opacity: 0; transform: scale(.96) translateY(12px); }
+      to   { opacity: 1; transform: scale(1)   translateY(0); }
+    }
+    .em-wrap {
+      background: var(--surface);
+      border-radius: var(--r-xl);
+      box-shadow: 0 0 0 1px rgba(28,25,23,.07), 0 24px 64px rgba(28,25,23,.22);
+      width: 100%; max-width: 960px; height: 86vh; max-height: 720px;
+      display: flex; overflow: hidden;
+      animation: em-enter .28s cubic-bezier(0.34,1.1,0.64,1) both;
+    }
+
+    /* Left panel */
+    .em-left {
+      width: 340px; flex-shrink: 0;
+      border-right: 1.5px solid var(--border);
+      display: flex; flex-direction: column;
+      background: var(--surface);
+    }
+    .em-head {
+      padding: 20px 20px 16px;
+      border-bottom: 1.5px solid var(--border);
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+    }
+    .em-type-badge {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 99px; margin-bottom: 6px;
+    }
+    .em-user-info { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+
+    .em-fields { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+    .em-field { }
+    .em-label {
+      display: block; font-size: 11px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 6px;
+    }
+    .em-label-hint {
+      font-size: 10px; font-weight: 400; text-transform: none;
+      letter-spacing: 0; color: var(--border-2); margin-left: 4px;
+    }
+    .em-subject-input { font-size: 14px; font-weight: 600; }
+    .em-note { min-height: 130px; font-size: 13.5px; line-height: 1.6; }
+
+    .em-foot {
+      padding: 14px 20px; border-top: 1.5px solid var(--border);
+      display: flex; gap: 8px;
+    }
+    .btn-send {
+      flex: 1; background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; font-size: 13.5px; font-weight: 700;
+      padding: 10px 20px; border-radius: var(--r-sm); border: none;
+      cursor: pointer; transition: opacity .15s, transform .12s;
+    }
+    .btn-send:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-send:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* Right panel */
+    .em-right {
+      flex: 1; display: flex; flex-direction: column;
+      background: #f0ede8;
+    }
+    .em-preview-bar {
+      padding: 12px 20px; border-bottom: 1.5px solid var(--border);
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .em-preview-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .em-preview-to    { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .em-iframe {
+      flex: 1; border: none; width: 100%;
+      background: #f0ede8;
+    }
+
     /* ── RESPONSIVE ──────────────────────────────────────── */
     @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 800px)  {
@@ -583,6 +725,68 @@
   <!-- ═══ TOAST ═════════════════════════════════════════════ -->
   <div class="toast" id="toast"></div>
 
+  <!-- ═══ RESEND CONFIRM POPUP ════════════════════════════════ -->
+  <div class="resend-popup-overlay" id="resendPopup">
+    <div class="resend-popup">
+      <div class="resend-popup-icon">⚠️</div>
+      <h3 id="resendPopupTitle">E-mail já enviado</h3>
+      <p id="resendPopupMsg">Você já enviou este tipo de e-mail para este usuário. Deseja enviar novamente?</p>
+      <div class="resend-popup-actions">
+        <button class="btn" onclick="closeResendPopup()" type="button">Cancelar</button>
+        <button class="btn btn-dark" onclick="confirmResend()" type="button">Enviar mesmo assim</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ EMAIL MODAL ════════════════════════════════════════ -->
+  <div class="em-overlay" id="emailModal">
+    <div class="em-wrap">
+
+      <!-- Painel esquerdo: controles -->
+      <div class="em-left">
+        <div class="em-head">
+          <div>
+            <span class="em-type-badge" id="emTypeBadge"></span>
+            <div class="em-user-info" id="emUserInfo"></div>
+          </div>
+          <button class="drawer-x" onclick="closeEmailModal()" style="flex-shrink:0">×</button>
+        </div>
+
+        <div class="em-fields">
+          <div class="em-field">
+            <label class="em-label">Assunto</label>
+            <input type="text" id="emSubject" class="d-input em-subject-input">
+          </div>
+          <div class="em-field">
+            <label class="em-label">
+              Mensagem personalizada
+              <span class="em-label-hint">aparece no e-mail com destaque</span>
+            </label>
+            <textarea id="emPersonalNote" class="d-input d-textarea em-note"
+              placeholder="Olá! Entrei em contato porque...&#10;&#10;Deixe em branco para não incluir esta seção."></textarea>
+          </div>
+        </div>
+
+        <div class="em-foot">
+          <button class="btn btn-cancel" onclick="closeEmailModal()">Cancelar</button>
+          <button class="btn btn-send" id="emSendBtn" onclick="sendRetentionEmail()">
+            ✉️ Enviar e-mail
+          </button>
+        </div>
+      </div>
+
+      <!-- Painel direito: preview -->
+      <div class="em-right">
+        <div class="em-preview-bar">
+          <span class="em-preview-label">Pré-visualização</span>
+          <span class="em-preview-to" id="emPreviewTo"></span>
+        </div>
+        <iframe id="emPreviewFrame" class="em-iframe" sandbox="allow-same-origin"></iframe>
+      </div>
+
+    </div>
+  </div>
+
   <script>
   // ═══════════════════════════════════════════════════════════
   //  Admin Panel JS — warm edition
@@ -644,6 +848,14 @@
     if (!iso) return null;
     return Math.ceil((new Date(iso) - Date.now()) / 86400000);
   }
+  /** Cadastro nos últimos N dias (rolagem ~168h). Usado no KPI "Novos (7 dias)". */
+  function isSignupWithinLastDays(iso, days) {
+    if (!iso) return false;
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return false;
+    const ageMs = Date.now() - t;
+    return ageMs >= 0 && ageMs <= days * 86400000;
+  }
 
   // ── Load ─────────────────────────────────────────────────────
   async function load() {
@@ -669,7 +881,10 @@
   function computeKPIs() {
     const c = seg => allUsers.filter(u => seg==='all' || u.segment===seg).length;
     document.getElementById('kAll').textContent = c('all');
-    document.getElementById('kNew').textContent = c('new');
+    // "Novos (7 dias)" = contagem por data de cadastro (UserProfile.created_at), não pelo segmento `new`
+    // (usuários com trial recebem segment trial_active, nunca `new`).
+    document.getElementById('kNew').textContent =
+      allUsers.filter(u => isSignupWithinLastDays(u.created_at, 7)).length;
     document.getElementById('kExp').textContent = c('trial_expiring');
     document.getElementById('kXpd').textContent = c('trial_expired');
     document.getElementById('kCan').textContent = c('canceling');
@@ -680,7 +895,13 @@
   function getFiltered() {
     const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
     return allUsers.filter(u => {
-      if (activeSeg !== 'all' && u.segment !== activeSeg) return false;
+      if (activeSeg !== 'all') {
+        if (activeSeg === 'new') {
+          if (!isSignupWithinLastDays(u.created_at, 7)) return false;
+        } else if (u.segment !== activeSeg) {
+          return false;
+        }
+      }
       if (!q) return true;
       return [u.first_name, u.last_name, u.email, u.username, u.city, u.state]
         .some(v => (v||'').toLowerCase().includes(q));
@@ -911,6 +1132,15 @@
           <button class="btn btn-dark full" onclick="saveNotes()">💾 Salvar notas</button>
         </div>
       </div>
+
+      <!-- E-mails de Retenção -->
+      <div class="ds">
+        <div class="ds-title">📧 E-mails de Retenção</div>
+        <div id="drawerEmailHistory">${emailHistoryHtml(u)}</div>
+        <div class="email-btn-grid" style="margin-top:10px">
+          ${emailButtons(u)}
+        </div>
+      </div>
     `;
 
     document.getElementById('drawerOverlay').classList.add('open');
@@ -986,6 +1216,225 @@
     } catch { toast('Erro ao salvar notas', true); }
   };
 
+  // ── Email retention ─────────────────────────────────────────
+  const EMAIL_TYPES = {
+    trial_expiring: { label: '⏰ Trial expirando', sub: 'Para usuários com trial próximo do fim',   color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+    trial_expired:  { label: '🔴 Trial vencido',   sub: 'Recupere usuários que não assinaram',      color: '#be123c', bg: '#fff1f2', border: '#fecdd3' },
+    canceling:      { label: '⚠️ Cancelamento',    sub: 'Tente reter quem está saindo',             color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
+  };
+
+  // Quais tipos são relevantes por segmento
+  const SEGMENT_EMAIL_MAP = {
+    trial_expiring: ['trial_expiring'],
+    trial_expired:  ['trial_expired'],
+    canceling:      ['canceling'],
+    trial_active:   ['trial_expiring'],
+    new:            ['trial_expiring'],
+    subscriber:     ['canceling'],
+    past_due:       ['trial_expired'],
+    no_sub:         ['trial_expired'],
+  };
+
+  function emailTypeLabel(type) {
+    return EMAIL_TYPES[type]?.label || type;
+  }
+
+  function emailHistoryHtml(u) {
+    const logs = u.email_logs || [];
+    if (!logs.length) {
+      return `<div class="email-history-empty">Nenhum e-mail enviado ainda.</div>`;
+    }
+    const items = logs.map(log => {
+      const meta = EMAIL_TYPES[log.email_type] || {};
+      const badge = meta.label || log.email_type;
+      const color = meta.color || '#6b7280';
+      const bg    = meta.bg    || '#f3f4f6';
+      const border= meta.border|| '#e5e7eb';
+      return `<div class="email-history-item">
+        <span class="email-history-badge" style="color:${color};background:${bg};border:1px solid ${border};">${badge}</span>
+        <span style="font-size:11.5px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(log.subject || '')}</span>
+        <span class="email-history-date">${fmtDT(log.sent_at)}</span>
+      </div>`;
+    });
+    return `<div class="email-history">${items.join('')}</div>`;
+  }
+
+  function emailButtons(u) {
+    const types = SEGMENT_EMAIL_MAP[u.segment] || Object.keys(EMAIL_TYPES);
+    // Mostrar todos os 3, mas destacar os relevantes primeiro
+    const ordered = [
+      ...types,
+      ...Object.keys(EMAIL_TYPES).filter(t => !types.includes(t))
+    ];
+    return ordered.map(type => {
+      const meta = EMAIL_TYPES[type];
+      const isRelevant = types.includes(type);
+      return `
+      <button class="email-btn-item${isRelevant ? ' email-btn-relevant' : ''}"
+              onclick="openEmailModal('${type}')" type="button"
+              style="${isRelevant ? `border-color:${meta.border};background:${meta.bg}` : ''}">
+        <div class="email-btn-left">
+          <div class="email-btn-label" style="${isRelevant ? `color:${meta.color}` : ''}">${meta.label}</div>
+          <div class="email-btn-sub">${meta.sub}</div>
+        </div>
+        <span class="email-btn-arrow">Abrir →</span>
+      </button>`;
+    }).join('');
+  }
+
+  // State do modal de email
+  let emailModalType    = null;
+  let emailHtmlTemplate = '';
+  let emailAccentColor  = '';
+  let pendingEmailType  = null;  // aguardando confirmação de reenvio
+
+  function closeResendPopup() {
+    document.getElementById('resendPopup').classList.remove('open');
+    pendingEmailType = null;
+  }
+
+  function confirmResend() {
+    document.getElementById('resendPopup').classList.remove('open');
+    if (pendingEmailType) {
+      _doOpenEmailModal(pendingEmailType);
+      pendingEmailType = null;
+    }
+  }
+
+  window.closeResendPopup = closeResendPopup;
+  window.confirmResend    = confirmResend;
+
+  async function openEmailModal(emailType) {
+    if (!activeUser) return;
+
+    // Verifica se este tipo já foi enviado para este usuário
+    const logs = activeUser.email_logs || [];
+    const prevSend = logs.find(l => l.email_type === emailType);
+    if (prevSend) {
+      const meta = EMAIL_TYPES[emailType] || {};
+      pendingEmailType = emailType;
+      document.getElementById('resendPopupTitle').textContent = 'E-mail já enviado';
+      document.getElementById('resendPopupMsg').textContent =
+        `Você já enviou o e-mail "${meta.label || emailType}" para ${activeUser.email} em ${fmtDT(prevSend.sent_at)}. Deseja enviar novamente?`;
+      document.getElementById('resendPopup').classList.add('open');
+      return;
+    }
+
+    _doOpenEmailModal(emailType);
+  }
+
+  async function _doOpenEmailModal(emailType) {
+    emailModalType = emailType;
+
+    const meta = EMAIL_TYPES[emailType];
+    emailAccentColor = meta.color;
+
+    // Mostra modal com loading
+    const modal = document.getElementById('emailModal');
+    modal.classList.add('open');
+    const frame = document.getElementById('emPreviewFrame');
+    frame.srcdoc = `<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:13px;">Carregando preview…</body>`;
+
+    // Badge
+    const badge = document.getElementById('emTypeBadge');
+    badge.textContent = meta.label;
+    badge.style.cssText = `background:${meta.bg};color:${meta.color};border:1px solid ${meta.border};border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700`;
+
+    document.getElementById('emUserInfo').textContent = `Para: ${activeUser.email}`;
+    document.getElementById('emPreviewTo').textContent = activeUser.email;
+
+    try {
+      const data = await req(`/api/admin/email-preview/?user_id=${activeUser.id}&email_type=${emailType}`);
+      emailHtmlTemplate = data.html;
+      document.getElementById('emSubject').value = data.subject;
+      document.getElementById('emPersonalNote').value = '';
+      updateEmailPreview();
+    } catch(e) {
+      frame.srcdoc = `<body style="font-family:sans-serif;padding:32px;color:#be123c;">Erro ao carregar template.</body>`;
+    }
+  }
+
+  function updateEmailPreview() {
+    if (!emailHtmlTemplate) return;
+    const note     = document.getElementById('emPersonalNote').value;
+    const noteHtml = note.trim()
+      ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0;">
+           <tr><td style="background:#fafaf9;border-left:4px solid ${emailAccentColor};border-radius:0 12px 12px 0;padding:16px 20px;">
+             <p style="margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${emailAccentColor};">Mensagem pessoal</p>
+             <p style="margin:0;font-size:14px;color:#374151;line-height:1.7;">${note.replace(/\n/g,'<br>').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/&lt;br&gt;/g,'<br>')}</p>
+           </td></tr>
+         </table>`
+      : '';
+    const finalHtml = emailHtmlTemplate.replace('__PERSONAL_NOTE__', noteHtml);
+    document.getElementById('emPreviewFrame').srcdoc = finalHtml;
+  }
+
+  function closeEmailModal() {
+    document.getElementById('emailModal').classList.remove('open');
+    emailModalType    = null;
+    emailHtmlTemplate = '';
+  }
+
+  window.openEmailModal = openEmailModal;
+  window.closeEmailModal = closeEmailModal;
+
+  window.sendRetentionEmail = async function() {
+    if (!activeUser || !emailModalType) return;
+    const subject     = document.getElementById('emSubject').value.trim();
+    const personalNote = document.getElementById('emPersonalNote').value.trim();
+    if (!subject) { toast('Assunto não pode estar vazio', true); return; }
+
+    const btn = document.getElementById('emSendBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Enviando…';
+
+    try {
+      const result = await req('/api/admin/send-retention-email/', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: activeUser.id,
+          email_type: emailModalType,
+          subject,
+          personal_note: personalNote,
+        }),
+      });
+
+      // Atualiza estado local — adiciona novo log ao histórico
+      const now = new Date().toISOString();
+      const newLog = result.log || { email_type: emailModalType, sent_at: now, subject };
+      if (!activeUser.email_logs) activeUser.email_logs = [];
+      activeUser.email_logs.unshift(newLog);  // mais recente primeiro
+
+      const lc = result.last_contacted_at || null;
+      const syncPayload = {
+        last_retention_email_sent_at: now,
+        last_retention_email_type: emailModalType,
+        email_logs: activeUser.email_logs,
+      };
+      if (lc) {
+        syncPayload.last_contacted_at = lc;
+        activeUser.last_contacted_at = lc;
+        const meta = document.getElementById('contactMeta');
+        if (meta) meta.textContent = '📅 ' + fmtDT(lc);
+        const bc = document.getElementById('btnContact');
+        if (bc) bc.textContent = '✓ Marcar de novo';
+      }
+      syncUser(activeUser.id, syncPayload);
+
+      closeEmailModal();
+      // Atualiza histórico no drawer sem re-abrir
+      const histDiv = document.getElementById('drawerEmailHistory');
+      if (histDiv) histDiv.innerHTML = emailHistoryHtml(activeUser);
+      toast(`✅ E-mail enviado para ${activeUser.email}!`);
+    } catch(e) {
+      toast('Erro ao enviar e-mail. Verifique o console.', true);
+      console.error(e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '✉️ Enviar e-mail';
+    }
+  };
+
   // ── Init ─────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     // KPI filter
@@ -999,6 +1448,11 @@
     });
 
     document.getElementById('searchInput').addEventListener('input', renderTable);
+    document.getElementById('emPersonalNote').addEventListener('input', updateEmailPreview);
+    document.getElementById('emSubject').addEventListener('input', () => {}); // subject não altera preview
+    document.getElementById('emailModal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeEmailModal();
+    });
     document.getElementById('btnRefresh').addEventListener('click', load);
     document.getElementById('drawerClose').addEventListener('click', closeDrawer);
     document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);

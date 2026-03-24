@@ -29,6 +29,7 @@ from .views import (
     mark_trial_email_sent,
     TasksV2View,
     AdminPanelView, admin_panel_users_api, admin_panel_user_update,
+    admin_email_preview, admin_send_retention_email,
 )
 
 router = DefaultRouter()
@@ -109,6 +110,8 @@ urlpatterns = [
     path("api/students/<int:student_id>/materials/<int:material_id>/delete/", delete_student_material, name="api-student-delete-material"),
     path("api/admin/users/", admin_panel_users_api, name="api-admin-users"),
     path("api/admin/users/<int:user_id>/", admin_panel_user_update, name="api-admin-user-update"),
+    path("api/admin/email-preview/", admin_email_preview, name="api-admin-email-preview"),
+    path("api/admin/send-retention-email/", admin_send_retention_email, name="api-admin-send-retention-email"),
     path("api/students/<int:student_id>/share-link/", student_share_link, name="api-student-share-link"),
     path("api/students/<int:student_id>/share-link/regenerate/", student_share_link_regenerate, name="api-student-share-link-regenerate"),
     path(

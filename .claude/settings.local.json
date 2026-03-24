@@ -5,7 +5,11 @@
       "Bash(python manage.py migrate core 0050)",
       "Bash(python3 manage.py migrate core 0050)",
       "Bash(py manage.py migrate core 0050)",
-      "Bash(py manage.py check)"
+      "Bash(py manage.py check)",
+      "Bash(py manage.py migrate core 0051)",
+      "Bash(\"C:/Users/jonas/OneDrive/Área de:*)",
+      "Bash(python manage.py migrate core 0052)",
+      "Bash(py manage.py migrate core 0052)"
     ]
   }
 }

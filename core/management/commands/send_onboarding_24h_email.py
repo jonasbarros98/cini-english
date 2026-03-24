@@ -36,7 +36,7 @@ class Command(BaseCommand):
         cutoff_start = now - timedelta(hours=25)
         cutoff_end = now - timedelta(hours=23)
 
-        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br')
+        site_url = getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br')
         link_login = f"{site_url.rstrip('/')}/login/"
         email_signature = getattr(settings, 'EMAIL_SIGNATURE', '')
 

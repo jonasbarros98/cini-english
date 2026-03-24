@@ -33,7 +33,7 @@ class Command(BaseCommand):
         window_start = now + timedelta(days=1, hours=20)
         window_end = now + timedelta(days=2, hours=4)
 
-        site_url = getattr(settings, 'SITE_URL', 'https://educaflowone.com.br')
+        site_url = getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br')
         link_planos = f"{site_url.rstrip('/')}/planos/"
         email_signature = getattr(settings, 'EMAIL_SIGNATURE', '')
 
