@@ -243,22 +243,33 @@ if USE_R2_STORAGE:
     AWS_QUERYSTRING_AUTH = True
     AWS_DEFAULT_ACL = None
 
-    # Default storage para FileField/ImageField.
-    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+    # Garante que o cache/etag faça sentido em downloads.
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": os.environ.get("R2_CACHE_CONTROL", "max-age=86400"),
+    }
+
+    # Django 4.2+ usa o dict STORAGES em vez da string DEFAULT_FILE_STORAGE (deprecated).
+    # Definir STORAGES garante que o backend seja aplicado independentemente de qualquer
+    # inicialização interna do Django que já use o novo formato.
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": STATICFILES_STORAGE,
+        },
+    }
 
     # Diagnóstico no Railway: confirmar que o backend de storage R2/S3 está ativo.
     # (Não imprime secrets; ajuda a verificar "por que o bucket ficou vazio".)
     print(
         "[R2] ENABLED",
-        f"AWS_STORAGE_BUCKET_NAME={AWS_STORAGE_BUCKET_NAME}",
-        f"AWS_S3_ENDPOINT_URL={AWS_S3_ENDPOINT_URL}",
-        f"AWS_S3_ADDRESSING_STYLE={AWS_S3_ADDRESSING_STYLE}",
+        f"bucket={AWS_STORAGE_BUCKET_NAME}",
+        f"endpoint={AWS_S3_ENDPOINT_URL}",
+        f"addressing={AWS_S3_ADDRESSING_STYLE}",
+        f"access_key_set={bool(AWS_ACCESS_KEY_ID)}",
+        f"secret_key_set={bool(AWS_SECRET_ACCESS_KEY)}",
     )
-
-    # Garante que o cache/etag faça sentido em downloads.
-    AWS_S3_OBJECT_PARAMETERS = {
-        "CacheControl": os.environ.get("R2_CACHE_CONTROL", "max-age=86400"),
-    }
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
