@@ -15,6 +15,7 @@ RUN printf '%s\n' \
   'psycopg2-binary' \
   'gunicorn' \
   'django-anymail[resend]' \
+  'google-auth>=2.29.0' \
   > requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
