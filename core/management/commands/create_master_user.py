@@ -5,7 +5,7 @@ from core.models import UserProfile
 
 
 class Command(BaseCommand):
-    help = "Cria o usuário master inicial (Admin / Masterkey1502)"
+    help = "Cria ou atualiza o usuário master (MASTER_USERNAME, MASTER_PASSWORD, MASTER_EMAIL via env)."
 
     def handle(self, *args, **options):
         username = os.environ.get("MASTER_USERNAME", "Admin")
@@ -49,7 +49,7 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"Usuário master configurado:\n"
                 f"  Usuário: {username}\n"
-                f"  Senha: {password}\n"
-                f"  Admin: Sim"
+                f"  Admin: Sim\n"
+                f"  (senha não é exibida em log — use MASTER_PASSWORD no Railway ou altere no admin)"
             )
         )
