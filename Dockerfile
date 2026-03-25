@@ -24,8 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Migrate + collectstatic + gunicorn (compativel com preDeployCommand do Railway)
-RUN python manage.py collectstatic --noinput 2>/dev/null || true
+# Mesmo backend de static que em produção (STORAGES["staticfiles"]); falhar o build se vazio.
+RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
 CMD python manage.py migrate --noinput && python manage.py create_master_user 2>/dev/null || true && exec gunicorn config.wsgi:application --bind 0.0.0.0:$PORT

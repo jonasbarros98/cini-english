@@ -220,6 +220,19 @@ WHITENOISE_MANIFEST_STRICT = os.environ.get(
     "WHITENOISE_MANIFEST_STRICT", ""
 ).strip().lower() in ("1", "true", "yes")
 
+# Django 4.2+ usa só STORAGES (STATICFILES_STORAGE sozinho não substitui "staticfiles").
+# Se STORAGES só for definido com USE_R2_STORAGE=True, o `collectstatic` no Docker build
+# — onde R2 costuma estar desligado — gera ficheiros sem manifest; em runtime com R2
+# o backend passa a ser CompressedManifestStaticFilesStorage e o CSS/imagens deixam de bater.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": STATICFILES_STORAGE,
+    },
+}
+
 # Media files (uploads)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -255,16 +268,8 @@ if USE_R2_STORAGE:
         "CacheControl": os.environ.get("R2_CACHE_CONTROL", "max-age=86400"),
     }
 
-    # Django 5+ removeu DEFAULT_FILE_STORAGE; apenas STORAGES["default"] aplica o backend de mídia.
-    # Incluir "staticfiles" com o mesmo STATICFILES_STORAGE já definido acima (WhiteNoise ou simples),
-    # caso contrário o projeto perde a config de static e pode dar 500 nas páginas.
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        },
-        "staticfiles": {
-            "BACKEND": STATICFILES_STORAGE,
-        },
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
     }
 
     # Diagnóstico no Railway: confirmar que o backend de storage R2/S3 está ativo.
