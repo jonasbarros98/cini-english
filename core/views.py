@@ -32,6 +32,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _filefield_exists(file_field) -> bool:
+    """
+    Confirma se o backend de storage realmente gravou o objeto.
+    Ajuda a detectar casos em que metadados são salvos, mas os bytes não foram persistidos.
+    """
+    try:
+        if not file_field or not getattr(file_field, "name", None):
+            return False
+        return bool(file_field.storage.exists(file_field.name))
+    except Exception:
+        return False
+
 ARQUIVOS_LIMITS_TRIAL = {
     "max_file_size": 10 * 1024 * 1024,
     "max_total_bytes": 100 * 1024 * 1024,
@@ -1126,6 +1138,21 @@ def upload_student_material(request, student_id):
         file_size=file.size,
         material_date=plan_date,
     )
+    if getattr(settings, "USE_R2_STORAGE", False) and not _filefield_exists(material.file):
+        logger.error(
+            "[R2] Storage did not persist StudentMaterial file after save. material_id=%s file_name=%s",
+            material.id,
+            getattr(material.file, "name", None),
+        )
+        try:
+            material.delete()
+        except Exception:
+            pass
+        return Response(
+            {"error": "Falha ao persistir o arquivo no storage. Tente novamente."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
     return Response({"ok": True, "material_id": material.id, "type": "file"}, status=status.HTTP_201_CREATED)
 
 
@@ -1494,6 +1521,23 @@ def upload_teacher_material(request):
         file_size=file.size,
         tags=tags,
     )
+
+    # Se estivermos usando R2/S3, valida que o backend realmente persistiu os bytes.
+    if getattr(settings, "USE_R2_STORAGE", False) and not _filefield_exists(material.file):
+        logger.error(
+            "[R2] Storage did not persist TeacherMaterial file after save. material_id=%s file_name=%s",
+            material.id,
+            getattr(material.file, "name", None),
+        )
+        try:
+            material.delete()
+        except Exception:
+            pass
+        return Response(
+            {"error": "Falha ao persistir o arquivo no storage. Tente novamente."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
     return Response(
         {"ok": True, "material": TeacherMaterialSerializer(material, context={"request": request}).data},
         status=status.HTTP_201_CREATED,
@@ -1614,6 +1658,20 @@ def send_teacher_material_to_student(request, material_id):
             material_date=mat_date,
         )
         student_mat.file.save(original_name, ContentFile(file_bytes), save=True)
+        if getattr(settings, "USE_R2_STORAGE", False) and not _filefield_exists(student_mat.file):
+            logger.error(
+                "[R2] Storage did not persist StudentMaterial file during send-to-student. student_mat_id=%s file_name=%s",
+                student_mat.id,
+                getattr(student_mat.file, "name", None),
+            )
+            try:
+                student_mat.delete()
+            except Exception:
+                pass
+            return Response(
+                {"error": "Falha ao persistir o arquivo do professor no storage."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     return Response({"ok": True, "student_material_id": student_mat.id}, status=status.HTTP_201_CREATED)
 
