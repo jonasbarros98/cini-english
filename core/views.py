@@ -40,8 +40,17 @@ def _filefield_exists(file_field) -> bool:
     try:
         if not file_field or not getattr(file_field, "name", None):
             return False
-        return bool(file_field.storage.exists(file_field.name))
-    except Exception:
+        exists = bool(file_field.storage.exists(file_field.name))
+        print(
+            "[R2] storage.exists()",
+            "name=",
+            getattr(file_field, "name", None),
+            "exists=",
+            exists,
+        )
+        return exists
+    except Exception as e:
+        print("[R2] storage.exists() ERROR", repr(e))
         return False
 
 ARQUIVOS_LIMITS_TRIAL = {
@@ -1524,6 +1533,13 @@ def upload_teacher_material(request):
 
     # Se estivermos usando R2/S3, valida que o backend realmente persistiu os bytes.
     if getattr(settings, "USE_R2_STORAGE", False) and not _filefield_exists(material.file):
+        print(
+            "[R2] Storage did not persist TeacherMaterial file after save.",
+            "material_id=",
+            material.id,
+            "file=",
+            getattr(material.file, "name", None),
+        )
         logger.error(
             "[R2] Storage did not persist TeacherMaterial file after save. material_id=%s file_name=%s",
             material.id,
@@ -1659,6 +1675,13 @@ def send_teacher_material_to_student(request, material_id):
         )
         student_mat.file.save(original_name, ContentFile(file_bytes), save=True)
         if getattr(settings, "USE_R2_STORAGE", False) and not _filefield_exists(student_mat.file):
+            print(
+                "[R2] Storage did not persist StudentMaterial file during send-to-student.",
+                "student_mat_id=",
+                student_mat.id,
+                "file=",
+                getattr(student_mat.file, "name", None),
+            )
             logger.error(
                 "[R2] Storage did not persist StudentMaterial file during send-to-student. student_mat_id=%s file_name=%s",
                 student_mat.id,
