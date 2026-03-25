@@ -213,6 +213,13 @@ if os.environ.get("DJANGO_STATICFILES_SIMPLE", "").lower() in ("1", "true", "yes
 else:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+# WhiteNoise + manifest: com manifest_strict=True (Django default), qualquer {% static %}
+# sem entrada em staticfiles.json após collectstatic quebra o request (500 em massa).
+# Só ativar strict explicitamente: WHITENOISE_MANIFEST_STRICT=1
+WHITENOISE_MANIFEST_STRICT = os.environ.get(
+    "WHITENOISE_MANIFEST_STRICT", ""
+).strip().lower() in ("1", "true", "yes")
+
 # Media files (uploads)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
