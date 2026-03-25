@@ -72,6 +72,20 @@ if custom_domain:
         if origin_without_www not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(origin_without_www)
 
+# ── Reverse proxy (Railway, Nginx, etc.) ─────────────────────────────
+# Sem isso, request.build_absolute_uri() vira http://... atrás do TLS do proxy,
+# o Sign in with Google envia redirect_uri em HTTP e o Google retorna Erro 400:
+# redirect_uri_mismatch (no Console só está registrado https://...).
+# Railway envia X-Forwarded-Proto: https (e costuma enviar X-Forwarded-Host).
+_on_railway = any(
+    os.environ.get(k)
+    for k in ("RAILWAY_ENVIRONMENT", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID")
+)
+_trust_proxy = os.environ.get("TRUST_PROXY_SSL", "").strip().lower() in ("1", "true", "yes", "on")
+if _on_railway or _trust_proxy:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
+
 # Application definition
 
 INSTALLED_APPS = [
