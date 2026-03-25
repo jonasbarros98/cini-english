@@ -2448,6 +2448,7 @@
       const matUrl = document.getElementById('matExternalUrl');
       const matFileLabel = document.getElementById('matFileLabel');
       let editingMaterialId = null;
+      const studentId = '{{ student.id }}';
       const getCookie = (name) => {
         const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
         return v ? v[2] : null;
@@ -2533,7 +2534,6 @@
             return;
           }
         }
-        const studentId = '{{ student.id }}';
         if (!studentId) {
           showToast('Aluno inválido para anexar material.', true);
           return;
@@ -2626,18 +2626,23 @@
             btn.innerHTML = '...';
             const res = await fetch(`/api/students/${studentId}/materials/${materialId}/delete/`, {
               method: 'DELETE',
-              headers: { 'X-CSRFToken': getCookie('csrftoken') || '' },
+              credentials: 'same-origin',
+              headers: {
+                'X-CSRFToken': getCookie('csrftoken') || '',
+                'Accept': 'application/json',
+              },
             });
             if (!res.ok) {
               const err = await res.json().catch(() => ({}));
-              showToast(err.error || err.detail || 'Erro ao excluir material.', true);
+              const detail = err.error || err.detail || (res.status ? ('HTTP ' + res.status) : '');
+              showToast(detail || 'Erro ao excluir material.', true);
               btn.innerHTML = prev;
             } else {
               showToast('Material excluído com sucesso!');
               setTimeout(function () { window.location.reload(); }, 250);
             }
           } catch (e) {
-            showToast('Erro ao excluir material.', true);
+            showToast((e && e.message) ? e.message : 'Erro ao excluir material.', true);
             btn.innerHTML = prev;
           } finally {
             btn.disabled = false;
