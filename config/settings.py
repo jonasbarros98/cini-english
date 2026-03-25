@@ -303,6 +303,8 @@ def _norm_oauth_client_id(s: str) -> str:
     s = (s or '').strip()
     if len(s) >= 2 and s[0] == s[-1] and s[0] in '"\'':
         s = s[1:-1].strip()
+    # Remove qualquer whitespace (quebra de linha no Railway / colagem do Console)
+    s = ''.join(s.split())
     return s
 
 

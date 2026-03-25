@@ -27,6 +27,9 @@ import json
 import os
 import re
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 import threading
 from urllib import request as urllib_request
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
@@ -4353,8 +4356,9 @@ def _google_auth_run(request, credential: str) -> dict:
     err_code: 'config', 'nocred', 'invalid', 'noemail', 'unverified', 'server'
     """
     client_id = (getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '') or '').strip()
-    if client_id.startswith('"') and client_id.endswith('"'):
+    if len(client_id) >= 2 and client_id[0] == client_id[-1] and client_id[0] in '"\'':
         client_id = client_id[1:-1].strip()
+    client_id = ''.join(client_id.split())
     if not client_id:
         return {'ok': False, 'status': 501, 'error': 'Login com Google não configurado.', 'err_code': 'config'}
 
@@ -4387,18 +4391,22 @@ def _google_auth_run(request, credential: str) -> dict:
             credential,
             google_auth_requests.Request(),
             client_id,
-            clock_skew_in_seconds=120,
+            clock_skew_in_seconds=300,
         )
     except ValueError as e:
         _jwt_aud_debug()
-        print(f"[Google auth] verify_oauth2_token ValueError: {e!r}")
-        err_txt = 'Token Google inválido ou expirado. Tente de novo.'
+        logger.warning(
+            "Google verify_oauth2_token ValueError (checar aud vs GOOGLE_OAUTH_CLIENT_ID): %s",
+            e,
+            extra={"client_id_suffix": client_id[-12:] if len(client_id) > 12 else client_id},
+        )
+        err_txt = 'Login com Google inválido ou expirado. Tente de novo.'
         if getattr(settings, 'DEBUG', False):
             err_txt = f'Token Google recusado na verificação: {e}'
         return {'ok': False, 'status': 401, 'error': err_txt, 'err_code': 'invalid'}
     except Exception as e:
         _jwt_aud_debug()
-        print(f"[Google auth] verify_oauth2_token {type(e).__name__}: {e!r}")
+        logger.exception("Google verify_oauth2_token falhou: %s", e)
         return {'ok': False, 'status': 502, 'error': f'Erro ao validar Google: {e}', 'err_code': 'invalid'}
 
     email = (idinfo.get('email') or '').strip().lower()
