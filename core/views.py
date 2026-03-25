@@ -53,6 +53,28 @@ def _filefield_exists(file_field) -> bool:
         print("[R2] storage.exists() ERROR", repr(e))
         return False
 
+
+def _safe_delete_filefield(file_field) -> None:
+    """
+    Remove bytes from the configured storage without touching the model row.
+    Swallows errors: missing object (R2/S3), legacy local paths after migration,
+    or uploads that never persisted—so the caller can still delete the DB record.
+    """
+    if not file_field:
+        return
+    name = getattr(file_field, "name", None)
+    if not name:
+        return
+    try:
+        file_field.delete(save=False)
+    except Exception as e:
+        logger.warning(
+            "Storage delete failed (continuing ORM delete): path=%s err=%s",
+            name,
+            repr(e),
+        )
+
+
 ARQUIVOS_LIMITS_TRIAL = {
     "max_file_size": 10 * 1024 * 1024,
     "max_total_bytes": 100 * 1024 * 1024,
@@ -1180,7 +1202,7 @@ def delete_student_material(request, student_id, material_id):
     except StudentMaterial.DoesNotExist:
         return Response({"error": "Material não encontrado."}, status=status.HTTP_404_NOT_FOUND)
     if material.file:
-        material.file.delete()
+        _safe_delete_filefield(material.file)
     material.delete()
     return Response({"ok": True}, status=status.HTTP_200_OK)
 
@@ -1572,7 +1594,7 @@ def delete_teacher_material(request, material_id):
     except TeacherMaterial.DoesNotExist:
         return Response({"error": "Material não encontrado."}, status=status.HTTP_404_NOT_FOUND)
     if material.file:
-        material.file.delete(save=False)
+        _safe_delete_filefield(material.file)
     material.delete()
     return Response({"ok": True})
 
@@ -2207,8 +2229,8 @@ def delete_planning_attachment(request, attachment_id):
         
         # Deletar arquivo físico
         if attachment.file:
-            attachment.file.delete()
-        
+            _safe_delete_filefield(attachment.file)
+
         attachment.delete()
         return Response({'success': True}, status=status.HTTP_200_OK)
         
