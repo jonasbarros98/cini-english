@@ -1217,7 +1217,12 @@ def download_student_material_file(request, material_id):
     if not material.file:
         raise Http404()
 
-    fh = material.file.open("rb")
+    try:
+        fh = material.file.open("rb")
+    except Exception:
+        # Se o arquivo não existe no storage (ex.: container efêmero sem persistência),
+        # evita 500 e retorna 404 para o frontend.
+        raise Http404()
     filename = os.path.basename(material.file.name)
     return FileResponse(fh, as_attachment=False, filename=filename)
 
@@ -1248,7 +1253,10 @@ def public_student_material_download(request, token, material_id):
     if not material or not material.file:
         raise Http404()
 
-    fh = material.file.open("rb")
+    try:
+        fh = material.file.open("rb")
+    except Exception:
+        raise Http404()
     filename = os.path.basename(material.file.name)
     return FileResponse(fh, as_attachment=False, filename=filename)
 

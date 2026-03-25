@@ -246,6 +246,15 @@ if USE_R2_STORAGE:
     # Default storage para FileField/ImageField.
     DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
+    # Diagnóstico no Railway: confirmar que o backend de storage R2/S3 está ativo.
+    # (Não imprime secrets; ajuda a verificar "por que o bucket ficou vazio".)
+    print(
+        "[R2] ENABLED",
+        f"AWS_STORAGE_BUCKET_NAME={AWS_STORAGE_BUCKET_NAME}",
+        f"AWS_S3_ENDPOINT_URL={AWS_S3_ENDPOINT_URL}",
+        f"AWS_S3_ADDRESSING_STYLE={AWS_S3_ADDRESSING_STYLE}",
+    )
+
     # Garante que o cache/etag faça sentido em downloads.
     AWS_S3_OBJECT_PARAMETERS = {
         "CacheControl": os.environ.get("R2_CACHE_CONTROL", "max-age=86400"),
