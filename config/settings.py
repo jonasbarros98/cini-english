@@ -29,7 +29,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-unsafe")
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]  # por enquanto, depois afinamos
 
@@ -206,11 +206,50 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [
     BASE_DIR / "frontend" / "templates",
 ]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# WhiteNoise com manifest exige `collectstatic` (inclui core/static, ex.: img/educaflow-new.png).
+# Local: defina DJANGO_STATICFILES_SIMPLE=1 para servir sem manifest, ou rode: python manage.py collectstatic
+if os.environ.get("DJANGO_STATICFILES_SIMPLE", "").lower() in ("1", "true", "yes"):
+    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+else:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media files (uploads)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Persistência de uploads no Railway (PRD):
+# - Postgres persiste apenas metadados (caminho/nome do arquivo), não os bytes.
+# - Em produção (Railway), o disco local pode ser efêmero.
+# - Portanto, quando `USE_R2_STORAGE=true`, usamos storage compatível com S3 (Cloudflare R2)
+#   via `django-storages` para que os bytes persistam fora do container.
+USE_R2_STORAGE = os.environ.get("USE_R2_STORAGE", "").lower() in ("1", "true", "yes")
+
+if USE_R2_STORAGE:
+    # Cloudflare R2 usa credenciais S3 + endpoint customizado.
+    # No Railway, configure as variáveis: R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME e R2_ENDPOINT_URL.
+    AWS_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+    AWS_STORAGE_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "")
+    AWS_S3_ENDPOINT_URL = os.environ.get("R2_ENDPOINT_URL", "")
+
+    # Alguns setups exigem uma região "fake" (não é usada pelo R2).
+    AWS_S3_REGION_NAME = os.environ.get("R2_REGION_NAME", "auto")
+
+    # Cloudflare R2 costuma funcionar melhor com addressing estilo "path".
+    AWS_S3_ADDRESSING_STYLE = os.environ.get("R2_S3_ADDRESSING_STYLE", "path")
+    AWS_S3_SIGNATURE_VERSION = os.environ.get("R2_S3_SIGNATURE_VERSION", "s3v4")
+
+    # Endereço/URL gerados pelo storage: por padrão usamos URL assinada.
+    AWS_QUERYSTRING_AUTH = True
+    AWS_DEFAULT_ACL = None
+
+    # Default storage para FileField/ImageField.
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+    # Garante que o cache/etag faça sentido em downloads.
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": os.environ.get("R2_CACHE_CONTROL", "max-age=86400"),
+    }
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [

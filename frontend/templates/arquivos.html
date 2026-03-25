@@ -1,0 +1,1069 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5" />
+  {% include '_meta_pixel.html' %}
+  <title>Arquivos — EducaflowOne</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+  <script src="https://unpkg.com/lucide@latest" defer></script>
+  <style>
+    html, body { height: 100%; overflow-x: hidden; }
+    .arq-page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 24px 48px;
+      min-width: 0;
+    }
+    .arq-hero {
+      margin-bottom: 24px;
+    }
+    .arq-hero h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 6px;
+      line-height: 1.2;
+    }
+    .arq-hero .arq-sub {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0 0 18px;
+      max-width: 52ch;
+    }
+    .storage-card {
+      background: linear-gradient(135deg, rgba(30, 136, 255, 0.08), rgba(99, 102, 241, 0.06));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow-soft);
+    }
+    .storage-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    #storageUsedLabel {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .storage-meta {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .progress-track {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.06);
+      overflow: hidden;
+    }
+    #storageUsedBar {
+      height: 100%;
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.35s ease, background 0.25s ease;
+      background: var(--primary);
+    }
+    .arq-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin: 22px 0 14px;
+    }
+    .arq-toolbar input[type="search"] {
+      flex: 1 1 220px;
+      min-width: 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      background: #fff;
+    }
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .filter-tabs button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .filter-tabs button.active {
+      background: var(--text);
+      color: #fff;
+      border-color: var(--text);
+    }
+    .btn-arq-primary {
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      background: var(--text);
+      color: #fff;
+    }
+    .btn-arq-primary:hover { opacity: 0.92; }
+    .btn-arq-secondary {
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .tag-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+      min-height: 8px;
+    }
+    .tag-pills button {
+      font-size: 12px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.9);
+      cursor: pointer;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .tag-pills button.active { border-color: var(--primary); color: var(--primary); background: rgba(30,136,255,.08); }
+    .materials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .mat-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      background: #fff;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 200px;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .mat-card:hover {
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+      transform: translateY(-2px);
+    }
+    .mat-card-top {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .mat-icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .mat-icon-wrap i { width: 22px; height: 22px; }
+    .mat-title {
+      font-weight: 700;
+      font-size: 15px;
+      line-height: 1.35;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .mat-desc {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mat-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .mat-tags span {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(15,23,42,.06);
+      color: var(--muted);
+    }
+    .mat-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid rgba(15,23,42,.06);
+    }
+    .mat-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .mat-actions button {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .mat-actions button.danger { border-color: rgba(239,68,68,.4); color: #b91c1c; }
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+      font-size: 15px;
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+      background: rgba(255,255,255,.6);
+    }
+    dialog.arq-dialog {
+      border: none;
+      border-radius: 16px;
+      padding: 0;
+      max-width: 440px;
+      width: calc(100vw - 32px);
+      box-shadow: var(--shadow);
+    }
+    dialog.arq-dialog::backdrop { background: rgba(15, 23, 42, 0.35); }
+    .arq-dialog-inner { padding: 22px 22px 18px; }
+    .arq-dialog h2 { margin: 0 0 16px; font-size: 18px; font-weight: 800; }
+    .arq-dialog label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    .arq-dialog input, .arq-dialog textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      margin-bottom: 14px;
+      font-family: inherit;
+    }
+    .arq-dialog textarea { min-height: 72px; resize: vertical; }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .modal-actions button {
+      padding: 9px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+    .modal-actions button.primary { background: var(--text); color: #fff; border-color: var(--text); }
+    .modal-actions button.danger { background: #ef4444; color: #fff; border-color: #ef4444; }
+    #uploadProgress { margin-top: 8px; }
+    #uploadBar { width: 100%; height: 8px; }
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      padding: 12px 18px;
+      background: var(--text);
+      color: #fff;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 12px 40px rgba(0,0,0,.2);
+      max-width: min(400px, calc(100vw - 48px));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    #toast.show { opacity: 1; pointer-events: auto; }
+    #toast.error { background: #b91c1c; }
+    #toast a { color: #93c5fd; }
+    @media (max-width: 720px) {
+      .arq-page { padding: 16px 14px 40px; }
+      .arq-hero h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body data-user-id="{{ request.user.id }}">
+  {% include '_mobile_nav.html' %}
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
+        <div>
+          <p class="brand-kicker">Dashboard</p>
+          <p class="brand-name">EDUCAflowOne</p>
+        </div>
+      </div>
+      <nav class="nav">
+        {% if not is_partner_teacher %}
+        <a href="/dashboard/" class="nav-item">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        {% endif %}
+        <a href="/calendar/" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/alunos/" class="nav-item">
+          <span class="nav-emoji">🧑‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/planejamento/" class="nav-item">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        {% if not is_partner_teacher %}
+        <a href="/arquivos/" class="nav-item active">
+          <span class="nav-emoji">📁</span>
+          <div>
+            <p class="nav-title">Arquivos</p>
+            <p class="nav-subtitle">Sua biblioteca de materiais</p>
+          </div>
+        </a>
+        {% endif %}
+        <a href="/financeiro/" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        {% endif %}
+        <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+            {% if user_is_admin %}
+            <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
+              <span class="nav-emoji">👥</span>
+              <div>
+                <p class="nav-title">Usuários</p>
+                <p class="nav-subtitle">Gerenciar usuários</p>
+              </div>
+            </a>
+            <a href="/tickets/" class="nav-item nav-item-nested" id="navTickets">
+              <span class="nav-emoji">🎫</span>
+              <div>
+                <p class="nav-title">Tickets</p>
+                <p class="nav-subtitle">Suporte e feedback</p>
+              </div>
+            </a>
+            {% endif %}
+            <a href="/perfil/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">👤</span>
+              <div>
+                <p class="nav-title">Perfil</p>
+                <p class="nav-subtitle">Dados da conta</p>
+              </div>
+            </a>
+            <a href="/planos/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">💳</span>
+              <div>
+                <p class="nav-title">Plano e Faturamento</p>
+                <p class="nav-subtitle">Gerenciar assinatura</p>
+              </div>
+            </a>
+            <a href="/tutorial/" class="nav-item nav-item-nested">
+              <span class="nav-emoji">🎬</span>
+              <div>
+                <p class="nav-title">Tutorial</p>
+                <p class="nav-subtitle">Vídeos rápidos</p>
+              </div>
+            </a>
+          </div>
+        </div>
+        {% endif %}
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Biblioteca</p>
+        <p style="font-size: 12px; color: var(--muted); margin: 0 0 10px;">Materiais reutilizáveis. Envie cópias para a área do aluno quando precisar.</p>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      </div>
+    </aside>
+
+    <main class="page">
+      <div class="arq-page">
+        <header class="arq-hero">
+          <h1>Arquivos</h1>
+          <p class="arq-sub">Sua biblioteca pessoal — PDFs, áudios, vídeos, slides e links. Limite por plano; links não consomem espaço.</p>
+          <div class="storage-card" id="storageCard">
+            <div class="storage-card-top">
+              <div>
+                <div id="storageUsedLabel">Carregando uso de armazenamento…</div>
+                <div class="storage-meta" id="storageFileMeta"></div>
+              </div>
+            </div>
+            <div class="progress-track"><div id="storageUsedBar"></div></div>
+          </div>
+        </header>
+
+        <div class="arq-toolbar">
+          <input type="search" id="searchInput" placeholder="Buscar por título ou descrição…" autocomplete="off" />
+          <div class="filter-tabs" role="tablist">
+            <button type="button" class="tab active" data-filter="all" role="tab">Todos</button>
+            <button type="button" class="tab" data-filter="file" role="tab">Arquivos</button>
+            <button type="button" class="tab" data-filter="link" role="tab">Links</button>
+          </div>
+          <button type="button" class="btn-arq-secondary" id="btnAddLink">＋ Link</button>
+          <button type="button" class="btn-arq-primary" id="btnUpload">＋ Arquivo</button>
+        </div>
+        <div id="tagFilters" class="tag-pills"></div>
+        <div id="materialsGrid" class="materials-grid"></div>
+        <div id="emptyState" class="empty-state" hidden>Nenhum material ainda. Use <strong>＋ Arquivo</strong> ou <strong>＋ Link</strong> para começar.</div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" role="status"></div>
+
+  <dialog id="uploadModal" class="arq-dialog">
+    <form id="uploadForm" class="arq-dialog-inner">
+      <h2>Adicionar arquivo</h2>
+      <label>Título<input type="text" name="title" maxlength="200" /></label>
+      <label>Descrição (interno)<textarea name="description"></textarea></label>
+      <label>Tags (vírgula)<input type="text" name="tags" maxlength="300" /></label>
+      <label>Arquivo<input type="file" name="file" id="fileInput" required accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp3,.wav,.m4a,.ogg,.aac,.mp4,.webm,.jpg,.jpeg,.png,.gif,.webp,.txt" /></label>
+      <div id="uploadProgress" hidden><progress id="uploadBar" value="0" max="100"></progress></div>
+      <div class="modal-actions">
+        <button type="button" id="cancelUpload">Cancelar</button>
+        <button type="submit" class="primary" id="submitUpload">Enviar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="linkModal" class="arq-dialog">
+    <form id="linkForm" class="arq-dialog-inner">
+      <h2>Adicionar link</h2>
+      <label>URL<input type="url" name="external_url" required placeholder="https://…" /></label>
+      <label>Título (opcional)<input type="text" name="title" maxlength="200" /></label>
+      <label>Descrição<textarea name="description"></textarea></label>
+      <label>Tags<input type="text" name="tags" maxlength="300" /></label>
+      <div class="modal-actions">
+        <button type="button" id="cancelLink">Cancelar</button>
+        <button type="submit" class="primary" id="submitLink">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="editModal" class="arq-dialog">
+    <form id="editForm" class="arq-dialog-inner">
+      <h2>Editar material</h2>
+      <input type="hidden" name="material_id" />
+      <input type="hidden" name="material_type" />
+      <label>Título<input type="text" name="title" maxlength="200" /></label>
+      <label>Descrição<textarea name="description"></textarea></label>
+      <label>Tags<input type="text" name="tags" maxlength="300" /></label>
+      <div id="editUrlRow">
+        <label>URL<input type="url" name="external_url" /></label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="cancelEdit">Cancelar</button>
+        <button type="submit" class="primary" id="submitEdit">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="sendModal" class="arq-dialog">
+    <div class="arq-dialog-inner">
+      <h2>Enviar para aluno</h2>
+      <p style="font-size:13px;color:var(--muted);margin:0 0 14px;">Será criada uma cópia na aba Materiais do aluno (área de materiais do aluno).</p>
+      <input type="hidden" id="sendMaterialId" />
+      <label>Aluno
+        <select id="sendStudentSelect" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);margin-bottom:14px;font-size:14px;">
+          <option value="">Selecionar…</option>
+        </select>
+      </label>
+      <label>Data de referência<input type="date" id="sendMaterialDate" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);margin-bottom:14px;" /></label>
+      <label>Título para o aluno (opcional)<input type="text" id="sendTitleOverride" maxlength="200" placeholder="Usar título da biblioteca se vazio" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);margin-bottom:14px;" /></label>
+      <div class="modal-actions">
+        <button type="button" id="cancelSend">Cancelar</button>
+        <button type="button" class="primary" id="confirmSend">Enviar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="deleteModal" class="arq-dialog">
+    <div class="arq-dialog-inner">
+      <h2>Excluir material?</h2>
+      <p id="deleteModalName" style="font-weight:600;margin:0 0 8px;"></p>
+      <p style="font-size:13px;color:#b91c1c;margin:0 0 14px;">Esta ação não pode ser desfeita. Arquivos enviados aos alunos não são apagados.</p>
+      <input type="hidden" id="deleteMaterialId" />
+      <div class="modal-actions">
+        <button type="button" id="cancelDelete">Cancelar</button>
+        <button type="button" class="danger" id="confirmDelete">Excluir</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    (function () {
+      function getCookie(name) {
+        const v = `; ${document.cookie}`;
+        const p = v.split(`; ${name}=`);
+        if (p.length === 2) return p.pop().split(";").shift();
+        return null;
+      }
+
+      function toast(msg, isError, withUpgrade) {
+        const el = document.getElementById("toast");
+        el.className = (isError ? "error " : "") + "show";
+        if (withUpgrade) {
+          el.innerHTML = escapeHtml(msg) + ' <a href="/planos/">Ver planos</a>';
+        } else {
+          el.textContent = msg;
+        }
+        clearTimeout(window.__toastT);
+        window.__toastT = setTimeout(() => el.classList.remove("show"), 5200);
+      }
+
+      function formatLimitBytes(max) {
+        if (max == null) return "Ilimitado";
+        if (max >= 1024 * 1024 * 1024) return (max / (1024 * 1024 * 1024)).toFixed(0).replace(/\.0$/, "") + " GB";
+        return Math.round(max / (1024 * 1024)) + " MB";
+      }
+
+      function renderStorageBar(info) {
+        const { used_bytes, used_display, file_count, limits } = info;
+        const max = limits.max_total_bytes;
+        const pct = max ? Math.min(100, (used_bytes / max) * 100) : 0;
+        const maxDisplay = formatLimitBytes(max);
+        const maxFiles = limits.max_files;
+        const fileCap = maxFiles != null ? maxFiles : "∞";
+        document.getElementById("storageUsedLabel").textContent =
+          `${used_display} de ${maxDisplay} usados`;
+        document.getElementById("storageFileMeta").textContent =
+          `${file_count} arquivo(s) na biblioteca · até ${maxFiles != null ? maxFiles + " arquivos" : "arquivos ilimitados"} no plano`;
+        const bar = document.getElementById("storageUsedBar");
+        bar.style.width = (max ? `${pct}%` : "100%");
+        bar.style.opacity = max ? "1" : "0.35";
+        bar.style.background =
+          pct > 90 ? "var(--bad, #ef4444)" : pct > 70 ? "var(--warn, #f59e0b)" : "var(--primary)";
+      }
+
+      let materialsCache = [];
+      let materialsCacheFull = [];
+      let activeType = "all";
+      let activeTag = "";
+      let searchQ = "";
+      let debounceT = null;
+
+      function extOf(m) {
+        if (m.material_type === "link") return "link";
+        const url = m.file_url || "";
+        const base = url.split("?")[0];
+        const dot = base.lastIndexOf(".");
+        return dot >= 0 ? base.slice(dot).toLowerCase() : ".file";
+      }
+
+      function iconForMaterial(m) {
+        const ext = extOf(m);
+        if (ext === "link") return { icon: "link", accent: "#2563eb", bg: "rgba(37,99,235,.12)" };
+        if (ext === ".pdf") return { icon: "file-text", accent: "#dc2626", bg: "rgba(220,38,38,.1)" };
+        if (ext === ".doc" || ext === ".docx") return { icon: "file-text", accent: "#2563eb", bg: "rgba(37,99,235,.1)" };
+        if (ext === ".xls" || ext === ".xlsx") return { icon: "table", accent: "#059669", bg: "rgba(5,150,105,.1)" };
+        if (ext === ".ppt" || ext === ".pptx") return { icon: "presentation", accent: "#ea580c", bg: "rgba(234,88,12,.1)" };
+        if ([".mp3", ".wav", ".m4a", ".ogg", ".aac"].includes(ext)) return { icon: "music", accent: "#9333ea", bg: "rgba(147,51,234,.1)" };
+        if (ext === ".mp4" || ext === ".webm") return { icon: "video", accent: "#4f46e5", bg: "rgba(79,70,229,.1)" };
+        if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) return { icon: "image", accent: "#db2777", bg: "rgba(219,39,119,.1)" };
+        if (ext === ".txt") return { icon: "file", accent: "#64748b", bg: "rgba(100,116,139,.12)" };
+        return { icon: "file", accent: "#64748b", bg: "rgba(100,116,139,.12)" };
+      }
+
+      function domainFromUrl(url) {
+        try {
+          return new URL(url).hostname.replace(/^www\./, "");
+        } catch (e) {
+          return "link";
+        }
+      }
+
+      function formatDate(iso) {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        if (isNaN(d)) return "—";
+        return d.toLocaleDateString("pt-BR");
+      }
+
+      function collectTags(list) {
+        const set = new Set();
+        list.forEach((m) => {
+          (m.tags || "").split(",").forEach((t) => {
+            const s = t.trim();
+            if (s) set.add(s);
+          });
+        });
+        return [...set].sort((a, b) => a.localeCompare(b));
+      }
+
+      function renderTagPills() {
+        const wrap = document.getElementById("tagFilters");
+        const tags = collectTags(materialsCacheFull.length ? materialsCacheFull : materialsCache);
+        wrap.innerHTML = tags
+          .map(
+            (t) =>
+              `<button type="button" data-tag="${t.replace(/"/g, "&quot;")}" class="${activeTag === t ? "active" : ""}">${t}</button>`
+          )
+          .join("");
+        wrap.querySelectorAll("button[data-tag]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const t = btn.getAttribute("data-tag");
+            activeTag = activeTag === t ? "" : t;
+            loadMaterials();
+          });
+        });
+      }
+
+      function renderGrid(list) {
+        const grid = document.getElementById("materialsGrid");
+        const empty = document.getElementById("emptyState");
+        if (!list.length) {
+          grid.innerHTML = "";
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        grid.innerHTML = list
+          .map((m) => {
+            const ic = iconForMaterial(m);
+            const meta =
+              m.material_type === "link"
+                ? domainFromUrl(m.external_url || "")
+                : m.file_size_display || "—";
+            const desc = (m.description || "").trim();
+            const tagSpans = (m.tags || "")
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+              .slice(0, 6)
+              .map((t) => `<span>${t}</span>`)
+              .join("");
+            const openHref = m.material_type === "link" ? m.external_url : m.file_url || "#";
+            return `
+          <article class="mat-card" data-id="${m.id}">
+            <div class="mat-card-top">
+              <div class="mat-icon-wrap" style="background:${ic.bg};color:${ic.accent}">
+                <i data-lucide="${ic.icon}"></i>
+              </div>
+              <div style="min-width:0">
+                <p class="mat-title">${escapeHtml(m.title || "")}</p>
+                <p class="mat-desc">${escapeHtml(desc)}</p>
+              </div>
+            </div>
+            <div class="mat-tags">${tagSpans}</div>
+            <div class="mat-meta">${escapeHtml(meta)} · enviado em ${formatDate(m.created_at)}</div>
+            <div class="mat-actions">
+              <button type="button" data-act="open" data-href="${openHref.replace(/"/g, "&quot;")}">${m.material_type === "link" ? "Abrir" : "Baixar"}</button>
+              <button type="button" data-act="send">Enviar ao aluno</button>
+              <button type="button" data-act="edit">Editar</button>
+              <button type="button" data-act="del" class="danger">Excluir</button>
+            </div>
+          </article>`;
+          })
+          .join("");
+
+        grid.querySelectorAll(".mat-card").forEach((card) => {
+          const id = +card.getAttribute("data-id");
+          const m = list.find((x) => x.id === id);
+          card.querySelector('[data-act="open"]').addEventListener("click", (e) => {
+            const href = e.currentTarget.getAttribute("data-href");
+            if (href && href !== "#") window.open(href, "_blank", "noopener,noreferrer");
+          });
+          card.querySelector('[data-act="send"]').addEventListener("click", () => openSend(m));
+          card.querySelector('[data-act="edit"]').addEventListener("click", () => openEdit(m));
+          card.querySelector('[data-act="del"]').addEventListener("click", () => openDelete(m));
+        });
+
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function escapeHtml(s) {
+        return (s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      async function fetchJSON(url, opts) {
+        const csrf = getCookie("csrftoken");
+        const headers = Object.assign(
+          { "X-CSRFToken": csrf || "" },
+          opts && opts.headers ? opts.headers : {}
+        );
+        const r = await fetch(url, Object.assign({ credentials: "same-origin" }, opts, { headers }));
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          const err = new Error(data.error || data.detail || `HTTP ${r.status}`);
+          err.status = r.status;
+          err.body = data;
+          throw err;
+        }
+        return data;
+      }
+
+      async function loadStorage() {
+        try {
+          const info = await fetchJSON("/api/arquivos/storage-info/");
+          renderStorageBar(info);
+        } catch (e) {
+          document.getElementById("storageUsedLabel").textContent = "Não foi possível carregar o uso de armazenamento.";
+        }
+      }
+
+      async function loadMaterials() {
+        const paramsBase = new URLSearchParams();
+        if (activeType && activeType !== "all") paramsBase.set("type", activeType);
+        if (searchQ) paramsBase.set("q", searchQ);
+        const paramsGrid = new URLSearchParams(paramsBase);
+        if (activeTag) paramsGrid.set("tag", activeTag);
+        try {
+          const listFull = await fetchJSON("/api/arquivos/?" + paramsBase.toString());
+          materialsCacheFull = listFull;
+          let list = listFull;
+          if (activeTag) {
+            list = await fetchJSON("/api/arquivos/?" + paramsGrid.toString());
+          }
+          materialsCache = list;
+          renderTagPills();
+          renderGrid(list);
+        } catch (e) {
+          toast("Erro ao listar materiais.", true);
+        }
+      }
+
+      function debounceLoad() {
+        clearTimeout(debounceT);
+        debounceT = setTimeout(loadMaterials, 300);
+      }
+
+      async function loadStudents() {
+        try {
+          const rows = await fetchJSON("/api/students/?status=active");
+          const sel = document.getElementById("sendStudentSelect");
+          const keep = sel.querySelector('option[value=""]');
+          sel.innerHTML = "";
+          sel.appendChild(keep);
+          rows.forEach((s) => {
+            const o = document.createElement("option");
+            o.value = s.id;
+            o.textContent = s.name || "Aluno #" + s.id;
+            sel.appendChild(o);
+          });
+        } catch (e) { /* silent */ }
+      }
+
+      function openUpload() {
+        document.getElementById("uploadForm").reset();
+        document.getElementById("uploadProgress").hidden = true;
+        document.getElementById("uploadModal").showModal();
+      }
+      function openLink() {
+        document.getElementById("linkForm").reset();
+        document.getElementById("linkModal").showModal();
+      }
+
+      function openEdit(m) {
+        const f = document.getElementById("editForm");
+        f.material_id.value = m.id;
+        f.material_type.value = m.material_type;
+        f.title.value = m.title || "";
+        f.description.value = m.description || "";
+        f.tags.value = m.tags || "";
+        const row = document.getElementById("editUrlRow");
+        if (m.material_type === "link") {
+          row.hidden = false;
+          f.external_url.value = m.external_url || "";
+        } else {
+          row.hidden = true;
+          f.external_url.value = "";
+        }
+        document.getElementById("editModal").showModal();
+      }
+
+      function openSend(m) {
+        document.getElementById("sendMaterialId").value = m.id;
+        document.getElementById("sendTitleOverride").value = "";
+        const d = new Date();
+        document.getElementById("sendMaterialDate").value = d.toISOString().slice(0, 10);
+        loadStudents();
+        document.getElementById("sendModal").showModal();
+      }
+
+      function openDelete(m) {
+        document.getElementById("deleteMaterialId").value = m.id;
+        document.getElementById("deleteModalName").textContent = m.title || "Este material";
+        document.getElementById("deleteModal").showModal();
+      }
+
+      document.getElementById("btnUpload").addEventListener("click", openUpload);
+      document.getElementById("btnAddLink").addEventListener("click", openLink);
+      document.getElementById("cancelUpload").addEventListener("click", () => document.getElementById("uploadModal").close());
+      document.getElementById("cancelLink").addEventListener("click", () => document.getElementById("linkModal").close());
+      document.getElementById("cancelEdit").addEventListener("click", () => document.getElementById("editModal").close());
+      document.getElementById("cancelSend").addEventListener("click", () => document.getElementById("sendModal").close());
+      document.getElementById("cancelDelete").addEventListener("click", () => document.getElementById("deleteModal").close());
+
+      document.querySelectorAll(".filter-tabs .tab").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".filter-tabs .tab").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          activeType = btn.getAttribute("data-filter");
+          loadMaterials();
+        });
+      });
+
+      document.getElementById("searchInput").addEventListener("input", (e) => {
+        searchQ = e.target.value.trim();
+        debounceLoad();
+      });
+
+      document.getElementById("linkForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const fd = new FormData();
+        fd.append("material_type", "link");
+        fd.append("external_url", form.external_url.value.trim());
+        fd.append("title", form.title.value.trim());
+        fd.append("description", form.description.value.trim());
+        fd.append("tags", form.tags.value.trim());
+        try {
+          await fetchJSON("/api/arquivos/upload/", { method: "POST", body: fd });
+          form.reset();
+          document.getElementById("linkModal").close();
+          toast("Link adicionado.");
+          await loadStorage();
+          await loadMaterials();
+        } catch (err) {
+          toast(err.message || "Erro ao salvar.", true, true);
+        }
+      });
+
+      document.getElementById("uploadForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const fileInput = document.getElementById("fileInput");
+        if (!fileInput.files || !fileInput.files[0]) {
+          toast("Selecione um arquivo.", true);
+          return;
+        }
+        const fd = new FormData();
+        fd.append("material_type", "file");
+        fd.append("file", fileInput.files[0]);
+        fd.append("title", form.title.value.trim());
+        fd.append("description", form.description.value.trim());
+        fd.append("tags", form.tags.value.trim());
+
+        const xhr = new XMLHttpRequest();
+        const csrf = getCookie("csrftoken");
+        const bar = document.getElementById("uploadBar");
+        const prog = document.getElementById("uploadProgress");
+        prog.hidden = false;
+        bar.value = 0;
+
+        xhr.open("POST", "/api/arquivos/upload/");
+        xhr.setRequestHeader("X-CSRFToken", csrf || "");
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) bar.value = Math.round((ev.loaded / ev.total) * 100);
+        };
+        xhr.onload = async () => {
+          prog.hidden = true;
+          let data = {};
+          try {
+            data = JSON.parse(xhr.responseText || "{}");
+          } catch (x) {}
+          if (xhr.status >= 200 && xhr.status < 300 && data.ok) {
+            form.reset();
+            document.getElementById("uploadModal").close();
+            toast("Arquivo enviado.");
+            await loadStorage();
+            await loadMaterials();
+          } else {
+            const msg = data.error || "Erro ao enviar.";
+            toast(msg, true, true);
+          }
+        };
+        xhr.onerror = () => {
+          prog.hidden = true;
+          toast("Falha de rede ao enviar.", true);
+        };
+        xhr.send(fd);
+      });
+
+      document.getElementById("editForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const f = e.target;
+        const id = f.material_id.value;
+        const body = {
+          title: f.title.value.trim(),
+          description: f.description.value.trim(),
+          tags: f.tags.value.trim(),
+        };
+        if (!document.getElementById("editUrlRow").hidden) body.external_url = f.external_url.value.trim();
+        try {
+          await fetchJSON("/api/arquivos/" + id + "/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          document.getElementById("editModal").close();
+          toast("Alterações salvas.");
+          await loadMaterials();
+        } catch (err) {
+          toast(escapeHtml(err.message || "Erro ao salvar."), true);
+        }
+      });
+
+      document.getElementById("confirmSend").addEventListener("click", async () => {
+        const id = document.getElementById("sendMaterialId").value;
+        const sid = document.getElementById("sendStudentSelect").value;
+        if (!sid) {
+          toast("Selecione um aluno.", true);
+          return;
+        }
+        const body = {
+          student_id: +sid,
+          material_date: document.getElementById("sendMaterialDate").value,
+          title: document.getElementById("sendTitleOverride").value.trim(),
+        };
+        try {
+          await fetchJSON("/api/arquivos/" + id + "/send-to-student/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const name =
+            document.getElementById("sendStudentSelect").selectedOptions[0]?.textContent || "aluno";
+          document.getElementById("sendModal").close();
+          toast("Enviado para " + name, false, false);
+        } catch (err) {
+          toast(escapeHtml(err.message || "Erro ao enviar."), true);
+        }
+      });
+
+      document.getElementById("confirmDelete").addEventListener("click", async () => {
+        const id = document.getElementById("deleteMaterialId").value;
+        try {
+          await fetchJSON("/api/arquivos/" + id + "/delete/", { method: "POST" });
+          document.getElementById("deleteModal").close();
+          toast("Material excluído.");
+          await loadStorage();
+          await loadMaterials();
+        } catch (err) {
+          toast(escapeHtml(err.message || "Erro ao excluir."), true);
+        }
+      });
+
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+          const csrf = getCookie("csrftoken");
+          try {
+            await fetch("/api/auth/logout/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+              credentials: "same-origin",
+            });
+          } catch (x) {}
+          window.location.href = "/login/";
+        });
+      }
+
+      (function initContaGroupCollapse() {
+        const STORAGE_KEY = "educaflowone_sidebar_conta_expanded";
+        const group = document.getElementById("navGroupConta");
+        const btn = document.getElementById("navGroupContaBtn");
+        if (!group || !btn) return;
+        function setExpanded(expanded) {
+          if (expanded) {
+            group.classList.remove("nav-group--collapsed");
+            group.classList.add("nav-group--expanded");
+            btn.setAttribute("aria-expanded", "true");
+            try { localStorage.setItem(STORAGE_KEY, "1"); } catch (_) {}
+          } else {
+            group.classList.add("nav-group--collapsed");
+            group.classList.remove("nav-group--expanded");
+            btn.setAttribute("aria-expanded", "false");
+            try { localStorage.setItem(STORAGE_KEY, "0"); } catch (_) {}
+          }
+        }
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const isExpanded = group.classList.contains("nav-group--expanded");
+          setExpanded(!isExpanded);
+        });
+        try {
+          if (localStorage.getItem(STORAGE_KEY) === "1") setExpanded(true);
+        } catch (_) {}
+      })();
+
+      document.addEventListener("DOMContentLoaded", () => {
+        loadStorage();
+        loadMaterials();
+        loadStudents();
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        if (window.lucide) lucide.createIcons();
+      });
+    })();
+  </script>
+</body>
+</html>

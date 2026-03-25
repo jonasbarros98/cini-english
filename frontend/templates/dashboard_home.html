@@ -727,11 +727,11 @@
           </div>
         </a>
         {% if not is_partner_teacher %}
-        <a href="/tasks-v2/" class="nav-item">
-          <span class="nav-emoji">✅</span>
+        <a href="/arquivos/" class="nav-item">
+          <span class="nav-emoji">📁</span>
           <div>
-            <p class="nav-title">Tarefas</p>
-            <p class="nav-subtitle">Planejamento rápido</p>
+            <p class="nav-title">Arquivos</p>
+            <p class="nav-subtitle">Sua biblioteca de materiais</p>
           </div>
         </a>
         {% endif %}
@@ -991,12 +991,12 @@
             <div class="arrow">›</div>
           </button>
 
-          <button class="qbtn" type="button" data-go="tasks">
+          <button class="qbtn" type="button" data-go="arquivos">
             <div class="left">
-              <div class="qicon" style="background: rgba(180,83,9,.10); color: var(--warn);">✅</div>
+              <div class="qicon" style="background: rgba(30,136,255,.12); color: var(--primary);">📁</div>
               <div class="qtext">
-                <strong>Nova tarefa</strong>
-                <span>pra não esquecer nada</span>
+                <strong>Biblioteca de arquivos</strong>
+                <span>materiais e links reutilizáveis</span>
               </div>
             </div>
             <div class="arrow">›</div>
@@ -1086,7 +1086,6 @@
             <div class="content">
               <p class="title">Pendências</p>
               <p class="sub">
-                <span class="badge warn" id="monthTasksOpen">0 tarefas</span>
                 <span id="monthReschedules">0 aulas para reagendar</span>
               </p>
             </div>
@@ -1350,12 +1349,7 @@
         }
         
         // Atualizar Pendências
-        const monthTasksOpenEl = document.getElementById("monthTasksOpen");
         const monthReschedulesEl = document.getElementById("monthReschedules");
-        if (monthTasksOpenEl) {
-          const tasksOpen = monthSummary.tasks_open || 0;
-          monthTasksOpenEl.textContent = `${tasksOpen} tarefa${tasksOpen !== 1 ? 's' : ''}`;
-        }
         if (monthReschedulesEl) {
           const reschedules = monthSummary.reschedules || 0;
           monthReschedulesEl.textContent = reschedules > 0 ? `${reschedules} aula${reschedules !== 1 ? 's' : ''} para reagendar` : "0 aulas para reagendar";
@@ -1415,13 +1409,11 @@
         // Zerar resumo do mês no fallback
         const monthPaidAmountEl = document.getElementById("monthPaidAmount");
         const monthPendingAmountEl = document.getElementById("monthPendingAmount");
-        const monthTasksOpenEl = document.getElementById("monthTasksOpen");
         const monthReschedulesEl = document.getElementById("monthReschedules");
         const monthConfirmationRateEl = document.getElementById("monthConfirmationRate");
         
         if (monthPaidAmountEl) monthPaidAmountEl.textContent = "R$ 0,00";
         if (monthPendingAmountEl) monthPendingAmountEl.textContent = "R$ 0,00 pendente";
-        if (monthTasksOpenEl) monthTasksOpenEl.textContent = "0 tarefas";
         if (monthReschedulesEl) monthReschedulesEl.textContent = "0 aulas para reagendar";
         if (monthConfirmationRateEl) monthConfirmationRateEl.textContent = "0%";
 
@@ -1463,8 +1455,8 @@
           return;
         }
 
-        if (where === 'tasks') {
-          window.location.href = '/tasks-v2/';
+        if (where === 'arquivos') {
+          window.location.href = '/arquivos/';
           return;
         }
         

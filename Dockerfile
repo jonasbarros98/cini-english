@@ -16,6 +16,8 @@ RUN printf '%s\n' \
   'gunicorn' \
   'django-anymail[resend]' \
   'google-auth>=2.29.0' \
+  'django-storages[s3]' \
+  'boto3' \
   > requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt

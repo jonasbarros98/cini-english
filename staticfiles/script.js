@@ -138,13 +138,8 @@ async function loadStudents() {
 }
 
 async function loadTasks() {
-  const tasks = await fetchJSON("/tasks/");
-  state.tasks = tasks.map((t) => ({
-    id: t.id,
-    title: t.title,
-    status: t.status, // 'todo', 'doing', 'done'
-    tags: t.tags ? t.tags.split(",").map((tag) => tag.trim()) : [],
-  }));
+  /* Tarefas (Kanban) removido — substituído por Arquivos (/arquivos/). */
+  state.tasks = [];
 }
 
 async function loadLessonsForCurrentMonth() {

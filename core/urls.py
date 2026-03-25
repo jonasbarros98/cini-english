@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from django.views.generic import TemplateView, RedirectView
 
 from .views import (
-    StudentViewSet, LessonViewSet, TaskViewSet, HomeView, DashboardView, DashboardHomeView,
+    StudentViewSet, LessonViewSet, HomeView, DashboardView, DashboardHomeView,
     InvoiceViewSet, FinancialEntryViewSet, UserViewSet, LessonPlanViewSet, BillingLogViewSet,
     StudentHomeworkViewSet,
     login_view, logout_view, current_user_view,
@@ -28,7 +28,16 @@ from .views import (
     onboarding_progress_internal,
     trial_ending_users,
     mark_trial_email_sent,
-    TasksV2View,
+    download_student_material_file,
+    public_student_material_download,
+    ArquivosView,
+    upload_teacher_material,
+    delete_teacher_material,
+    update_teacher_material,
+    list_teacher_materials,
+    send_teacher_material_to_student,
+    arquivos_storage_info,
+    download_teacher_material_file,
     AdminPanelView, admin_panel_users_api, admin_panel_user_update,
     admin_email_preview, admin_send_retention_email,
 )
@@ -36,7 +45,6 @@ from .views import (
 router = DefaultRouter()
 router.register(r"students", StudentViewSet, basename="student")
 router.register(r"lessons", LessonViewSet, basename="lesson")
-router.register(r"tasks", TaskViewSet, basename="task")
 router.register(r"student-homeworks", StudentHomeworkViewSet, basename="student-homework")
 router.register(r"invoices", InvoiceViewSet, basename="invoice")
 router.register(r"financial-entries", FinancialEntryViewSet, basename="financial-entry")
@@ -46,11 +54,13 @@ router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
     path("painel-admin/", AdminPanelView.as_view(), name="admin-panel"),
-    path("tarefas-v2/", TemplateView.as_view(template_name="tasks_v2.html"), name="tasks-v2"),
     path("landing/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing"),
     path("landing-v3/", TemplateView.as_view(template_name="test_landing_v3.html"), name="landing-v3"),
     path("landing-v4/", TemplateView.as_view(template_name="test_landing_v4.html"), name="landing-v4"),
     path("landing-v5/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing-v5"),
+    path("landing-v7/", TemplateView.as_view(template_name="landing_v7.html"), name="landing-v7"),
+    path("landing-v7-estrategica/", TemplateView.as_view(template_name="landing_v7_estrategica.html"), name="landing-v7-estrategica"),
+    path("boas-vindas/", TemplateView.as_view(template_name="boas_vindas.html"), name="boas-vindas"),
     path("area-aluno/", TemplateView.as_view(template_name="area_aluno.html"), name="area-aluno"),
     path("aluno/<str:token>/", StudentAreaView.as_view(), name="aluno-area-token"),
     path("aluno-detalhe/", TemplateView.as_view(template_name="aluno_detalhe.html", extra_context={"is_partner_teacher": False}), name="aluno-detalhe"),
@@ -69,11 +79,11 @@ urlpatterns = [
     path("cobranca/", RedirectView.as_view(url="/?view=view-billing", permanent=False), name="cobranca"),
     path("alunos/", AlunosView.as_view(), name="alunos"),
     path("alunos/<int:student_id>/", AlunoDetalheView.as_view(), name="aluno-detalhe-id"),
-    path("tasks-v2/", TasksV2View.as_view(), name="tasks-v2"),
     path("login/", LoginPageView.as_view(), name="login"),
     path("login-v2/", RedirectView.as_view(pattern_name="login", permanent=True), name="login-v2"),
     path("signup/", SignupPageView.as_view(), name="signup"),
     path("signup-v2/", RedirectView.as_view(pattern_name="signup", permanent=True), name="signup-v2"),
+    path("landing-v6/", TemplateView.as_view(template_name="landing_v6.html"), name="landing-v6"),
     path("payment-processing/", TemplateView.as_view(template_name="payment_processing.html"), name="payment-processing"),
     path("api/", include(router.urls)),
     path("api/auth/login/", login_view, name="api-login"),
@@ -113,6 +123,28 @@ urlpatterns = [
     path("api/students/<int:student_id>/materials/", upload_student_material, name="api-student-upload-material"),
     path("api/students/<int:student_id>/materials/<int:material_id>/", update_student_material, name="api-student-update-material"),
     path("api/students/<int:student_id>/materials/<int:material_id>/delete/", delete_student_material, name="api-student-delete-material"),
+    path(
+        "api/students/materials/<int:material_id>/download/",
+        download_student_material_file,
+        name="api-student-material-download",
+    ),
+    path("arquivos/", ArquivosView.as_view(), name="arquivos"),
+    path("arquivos-v2/", ArquivosView.as_view(template_name="arquivos_v2.html"), name="arquivos-v2"),
+    path("api/arquivos/", list_teacher_materials, name="api-arquivos-list"),
+    path("api/arquivos/upload/", upload_teacher_material, name="api-arquivos-upload"),
+    path("api/arquivos/<int:material_id>/", update_teacher_material, name="api-arquivos-update"),
+    path("api/arquivos/<int:material_id>/delete/", delete_teacher_material, name="api-arquivos-delete"),
+    path(
+        "api/arquivos/<int:material_id>/send-to-student/",
+        send_teacher_material_to_student,
+        name="api-arquivos-send-to-student",
+    ),
+    path("api/arquivos/storage-info/", arquivos_storage_info, name="api-arquivos-storage-info"),
+    path(
+        "api/arquivos/<int:material_id>/download/",
+        download_teacher_material_file,
+        name="api-arquivos-download",
+    ),
     path("api/admin/users/", admin_panel_users_api, name="api-admin-users"),
     path("api/admin/users/<int:user_id>/", admin_panel_user_update, name="api-admin-user-update"),
     path("api/admin/email-preview/", admin_email_preview, name="api-admin-email-preview"),
@@ -123,6 +155,11 @@ urlpatterns = [
         "api/public/area-aluno/<str:token>/homeworks/<int:homework_id>/comment/",
         public_area_aluno_homework_comment,
         name="api-public-area-aluno-homework-comment",
+    ),
+    path(
+        "api/public/area-aluno/<str:token>/materials/<int:material_id>/download/",
+        public_student_material_download,
+        name="api-public-area-aluno-material-download",
     ),
     # Calendar endpoints
     path("calendar/", CalendarNewView.as_view(), name="calendar-new"),

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription
+from django.urls import reverse
+from .models import Student, Lesson, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, TeacherMaterial
 from .models import StudentHomework, StudentHomeworkMessage
 from rest_framework import serializers as drf_serializers
 
@@ -141,28 +142,6 @@ class LessonSerializer(serializers.ModelSerializer):
         ]
 
 
-class TaskSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
-    user_username = serializers.CharField(source="user.username", read_only=True)
-
-    class Meta:
-        model = Task
-        fields = [
-            "id",
-            "title",
-            "status",
-            "tags",
-            "date",
-            "due_date",
-            "notes",
-            "user",
-            "user_username",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = ["user"]
-
-
 class StudentHomeworkSerializer(serializers.ModelSerializer):
     assigned_by = serializers.PrimaryKeyRelatedField(read_only=True)
     assigned_by_username = serializers.CharField(source="assigned_by.username", read_only=True)
@@ -218,6 +197,44 @@ class StudentHomeworkSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["assigned_by", "assigned_by_username", "student_name", "created_at", "updated_at"]
+
+
+class TeacherMaterialSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    file_url = serializers.SerializerMethodField()
+    file_size_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TeacherMaterial
+        fields = [
+            "id",
+            "user",
+            "title",
+            "description",
+            "material_type",
+            "file",
+            "file_url",
+            "external_url",
+            "file_size",
+            "file_size_display",
+            "tags",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["user", "file_url", "file_size", "file_size_display", "created_at", "updated_at"]
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return None
+        request = self.context.get("request")
+        rel = reverse("api-arquivos-download", kwargs={"material_id": obj.pk})
+        if request:
+            return request.build_absolute_uri(rel)
+        return rel
+
+    def get_file_size_display(self, obj):
+        return obj.get_file_size_display()
+
 
 class InvoiceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)

@@ -1259,11 +1259,11 @@
           </div>
         </a>
         {% if not is_partner_teacher %}
-        <a href="/tasks-v2/" class="nav-item">
-          <span class="nav-emoji">✅</span>
+        <a href="/arquivos/" class="nav-item">
+          <span class="nav-emoji">📁</span>
           <div>
-            <p class="nav-title">Tarefas</p>
-            <p class="nav-subtitle">Planejamento rápido</p>
+            <p class="nav-title">Arquivos</p>
+            <p class="nav-subtitle">Sua biblioteca de materiais</p>
           </div>
         </a>
         {% endif %}
@@ -3019,8 +3019,18 @@
         }
       });
 
-      // Inicializar
-      loadStudents();
+      // Inicializar; ?novo=1 abre o modal de novo aluno (ex.: vindo do modal de boas-vindas)
+      loadStudents().finally(function() {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          if (params.get('novo') !== '1' && params.get('novo') !== 'true') return;
+          if (isPartnerTeacher) return;
+          openModal();
+          params.delete('novo');
+          var qs = params.toString();
+          window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+        } catch (_) {}
+      });
 
       // ====== Atualizar Visão Rápida ======
       async function updateSidebarStats() {

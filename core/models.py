@@ -231,51 +231,6 @@ class Lesson(models.Model):
         return f"{self.date} - {self.title}"
 
 
-class Task(models.Model):
-    STATUS_CHOICES = [
-        ("todo", "A fazer"),
-        ("doing", "Fazendo"),
-        ("done", "Concluída"),
-    ]
-
-    title = models.CharField(max_length=255)
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS_CHOICES,
-        default="todo",
-    )
-
-    # Opcional: continuar com tags, se quiser
-    tags = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Tags separadas por vírgula, ex: Planejamento,Financeiro",
-    )
-
-    # >>> NOVOS CAMPOS PARA A TELA BONITA <<<
-    # data “principal” da tarefa (quando ela acontece)
-    date = models.DateField(null=True, blank=True)
-
-    # data de vencimento / deadline
-    due_date = models.DateField(null=True, blank=True)
-
-    # descrição / observações
-    notes = models.TextField(blank=True)
-
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="tasks",
-        help_text="Usuário responsável pela tarefa"
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self) -> str:
-        return self.title
-
-
 class StudentHomework(models.Model):
     STATUS_PENDING = "pending"
     STATUS_DONE = "done"
@@ -684,6 +639,84 @@ class StudentMaterial(models.Model):
         return f"{self.student.name} - {self.title}"
 
 
+class TeacherMaterial(models.Model):
+    """
+    Biblioteca pessoal de materiais do professor (Arquivos).
+    Independente de alunos. Pode ser compartilhado com um aluno via ação 'Enviar para aluno',
+    que cria um StudentMaterial derivado.
+    """
+
+    TYPE_FILE = "file"
+    TYPE_LINK = "link"
+    TYPE_CHOICES = [
+        (TYPE_FILE, "Arquivo"),
+        (TYPE_LINK, "Link"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="teacher_materials",
+        help_text="Professor dono deste material",
+    )
+
+    title = models.CharField(
+        max_length=200,
+        help_text="Nome/título do material exibido na biblioteca",
+    )
+    description = models.TextField(
+        blank=True,
+        default="",
+        help_text="Descrição ou observação interna (não visível ao aluno)",
+    )
+    material_type = models.CharField(
+        max_length=10,
+        choices=TYPE_CHOICES,
+        default=TYPE_FILE,
+    )
+    file = models.FileField(
+        upload_to="teacher_materials/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text="Arquivo (preenchido quando material_type='file')",
+    )
+    external_url = models.URLField(
+        blank=True,
+        default="",
+        help_text="URL externa (preenchida quando material_type='link')",
+    )
+    file_size = models.PositiveIntegerField(
+        default=0,
+        help_text="Tamanho do arquivo em bytes (0 para links)",
+    )
+
+    tags = models.CharField(
+        max_length=300,
+        blank=True,
+        default="",
+        help_text="Tags de organização separadas por vírgula (ex: gramática,B2,speaking)",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Material do Professor"
+        verbose_name_plural = "Materiais do Professor"
+
+    def __str__(self):
+        return f"{self.user.username} — {self.title}"
+
+    def get_file_size_display(self):
+        size = float(self.file_size)
+        for unit in ["B", "KB", "MB", "GB"]:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} TB"
+
+
 class UserProfile(models.Model):
     """Perfil estendido do usuário"""
     PROFILE_TEACHER = "professor"
@@ -946,6 +979,27 @@ class Subscription(models.Model):
         elif self.tier == self.TIER_PREMIUM:
             return 2
         return None  # Ilimitado para Platinum
+
+    def get_arquivos_limits(self):
+        """Retorna os limites de Arquivos para este tier."""
+        limits = {
+            self.TIER_BASIC: {
+                "max_file_size": 10 * 1024 * 1024,
+                "max_total_bytes": 100 * 1024 * 1024,
+                "max_files": 50,
+            },
+            self.TIER_PREMIUM: {
+                "max_file_size": 20 * 1024 * 1024,
+                "max_total_bytes": 500 * 1024 * 1024,
+                "max_files": 200,
+            },
+            self.TIER_PLATINUM: {
+                "max_file_size": 50 * 1024 * 1024,
+                "max_total_bytes": 2 * 1024 * 1024 * 1024,
+                "max_files": None,
+            },
+        }
+        return limits.get(self.tier, limits[self.TIER_BASIC])
     
     class Meta:
         verbose_name = "Assinatura"

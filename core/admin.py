@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Student, Lesson, Task, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest
+from .models import Student, Lesson, Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest, TeacherMaterial
 
 
 @admin.register(Student)
@@ -14,11 +14,19 @@ class LessonAdmin(admin.ModelAdmin):
     list_filter = ("status", "realized", "date", "student", "user")
     search_fields = ("title", "info", "student__name", "user__username")
 
-@admin.register(Task)
-class TaskAdmin(admin.ModelAdmin):
-    list_display = ("title", "status", "user", "date", "due_date")
-    list_filter = ("status", "user", "date")
+@admin.register(TeacherMaterial)
+class TeacherMaterialAdmin(admin.ModelAdmin):
+    list_display = ("title", "user", "material_type", "file_size_display", "created_at")
+    list_filter = ("material_type", "user", "created_at")
     search_fields = ("title", "tags", "user__username")
+    readonly_fields = ("file_size", "created_at", "updated_at")
+    date_hierarchy = "created_at"
+
+    def file_size_display(self, obj):
+        return obj.get_file_size_display()
+
+    file_size_display.short_description = "Tamanho"
+
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):

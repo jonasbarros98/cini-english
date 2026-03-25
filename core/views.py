@@ -8,7 +8,7 @@ from django.conf import settings
 from django.urls import reverse
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
+from rest_framework.decorators import action, api_view, authentication_classes, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.contrib.auth import authenticate, login, logout
@@ -16,9 +16,10 @@ from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
-from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect, FileResponse, Http404
 from django.views.generic import TemplateView, View
 from django.shortcuts import redirect, render, get_object_or_404
+from django.core.files.base import ContentFile
 from django.core.mail import send_mail, EmailMessage
 from django.template.loader import render_to_string
 import stripe
@@ -30,11 +31,26 @@ import uuid
 import logging
 
 logger = logging.getLogger(__name__)
+
+ARQUIVOS_LIMITS_TRIAL = {
+    "max_file_size": 10 * 1024 * 1024,
+    "max_total_bytes": 100 * 1024 * 1024,
+    "max_files": 50,
+}
+
+TEACHER_MATERIAL_ALLOWED_EXTENSIONS = {
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".mp3", ".wav", ".m4a", ".ogg", ".aac",
+    ".mp4", ".webm",
+    ".jpg", ".jpeg", ".png", ".gif", ".webp",
+    ".txt",
+}
+
 import threading
 from urllib import request as urllib_request
 from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlanAttachment, BillingLog
-from .models import Student, Lesson, Task, StudentHomework, StudentHomeworkMessage, StudentHomeworkMessageRead, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest, StudentShareToken, StudentMaterial
-from .serializers import StudentSerializer, LessonSerializer, TaskSerializer, StudentHomeworkSerializer
+from .models import Student, Lesson, StudentHomework, StudentHomeworkMessage, StudentHomeworkMessageRead, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest, StudentShareToken, StudentMaterial, TeacherMaterial
+from .serializers import StudentSerializer, LessonSerializer, StudentHomeworkSerializer, TeacherMaterialSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
 
 class StudentViewSet(viewsets.ModelViewSet):
@@ -70,7 +86,11 @@ class StudentViewSet(viewsets.ModelViewSet):
             qs = qs.filter(user=self.request.user)
         else:
             qs = qs.filter(user=self.request.user)
-        
+
+        status_filter = self.request.query_params.get("status", "").strip()
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
         return qs
     
     def get_serializer_context(self):
@@ -430,43 +450,6 @@ class LessonViewSet(viewsets.ModelViewSet):
         })
 
 
-class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.select_related("user").all().order_by("-created_at")
-    serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        
-        # Admin vê todas as tasks, usuários normais veem apenas as suas
-        try:
-            is_admin = self.request.user.profile.is_admin
-        except UserProfile.DoesNotExist:
-            is_admin = False
-        
-        if not is_admin:
-            try:
-                user_profile = self.request.user.profile.user_profile
-                if user_profile == UserProfile.PROFILE_TEACHER:
-                    # Prof. Principal vê suas tasks + tasks dos parceiros vinculados
-                    partner_ids = list(self.request.user.profile.partner_teachers.values_list('user_id', flat=True))
-                    partner_ids.append(self.request.user.id)
-                    qs = qs.filter(user_id__in=partner_ids)
-                else:
-                    # Outros usuários veem apenas as suas
-                    qs = qs.filter(user=self.request.user)
-            except UserProfile.DoesNotExist:
-                qs = qs.filter(user=self.request.user)
-        
-        return qs
-
-    def perform_create(self, serializer):
-        # Preenche automaticamente o usuário logado ao criar uma task
-        serializer.save(user=self.request.user)
-
-from django.views.generic import TemplateView
-
-
 def _user_is_in_trial(user):
     """True se o usuário está no trial gratuito (7 dias sem cartão)."""
     try:
@@ -652,9 +635,11 @@ class AlunoDetalheView(TemplateView):
                     file_type = "video"
                 else:
                     file_type = "other"
-                url = mat.file.url if mat.file else ""
-                if self.request and url:
-                    url = self.request.build_absolute_uri(url)
+                if self.request and mat.file:
+                    rel = reverse("api-student-material-download", kwargs={"material_id": mat.id})
+                    url = self.request.build_absolute_uri(rel)
+                else:
+                    url = ""
             materiais_list.append({
                 "material_id": mat.id,
                 "url": url,
@@ -912,7 +897,17 @@ class StudentAreaView(TemplateView):
             else:
                 type_tag = "Arquivo"
             obs = ""
-            url = mat.external_url if mat.material_type == StudentMaterial.TYPE_LINK else (self.request.build_absolute_uri(mat.file.url) if mat.file else "")
+            if mat.material_type == StudentMaterial.TYPE_LINK:
+                url = mat.external_url
+            else:
+                if mat.file:
+                    rel = reverse(
+                        "api-public-area-aluno-material-download",
+                        kwargs={"token": token_val, "material_id": mat.id},
+                    )
+                    url = self.request.build_absolute_uri(rel)
+                else:
+                    url = ""
             materials_map.setdefault(month_label, {}).setdefault(date_label, []).append(
                 {
                     "url": url,
@@ -1190,6 +1185,431 @@ def update_student_material(request, student_id, material_id):
     return Response({"ok": True}, status=status.HTTP_200_OK)
 
 
+# ==========================
+# StudentMaterial download
+# ==========================
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def download_student_material_file(request, material_id):
+    """
+    Authenticated download for StudentMaterial files.
+    Avoids relying on `/media/...` static serving when DEBUG=False / ephemeral storage.
+    """
+    view = AlunoDetalheView()
+    view.request = request
+    qs_students = view.get_queryset_students()
+
+    try:
+        material = (
+            StudentMaterial.objects.filter(
+                id=material_id,
+                material_type=StudentMaterial.TYPE_FILE,
+                file__isnull=False,
+                student__in=qs_students,
+            )
+            .select_related("student")
+            .get()
+        )
+    except StudentMaterial.DoesNotExist:
+        raise Http404()
+
+    if not material.file:
+        raise Http404()
+
+    fh = material.file.open("rb")
+    filename = os.path.basename(material.file.name)
+    return FileResponse(fh, as_attachment=False, filename=filename)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def public_student_material_download(request, token, material_id):
+    """
+    Public (token-based) download for StudentMaterial files in the public student area.
+    """
+    try:
+        token_obj = StudentShareToken.objects.select_related("student").get(
+            token=token, revoked_at__isnull=True
+        )
+    except StudentShareToken.DoesNotExist:
+        raise Http404()
+
+    material = (
+        StudentMaterial.objects.filter(
+            id=material_id,
+            student=token_obj.student,
+            material_type=StudentMaterial.TYPE_FILE,
+            file__isnull=False,
+        )
+        .select_related("student")
+        .first()
+    )
+    if not material or not material.file:
+        raise Http404()
+
+    fh = material.file.open("rb")
+    filename = os.path.basename(material.file.name)
+    return FileResponse(fh, as_attachment=False, filename=filename)
+
+
+# ==========================
+# Arquivos (TeacherMaterial)
+# ==========================
+
+
+def _get_arquivos_limits(user):
+    try:
+        sub = user.subscription
+        if sub.is_active:
+            return sub.get_arquivos_limits()
+    except Exception:
+        pass
+    return ARQUIVOS_LIMITS_TRIAL
+
+
+def _arquivos_forbidden_if_partner(request):
+    try:
+        if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            return Response(
+                {"error": "Professores parceiros não têm acesso à biblioteca Arquivos."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+    except Exception:
+        pass
+    return None
+
+
+class ArquivosView(TemplateView):
+    template_name = "arquivos_v2.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect("login")
+        if not _user_has_active_subscription(request.user):
+            return redirect("planos")
+        try:
+            if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+                return redirect("calendar-new")
+        except Exception:
+            pass
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        try:
+            profile = self.request.user.profile
+            ctx["user_is_admin"] = profile.is_admin
+            ctx["is_partner_teacher"] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
+            if profile.user_profile == UserProfile.PROFILE_TEACHER:
+                partners = list(profile.partner_teachers.select_related("user").all())
+                ctx["assignable_teachers"] = [
+                    {"id": self.request.user.id, "name": self.request.user.get_full_name() or self.request.user.username}
+                ] + [{"id": p.user.id, "name": p.user.get_full_name() or p.user.username} for p in partners]
+            else:
+                ctx["assignable_teachers"] = []
+        except UserProfile.DoesNotExist:
+            ctx["user_is_admin"] = False
+            ctx["is_partner_teacher"] = False
+            ctx["assignable_teachers"] = []
+        return ctx
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def arquivos_storage_info(request):
+    bad = _arquivos_forbidden_if_partner(request)
+    if bad:
+        return bad
+
+    qs = TeacherMaterial.objects.filter(user=request.user, material_type=TeacherMaterial.TYPE_FILE)
+    used_bytes = qs.aggregate(total=Sum("file_size"))["total"] or 0
+    file_count = qs.count()
+    limits = _get_arquivos_limits(request.user)
+
+    def fmt(b):
+        b = float(b)
+        for unit in ["B", "KB", "MB", "GB"]:
+            if b < 1024.0:
+                return f"{b:.1f} {unit}"
+            b /= 1024.0
+        return f"{b:.1f} TB"
+
+    return Response(
+        {
+            "used_bytes": used_bytes,
+            "used_display": fmt(used_bytes),
+            "file_count": file_count,
+            "limits": limits,
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def download_teacher_material_file(request, material_id):
+    """
+    Serve o arquivo do material (session auth). Necessário quando DEBUG=False,
+    pois /media/ não é exposto pelo django.contrib.staticfiles.
+    """
+    bad = _arquivos_forbidden_if_partner(request)
+    if bad:
+        return bad
+    material = get_object_or_404(TeacherMaterial, id=material_id, user=request.user)
+    if material.material_type != TeacherMaterial.TYPE_FILE or not material.file:
+        raise Http404()
+    try:
+        fh = material.file.open("rb")
+    except Exception:
+        raise Http404()
+    name = os.path.basename(material.file.name)
+    return FileResponse(fh, as_attachment=False, filename=name)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_teacher_materials(request):
+    bad = _arquivos_forbidden_if_partner(request)
+    if bad:
+        return bad
+
+    qs = TeacherMaterial.objects.filter(user=request.user)
+    type_filter = request.query_params.get("type", "").strip()
+    tag_filter = request.query_params.get("tag", "").strip()
+    q = request.query_params.get("q", "").strip()
+    if type_filter in (TeacherMaterial.TYPE_FILE, TeacherMaterial.TYPE_LINK):
+        qs = qs.filter(material_type=type_filter)
+    if tag_filter:
+        qs = qs.filter(tags__icontains=tag_filter)
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
+    serializer = TeacherMaterialSerializer(qs, many=True, context={"request": request})
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def upload_teacher_material(request):
+    bad = _arquivos_forbidden_if_partner(request)
+    if bad:
+        return bad
+
+    post = request.data
+    material_type = (post.get("material_type") or TeacherMaterial.TYPE_FILE)
+    if isinstance(material_type, str):
+        material_type = material_type.strip()
+    else:
+        material_type = TeacherMaterial.TYPE_FILE
+    title = (post.get("title") or "")
+    title = title.strip()[:200] if isinstance(title, str) else str(title)[:200]
+    description = post.get("description") or ""
+    description = description.strip() if isinstance(description, str) else ""
+    tags = post.get("tags") or ""
+    tags = tags.strip()[:300] if isinstance(tags, str) else ""
+    external_url = post.get("external_url") or ""
+    external_url = external_url.strip() if isinstance(external_url, str) else ""
+
+    limits = _get_arquivos_limits(request.user)
+
+    if material_type == TeacherMaterial.TYPE_LINK:
+        if not external_url:
+            return Response({"error": "Informe uma URL válida."}, status=status.HTTP_400_BAD_REQUEST)
+        if not (external_url.startswith("http://") or external_url.startswith("https://")):
+            return Response(
+                {"error": "URL deve começar com http:// ou https://"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not title:
+            title = external_url[:200]
+        material = TeacherMaterial.objects.create(
+            user=request.user,
+            title=title,
+            description=description,
+            material_type=TeacherMaterial.TYPE_LINK,
+            external_url=external_url,
+            file_size=0,
+            tags=tags,
+        )
+        return Response(
+            {"ok": True, "material": TeacherMaterialSerializer(material, context={"request": request}).data},
+            status=status.HTTP_201_CREATED,
+        )
+
+    file = request.FILES.get("file")
+    if not file:
+        return Response({"error": "Arquivo não enviado."}, status=status.HTTP_400_BAD_REQUEST)
+
+    ext = os.path.splitext(file.name)[1].lower()
+    if ext not in TEACHER_MATERIAL_ALLOWED_EXTENSIONS:
+        return Response(
+            {
+                "error": f"Tipo de arquivo não permitido: {ext}. Use: PDF, Word, Excel, PowerPoint, áudio, vídeo, imagem ou TXT."
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    max_file_size = limits["max_file_size"]
+    if file.size > max_file_size:
+        return Response(
+            {"error": f"Arquivo muito grande. Máximo: {max_file_size // (1024 * 1024)} MB no seu plano."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    existing_qs = TeacherMaterial.objects.filter(user=request.user, material_type=TeacherMaterial.TYPE_FILE)
+    file_count = existing_qs.count()
+    max_files = limits["max_files"]
+    if max_files is not None and file_count >= max_files:
+        return Response(
+            {"error": f"Limite de {max_files} arquivos atingido no seu plano."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    used_bytes = existing_qs.aggregate(total=Sum("file_size"))["total"] or 0
+    max_total = limits["max_total_bytes"]
+    if max_total is not None and (used_bytes + file.size) > max_total:
+        max_mb = max_total // (1024 * 1024)
+        return Response(
+            {"error": f"Armazenamento cheio. Seu plano tem {max_mb} MB de Arquivos."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not title:
+        title = file.name[:200]
+
+    material = TeacherMaterial.objects.create(
+        user=request.user,
+        title=title,
+        description=description,
+        material_type=TeacherMaterial.TYPE_FILE,
+        file=file,
+        file_size=file.size,
+        tags=tags,
+    )
+    return Response(
+        {"ok": True, "material": TeacherMaterialSerializer(material, context={"request": request}).data},
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def delete_teacher_material(request, material_id):
+    bad = _arquivos_forbidden_if_partner(request)
+    if bad:
+        return bad
+
+    try:
+        material = TeacherMaterial.objects.get(id=material_id, user=request.user)
+    except TeacherMaterial.DoesNotExist:
+        return Response({"error": "Material não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    if material.file:
+        material.file.delete(save=False)
+    material.delete()
+    return Response({"ok": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def update_teacher_material(request, material_id):
+    bad = _arquivos_forbidden_if_partner(request)
+    if bad:
+        return bad
+
+    try:
+        material = TeacherMaterial.objects.get(id=material_id, user=request.user)
+    except TeacherMaterial.DoesNotExist:
+        return Response({"error": "Material não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    payload = request.data if hasattr(request, "data") else {}
+
+    if "title" in payload:
+        material.title = (payload.get("title") or "").strip()[:200] or material.title
+    if "description" in payload:
+        material.description = (payload.get("description") or "").strip()
+    if "tags" in payload:
+        material.tags = (payload.get("tags") or "").strip()[:300]
+    if "external_url" in payload and material.material_type == TeacherMaterial.TYPE_LINK:
+        url = (payload.get("external_url") or "").strip()
+        if url and not (url.startswith("http://") or url.startswith("https://")):
+            return Response({"error": "URL inválida."}, status=status.HTTP_400_BAD_REQUEST)
+        material.external_url = url
+
+    material.save(update_fields=["title", "description", "tags", "external_url", "updated_at"])
+    return Response(
+        {"ok": True, "material": TeacherMaterialSerializer(material, context={"request": request}).data}
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def send_teacher_material_to_student(request, material_id):
+    bad = _arquivos_forbidden_if_partner(request)
+    if bad:
+        return bad
+
+    try:
+        teacher_mat = TeacherMaterial.objects.get(id=material_id, user=request.user)
+    except TeacherMaterial.DoesNotExist:
+        return Response({"error": "Material não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    payload = request.data if hasattr(request, "data") else {}
+    student_id = payload.get("student_id")
+    if not student_id:
+        return Response({"error": "student_id obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+
+    view = AlunoDetalheView()
+    view.request = request
+    try:
+        student = view.get_queryset_students().get(id=student_id)
+    except Student.DoesNotExist:
+        return Response({"error": "Aluno não encontrado ou sem permissão."}, status=status.HTTP_404_NOT_FOUND)
+
+    title = (payload.get("title") or "").strip()[:200] or teacher_mat.title
+    raw_date = (payload.get("material_date") or "").strip()
+    if raw_date:
+        try:
+            mat_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+        except ValueError:
+            return Response({"error": "Data inválida."}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        mat_date = date.today()
+
+    if teacher_mat.material_type == TeacherMaterial.TYPE_LINK:
+        student_mat = StudentMaterial.objects.create(
+            student=student,
+            user=request.user,
+            title=title,
+            material_type=StudentMaterial.TYPE_LINK,
+            external_url=teacher_mat.external_url,
+            file_size=0,
+            material_date=mat_date,
+        )
+    else:
+        if not teacher_mat.file:
+            return Response({"error": "Arquivo original não encontrado."}, status=status.HTTP_400_BAD_REQUEST)
+        original_name = os.path.basename(teacher_mat.file.name)
+        try:
+            with teacher_mat.file.open("rb") as fh:
+                file_bytes = fh.read()
+        except Exception:
+            return Response(
+                {"error": "Não foi possível ler o arquivo original."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        student_mat = StudentMaterial.objects.create(
+            student=student,
+            user=request.user,
+            title=title,
+            material_type=StudentMaterial.TYPE_FILE,
+            file_size=teacher_mat.file_size,
+            material_date=mat_date,
+        )
+        student_mat.file.save(original_name, ContentFile(file_bytes), save=True)
+
+    return Response({"ok": True, "student_material_id": student_mat.id}, status=status.HTTP_201_CREATED)
+
+
 class FinanceView(TemplateView):
     """View para renderizar a página financeira (lançamentos a receber)"""
     template_name = "finance_refatorado.html"
@@ -1329,7 +1749,7 @@ class HomeView(View):
         view_param = request.GET.get('view')
         if view_param:
             if view_param == 'view-tasks':
-                return redirect('tasks-v2')
+                return redirect('arquivos')
             context = self._get_index_context(request)
             return render(request, "index.html", context)
         try:
@@ -1396,7 +1816,7 @@ class DashboardView(TemplateView):
         view_param = request.GET.get('view')
         if view_param:
             if view_param == 'view-tasks':
-                return redirect('tasks-v2')
+                return redirect('arquivos')
             return super().dispatch(request, *args, **kwargs)
         
         # Caso contrário: Prof. Parceiro vai para calendário; demais para dashboard
@@ -1419,43 +1839,6 @@ class DashboardHomeView(TemplateView):
             return redirect('planos')
         return super().dispatch(request, *args, **kwargs)
 
-
-class TasksV2View(TemplateView):
-    """
-    Página standalone para testar o novo layout de Tarefas (tasks_v2.html).
-    Não integra ainda no menu sidebar / index.
-    """
-    template_name = "tasks_v2.html"
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        try:
-            profile = self.request.user.profile
-            ctx["user_is_admin"] = profile.is_admin
-            ctx["is_partner_teacher"] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
-        except Exception:
-            ctx["user_is_admin"] = False
-            ctx["is_partner_teacher"] = False
-        return ctx
-
-    def dispatch(self, request, *args, **kwargs):
-        from django.shortcuts import redirect
-        if not request.user.is_authenticated:
-            return redirect('login')
-        if not _user_has_active_subscription(request.user):
-            return redirect('planos')
-        return super().dispatch(request, *args, **kwargs)
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        try:
-            profile = self.request.user.profile
-            context['user_is_admin'] = profile.is_admin
-            context['is_partner_teacher'] = profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER
-        except UserProfile.DoesNotExist:
-            context['user_is_admin'] = False
-            context['is_partner_teacher'] = False
-        return context
 
 class PerfilView(TemplateView):
     template_name = "perfil_user.html"
@@ -4997,12 +5380,6 @@ def dashboard_summary_view(request):
         
         pending_month_amount = pending_month_entries.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
-        # Tarefas abertas
-        tasks_open = Task.objects.filter(
-            user_id__in=user_ids,
-            status__in=['todo', 'doing']
-        ).count()
-        
         # Reagendamentos (aulas canceladas no mês)
         reschedules = month_canceled
         
@@ -5046,7 +5423,6 @@ def dashboard_summary_view(request):
                 'confirmation_rate_target': 90,
                 'pending_amount': float(pending_month_amount),
                 'paid_amount': float(paid_month_amount),
-                'tasks_open': tasks_open,
                 'reschedules': reschedules
             }
         }

@@ -157,6 +157,13 @@ aside.sidebar .brand-icon img {
   width: 100% !important;
   height: 100% !important;
   object-fit: contain !important;
+  display: block !important;
+}
+/* Se /static/img/* 404 (collectstatic pendente), o alt não deve estourar o layout */
+.app-shell .sidebar .brand-icon,
+aside.sidebar .brand-icon {
+  line-height: 0 !important;
+  font-size: 0 !important;
 }
 
 /* Brand Text - Padronizado */

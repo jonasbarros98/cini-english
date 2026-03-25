@@ -169,23 +169,8 @@ async function loadStudents() {
 }
 
 async function loadTasks() {
-  try {
-    const tasks = await fetchJSON("/tasks/");
-    state.tasks = tasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,               // 'todo', 'doing', 'done'
-      date: t.date || null,           // "2026-01-05"
-      dueDate: t.due_date || null,    // "2026-01-10"
-      tags: t.tags || "",
-      notes: t.notes || "",
-      createdAt: t.created_at,
-      updatedAt: t.updated_at,
-    }));
-  } catch (error) {
-    console.error("Erro ao carregar tarefas:", error);
-    state.tasks = [];
-  }
+  /* Tarefas (Kanban) removido — substituído por Arquivos (/arquivos/). */
+  state.tasks = [];
 }
 
 
