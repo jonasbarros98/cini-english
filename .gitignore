@@ -20,6 +20,9 @@ static_root/
 .env
 *.log
 
+# Credenciais OAuth Google (nunca commitar)
+docs/google/*.json
+
 # Sistema
 .DS_Store
 Thumbs.db

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import json
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -282,6 +283,53 @@ INTERNAL_SIGNUP_NOTIFY_CC = os.environ.get(
 
 # URL base do site (para links em emails - login, etc.)
 SITE_URL = os.environ.get('SITE_URL', 'https://www.educaflowone.com.br')
+
+
+def _norm_oauth_client_id(s: str) -> str:
+    s = (s or '').strip()
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in '"\'':
+        s = s[1:-1].strip()
+    return s
+
+
+def _resolve_google_oauth_client_id() -> str:
+    """
+    Client ID OAuth (app Web) para Sign in with Google.
+    Preferir GOOGLE_OAUTH_CLIENT_ID=xxx.apps.googleusercontent.com
+    Alternativa: ID_JSON_GOOGLE_CLOUD = caminho absoluto ou relativo à raiz do projeto
+    (ex.: docs/google/client_secret_....json) para o JSON do Google Cloud,
+    ou string JSON com chave "web"/"installed" e client_id.
+    """
+    cid = _norm_oauth_client_id(os.environ.get('GOOGLE_OAUTH_CLIENT_ID', ''))
+    if cid:
+        return cid
+    raw = os.environ.get('ID_JSON_GOOGLE_CLOUD', '').strip()
+    if not raw:
+        return ''
+    try:
+        if raw.startswith('{'):
+            data = json.loads(raw)
+        else:
+            p = Path(raw)
+            if not p.is_file() and not p.is_absolute():
+                alt = BASE_DIR / raw
+                if alt.is_file():
+                    p = alt
+            if p.is_file():
+                data = json.loads(p.read_text(encoding='utf-8'))
+            elif '.apps.googleusercontent.com' in raw:
+                return raw
+            else:
+                return ''
+        web = data.get('web') or data.get('installed')
+        if not web:
+            return ''
+        return _norm_oauth_client_id(web.get('client_id') or '')
+    except Exception:
+        return ''
+
+
+GOOGLE_OAUTH_CLIENT_ID = _resolve_google_oauth_client_id()
 
 # Assinatura dos emails automáticos (boas-vindas, etc). Use \\n para quebras de linha.
 EMAIL_SIGNATURE = os.environ.get('EMAIL_SIGNATURE', '''—

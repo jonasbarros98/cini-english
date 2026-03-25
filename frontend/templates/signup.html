@@ -1,616 +1,713 @@
 {% load static %}
 <!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    {% include '_meta_pixel.html' %}
-    <title>EDUCAflowOne | Cadastro</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="{% static 'styles.css' %}" />
-    <style>
-      body {
-        margin: 0;
-        padding: 20px;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      }
-      
-      .signup-container {
-        background: white;
-        border-radius: 24px;
-        padding: 24px 28px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        width: 100%;
-        max-width: 480px;
-        max-height: 95vh;
-        overflow-y: auto;
-      }
-      
-      .signup-header {
-        text-align: center;
-        margin-bottom: 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-      
-      .signup-icon {
-        width: auto;
-        max-width: 240px;
-        height: auto;
-        max-height: 140px;
-        margin: 0 auto 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .signup-icon img {
-        width: 100%;
-        height: auto;
-        max-height: 140px;
-        object-fit: contain;
-      }
-      
-      .signup-title {
-        font-size: 22px;
-        font-weight: 700;
-        color: #1a1a1a;
-        margin: 0 0 4px 0;
-      }
-      
-      .signup-subtitle {
-        font-size: 13px;
-        color: #666;
-        margin: 0;
-      }
-      
-      .plan-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-        color: white;
-        padding: 5px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 700;
-        margin-top: 6px;
-        text-transform: uppercase;
-      }
-      
-      .signup-form {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-      }
-      
-      .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      
-      .form-group label {
-        font-size: 13px;
-        font-weight: 500;
-        color: #333;
-      }
-      
-      .form-group input {
-        padding: 9px 12px;
-        border: 2px solid #e0e0e0;
-        border-radius: 12px;
-        font-size: 14px;
-        font-family: inherit;
-        transition: all 0.2s;
-      }
-      
-      .form-group input:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-      }
-      
-      .form-group small {
-        display: block;
-        margin-top: 3px;
-        font-size: 12px;
-      }
-      
-      .form-group input:valid:not(:placeholder-shown) {
-        border-color: #10b981;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  {% include '_meta_pixel.html' %}
+  <title>EDUCAflowOne | Criar Conta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-      .pwd-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
+    :root {
+      --brand     : #4f46e5;
+      --brand-dark: #3730a3;
+      --brand-glow: rgba(79,70,229,.18);
+      --panel-bg  : #0f0e1a;
+      --form-bg   : #fefcf8;
+      --text      : #0f0e1a;
+      --text-2    : #44403c;
+      --muted     : #78716c;
+      --border    : #e5e1d8;
+      --success   : #059669;
+      --error     : #dc2626;
+      --amber     : #f59e0b;
+      --font      : 'Plus Jakarta Sans', system-ui, sans-serif;
+      --r         : 14px;
+    }
+
+    html, body {
+      height: 100%; min-height: 100dvh;
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── LAYOUT ──────────────────────────────────────────────── */
+    .page {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      min-height: 100dvh;
+    }
+
+    /* ── LEFT PANEL ──────────────────────────────────────────── */
+    .panel {
+      background: var(--panel-bg);
+      position: relative; overflow: hidden;
+      display: flex; flex-direction: column;
+      padding: 28px 36px 40px;
+    }
+    .panel::before {
+      content: '';
+      position: absolute;
+      width: 480px; height: 480px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(245,158,11,.12) 0%, transparent 65%);
+      top: -100px; right: -140px; pointer-events: none;
+    }
+    .panel::after {
+      content: '';
+      position: absolute;
+      width: 360px; height: 360px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(99,102,241,.22) 0%, transparent 70%);
+      bottom: -60px; left: -80px; pointer-events: none;
+    }
+
+    .panel-body {
+      position: relative; z-index: 1;
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; padding: 8px 0 20px;
+    }
+
+    /* Trial badge */
+    .trial-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(245,158,11,.12);
+      border: 1px solid rgba(245,158,11,.25);
+      border-radius: 99px;
+      padding: 5px 14px 5px 10px;
+      width: fit-content;
+      margin-bottom: 22px;
+    }
+    .trial-badge-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 0 3px rgba(245,158,11,.2);
+      animation: pulse 2s ease infinite;
+    }
+    .trial-badge-text {
+      font-size: 12px; font-weight: 700;
+      color: var(--amber); letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+
+    .panel-headline {
+      font-size: 30px; font-weight: 800;
+      line-height: 1.2; letter-spacing: -.03em;
+      color: #fff; margin-bottom: 14px;
+    }
+    .panel-headline em {
+      font-style: normal;
+      background: linear-gradient(90deg, #fde68a 0%, #fbbf24 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .panel-sub {
+      font-size: 13.5px; color: rgba(255,255,255,.48);
+      line-height: 1.65; margin-bottom: 32px;
+      max-width: 290px;
+    }
+
+    /* What you get */
+    .gets-title {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: rgba(255,255,255,.3);
+      margin-bottom: 14px;
+    }
+    .gets-list {
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .get-item {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .get-check {
+      width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+      background: rgba(16,185,129,.12);
+      border: 1px solid rgba(16,185,129,.2);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .get-check svg { stroke: #34d399; }
+    .get-text {
+      font-size: 13px; color: rgba(255,255,255,.68);
+    }
+
+    /* Separator */
+    .panel-sep {
+      position: relative; z-index: 1;
+      margin: 28px 0;
+      height: 1px; background: rgba(255,255,255,.07);
+    }
+
+    /* Guarantee pill */
+    .guarantee {
+      position: relative; z-index: 1;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .guarantee-icon {
+      font-size: 22px; flex-shrink: 0; line-height: 1;
+    }
+    .guarantee-text {
+      font-size: 12px; color: rgba(255,255,255,.38);
+      line-height: 1.55;
+    }
+    .guarantee-text strong { color: rgba(255,255,255,.65); display: block; margin-bottom: 1px; }
+
+    /* ── FORM SIDE ───────────────────────────────────────────── */
+    .form-side {
+      background: var(--form-bg);
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 48px 32px;
+      overflow-y: auto;
+    }
+
+    .form-wrap { width: 100%; max-width: 420px; }
+
+    /* Marca no topo da coluna do formulário (PRD: logo colorida em fundo claro) */
+    .form-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .form-brand img {
+      width: auto;
+      max-width: min(100%, 330px);
+      height: auto;
+      max-height: 152px;
+      object-fit: contain;
+    }
+
+    .form-top { margin-bottom: 28px; text-align: center; }
+    .form-greeting {
+      font-size: 26px; font-weight: 800;
+      color: var(--text); letter-spacing: -.03em; margin-bottom: 5px;
+    }
+    .form-tagline { font-size: 13.5px; color: var(--muted); }
+
+    /* Error banner */
+    .err-banner {
+      display: none;
+      background: #fef2f2; border: 1px solid #fecaca;
+      color: var(--error); border-radius: var(--r);
+      padding: 12px 14px; font-size: 13px; font-weight: 500;
+      margin-bottom: 20px;
+    }
+    .err-banner.show { display: block; }
+
+    /* Google OAuth — pill / branco / borda (estilo botão oficial Google) */
+    .google-oauth-wrap {
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .google-hint { text-align: center; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .google-oauth-btn-wrap {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+      filter: drop-shadow(0 1px 2px rgba(15, 14, 26, 0.06))
+        drop-shadow(0 4px 12px rgba(15, 14, 26, 0.05));
+    }
+    #googleSignInBtn {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 48px;
+    }
+    .auth-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 20px 0 22px;
+      font-size: 11px; font-weight: 600;
+      color: #c4bdb4; letter-spacing: .05em; text-transform: uppercase;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* Form rows */
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Floating label inputs */
+    .field { position: relative; margin-bottom: 14px; }
+    .field label {
+      position: absolute; top: 50%; left: 16px;
+      transform: translateY(-50%);
+      font-size: 14px; font-weight: 500; color: var(--muted);
+      pointer-events: none;
+      transition: all .18s ease;
+    }
+    .field input {
+      width: 100%; padding: 20px 16px 8px;
+      min-height: 54px;
+      border: 1.5px solid var(--border); border-radius: var(--r);
+      font-size: 15px; font-weight: 500; font-family: var(--font);
+      color: var(--text); background: #fff;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      -webkit-appearance: none;
+    }
+    .field input:focus,
+    .field input:not(:placeholder-shown) { padding-top: 22px; padding-bottom: 6px; }
+    .field input:focus ~ label,
+    .field input:not(:placeholder-shown) ~ label {
+      top: 12px; transform: none;
+      font-size: 11px; font-weight: 600;
+      color: var(--brand); letter-spacing: .02em;
+    }
+    .field input:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px var(--brand-glow);
+    }
+    .field input::placeholder { color: transparent; }
+    .field input.valid { border-color: var(--success); }
+    .field input.error { border-color: var(--error); }
+
+    /* Password wrapper */
+    .pwd-wrap { position: relative; }
+    .pwd-wrap .field { margin-bottom: 0; }
+    .pwd-toggle {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); padding: 4px;
+      display: flex; align-items: center;
+      transition: color .15s; z-index: 2;
+    }
+    .pwd-toggle:hover { color: var(--text); }
+
+    /* Password match error */
+    .match-err {
+      font-size: 12px; color: var(--error); font-weight: 500;
+      margin-top: 5px; display: none; padding-left: 2px;
+    }
+    .match-err.show { display: block; }
+
+    /* Password strength */
+    .pwd-strength {
+      margin-top: 6px; display: none;
+    }
+    .pwd-strength.show { display: block; }
+    .pwd-strength-bar {
+      height: 3px; border-radius: 99px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .pwd-strength-fill {
+      height: 100%; border-radius: 99px;
+      transition: width .3s ease, background .3s;
+      width: 0%;
+    }
+    .pwd-strength-label {
+      font-size: 11px; margin-top: 4px;
+      font-weight: 600; color: var(--muted);
+    }
+
+    /* Section divider */
+    .section-label {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: #c4bdb4;
+      margin: 6px 0 12px;
+    }
+
+    /* Submit */
+    .submit-btn {
+      width: 100%; height: 52px; padding: 0 24px;
+      background: var(--brand); color: #fff; border: none;
+      border-radius: var(--r);
+      font-size: 15px; font-weight: 700; font-family: var(--font);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background .15s, transform .12s, box-shadow .15s;
+      letter-spacing: -.01em;
+      margin-top: 8px;
+    }
+    .submit-btn:hover {
+      background: var(--brand-dark);
+      box-shadow: 0 6px 20px rgba(79,70,229,.3);
+      transform: translateY(-1px);
+    }
+    .submit-btn:active { transform: none; box-shadow: none; }
+    .submit-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .trial-note {
+      text-align: center; margin-top: 10px;
+      font-size: 11.5px; color: var(--muted);
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+    }
+    .trial-note svg { color: var(--success); }
+
+    .form-foot {
+      text-align: center; margin-top: 22px;
+      font-size: 13.5px; color: var(--muted);
+    }
+    .form-foot a { color: var(--brand); font-weight: 700; text-decoration: none; }
+    .form-foot a:hover { text-decoration: underline; }
+
+    /* ── KEYFRAMES ────────────────────────────────────────────── */
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 3px rgba(245,158,11,.2); }
+      50%      { box-shadow: 0 0 0 5px rgba(245,158,11,.08); }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESPONSIVE ───────────────────────────────────────────── */
+    @media (max-width: 820px) {
+      .page { grid-template-columns: 1fr; }
+      .panel { display: none; }
+      .form-side {
+        min-height: 100dvh;
+        padding: max(32px, env(safe-area-inset-top)) 20px
+                 max(24px, env(safe-area-inset-bottom)) 20px;
+        align-items: flex-start;
       }
-      .pwd-wrapper input {
-        padding-right: 44px;
-        flex: 1;
-      }
-      .pwd-toggle {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 6px;
-        color: #666;
-        opacity: 0.7;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: opacity 0.2s;
-      }
-      .pwd-toggle:hover {
-        opacity: 1;
-        color: #333;
-      }
-      
-      .signup-button {
-        padding: 11px 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        margin-top: 2px;
-      }
-      
-      .signup-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-      }
-      
-      .signup-button:active {
-        transform: translateY(0);
-      }
-      
-      .signup-button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-      }
-      
-      .error-message {
-        background: #fee;
-        color: #c33;
-        padding: 12px 16px;
-        border-radius: 8px;
-        font-size: 14px;
-        margin-bottom: 16px;
-        display: none;
-      }
-      
-      .error-message.show {
-        display: block;
-      }
-      
-      .login-link {
-        text-align: center;
-        margin-top: 24px;
-        font-size: 14px;
-        color: #666;
-      }
-      
-      .login-link a {
-        color: #667eea;
-        text-decoration: none;
-        font-weight: 600;
-      }
-      
-      .login-link a:hover {
-        text-decoration: underline;
-      }
+      .form-wrap { max-width: 440px; }
+    }
+    @media (max-width: 400px) {
+      .row-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+{% if google_oauth_client_id and google_login_uri %}
+<!-- Google OAuth debug:
+  1) URI: {{ google_login_uri }}
+  2) Client ID: {{ google_oauth_client_id }}
+-->
+{% endif %}
 
-      /* ===== Mobile otimizado (≤ 640px) ===== */
-      @media (max-width: 640px) {
-        body {
-          padding: 12px;
-          padding-left: max(12px, env(safe-area-inset-left));
-          padding-right: max(12px, env(safe-area-inset-right));
-          padding-bottom: max(12px, env(safe-area-inset-bottom));
-          min-height: 100dvh;
-          align-items: flex-start;
-        }
+<div class="page">
 
-        .signup-container {
-          max-width: none;
-          width: 100%;
-          margin: 0 auto;
-          padding: 16px;
-          padding-left: max(16px, env(safe-area-inset-left));
-          padding-right: max(16px, env(safe-area-inset-right));
-          border-radius: 16px;
-          max-height: calc(100dvh - 24px);
-          overflow-y: auto;
-          -webkit-overflow-scrolling: touch;
-          overscroll-behavior-y: contain;
-        }
-
-        .signup-header {
-          margin-bottom: 14px;
-        }
-
-        .signup-icon {
-          max-width: 160px;
-          max-height: 90px;
-          margin-bottom: 6px;
-        }
-
-        .signup-icon img {
-          max-height: 90px;
-        }
-
-        .signup-title {
-          font-size: 20px;
-        }
-
-        .signup-subtitle {
-          font-size: 12px;
-        }
-
-        .plan-badge {
-          font-size: 10px;
-          padding: 4px 8px;
-          margin-top: 4px;
-        }
-
-        .signup-form {
-          gap: 12px;
-        }
-
-        .form-group {
-          gap: 4px;
-        }
-
-        .form-group label {
-          font-size: 12px;
-        }
-
-        .form-group input {
-          padding: 12px 14px;
-          font-size: 16px; /* evita zoom no iOS ao focar */
-          min-height: 48px; /* touch target adequado (44px+) */
-          border-radius: 10px;
-          -webkit-appearance: none;
-          appearance: none;
-        }
-
-        .form-group small {
-          font-size: 11px;
-        }
-
-        .signup-button {
-          padding: 14px 20px;
-          min-height: 52px;
-          font-size: 15px;
-          margin-top: 6px;
-          border-radius: 10px;
-          touch-action: manipulation; /* remove delay de 300ms */
-          -webkit-tap-highlight-color: transparent;
-        }
-
-        .error-message {
-          padding: 10px 12px;
-          font-size: 13px;
-          margin-bottom: 12px;
-        }
-
-        .login-link {
-          margin-top: 18px;
-          font-size: 13px;
-          padding-bottom: env(safe-area-inset-bottom);
-        }
-      }
-
-      /* Mobile muito estreito (≤ 375px) */
-      @media (max-width: 375px) {
-        body {
-          padding: 8px;
-        }
-
-        .signup-container {
-          padding: 12px;
-        }
-
-        .signup-icon {
-          max-width: 140px;
-          max-height: 75px;
-        }
-
-        .signup-title {
-          font-size: 18px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="signup-container">
-      <div class="signup-header">
-        <div class="signup-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
-        <h1 class="signup-title">Criar Conta</h1>
-        <p class="signup-subtitle">7 dias grátis, sem cartão. Use o sistema e decida depois.</p>
+  <!-- ── LEFT PANEL ──────────────────────────────────── -->
+  <aside class="panel">
+    <div class="panel-body">
+      <div class="trial-badge">
+        <span class="trial-badge-dot"></span>
+        <span class="trial-badge-text">7 dias grátis · Sem cartão</span>
       </div>
-      
-      <div id="errorMessage" class="error-message"></div>
-      
-      <form id="signupForm" class="signup-form">
-        <div class="form-group">
-          <label for="username">Usuário *</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            required
-            autocomplete="username"
-            placeholder="Escolha um nome de usuário"
-          />
+
+      <h1 class="panel-headline">
+        Seu negócio de<br>aulas <em>organizado</em><br>de verdade
+      </h1>
+      <p class="panel-sub">
+        Crie sua conta agora e experimente tudo gratuitamente. Sem burocracia, sem cartão de crédito.
+      </p>
+
+      <p class="gets-title">O que você tem acesso imediato</p>
+      <div class="gets-list">
+        <div class="get-item">
+          <div class="get-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <span class="get-text">Agenda e calendário de aulas</span>
         </div>
-        
-        <div class="form-group">
-          <label for="email">E-mail *</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            required
-            autocomplete="email"
-            placeholder="seu@email.com"
-          />
+        <div class="get-item">
+          <div class="get-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <span class="get-text">Gestão completa de alunos</span>
         </div>
-        
-        <div class="form-group">
-          <label for="password">Senha *</label>
-          <div class="pwd-wrapper">
-            <input
-              type="password"
-              id="password"
-              name="password"
-              required
-              autocomplete="new-password"
-              placeholder="Mínimo 8 caracteres"
-              minlength="8"
-            />
-            <button type="button" class="pwd-toggle" id="togglePassword" aria-label="Mostrar senha" title="Mostrar senha">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
+        <div class="get-item">
+          <div class="get-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <span class="get-text">Controle financeiro e cobranças</span>
         </div>
-        
-        <div class="form-group">
-          <label for="passwordConfirm">Confirmar Senha *</label>
-          <div class="pwd-wrapper">
-            <input
-              type="password"
-              id="passwordConfirm"
-              name="passwordConfirm"
-              required
-              autocomplete="new-password"
-              placeholder="Digite a senha novamente"
-              minlength="8"
-            />
-            <button type="button" class="pwd-toggle" id="togglePasswordConfirm" aria-label="Mostrar senha" title="Mostrar senha">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-          <small id="passwordMatchError" style="color: #dc2626; display: none; font-size: 13px; margin-top: 4px;">
-            As senhas não coincidem
-          </small>
+        <div class="get-item">
+          <div class="get-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <span class="get-text">Planejamento de aulas e materiais</span>
         </div>
-        
-        <div class="form-group">
-          <label for="firstName">Nome</label>
-          <input
-            type="text"
-            id="firstName"
-            name="firstName"
-            autocomplete="given-name"
-            placeholder="Seu primeiro nome"
-          />
+        <div class="get-item">
+          <div class="get-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <span class="get-text">Área exclusiva do aluno</span>
         </div>
-        
-        <div class="form-group">
-          <label for="lastName">Sobrenome</label>
-          <input
-            type="text"
-            id="lastName"
-            name="lastName"
-            autocomplete="family-name"
-            placeholder="Seu sobrenome"
-          />
-        </div>
-        
-        <button type="submit" class="signup-button" id="signupButton">
-          Criar Conta – 7 dias grátis
-        </button>
-      </form>
-      
-      <div class="login-link">
-        Já tem uma conta? <a href="/login/">Faça login</a>
       </div>
     </div>
 
-    <script>
-      function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(";").shift();
-        return null;
-      }
+    <div class="panel-sep"></div>
 
-      // Função para obter o CSRF token do Django
-      async function getCSRFToken() {
-        // Primeiro tenta obter do cookie
-        let token = getCookie("csrftoken");
-        
-        // Se não tiver, tenta obter novamente após um pequeno delay
-        // (o cookie pode ter sido definido após o login)
-        if (!token) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          token = getCookie("csrftoken");
-        }
-        
-        return token;
-      }
+    <div class="guarantee">
+      <span class="guarantee-icon">🔒</span>
+      <p class="guarantee-text">
+        <strong>Sem risco, sem compromisso</strong>
+        Cancele quando quiser. Seus dados ficam seguros e você decide depois se quer continuar.
+      </p>
+    </div>
+  </aside>
 
-      const form = document.getElementById("signupForm");
-      const errorMessage = document.getElementById("errorMessage");
-      const signupButton = document.getElementById("signupButton");
+  <!-- ── FORM SIDE ────────────────────────────────────── -->
+  <main class="form-side">
+    <div class="form-wrap">
 
-      // Validação em tempo real da confirmação de senha
-      const passwordInput = document.getElementById("password");
-      const passwordConfirmInput = document.getElementById("passwordConfirm");
-      const passwordMatchError = document.getElementById("passwordMatchError");
-      
-      function validatePasswordMatch() {
-        const password = passwordInput.value;
-        const passwordConfirm = passwordConfirmInput.value;
-        
-        if (passwordConfirm && password !== passwordConfirm) {
-          passwordMatchError.style.display = "block";
-          passwordConfirmInput.style.borderColor = "#dc2626";
-          return false;
-        } else {
-          passwordMatchError.style.display = "none";
-          passwordConfirmInput.style.borderColor = passwordConfirm ? "#10b981" : "#e0e0e0";
-          return true;
-        }
-      }
-      
-      passwordInput.addEventListener("input", validatePasswordMatch);
-      passwordConfirmInput.addEventListener("input", validatePasswordMatch);
+      <div class="form-top">
+        <div class="form-brand">
+          <img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne">
+        </div>
+        <div class="form-greeting">Criar conta grátis</div>
+        <div class="form-tagline">7 dias grátis · sem cartão · cancele quando quiser</div>
+      </div>
 
-      // Toggle mostrar/ocultar senha (com auto-ocultar apos 4 segundos)
-      function setupPwdToggle(btnId, inputId) {
-        const btn = document.getElementById(btnId);
-        const input = document.getElementById(inputId);
-        const iconShow = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-        const iconHide = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-        let hideTimer = null;
-        btn.addEventListener("click", function() {
-          const isHidden = input.type === "password";
-          input.type = isHidden ? "text" : "password";
-          btn.innerHTML = isHidden ? iconHide : iconShow;
-          btn.setAttribute("aria-label", isHidden ? "Ocultar senha" : "Mostrar senha");
-          btn.setAttribute("title", isHidden ? "Ocultar senha" : "Mostrar senha");
-          if (hideTimer) clearTimeout(hideTimer);
-          if (isHidden) {
-            hideTimer = setTimeout(function() {
-              input.type = "password";
-              btn.innerHTML = iconShow;
-              btn.setAttribute("aria-label", "Mostrar senha");
-              btn.setAttribute("title", "Mostrar senha");
-              hideTimer = null;
-            }, 4000);
-          }
-        });
-      }
-      setupPwdToggle("togglePassword", "password");
-      setupPwdToggle("togglePasswordConfirm", "passwordConfirm");
+      <div id="errorMessage" class="err-banner{% if google_oauth_error_text %} show{% endif %}">
+        {% if google_oauth_error_text %}{{ google_oauth_error_text }}{% endif %}
+      </div>
 
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        
-        const username = document.getElementById("username").value;
-        const email = document.getElementById("email").value;
-        const password = document.getElementById("password").value;
-        const passwordConfirm = document.getElementById("passwordConfirm").value;
-        const firstName = document.getElementById("firstName").value;
-        const lastName = document.getElementById("lastName").value;
-        
-        // Validar se as senhas coincidem
-        if (password !== passwordConfirm) {
-          errorMessage.classList.add("show");
-          errorMessage.textContent = "As senhas não coincidem. Por favor, verifique e tente novamente.";
-          passwordMatchError.style.display = "block";
-          passwordConfirmInput.style.borderColor = "#dc2626";
-          return;
-        }
-        
-        errorMessage.classList.remove("show");
-        errorMessage.textContent = "";
-        passwordMatchError.style.display = "none";
-        signupButton.disabled = true;
-        signupButton.textContent = "Criando conta...";
+      {% if google_oauth_client_id %}
+      <script src="https://accounts.google.com/gsi/client?hl=pt_BR" async defer></script>
+      <div class="google-oauth-wrap" id="googleOAuthBlock">
+        <p class="google-hint">Continuar com Google</p>
+        <div class="google-oauth-btn-wrap">
+          <div id="googleSignInBtn" aria-label="Cadastrar com Google"></div>
+        </div>
+      </div>
+      <div class="auth-divider"><span>ou cadastre com e-mail</span></div>
+      {% endif %}
 
-        try {
-          const csrf = getCookie("csrftoken");
-          
-          // Primeiro, criar o usuário
-          const signupResponse = await fetch("/api/auth/signup/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrf || "",
-            },
-            credentials: "same-origin",
-            body: JSON.stringify({
-              username,
-              email,
-              password,
-              password_confirm: passwordConfirm,
-              first_name: firstName,
-              last_name: lastName,
-            }),
-          });
+      <form id="signupForm">
 
-          const signupData = await signupResponse.json();
+        <p class="section-label">Acesso</p>
 
-          if (!signupResponse.ok) {
-            throw new Error(signupData.error || signupData.username?.[0] || signupData.email?.[0] || "Erro ao criar conta");
-          }
+        <div class="field">
+          <input type="text" id="username" name="username" required
+                 autocomplete="username" placeholder="Usuário" />
+          <label for="username">Nome de usuário</label>
+        </div>
 
-          // Fazer login automaticamente
-          const loginResponse = await fetch("/api/auth/login/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrf || "",
-            },
-            credentials: "same-origin",
-            body: JSON.stringify({ username, password }),
-          });
+        <div class="field">
+          <input type="email" id="email" name="email" required
+                 autocomplete="email" placeholder="E-mail" />
+          <label for="email">E-mail</label>
+        </div>
 
-          const loginData = await loginResponse.json();
+        <div class="pwd-wrap field" style="margin-bottom:14px;">
+          <input type="password" id="password" name="password" required
+                 autocomplete="new-password" placeholder="Senha" minlength="8" />
+          <label for="password">Senha</label>
+          <button type="button" class="pwd-toggle" id="togglePassword" aria-label="Mostrar senha">
+            <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="pwd-strength" id="pwdStrength">
+          <div class="pwd-strength-bar"><div class="pwd-strength-fill" id="pwdFill"></div></div>
+          <div class="pwd-strength-label" id="pwdLabel">Força da senha</div>
+        </div>
 
-          if (!loginResponse.ok || !loginData.success) {
-            throw new Error("Conta criada, mas erro ao fazer login. Tente fazer login manualmente.");
-          }
+        <div class="pwd-wrap field" style="margin-bottom:0;">
+          <input type="password" id="passwordConfirm" name="passwordConfirm" required
+                 autocomplete="new-password" placeholder="Confirmar senha" minlength="8" />
+          <label for="passwordConfirm">Confirmar senha</label>
+          <button type="button" class="pwd-toggle" id="togglePasswordConfirm" aria-label="Mostrar senha">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="match-err" id="matchErr">As senhas não coincidem</div>
 
-          // Aguardar um pouco para garantir que a sessão foi estabelecida
-          await new Promise(resolve => setTimeout(resolve, 300));
+        <p class="section-label" style="margin-top:18px;">Sobre você <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#d4cec8;">(opcional)</span></p>
 
-          // Meta Pixel: cadastro concluído
-          if (typeof fbq === 'function') fbq('track', 'CompleteRegistration');
+        <div class="row-2">
+          <div class="field" style="margin-bottom:0;">
+            <input type="text" id="firstName" name="firstName"
+                   autocomplete="given-name" placeholder="Nome" />
+            <label for="firstName">Nome</label>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <input type="text" id="lastName" name="lastName"
+                   autocomplete="family-name" placeholder="Sobrenome" />
+            <label for="lastName">Sobrenome</label>
+          </div>
+        </div>
 
-          // Trial gratuito: ir direto para o app (sem cartão). No dia 7, trava e pede pagamento em /planos/
-          window.location.replace("/");
-        } catch (error) {
-          errorMessage.textContent = error.message || "Erro ao criar conta. Tente novamente.";
-          errorMessage.classList.add("show");
-          signupButton.disabled = false;
-          signupButton.textContent = "Criar Conta e Continuar";
-        }
+        <button type="submit" class="submit-btn" id="signupButton">
+          Criar conta grátis
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </form>
+
+      <div class="trial-note">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        7 dias grátis &nbsp;·&nbsp;
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Sem cartão &nbsp;·&nbsp;
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Cancele a qualquer hora
+      </div>
+
+      <div class="form-foot">
+        Já tem conta? <a href="/login/">Faça login</a>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+  function getCookie(name) {
+    const v = `; ${document.cookie}`, p = v.split(`; ${name}=`);
+    if (p.length === 2) return p.pop().split(';').shift();
+    return null;
+  }
+
+  {% if google_oauth_client_id %}
+  document.cookie = "go_from=signup;path=/;max-age=600;SameSite=Lax";
+  const GOOGLE_CLIENT_ID = "{{ google_oauth_client_id|escapejs }}";
+  const GOOGLE_LOGIN_URI = "{{ google_login_uri|escapejs }}";
+  function initGoogleSignIn() {
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_LOGIN_URI || !window.google?.accounts?.id) return;
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      ux_mode: "redirect",
+      login_uri: GOOGLE_LOGIN_URI,
+      locale: "pt-BR",
+    });
+    const el = document.getElementById("googleSignInBtn");
+    if (!el) return;
+    const formWrap = el.closest(".form-wrap");
+    const btnW = Math.round(
+      Math.min(384, Math.max(280, (formWrap ? formWrap.offsetWidth : 320) - 4))
+    );
+    google.accounts.id.renderButton(el, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      text: "continue_with",
+      shape: "pill",
+      logo_alignment: "left",
+      locale: "pt-BR",
+      width: btnW,
+    });
+  }
+  if (GOOGLE_CLIENT_ID && GOOGLE_LOGIN_URI) {
+    let tries = 0;
+    const iv = setInterval(() => { tries++; if (window.google?.accounts?.id) { clearInterval(iv); initGoogleSignIn(); } else if (tries > 200) clearInterval(iv); }, 25);
+  }
+  (function() {
+    try {
+      if (!/\bgoogle_err=/.test(window.location.search)) return;
+      const u = new URL(window.location.href); u.searchParams.delete('google_err');
+      const q = u.searchParams.toString();
+      window.history.replaceState(null, '', u.pathname + (q ? '?' + q : '') + u.hash);
+    } catch(e) {}
+  })();
+  {% endif %}
+
+  // ── Password strength ───────────────────────────────
+  const pwdInput = document.getElementById('password');
+  const pwdStrength = document.getElementById('pwdStrength');
+  const pwdFill = document.getElementById('pwdFill');
+  const pwdLabel = document.getElementById('pwdLabel');
+
+  pwdInput.addEventListener('input', () => {
+    const v = pwdInput.value;
+    if (!v) { pwdStrength.classList.remove('show'); return; }
+    pwdStrength.classList.add('show');
+    let score = 0;
+    if (v.length >= 8) score++;
+    if (v.length >= 12) score++;
+    if (/[A-Z]/.test(v)) score++;
+    if (/[0-9]/.test(v)) score++;
+    if (/[^A-Za-z0-9]/.test(v)) score++;
+    const levels = [
+      { w:'20%', c:'#ef4444', l:'Muito fraca' },
+      { w:'40%', c:'#f97316', l:'Fraca' },
+      { w:'60%', c:'#f59e0b', l:'Razoável' },
+      { w:'80%', c:'#84cc16', l:'Boa' },
+      { w:'100%',c:'#10b981', l:'Excelente' },
+    ];
+    const lvl = levels[Math.min(score, 4)];
+    pwdFill.style.width = lvl.w;
+    pwdFill.style.background = lvl.c;
+    pwdLabel.textContent = lvl.l;
+    pwdLabel.style.color = lvl.c;
+  });
+
+  // ── Password match ──────────────────────────────────
+  const pwdConfirm = document.getElementById('passwordConfirm');
+  const matchErr   = document.getElementById('matchErr');
+
+  function checkMatch() {
+    if (!pwdConfirm.value) { matchErr.classList.remove('show'); return true; }
+    const ok = pwdInput.value === pwdConfirm.value;
+    matchErr.classList.toggle('show', !ok);
+    pwdConfirm.classList.toggle('error', !ok);
+    pwdConfirm.classList.toggle('valid', ok);
+    return ok;
+  }
+  pwdInput.addEventListener('input', checkMatch);
+  pwdConfirm.addEventListener('input', checkMatch);
+
+  // ── Password toggles ────────────────────────────────
+  function setupToggle(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const inp = document.getElementById(inputId);
+    const eye = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    const eyeOff = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    let timer;
+    btn.addEventListener('click', () => {
+      const hide = inp.type === 'password';
+      inp.type = hide ? 'text' : 'password';
+      btn.querySelector('svg').innerHTML = hide ? eyeOff : eye;
+      if (timer) clearTimeout(timer);
+      if (hide) timer = setTimeout(() => { inp.type = 'password'; btn.querySelector('svg').innerHTML = eye; }, 4000);
+    });
+  }
+  setupToggle('togglePassword', 'password');
+  setupToggle('togglePasswordConfirm', 'passwordConfirm');
+
+  // ── Form submit ─────────────────────────────────────
+  const form   = document.getElementById('signupForm');
+  const errBanner = document.getElementById('errorMessage');
+  const signupBtn = document.getElementById('signupButton');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!checkMatch()) return;
+
+    const username  = document.getElementById('username').value;
+    const email     = document.getElementById('email').value;
+    const password  = pwdInput.value;
+    const passwordConfirm = pwdConfirm.value;
+    const firstName = document.getElementById('firstName').value;
+    const lastName  = document.getElementById('lastName').value;
+
+    if (password !== passwordConfirm) {
+      errBanner.textContent = 'As senhas não coincidem.';
+      errBanner.classList.add('show'); return;
+    }
+
+    errBanner.classList.remove('show');
+    signupBtn.disabled = true;
+    signupBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Criando conta…';
+
+    try {
+      const csrf = getCookie('csrftoken');
+      const signupResp = await fetch('/api/auth/signup/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ username, email, password, password_confirm: passwordConfirm, first_name: firstName, last_name: lastName }),
       });
+      const signupData = await signupResp.json();
+      if (!signupResp.ok) throw new Error(signupData.error || signupData.username?.[0] || signupData.email?.[0] || 'Erro ao criar conta');
 
-      // Foca no campo de usuário ao carregar
-      document.getElementById("username").focus();
-    </script>
-  </body>
+      const loginResp = await fetch('/api/auth/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ username, password }),
+      });
+      const loginData = await loginResp.json();
+      if (!loginResp.ok || !loginData.success) throw new Error('Conta criada! Mas houve um problema no login automático. Tente fazer login.');
+
+      await new Promise(r => setTimeout(r, 300));
+      if (typeof fbq === 'function') fbq('track', 'CompleteRegistration');
+      window.location.replace('/');
+    } catch (err) {
+      errBanner.textContent = err.message || 'Erro ao criar conta. Tente novamente.';
+      errBanner.classList.add('show');
+      signupBtn.disabled = false;
+      signupBtn.innerHTML = 'Criar conta grátis <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+    }
+  });
+
+  document.getElementById('username').focus();
+</script>
+</body>
 </html>

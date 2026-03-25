@@ -662,6 +662,8 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
     agenda_publica_ativa = drf_serializers.BooleanField(required=False, default=False)
     public_availability = drf_serializers.JSONField(required=False, default=dict)
     public_booking_duration = drf_serializers.IntegerField(required=False, default=60, min_value=15, max_value=180)
+    google_picture_url = drf_serializers.URLField(read_only=True)
+    google_hosted_domain = drf_serializers.CharField(read_only=True)
 
     class Meta:
         model = UserProfile
@@ -670,13 +672,14 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
             'password', 'password_confirm',
             'cpf_cnpj', 'phone', 'cep', 'address', 'city', 'state',
             'timezone', 'language', 'photo',
+            'google_picture_url', 'google_hosted_domain',
             'is_admin', 'user_profile', 'role',
             'subscription_status', 'stripe_customer_id',
             'partner_teachers', 'partner_teachers_ids',
             'slug_publico', 'agenda_publica_ativa',
             'public_availability', 'public_booking_duration',
         ]
-        read_only_fields = ['is_admin', 'user_profile', 'username']
+        read_only_fields = ['is_admin', 'user_profile', 'username', 'google_picture_url', 'google_hosted_domain']
     
     def to_representation(self, instance):
         """Customizar representação para incluir dados do User"""

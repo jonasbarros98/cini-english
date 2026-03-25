@@ -1,6 +1,7 @@
 from datetime import datetime, date, timedelta
 from calendar import monthrange
 from django.utils import timezone
+from django.db import IntegrityError
 from django.db.models import Q, Sum, Count, Max
 from decimal import Decimal
 from django.conf import settings
@@ -15,12 +16,13 @@ from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.views.generic import TemplateView, View
 from django.shortcuts import redirect, render, get_object_or_404
 from django.core.mail import send_mail, EmailMessage
 from django.template.loader import render_to_string
 import stripe
+import base64
 import json
 import os
 import re
@@ -4098,6 +4100,171 @@ Login: {getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip(
         print(f"[Signup] Erro ao enviar notificação interna de cadastro: {e}")
 
 
+def _send_signup_welcome_and_hooks(request, user):
+    """E-mail de boas-vindas, notificação interna e webhook n8n (mesmo fluxo do signup manual)."""
+    email = user.email
+    nome = (
+        (user.first_name or '').strip()
+        or (user.get_full_name() or user.username).strip()
+        or 'Você'
+    )
+    link_login = f"{getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')}/login/"
+    welcome_body = f"""Olá, {nome}! 👋
+
+Que bom ter você no EducaflowOne 😊
+
+Você tem 7 dias grátis para experimentar - sem cadastrar cartão. Use à vontade e decida depois.
+
+Para começar rápido:
+
+1️⃣ Cadastre seu primeiro aluno
+2️⃣ Adicione uma aula na agenda
+3️⃣ Veja sua agenda organizada
+
+No 5º dia avisaremos que o trial está terminando. No 7º dia, para continuar, basta escolher um plano na tela de planos.
+
+👉 Acessar minha conta agora
+{link_login}
+
+Aproveite! Se tiver dúvidas, responda este e-mail.
+
+"""
+    _sig_raw = getattr(settings, 'EMAIL_SIGNATURE', '')
+    _sig_welcome = '\n'.join(
+        ln for ln in _sig_raw.splitlines() if 'whatsapp' not in ln.lower()
+    ).strip()
+    if _sig_welcome:
+        welcome_body = welcome_body + _sig_welcome + '\n'
+    try:
+        send_mail(
+            subject='Bem-vindo ao Educaflow 🎉',
+            message=welcome_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception as e:
+        print(f"[Signup] Erro ao enviar email de boas-vindas: {e}")
+
+    try:
+        _send_internal_signup_notification(request, user)
+    except Exception as e:
+        print(f"[Signup] Erro ao notificar cadastro interno: {e}")
+
+    try:
+        _trigger_n8n_onboarding_webhook(request, user)
+    except Exception as e:
+        print(f"[Signup] Erro ao disparar webhook onboarding n8n: {e}")
+
+
+def _google_suggested_username(email: str, sub: str) -> str:
+    """Username único a partir do e-mail Google + sufixo estável."""
+    local = (email.split('@')[0] if '@' in email else 'user').lower()
+    base = re.sub(r'[^a-z0-9_]', '_', local)
+    base = re.sub(r'_+', '_', base).strip('_')[:80] or 'user'
+    digits = re.sub(r'\D', '', sub or '')
+    tail = (digits[-8:] if len(digits) >= 4 else None) or (sub.replace('-', '')[-8:] if sub else '') or 'google'
+    candidate = base
+    if User.objects.filter(username__iexact=candidate).exists():
+        candidate = f'{base}_{tail}'[:150]
+    n = 0
+    while User.objects.filter(username__iexact=candidate).exists():
+        n += 1
+        candidate = f'{base}_{tail}_{n}'[:150]
+    return candidate
+
+
+def _sync_user_from_google_idtoken(user, idinfo: dict) -> None:
+    """
+    Persiste no User/UserProfile o que o JWT do Sign in with Google expõe.
+
+    Inclui tipicamente: sub, email (já aplicado), email_verified, name, given_name,
+    family_name, picture, locale; em contas Workspace também hd (domínio).
+
+    Não inclui telefone: o id_token do fluxo padrão GIS não traz phone_number;
+    seria necessário OAuth com escopos extras + People API.
+    """
+    given = (idinfo.get('given_name') or '')[:150]
+    family = (idinfo.get('family_name') or '')[:150]
+    full_name = (idinfo.get('name') or '').strip()
+
+    u_fields = []
+    if given and not (user.first_name or '').strip():
+        user.first_name = given
+        u_fields.append('first_name')
+    if family and not (user.last_name or '').strip():
+        user.last_name = family
+        u_fields.append('last_name')
+    if not u_fields and full_name and not (user.first_name or '').strip():
+        parts = full_name.split(None, 1)
+        user.first_name = (parts[0] or '')[:150]
+        user.last_name = (parts[1] if len(parts) > 1 else '')[:150]
+        u_fields.extend(['first_name', 'last_name'])
+    if u_fields:
+        user.save(update_fields=list(dict.fromkeys(u_fields)))
+
+    profile, _ = UserProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            'user_profile': UserProfile.PROFILE_TEACHER,
+            'is_admin': False,
+            'trial_ends_at': timezone.now() + timedelta(days=7),
+        },
+    )
+    p_fields = []
+    sub = (idinfo.get('sub') or '').strip()[:255]
+    if sub and profile.google_sub != sub:
+        if not UserProfile.objects.filter(google_sub=sub).exclude(pk=profile.pk).exists():
+            profile.google_sub = sub
+            p_fields.append('google_sub')
+        else:
+            print(f"[Google auth] google_sub já vinculado a outro perfil; user_id={user.id}")
+    pic = (idinfo.get('picture') or '').strip()
+    if pic:
+        pic = pic[:2048]
+        if profile.google_picture_url != pic:
+            profile.google_picture_url = pic
+            p_fields.append('google_picture_url')
+    locale = (idinfo.get('locale') or '').strip()
+    if locale:
+        lang = locale.replace('_', '-')[:10]
+        if profile.language != lang:
+            profile.language = lang
+            p_fields.append('language')
+    hd = (idinfo.get('hd') or '').strip()[:255]
+    if hd and profile.google_hosted_domain != hd:
+        profile.google_hosted_domain = hd
+        p_fields.append('google_hosted_domain')
+    if p_fields:
+        p_fields.append('updated_at')
+        try:
+            profile.save(update_fields=list(dict.fromkeys(p_fields)))
+        except IntegrityError:
+            print(f"[Google auth] IntegrityError ao salvar perfil Google user_id={user.id}")
+
+
+def _session_login_payload(user):
+    """Mesmo shape que login_view (sem chamar login())."""
+    try:
+        is_admin = user.profile.is_admin
+        user_profile = user.profile.user_profile
+    except UserProfile.DoesNotExist:
+        is_admin = False
+        user_profile = None
+    return {
+        'success': True,
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'is_admin': is_admin,
+            'user_profile': user_profile,
+        },
+    }
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def signup_view(request):
@@ -4162,57 +4329,8 @@ def signup_view(request):
             trial_ends_at=timezone.now() + timedelta(days=7),
         )
 
-        # Enviar email de boas-vindas
-        nome = (first_name or '').strip() or (user.get_full_name() or username).strip() or 'Você'
-        link_login = f"{getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')}/login/"
-        welcome_body = f"""Olá, {nome}! 👋
+        _send_signup_welcome_and_hooks(request, user)
 
-Que bom ter você no EducaflowOne 😊
-
-Você tem 7 dias grátis para experimentar - sem cadastrar cartão. Use à vontade e decida depois.
-
-Para começar rápido:
-
-1️⃣ Cadastre seu primeiro aluno
-2️⃣ Adicione uma aula na agenda
-3️⃣ Veja sua agenda organizada
-
-No 5º dia avisaremos que o trial está terminando. No 7º dia, para continuar, basta escolher um plano na tela de planos.
-
-👉 Acessar minha conta agora
-{link_login}
-
-Aproveite! Se tiver dúvidas, responda este e-mail.
-
-"""
-        _sig_raw = getattr(settings, 'EMAIL_SIGNATURE', '')
-        _sig_welcome = '\n'.join(
-            ln for ln in _sig_raw.splitlines() if 'whatsapp' not in ln.lower()
-        ).strip()
-        if _sig_welcome:
-            welcome_body = welcome_body + _sig_welcome + '\n'
-        try:
-            send_mail(
-                subject='Bem-vindo ao Educaflow 🎉',
-                message=welcome_body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=True,
-            )
-        except Exception as e:
-            print(f"[Signup] Erro ao enviar email de boas-vindas: {e}")
-
-        try:
-            _send_internal_signup_notification(request, user)
-        except Exception as e:
-            print(f"[Signup] Erro ao notificar cadastro interno: {e}")
-
-        # Dispara automação no n8n (fire-and-forget) para jornada de ativação no trial
-        try:
-            _trigger_n8n_onboarding_webhook(request, user)
-        except Exception as e:
-            print(f"[Signup] Erro ao disparar webhook onboarding n8n: {e}")
-        
         return Response({
             'success': True,
             'user_id': user.id,
@@ -4224,6 +4342,202 @@ Aproveite! Se tiver dúvidas, responda este e-mail.
             {'error': f'Erro ao criar usuário: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+def _google_auth_run(request, credential: str) -> dict:
+    """
+    Núcleo do login/cadastro Google. credential = JWT (id_token).
+    Retorno:
+      {'ok': True, 'user': User, 'created': bool}
+      {'ok': False, 'status': int, 'error': str, 'err_code': str}
+    err_code: 'config', 'nocred', 'invalid', 'noemail', 'unverified', 'server'
+    """
+    client_id = (getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '') or '').strip()
+    if client_id.startswith('"') and client_id.endswith('"'):
+        client_id = client_id[1:-1].strip()
+    if not client_id:
+        return {'ok': False, 'status': 501, 'error': 'Login com Google não configurado.', 'err_code': 'config'}
+
+    credential = (credential or '').strip()
+    if not credential:
+        return {'ok': False, 'status': 400, 'error': 'Token do Google ausente.', 'err_code': 'nocred'}
+
+    def _jwt_aud_debug():
+        """Só diagnóstico: aud do JWT vs Client ID no Django (sem validar assinatura)."""
+        try:
+            parts = credential.split('.')
+            if len(parts) < 2:
+                return
+            pad = '=' * (-len(parts[1]) % 4)
+            payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad))
+            aud = payload.get('aud')
+            match = aud == client_id or (isinstance(aud, list) and client_id in aud)
+            print(
+                f"[Google auth] JWT aud={aud!r} client_id={client_id!r} audience_match={match} "
+                f"iss={payload.get('iss')!r}"
+            )
+        except Exception as ex:
+            print(f"[Google auth] JWT debug decode: {ex}")
+
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_auth_requests
+
+        idinfo = google_id_token.verify_oauth2_token(
+            credential,
+            google_auth_requests.Request(),
+            client_id,
+            clock_skew_in_seconds=120,
+        )
+    except ValueError as e:
+        _jwt_aud_debug()
+        print(f"[Google auth] verify_oauth2_token ValueError: {e!r}")
+        err_txt = 'Token Google inválido ou expirado. Tente de novo.'
+        if getattr(settings, 'DEBUG', False):
+            err_txt = f'Token Google recusado na verificação: {e}'
+        return {'ok': False, 'status': 401, 'error': err_txt, 'err_code': 'invalid'}
+    except Exception as e:
+        _jwt_aud_debug()
+        print(f"[Google auth] verify_oauth2_token {type(e).__name__}: {e!r}")
+        return {'ok': False, 'status': 502, 'error': f'Erro ao validar Google: {e}', 'err_code': 'invalid'}
+
+    email = (idinfo.get('email') or '').strip().lower()
+    if not email:
+        return {'ok': False, 'status': 400, 'error': 'Conta Google sem e-mail.', 'err_code': 'noemail'}
+    if not idinfo.get('email_verified'):
+        return {
+            'ok': False,
+            'status': 400,
+            'error': 'Confirme o e-mail na sua conta Google antes de continuar.',
+            'err_code': 'unverified',
+        }
+
+    given = (idinfo.get('given_name') or '')[:150]
+    family = (idinfo.get('family_name') or '')[:150]
+    sub = idinfo.get('sub') or ''
+
+    existing = User.objects.filter(email__iexact=email).first()
+    if existing:
+        _sync_user_from_google_idtoken(existing, idinfo)
+        login(request, existing)
+        request.session.save()
+        return {'ok': True, 'user': existing, 'created': False}
+
+    username = _google_suggested_username(email, sub)
+    try:
+        user = User(
+            username=username,
+            email=email,
+            first_name=given,
+            last_name=family,
+        )
+        user.set_unusable_password()
+        user.save()
+        UserProfile.objects.create(
+            user=user,
+            user_profile=UserProfile.PROFILE_TEACHER,
+            is_admin=False,
+            trial_ends_at=timezone.now() + timedelta(days=7),
+        )
+    except Exception as e:
+        return {'ok': False, 'status': 500, 'error': f'Erro ao criar conta: {str(e)}', 'err_code': 'server'}
+
+    _sync_user_from_google_idtoken(user, idinfo)
+
+    _send_signup_welcome_and_hooks(request, user)
+    login(request, user)
+    request.session.save()
+    return {'ok': True, 'user': user, 'created': True}
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def google_auth_view(request):
+    """
+    Cadastro/login com Google (JWT) — chamada AJAX (legado / fallback).
+    Body: { "credential": "<id_token>" }
+    """
+    credential = (request.data.get('credential') or request.data.get('id_token') or '').strip()
+    result = _google_auth_run(request, credential)
+    if not result['ok']:
+        return Response({'error': result['error']}, status=result['status'])
+    user = result['user']
+    payload = _session_login_payload(user)
+    payload['created'] = result['created']
+    st = status.HTTP_201_CREATED if result['created'] else status.HTTP_200_OK
+    return Response(payload, status=st)
+
+
+def _google_oauth_err_messages() -> dict:
+    return {
+        'csrf': 'Falha na verificação com Google. Tente novamente.',
+        'invalid': 'Login com Google inválido ou expirado. Tente de novo.',
+        'nocred': 'Dados do Google incompletos. Tente novamente.',
+        'invalid_flow': 'Acesso inválido ao retorno do Google.',
+        'unverified': 'Confirme o e-mail na sua conta Google antes de continuar.',
+        'noemail': 'Conta Google sem e-mail.',
+        'config': 'Login com Google não está configurado.',
+        'server': 'Erro ao criar conta. Tente mais tarde.',
+        'error': 'Não foi possível entrar com Google.',
+    }
+
+
+def _google_oauth_page_context(request) -> dict:
+    err = request.GET.get('google_err', '').strip()
+    msgs = _google_oauth_err_messages()
+    return {
+        'google_oauth_client_id': getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '') or '',
+        'google_login_uri': request.build_absolute_uri(reverse('api-google-callback')),
+        'google_oauth_error_text': msgs.get(err, '') if err else '',
+    }
+
+
+def _google_oauth_source_return(request) -> str:
+    """Cookie go_from=login|signup (set no front) — evita ?from= na URI do callback."""
+    src = (request.COOKIES.get('go_from') or 'signup').strip().lower()
+    return reverse('login') if src == 'login' else reverse('signup')
+
+
+@csrf_exempt
+def google_auth_redirect_view(request):
+    """
+    GIS ux_mode=redirect: o Google faz POST (form) nesta URL com credential (+ g_csrf_token).
+    Sem popup — evita tela branca em gsi/transform no Chrome/anônimo.
+    """
+    ret = _google_oauth_source_return(request)
+    if request.method == 'GET':
+        return HttpResponseRedirect(f'{ret}?google_err=invalid_flow')
+
+    credential = (request.POST.get('credential') or '').strip()
+    cookie_csrf = request.COOKIES.get('g_csrf_token')
+    body_csrf = request.POST.get('g_csrf_token')
+    if cookie_csrf and body_csrf and cookie_csrf != body_csrf:
+        return HttpResponseRedirect(f'{ret}?google_err=csrf')
+
+    result = _google_auth_run(request, credential)
+    if not result['ok']:
+        code = result.get('err_code') or 'error'
+        return HttpResponseRedirect(f'{ret}?google_err={code}')
+
+    return HttpResponseRedirect(reverse('home'))
+
+
+class SignupPageView(TemplateView):
+    template_name = 'signup.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(_google_oauth_page_context(self.request))
+        return ctx
+
+
+class LoginPageView(TemplateView):
+    template_name = 'login.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx.update(_google_oauth_page_context(self.request))
+        return ctx
 
 
 def _safe_bool_env(name: str, default: bool = False) -> bool:
@@ -6805,17 +7119,22 @@ def _classify_segment(profile, subscription, now):
     ):
         return 'past_due'
 
+    days_since = (now - profile.created_at).total_seconds() / 86400
+
     trial_end = profile.trial_ends_at
     if trial_end:
         days_left = (trial_end - now).total_seconds() / 86400
         if days_left > 0:
+            # Últimos 3 dias do trial: prioridade para retenção (KPI "Trial expirando")
             if days_left <= 3:
                 return 'trial_expiring'
+            # Primeira semana após cadastro: ainda "Novo" (alinha com KPI "Novos (7 dias)")
+            if days_since <= 7:
+                return 'new'
             return 'trial_active'
         return 'trial_expired'
 
-    # Usuário recém-cadastrado sem trial configurado
-    days_since = (now - profile.created_at).total_seconds() / 86400
+    # Sem trial configurado: recém-cadastrado na janela de 7 dias
     if days_since <= 7:
         return 'new'
     return 'no_sub'

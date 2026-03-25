@@ -1,0 +1,471 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    {% include '_meta_pixel.html' %}
+    <title>EDUCAflowOne | Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{% static 'styles.css' %}" />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        box-sizing: border-box;
+      }
+      
+      .login-container {
+        background: white;
+        border-radius: 24px;
+        padding: 48px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 420px;
+        box-sizing: border-box;
+      }
+      
+      .login-header {
+        text-align: center;
+        margin-bottom: 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .login-icon {
+        width: auto;
+        max-width: 480px;
+        height: auto;
+        max-height: 280px;
+        margin: 0 auto 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .login-icon img {
+        width: 100%;
+        height: auto;
+        max-height: 280px;
+        object-fit: contain;
+      }
+      
+      .login-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin: 0 0 8px 0;
+      }
+      
+      .login-subtitle {
+        font-size: 16px;
+        color: #666;
+        margin: 0;
+      }
+      
+      .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .form-group label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #333;
+      }
+      
+      .form-group input {
+        padding: 12px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        font-size: 16px;
+        font-family: inherit;
+        transition: all 0.2s;
+        min-height: 48px;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      
+      .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+      
+      .login-button {
+        padding: 14px 24px;
+        min-height: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 8px;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      .login-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      }
+      
+      .login-button:active {
+        transform: translateY(0);
+      }
+      
+      .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 16px;
+        display: none;
+      }
+      
+      .error-message.show {
+        display: block;
+      }
+
+      .google-oauth-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+      .google-oauth-wrap .google-hint {
+        text-align: center;
+        font-size: 12px;
+        color: #666;
+        margin: 0;
+      }
+      #googleSignInBtn {
+        display: flex;
+        justify-content: center;
+        min-height: 44px;
+      }
+      .auth-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 16px 0 18px;
+        color: #888;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .auth-divider::before,
+      .auth-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: #e5e5e5;
+      }
+
+      .signup-link {
+        text-align: center;
+        margin-top: 24px;
+        font-size: 14px;
+        color: #666;
+      }
+      .signup-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .signup-link a:hover {
+        text-decoration: underline;
+      }
+
+      /* Mobile: layout responsivo e seguro */
+      @media (max-width: 480px) {
+        body {
+          padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)) 12px;
+          align-items: flex-start;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .login-container {
+          padding: 24px 20px 28px;
+          margin: 0 auto;
+          width: 100%;
+          max-width: none;
+        }
+        .login-header {
+          margin-bottom: 24px;
+        }
+        .login-icon {
+          max-height: 140px;
+          margin-bottom: 16px;
+        }
+        .login-icon img {
+          max-height: 140px;
+        }
+        .login-title {
+          font-size: 22px;
+        }
+        .login-subtitle {
+          font-size: 14px;
+        }
+        .login-form {
+          gap: 16px;
+        }
+      }
+      @media (max-width: 360px) {
+        .login-container {
+          padding: 20px 16px 24px;
+        }
+        .login-title {
+          font-size: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    {% if google_oauth_client_id and google_login_uri %}
+    <!--
+      Google OAuth (debug):
+      1) URIs de redirecionamento autorizadas (Web) — copie EXATAMENTE, sem espaços:
+         {{ google_login_uri }}
+      2) O Client ID desta página deve ser o MESMO do item em Credenciais que você editou:
+         {{ google_oauth_client_id }}
+    -->
+    {% endif %}
+    <div class="login-container">
+      <div class="login-header">
+        <div class="login-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
+        <h1 class="login-title">Faça login para continuar</h1>
+        
+      </div>
+      
+      <div id="errorMessage" class="error-message{% if google_oauth_error_text %} show{% endif %}">{% if google_oauth_error_text %}{{ google_oauth_error_text }}{% endif %}</div>
+
+      {% if google_oauth_client_id %}
+      <script src="https://accounts.google.com/gsi/client?hl=pt_BR" async defer></script>
+      <div class="google-oauth-wrap" id="googleOAuthBlock">
+        <p class="google-hint">Continuar com sua conta Google</p>
+        <div id="googleSignInBtn" aria-label="Entrar com Google"></div>
+      </div>
+      <div class="auth-divider"><span>ou entre com usuário e senha</span></div>
+      {% endif %}
+      
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="username">Usuário</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            required
+            autocomplete="username"
+            placeholder="Digite seu usuário"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Senha</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            autocomplete="current-password"
+            placeholder="Digite sua senha"
+          />
+        </div>
+        
+        <button type="submit" class="login-button">Entrar</button>
+      </form>
+
+      <div class="signup-link">
+        Não tem conta? <a href="/signup/">Criar conta</a>
+      </div>
+    </div>
+
+    <script>
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+
+      {% if google_oauth_client_id %}
+      document.cookie = "go_from=login;path=/;max-age=600;SameSite=Lax";
+      const GOOGLE_CLIENT_ID = "{{ google_oauth_client_id|escapejs }}";
+      const GOOGLE_LOGIN_URI = "{{ google_login_uri|escapejs }}";
+
+      function initGoogleSignIn() {
+        if (!GOOGLE_CLIENT_ID || !GOOGLE_LOGIN_URI || !window.google || !google.accounts || !google.accounts.id) return;
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          ux_mode: "redirect",
+          login_uri: GOOGLE_LOGIN_URI,
+          locale: "pt-BR",
+        });
+        const el = document.getElementById("googleSignInBtn");
+        if (el) {
+          google.accounts.id.renderButton(el, {
+            type: "standard",
+            theme: "outline",
+            size: "large",
+            text: "continue_with",
+            shape: "rectangular",
+            locale: "pt-BR",
+            width: 320,
+          });
+        }
+      }
+
+      if (GOOGLE_CLIENT_ID && GOOGLE_LOGIN_URI) {
+        let tries = 0;
+        const iv = setInterval(function () {
+          tries += 1;
+          if (window.google && google.accounts && google.accounts.id) {
+            clearInterval(iv);
+            initGoogleSignIn();
+          } else if (tries > 200) {
+            clearInterval(iv);
+          }
+        }, 25);
+      }
+
+      (function () {
+        try {
+          if (!/\bgoogle_err=/.test(window.location.search)) return;
+          const u = new URL(window.location.href);
+          u.searchParams.delete("google_err");
+          const q = u.searchParams.toString();
+          window.history.replaceState(null, "", u.pathname + (q ? "?" + q : "") + u.hash);
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+      {% endif %}
+
+      const form = document.getElementById("loginForm");
+      const errorMessage = document.getElementById("errorMessage");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        
+        errorMessage.classList.remove("show");
+        errorMessage.textContent = "";
+
+        try {
+          // Obter CSRF token do cookie
+          let csrf = getCookie("csrftoken");
+          
+          // Se não houver CSRF token, fazer uma requisição GET para obter um
+          if (!csrf) {
+            try {
+              // Fazer uma requisição GET para qualquer endpoint que retorne o CSRF token
+              await fetch("/", {
+                method: "GET",
+                credentials: "same-origin",
+              });
+              // O Django define o cookie csrftoken na resposta
+              csrf = getCookie("csrftoken");
+            } catch (e) {
+              console.warn("Não foi possível obter CSRF token:", e);
+            }
+          }
+          
+          const response = await fetch("/api/auth/login/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf || "",
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ username, password }),
+          });
+          
+          // Se receber 403, pode ser problema de CSRF - tentar novamente com novo token
+          if (response.status === 403) {
+            // Tentar obter CSRF token novamente
+            await fetch("/", { method: "GET", credentials: "same-origin" });
+            const newCsrf = getCookie("csrftoken");
+            if (newCsrf) {
+              // Tentar login novamente com novo token
+              const retryResponse = await fetch("/api/auth/login/", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": newCsrf,
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({ username, password }),
+              });
+              
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json();
+                if (retryData.success) {
+                  console.log("Login bem-sucedido após retry, redirecionando...");
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                  window.location.replace("/");
+                  return;
+                }
+              } else {
+                // Se ainda der erro, mostrar mensagem
+                try {
+                  const retryError = await retryResponse.json();
+                  errorMessage.textContent = retryError.error || "Erro ao fazer login";
+                } catch {
+                  errorMessage.textContent = "Erro ao fazer login (403 Forbidden)";
+                }
+                errorMessage.classList.add("show");
+                return;
+              }
+            }
+          }
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            console.log("Login bem-sucedido, redirecionando...");
+            // Aguarda um pouco para garantir que a sessão foi estabelecida
+            await new Promise(resolve => setTimeout(resolve, 200));
+            // Redireciona para o dashboard (visão geral), não para o calendário
+            window.location.replace("/");
+          } else {
+            errorMessage.textContent = data.error || "Erro ao fazer login";
+            errorMessage.classList.add("show");
+          }
+        } catch (error) {
+          errorMessage.textContent = "Erro de conexão. Tente novamente.";
+          errorMessage.classList.add("show");
+        }
+      });
+
+      // Foca no campo de usuário ao carregar
+      document.getElementById("username").focus();
+    </script>
+  </body>
+</html>

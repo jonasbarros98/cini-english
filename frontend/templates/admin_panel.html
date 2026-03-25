@@ -848,15 +848,6 @@
     if (!iso) return null;
     return Math.ceil((new Date(iso) - Date.now()) / 86400000);
   }
-  /** Cadastro nos últimos N dias (rolagem ~168h). Usado no KPI "Novos (7 dias)". */
-  function isSignupWithinLastDays(iso, days) {
-    if (!iso) return false;
-    const t = new Date(iso).getTime();
-    if (Number.isNaN(t)) return false;
-    const ageMs = Date.now() - t;
-    return ageMs >= 0 && ageMs <= days * 86400000;
-  }
-
   // ── Load ─────────────────────────────────────────────────────
   async function load() {
     document.getElementById('btnRefresh').textContent = '⏳ Carregando…';
@@ -881,10 +872,8 @@
   function computeKPIs() {
     const c = seg => allUsers.filter(u => seg==='all' || u.segment===seg).length;
     document.getElementById('kAll').textContent = c('all');
-    // "Novos (7 dias)" = contagem por data de cadastro (UserProfile.created_at), não pelo segmento `new`
-    // (usuários com trial recebem segment trial_active, nunca `new`).
-    document.getElementById('kNew').textContent =
-      allUsers.filter(u => isSignupWithinLastDays(u.created_at, 7)).length;
+    // "Novos (7 dias)" = mesmo critério do badge 🌱 Novo (segment `new` no backend)
+    document.getElementById('kNew').textContent = c('new');
     document.getElementById('kExp').textContent = c('trial_expiring');
     document.getElementById('kXpd').textContent = c('trial_expired');
     document.getElementById('kCan').textContent = c('canceling');
@@ -895,13 +884,7 @@
   function getFiltered() {
     const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
     return allUsers.filter(u => {
-      if (activeSeg !== 'all') {
-        if (activeSeg === 'new') {
-          if (!isSignupWithinLastDays(u.created_at, 7)) return false;
-        } else if (u.segment !== activeSeg) {
-          return false;
-        }
-      }
+      if (activeSeg !== 'all' && u.segment !== activeSeg) return false;
       if (!q) return true;
       return [u.first_name, u.last_name, u.email, u.username, u.city, u.state]
         .some(v => (v||'').toLowerCase().includes(q));

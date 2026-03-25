@@ -792,6 +792,27 @@ class UserProfile(models.Model):
         default='',
         help_text="Tipo do último e-mail de retenção enviado (trial_expiring, trial_expired, canceling)"
     )
+    # Sign in with Google (JWT id_token) — telefone não vem no token; exigiria escopo + People API
+    google_sub = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        help_text="ID estável da conta Google (claim sub)",
+    )
+    google_picture_url = models.URLField(
+        max_length=2048,
+        blank=True,
+        default="",
+        help_text="Foto de perfil (URL) enviada pelo Google",
+    )
+    google_hosted_domain = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Domínio Google Workspace (claim hd), se existir",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
