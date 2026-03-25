@@ -248,17 +248,9 @@ if USE_R2_STORAGE:
         "CacheControl": os.environ.get("R2_CACHE_CONTROL", "max-age=86400"),
     }
 
-    # Django 4.2+ usa o dict STORAGES em vez da string DEFAULT_FILE_STORAGE (deprecated).
-    # Definir STORAGES garante que o backend seja aplicado independentemente de qualquer
-    # inicialização interna do Django que já use o novo formato.
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        },
-        "staticfiles": {
-            "BACKEND": STATICFILES_STORAGE,
-        },
-    }
+    # Apenas mídia (FileField) no R2. Não definir STORAGES["staticfiles"] aqui: misturar
+    # S3 default + Whitenoise via STORAGES pode quebrar staticfiles no Django 6 e gerar 500.
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
     # Diagnóstico no Railway: confirmar que o backend de storage R2/S3 está ativo.
     # (Não imprime secrets; ajuda a verificar "por que o bucket ficou vazio".)
