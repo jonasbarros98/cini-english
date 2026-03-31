@@ -4,6 +4,14 @@
 
 ---
 
+## Onboarding (leitura rápida)
+
+| Ficheiro | Conteúdo |
+|----------|----------|
+| [educaflowone-projeto-essencial.md](educaflowone-projeto-essencial.md) | O que é o SaaS, stack, pastas do repo, módulos principais — para pessoas e IAs começarem tarefas |
+
+---
+
 ## Aluno detalhe (ficha do aluno)
 
 | Ficheiro | Conteúdo |

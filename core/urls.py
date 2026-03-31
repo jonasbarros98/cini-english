@@ -59,12 +59,14 @@ router.register(r"lesson-plans", LessonPlanViewSet, basename="lesson-plan")
 
 urlpatterns = [
     path("painel-admin/", AdminPanelView.as_view(), name="admin-panel"),
-    path("landing/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing"),
-    path("landing-v3/", TemplateView.as_view(template_name="test_landing_v3.html"), name="landing-v3"),
-    path("landing-v4/", TemplateView.as_view(template_name="test_landing_v4.html"), name="landing-v4"),
-    path("landing-v5/", TemplateView.as_view(template_name="test_landing_v5.html"), name="landing-v5"),
-    path("landing-v7/", TemplateView.as_view(template_name="landing_v7.html"), name="landing-v7"),
-    path("landing-v7-estrategica/", TemplateView.as_view(template_name="landing_v7_estrategica.html"), name="landing-v7-estrategica"),
+    # Landings antigas (e experimentos): redireciona para a entrada única "/" (landing_v6 via HomeView).
+    path("landing/", RedirectView.as_view(url="/", permanent=True)),
+    path("landing-v3/", RedirectView.as_view(url="/", permanent=True)),
+    path("landing-v4/", RedirectView.as_view(url="/", permanent=True)),
+    path("landing-v5/", RedirectView.as_view(url="/", permanent=True)),
+    path("landing-v6/", RedirectView.as_view(url="/", permanent=True)),
+    path("landing-v7/", RedirectView.as_view(url="/", permanent=True)),
+    path("landing-v7-estrategica/", RedirectView.as_view(url="/", permanent=True)),
     path("boas-vindas/", TemplateView.as_view(template_name="boas_vindas.html"), name="boas-vindas"),
     path("area-aluno/", TemplateView.as_view(template_name="area_aluno.html"), name="area-aluno"),
     path("aluno/<str:token>/", StudentAreaView.as_view(), name="aluno-area-token"),
@@ -88,7 +90,6 @@ urlpatterns = [
     path("login-v2/", RedirectView.as_view(pattern_name="login", permanent=True), name="login-v2"),
     path("signup/", SignupPageView.as_view(), name="signup"),
     path("signup-v2/", RedirectView.as_view(pattern_name="signup", permanent=True), name="signup-v2"),
-    path("landing-v6/", TemplateView.as_view(template_name="landing_v6.html"), name="landing-v6"),
     path("payment-processing/", TemplateView.as_view(template_name="payment_processing.html"), name="payment-processing"),
     path("api/", include(router.urls)),
     path("api/auth/login/", login_view, name="api-login"),
