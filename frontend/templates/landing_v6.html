@@ -644,6 +644,24 @@
         transform: scale(1.75);
       }
     }
+    /* Print da biblioteca Arquivos: mostrar a interface inteira, sem cover que corta. */
+    .feature-visual.feature-visual--arquivos {
+      background: #f8fafc;
+    }
+    .feature-visual.feature-visual--arquivos img {
+      height: auto;
+      min-height: 300px;
+      max-height: 460px;
+      object-fit: contain;
+      object-position: center top;
+      background: #ffffff;
+      transform-origin: left top;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .feature-visual.feature-visual--arquivos:hover img {
+        transform: scale(1.68);
+      }
+    }
     .feature-text h3 {
       font-family: var(--font-display);
       font-weight: 700;
@@ -1480,6 +1498,10 @@
         min-height: 240px;
         max-height: 380px;
       }
+      .feature-visual.feature-visual--arquivos img {
+        min-height: 220px;
+        max-height: 420px;
+      }
 
       .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; }
       .stats-band { padding: 48px 0; }
@@ -1632,6 +1654,7 @@
       <div class="trust-item"><span class="trust-item-emoji">💰</span> Financeiro completo</div>
       <div class="trust-item"><span class="trust-item-emoji">🎓</span> Área do aluno</div>
       <div class="trust-item"><span class="trust-item-emoji">📋</span> Planejamento</div>
+      <div class="trust-item"><span class="trust-item-emoji">📎</span> Biblioteca de arquivos</div>
     </div>
   </div>
 </section>
@@ -1748,6 +1771,26 @@
       </div>
       <div class="feature-visual feature-visual--zoom feature-visual--planning reveal">
         <img src="{% static 'img/Planejamento.png' %}" alt="Planejamento de aulas EDUCAflowOne">
+      </div>
+    </div>
+
+    <!-- Feature 5: Arquivos (biblioteca do professor) -->
+    <div class="feature-block">
+      <div class="feature-visual feature-visual--zoom feature-visual--arquivos reveal">
+        <img src="{% static 'img/arquivos_biblioteca.png' %}" alt="Biblioteca de arquivos EDUCAflowOne" decoding="async">
+      </div>
+      <div class="feature-text reveal">
+        <h3>📎 Biblioteca de Arquivos</h3>
+        <p>
+          Tudo fica na sua conta: PDF, áudio, vídeo, imagem ou link. Você marca com tags, acha rápido na correria
+          e, na hora que precisar, manda <strong>qualquer anexo direto para um aluno</strong>. O arquivo vai parar
+          no material dele na área do aluno, sem novo upload e sem depender de grupo no WhatsApp.
+        </p>
+        <div class="feature-bullets">
+          <div class="feature-bullet">Busca e filtros por tipo e tag</div>
+          <div class="feature-bullet">Links úteis guardados junto dos arquivos</div>
+          <div class="feature-bullet">Compartilhar com o aluno em um clique</div>
+        </div>
       </div>
     </div>
   </div>
