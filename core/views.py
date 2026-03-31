@@ -3495,12 +3495,91 @@ Para gerenciar sua assinatura (cartão, cancelamento, etc.):
         print(f"   Erro ao enviar email de confirmação: {e}")
 
 
+def _render_subscription_notice_email(*, title, subtitle, intro, body_html, cta_label, cta_url, tone="warning"):
+    """Template HTML padrão para notificações de assinatura."""
+    palette = {
+        "warning": {
+            "grad": "linear-gradient(135deg,#f59e0b 0%,#d97706 100%)",
+            "cta": "#d97706",
+            "emoji": "⚠️",
+        },
+        "danger": {
+            "grad": "linear-gradient(135deg,#ef4444 0%,#dc2626 100%)",
+            "cta": "#dc2626",
+            "emoji": "🧾",
+        },
+    }.get(tone, {"grad": "linear-gradient(135deg,#6b7280 0%,#4b5563 100%)", "cta": "#4b5563", "emoji": "📩"})
+
+    site = getattr(settings, "SITE_URL", "https://www.educaflowone.com.br").rstrip("/")
+
+    def safe(text):
+        text = text or ""
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-BR">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>{safe(title)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f4f2;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f4f2">
+<tr><td align="center" style="padding:40px 16px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
+  <tr><td style="background:{palette['grad']};border-radius:20px 20px 0 0;padding:40px 40px 36px;text-align:center;">
+    <div style="font-size:46px;margin-bottom:14px;line-height:1;">{palette['emoji']}</div>
+    <h1 style="margin:0 0 8px;font-size:25px;font-weight:800;color:#ffffff;letter-spacing:-0.03em;line-height:1.25;">
+      {safe(title)}
+    </h1>
+    <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.9);font-weight:500;line-height:1.5;">
+      {safe(subtitle)}
+    </p>
+  </td></tr>
+
+  <tr><td style="background:#ffffff;padding:34px 38px 26px;">
+    <p style="margin:0 0 16px;font-size:16px;font-weight:700;color:#1c1917;">{safe(intro)}</p>
+    {body_html}
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">
+      <tr><td align="center">
+        <a href="{safe(cta_url)}"
+           style="display:inline-block;background:{palette['cta']};color:#ffffff;font-size:15px;font-weight:700;
+                  text-decoration:none;padding:14px 34px;border-radius:99px;letter-spacing:-0.01em;
+                  box-shadow:0 4px 14px rgba(0,0,0,.18);">
+          {safe(cta_label)} &rarr;
+        </a>
+      </td></tr>
+    </table>
+
+    <p style="margin:18px 0 0;font-size:12.5px;color:#9ca3af;text-align:center;line-height:1.5;">
+      Ou acesse: <a href="{site}" style="color:#6b7280;text-decoration:underline;">{site}</a>
+    </p>
+  </td></tr>
+
+  <tr><td style="background:#f9f8f6;border-radius:0 0 20px 20px;padding:24px 38px;text-align:center;border-top:1px solid #ede8e0;">
+    <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;font-weight:500;">EducaflowOne</p>
+    <p style="margin:0;font-size:11px;color:#c4c4c4;line-height:1.6;">
+      Você recebeu este e-mail pois possui uma conta na plataforma.<br>
+      <a href="{site}" style="color:#c4c4c4;text-decoration:underline;">www.educaflowone.com.br</a>
+    </p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+
 def _send_subscription_cancel_scheduled_email(subscription, period_end_date=None):
-    """Envia email quando usuário agenda cancelamento (cancel_at_period_end)."""
+    """Envia email quando usuário agenda cancelamento (cancel_at_period_end).
+
+    Retorna True se enviou, False se falhou.
+    """
     try:
         user = subscription.user
         if not user or not user.email:
-            return
+            return False
         nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
         plano = f"{subscription.get_tier_display()} - {subscription.get_plan_display()}"
         site_url = getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')
@@ -3508,7 +3587,7 @@ def _send_subscription_cancel_scheduled_email(subscription, period_end_date=None
         signature = getattr(settings, 'EMAIL_SIGNATURE', '')
         data_fim = period_end_date or subscription.current_period_end
         data_str = data_fim.strftime('%d/%m/%Y') if data_fim else 'o fim do período atual'
-        body = f"""Olá, {nome},
+        plain_body = f"""Olá, {nome},
 
 Recebemos sua solicitação de cancelamento da assinatura EDUCAflowOne.
 
@@ -3517,63 +3596,120 @@ Cancelamento agendado para: {data_str}
 
 Seu acesso ao sistema continua normalmente até essa data. Nenhuma nova cobrança será feita.
 
-Mudou de ideia? Você pode desfazer o cancelamento a qualquer momento antes do fim do período:
-
-👉 Gerenciar assinatura (desfazer cancelamento)
+Mudou de ideia? Você pode desfazer o cancelamento antes do fim do período:
 {link_planos}
 
-Acesse a página de planos e clique em "Gerenciar assinatura" para reativar.
-
 {signature}"""
-        send_mail(
-            subject='Cancelamento agendado – EDUCAflowOne',
-            message=body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=True,
+        body_html = f"""
+        <p style="margin:0 0 14px;font-size:15px;color:#374151;line-height:1.7;">
+          Recebemos sua solicitação de cancelamento da assinatura EDUCAflowOne.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 8px;">
+          <tr><td style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:14px 18px;">
+            <p style="margin:0 0 6px;font-size:14px;color:#374151;"><strong>Plano:</strong> {plano}</p>
+            <p style="margin:0;font-size:14px;color:#374151;"><strong>Cancelamento agendado para:</strong> {data_str}</p>
+          </td></tr>
+        </table>
+        <p style="margin:14px 0 0;font-size:14px;color:#6b7280;line-height:1.7;">
+          Seu acesso continua normalmente até essa data e nenhuma nova cobrança será feita.
+        </p>
+        <p style="margin:10px 0 0;font-size:14px;color:#6b7280;line-height:1.7;">
+          Mudou de ideia? Você pode desfazer o cancelamento a qualquer momento antes do fim do período.
+        </p>
+        <p style="margin:14px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">{signature.replace(chr(10), '<br>')}</p>
+        """
+        html = _render_subscription_notice_email(
+            title="Cancelamento agendado",
+            subtitle="Sua assinatura segue ativa até o fim do período atual",
+            intro=f"Olá, {nome}",
+            body_html=body_html,
+            cta_label="Gerenciar assinatura",
+            cta_url=link_planos,
+            tone="warning",
         )
+        msg = EmailMessage(
+            subject='Cancelamento agendado – EDUCAflowOne',
+            body=plain_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        msg.content_subtype = "html"
+        msg.body = html
+        msg.send(fail_silently=False)
         print(f"   Email de cancelamento agendado enviado para {user.email}")
+        return True
     except Exception as e:
         print(f"   Erro ao enviar email de cancelamento agendado: {e}")
+        return False
 
 
 def _send_subscription_canceled_email(subscription):
-    """Envia email de confirmação quando assinatura é efetivamente cancelada (fim do período)."""
+    """Envia email quando assinatura é efetivamente cancelada (fim do período).
+
+    Retorna True se enviou, False se falhou.
+    """
     try:
         user = subscription.user
         if not user or not user.email:
-            return
+            return False
         nome = (user.first_name or '').strip() or (user.get_full_name() or user.username).strip() or 'Você'
         plano = f"{subscription.get_tier_display()} - {subscription.get_plan_display()}"
         site_url = getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')
         link_planos = f"{site_url}/planos/"
         signature = getattr(settings, 'EMAIL_SIGNATURE', '')
-        body = f"""Olá, {nome},
+        plain_body = f"""Olá, {nome},
 
-Recebemos a solicitação de cancelamento da sua assinatura EDUCAflowOne.
+Sua assinatura EDUCAflowOne foi cancelada.
 
 Plano cancelado: {plano}
 
-Seu acesso ao sistema continuará até o fim do período já pago. Após isso, você precisará assinar novamente para voltar a usar.
+Seu acesso seguirá até o fim do período já pago. Depois disso, será necessário assinar novamente.
 
-Mudou de ideia? Você pode reativar a qualquer momento:
-
-👉 Ver planos e assinar novamente
+Para reativar quando quiser:
 {link_planos}
 
-Sentiremos sua falta! Se tiver feedback ou sugestões, é só responder este email.
-
 {signature}"""
-        send_mail(
-            subject='Assinatura cancelada – EDUCAflowOne',
-            message=body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=True,
+        body_html = f"""
+        <p style="margin:0 0 14px;font-size:15px;color:#374151;line-height:1.7;">
+          Recebemos a solicitação de cancelamento da sua assinatura EDUCAflowOne.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 8px;">
+          <tr><td style="background:#fff1f2;border:1px solid #fecdd3;border-radius:14px;padding:14px 18px;">
+            <p style="margin:0;font-size:14px;color:#374151;"><strong>Plano cancelado:</strong> {plano}</p>
+          </td></tr>
+        </table>
+        <p style="margin:14px 0 0;font-size:14px;color:#6b7280;line-height:1.7;">
+          Seu acesso ao sistema continuará até o fim do período já pago.
+          Após isso, você precisará assinar novamente para voltar a usar.
+        </p>
+        <p style="margin:10px 0 0;font-size:14px;color:#6b7280;line-height:1.7;">
+          Sentiremos sua falta! Se tiver feedback ou sugestões, é só responder este e-mail.
+        </p>
+        <p style="margin:14px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">{signature.replace(chr(10), '<br>')}</p>
+        """
+        html = _render_subscription_notice_email(
+            title="Assinatura cancelada",
+            subtitle="Quando quiser, você pode reativar em poucos cliques",
+            intro=f"Olá, {nome}",
+            body_html=body_html,
+            cta_label="Ver planos e assinar novamente",
+            cta_url=link_planos,
+            tone="danger",
         )
+        msg = EmailMessage(
+            subject='Assinatura cancelada – EDUCAflowOne',
+            body=plain_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        msg.content_subtype = "html"
+        msg.body = html
+        msg.send(fail_silently=False)
         print(f"   Email de cancelamento enviado para {user.email}")
+        return True
     except Exception as e:
         print(f"   Erro ao enviar email de cancelamento: {e}")
+        return False
 
 
 def _send_payment_failed_email(subscription):
@@ -3981,10 +4117,13 @@ def handle_subscription_updated(subscription_obj):
         # Email quando usuário agenda cancelamento (envia 1 vez por agendamento)
         if cancel_at_period_end and not subscription.cancel_scheduled_email_sent_at:
             period_end_date = subscription.current_period_end
-            _send_subscription_cancel_scheduled_email(subscription, period_end_date)
-            subscription.cancel_scheduled_email_sent_at = timezone.now()
-            subscription.save(update_fields=['cancel_scheduled_email_sent_at'])
-            print(f"[subscription.updated] Email cancelamento agendado enviado para {subscription.user.email}")
+            sent_ok = _send_subscription_cancel_scheduled_email(subscription, period_end_date)
+            if sent_ok:
+                subscription.cancel_scheduled_email_sent_at = timezone.now()
+                subscription.save(update_fields=['cancel_scheduled_email_sent_at'])
+                print(f"[subscription.updated] Email cancelamento agendado enviado para {subscription.user.email}")
+            else:
+                print(f"[subscription.updated] Email cancelamento agendado NÃO enviado para {subscription.user.email}")
         
     except Exception as e:
         print(f"[subscription.updated] Erro: {e}")
@@ -4606,25 +4745,22 @@ def _send_signup_welcome_and_hooks(request, user):
         or 'Você'
     )
     link_login = f"{getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')}/login/"
-    welcome_body = f"""Olá, {nome}! 👋
+    link_planos = f"{getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')}/planos/"
+    welcome_body = f"""Olá, {nome}!
 
-Que bom ter você no EducaflowOne 😊
+Que bom ter você no EducaflowOne.
 
-Você tem 7 dias grátis para experimentar - sem cadastrar cartão. Use à vontade e decida depois.
+Você tem 7 dias grátis para experimentar (sem cartão).
 
 Para começar rápido:
+1) Cadastre seu primeiro aluno
+2) Adicione uma aula na agenda
+3) Veja sua semana organizada
 
-1️⃣ Cadastre seu primeiro aluno
-2️⃣ Adicione uma aula na agenda
-3️⃣ Veja sua agenda organizada
-
-No 5º dia avisaremos que o trial está terminando. No 7º dia, para continuar, basta escolher um plano na tela de planos.
-
-👉 Acessar minha conta agora
+Acessar minha conta:
 {link_login}
 
-Aproveite! Se tiver dúvidas, responda este e-mail.
-
+Se precisar, é só responder este e-mail.
 """
     _sig_raw = getattr(settings, 'EMAIL_SIGNATURE', '')
     _sig_welcome = '\n'.join(
@@ -4632,14 +4768,85 @@ Aproveite! Se tiver dúvidas, responda este e-mail.
     ).strip()
     if _sig_welcome:
         welcome_body = welcome_body + _sig_welcome + '\n'
+    sig_html = _sig_welcome.replace('\n', '<br>') if _sig_welcome else ''
+    welcome_html = f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt-BR">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Bem-vindo ao EducaflowOne</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f4f2;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f4f2">
+<tr><td align="center" style="padding:40px 16px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
+  <tr><td style="background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);border-radius:20px 20px 0 0;padding:40px 40px 36px;text-align:center;">
+    <div style="font-size:48px;margin-bottom:14px;line-height:1;">👋</div>
+    <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#ffffff;letter-spacing:-0.03em;line-height:1.25;">Bem-vindo ao EducaflowOne</h1>
+    <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.90);font-weight:500;line-height:1.5;">Seu período de teste já está ativo e pronto para uso.</p>
+  </td></tr>
+
+  <tr><td style="background:#ffffff;padding:34px 38px 26px;">
+    <p style="margin:0 0 14px;font-size:16px;font-weight:700;color:#1c1917;">Olá, {nome}!</p>
+    <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.7;">
+      Você tem <strong>7 dias grátis</strong> para testar tudo — sem cadastrar cartão.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:14px 0 10px;">
+      <tr><td style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:14px 18px;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1d4ed8;">Comece em 3 passos</p>
+        <p style="margin:0 0 6px;font-size:14px;color:#374151;">1) Cadastre seu primeiro aluno</p>
+        <p style="margin:0 0 6px;font-size:14px;color:#374151;">2) Adicione uma aula na agenda</p>
+        <p style="margin:0;font-size:14px;color:#374151;">3) Veja sua semana organizada</p>
+      </td></tr>
+    </table>
+
+    <p style="margin:12px 0 0;font-size:14px;color:#6b7280;line-height:1.7;">
+      No 5º dia vamos lembrar que o trial está acabando. No 7º dia, se quiser continuar, basta escolher um plano.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">
+      <tr><td align="center">
+        <a href="{link_login}"
+           style="display:inline-block;background:#1d4ed8;color:#ffffff;font-size:15px;font-weight:700;
+                  text-decoration:none;padding:14px 34px;border-radius:99px;letter-spacing:-0.01em;
+                  box-shadow:0 4px 14px rgba(0,0,0,.18);">
+          Acessar minha conta agora &rarr;
+        </a>
+      </td></tr>
+    </table>
+
+    <p style="margin:12px 0 0;font-size:13px;color:#6b7280;line-height:1.6;text-align:center;">
+      Ou veja os planos: <a href="{link_planos}" style="color:#1d4ed8;text-decoration:underline;">{link_planos}</a>
+    </p>
+
+    <p style="margin:14px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">
+      {sig_html}
+    </p>
+  </td></tr>
+
+  <tr><td style="background:#f9f8f6;border-radius:0 0 20px 20px;padding:24px 38px;text-align:center;border-top:1px solid #ede8e0;">
+    <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;font-weight:500;">EducaflowOne</p>
+    <p style="margin:0;font-size:11px;color:#c4c4c4;line-height:1.6;">
+      Você recebeu este e-mail porque criou uma conta na plataforma.<br>
+      <a href="{getattr(settings, 'SITE_URL', 'https://www.educaflowone.com.br').rstrip('/')}" style="color:#c4c4c4;text-decoration:underline;">www.educaflowone.com.br</a>
+    </p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
     try:
-        send_mail(
+        msg = EmailMessage(
             subject='Bem-vindo ao Educaflow 🎉',
-            message=welcome_body,
+            body=welcome_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=True,
+            to=[email],
         )
+        msg.content_subtype = 'html'
+        msg.body = welcome_html
+        msg.send(fail_silently=False)
     except Exception as e:
         print(f"[Signup] Erro ao enviar email de boas-vindas: {e}")
 
@@ -7949,3 +8156,338 @@ def admin_send_retention_email(request):
             'subject': log_entry.subject,
         },
     })
+
+
+# ── Admin: Feature announcement emails (MVP) ────────────────────────────────
+
+def _get_feature_email_recipients():
+    """
+    Destinatários para emails de anúncio de funcionalidade (admin-only).
+
+    MVP rule:
+    - subscription.status == active
+    - user.profile.user_profile != prof_parceiro
+    - user.profile.is_admin == False
+    - user.email != empty
+    """
+    from .models import Subscription, UserProfile
+
+    return (
+        User.objects.select_related("profile", "subscription")
+        .filter(subscription__status=Subscription.STATUS_ACTIVE)
+        .exclude(email__isnull=True)
+        .exclude(email="")
+        .exclude(profile__user_profile=UserProfile.PROFILE_PARTNER_TEACHER)
+        .exclude(profile__is_admin=True)
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def feature_email_campaigns_list(request):
+    try:
+        if not request.user.profile.is_admin:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+    except Exception:
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    from .models import FeatureEmailCampaign
+
+    campaigns = FeatureEmailCampaign.objects.all().order_by("-created_at")[:50]
+    data = []
+    for c in campaigns:
+        data.append(
+            {
+                "id": c.id,
+                "title": c.title,
+                "subject": c.subject,
+                "preview_text": c.preview_text,
+                "feature_name": c.feature_name,
+                "cta_label": c.cta_label,
+                "cta_url": c.cta_url,
+                "status": c.status,
+                "sent_at": c.sent_at.isoformat() if c.sent_at else None,
+                "recipient_count": c.recipient_count,
+            }
+        )
+    return Response({"campaigns": data})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def feature_email_recipient_count(request):
+    try:
+        if not request.user.profile.is_admin:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+    except Exception:
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    recipients = _get_feature_email_recipients()
+    return Response({"count": recipients.count()})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def feature_email_preview(request):
+    """
+    Query params:
+    - feature_name
+    - preview_text
+    - body_1 / body_2 / body_3
+    - cta_label
+    - cta_url
+    """
+    try:
+        if not request.user.profile.is_admin:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+    except Exception:
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    from .feature_emails import render_feature_announcement_email
+
+    if request.method == "POST":
+        payload = request.data if hasattr(request, "data") else {}
+        feature_name = (payload.get("feature_name") or "").strip() or "Nova Funcionalidade"
+        preview_text = (payload.get("preview_text") or "").strip()
+        cta_label = (payload.get("cta_label") or "").strip() or "Acessar agora"
+        cta_url = (payload.get("cta_url") or "").strip() or "https://www.educaflowone.com.br/"
+        body_paragraphs = payload.get("body_json") or []
+        if not isinstance(body_paragraphs, list):
+            body_paragraphs = []
+    else:
+        p = request.query_params
+        feature_name = (p.get("feature_name") or "").strip() or "Nova Funcionalidade"
+        preview_text = (p.get("preview_text") or "").strip()
+        cta_label = (p.get("cta_label") or "").strip() or "Acessar agora"
+        cta_url = (p.get("cta_url") or "").strip() or "https://www.educaflowone.com.br/"
+        # Compatibilidade: aceita body repetido (?body=...&body=...) e legado body_1..body_3
+        body_paragraphs = [b.strip() for b in p.getlist("body") if b and b.strip()]
+        if not body_paragraphs:
+            body_paragraphs = [
+                (p.get("body_1") or "").strip(),
+                (p.get("body_2") or "").strip(),
+                (p.get("body_3") or "").strip(),
+            ]
+
+    html = render_feature_announcement_email(
+        feature_name=feature_name,
+        preview_text=preview_text,
+        body_paragraphs=body_paragraphs
+        if any(str(p).strip() for p in body_paragraphs)
+        else ["Conteúdo de exemplo do anúncio. Preencha os campos para personalizar."],
+        cta_label=cta_label,
+        cta_url=cta_url,
+        recipient_first_name="Professor",
+        recipient_plan_name="Premium",
+    )
+
+    return Response({"html": html})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def send_feature_email_campaign(request):
+    """
+    Body JSON:
+    {
+      title, subject, preview_text, feature_name,
+      body_json: [paragraph1, paragraph2, paragraph3],
+      cta_label, cta_url
+    }
+    """
+    try:
+        if not request.user.profile.is_admin:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+    except Exception:
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    from .feature_emails import render_feature_announcement_email
+    from .models import FeatureEmailCampaign, FeatureEmailLog
+    from django.core.mail import EmailMessage as DjangoEmailMessage
+
+    data = request.data or {}
+
+    required = ["title", "subject", "feature_name", "body_json", "cta_label", "cta_url"]
+    for field in required:
+        if not data.get(field):
+            return Response({"detail": f"Campo obrigatório: {field}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    body_json = data.get("body_json") or []
+    if not isinstance(body_json, list) or not any(str(p).strip() for p in body_json if p):
+        return Response({"detail": "body_json deve ser uma lista com pelo menos um parágrafo."}, status=status.HTTP_400_BAD_REQUEST)
+
+    campaign = FeatureEmailCampaign.objects.create(
+        title=str(data["title"]).strip(),
+        status=FeatureEmailCampaign.STATUS_DRAFT,
+        subject=str(data["subject"]).strip(),
+        preview_text=str(data.get("preview_text") or "").strip(),
+        feature_name=str(data["feature_name"]).strip(),
+        body_json=body_json,
+        cta_label=str(data["cta_label"]).strip(),
+        cta_url=str(data["cta_url"]).strip(),
+        sent_by=request.user,
+    )
+
+    recipients = _get_feature_email_recipients()
+    total = recipients.count()
+
+    max_sync = int(os.environ.get("FEATURE_EMAIL_SYNC_LIMIT", "100"))
+    if total > max_sync:
+        try:
+            campaign.delete()
+        except Exception:
+            pass
+        return Response(
+            {
+                "detail": f"MVP de envio síncrono limitado a {max_sync} destinatários. Ajuste FEATURE_EMAIL_SYNC_LIMIT ou envie para um grupo menor.",
+                "total_selected": total,
+                "campaign_id": campaign.id,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    sent_count = 0
+    failed_count = 0
+    logs_to_create = []
+    now = timezone.now()
+
+    for user in recipients.iterator():
+        first_name = (user.first_name or user.username or "Professor").strip()
+
+        plan_name = ""
+        try:
+            sub = getattr(user, "subscription", None)
+            if sub and sub.is_active:
+                plan_name = (sub.tier or "").capitalize()
+        except Exception:
+            plan_name = ""
+
+        try:
+            html = render_feature_announcement_email(
+                feature_name=campaign.feature_name,
+                preview_text=campaign.preview_text,
+                body_paragraphs=[p for p in campaign.body_json if p and str(p).strip()],
+                cta_label=campaign.cta_label,
+                cta_url=campaign.cta_url,
+                recipient_first_name=first_name,
+                recipient_plan_name=plan_name,
+            )
+
+            msg = DjangoEmailMessage(
+                subject=campaign.subject,
+                body=html,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[user.email],
+            )
+            msg.content_subtype = "html"
+            msg.send(fail_silently=False)
+
+            logs_to_create.append(
+                FeatureEmailLog(campaign=campaign, user=user, status=FeatureEmailLog.STATUS_SENT)
+            )
+            sent_count += 1
+        except Exception as e:
+            logs_to_create.append(
+                FeatureEmailLog(
+                    campaign=campaign,
+                    user=user,
+                    status=FeatureEmailLog.STATUS_FAILED,
+                    error_message=str(e)[:500],
+                )
+            )
+            failed_count += 1
+
+    # Persiste logs (1 por user/campaign)
+    FeatureEmailLog.objects.bulk_create(logs_to_create, ignore_conflicts=True)
+
+    campaign.status = FeatureEmailCampaign.STATUS_SENT
+    campaign.sent_at = now
+    campaign.recipient_count = total
+    campaign.save(update_fields=["status", "sent_at", "recipient_count", "updated_at"])
+
+    return Response(
+        {
+            "success": True,
+            "campaign_id": campaign.id,
+            "total": total,
+            "sent_count": sent_count,
+            "failed_count": failed_count,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def admin_test_subscription_email(request):
+    """
+    Disparo manual para testar templates de assinatura sem depender de webhook.
+
+    Body JSON:
+      {
+        "kind": "cancel_scheduled" | "canceled",
+        "recipient_mode": "both" | "jonas" | "educaflow"
+      }
+    """
+    try:
+        if not request.user.profile.is_admin:
+            return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+    except Exception:
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    kind = (request.data.get("kind") or "").strip()
+    if kind not in {"cancel_scheduled", "canceled"}:
+        return Response({"detail": "kind inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
+    recipient_mode = (request.data.get("recipient_mode") or "both").strip()
+    targets = {
+        "jonas": ["jonasbarros98@gmail.com"],
+        "educaflow": ["educaflowone@gmail.com"],
+        "both": ["jonasbarros98@gmail.com", "educaflowone@gmail.com"],
+    }
+    recipients = targets.get(recipient_mode, targets["both"])
+
+    class _DummyUser:
+        def __init__(self, email):
+            self.email = email
+            self.first_name = (email.split("@")[0] or "Jonas").split(".")[0].capitalize()
+            self.username = self.first_name.lower()
+
+        def get_full_name(self):
+            return self.first_name
+
+    class _DummySubscription:
+        def __init__(self, email):
+            self.user = _DummyUser(email)
+            self.current_period_end = timezone.now() + timedelta(days=27)
+
+        def get_tier_display(self):
+            return "Premium"
+
+        def get_plan_display(self):
+            return "Mensal"
+
+    sent = []
+    failed = []
+    for email in recipients:
+        dummy_sub = _DummySubscription(email)
+        if kind == "cancel_scheduled":
+            ok = _send_subscription_cancel_scheduled_email(dummy_sub, dummy_sub.current_period_end)
+        else:
+            ok = _send_subscription_canceled_email(dummy_sub)
+        if ok:
+            sent.append(email)
+        else:
+            failed.append(email)
+
+    return Response(
+        {
+            "success": True,
+            "kind": kind,
+            "recipient_mode": recipient_mode,
+            "sent": sent,
+            "failed": failed,
+        },
+        status=status.HTTP_200_OK if not failed else status.HTTP_207_MULTI_STATUS,
+    )
+

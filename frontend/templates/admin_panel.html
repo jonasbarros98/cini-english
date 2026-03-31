@@ -605,6 +605,27 @@
       background: #f0ede8;
     }
 
+    /* Modal de Nova Campanha maior (sem impactar modal de retenção) */
+    #featureEmailCampaignModal .em-wrap {
+      max-width: 1220px;
+      height: 92vh;
+      max-height: 860px;
+    }
+    #featureEmailCampaignModal .em-left {
+      width: 460px !important;
+    }
+    #featureEmailCampaignModal .em-fields {
+      gap: 18px;
+      padding: 20px 22px;
+    }
+    #featureEmailCampaignModal .d-textarea {
+      min-height: 118px;
+    }
+    #featureEmailCampaignModal .em-preview-to {
+      max-width: 520px;
+      text-align: right;
+    }
+
     /* ── RESPONSIVE ──────────────────────────────────────── */
     @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 800px)  {
@@ -629,6 +650,8 @@
     <div class="header-right">
       <span class="refresh-ts" id="refreshTs"></span>
       <button class="btn-ghost" id="btnRefresh">↻ Atualizar</button>
+      <button class="btn-ghost" id="btnSubscriptionEmailTest" type="button">🧪 Testar e-mails assinatura</button>
+      <button class="btn btn-dark" id="btnNewFeatureCampaign" type="button">📢 Nova campanha</button>
     </div>
   </header>
 
@@ -738,6 +761,37 @@
     </div>
   </div>
 
+  <!-- ═══ SUBSCRIPTION EMAIL TEST POPUP ═══════════════════════ -->
+  <div class="resend-popup-overlay" id="subscriptionEmailTestPopup">
+    <div class="resend-popup" style="max-width:460px;text-align:left;">
+      <div class="resend-popup-icon" style="text-align:center;">🧪</div>
+      <h3 style="text-align:center;">Teste de e-mails de assinatura</h3>
+      <p style="text-align:center;margin-bottom:12px;">Envio manual para seus e-mails pessoais.</p>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;">
+        <label class="em-label" style="margin-bottom:0;">Template</label>
+        <select id="subEmailTestKind" class="d-input">
+          <option value="cancel_scheduled">Cancelamento agendado</option>
+          <option value="canceled">Assinatura cancelada</option>
+        </select>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <label class="em-label" style="margin-bottom:0;">Destino</label>
+        <select id="subEmailRecipientMode" class="d-input">
+          <option value="both">Ambos (jonasbarros98 + educaflowone)</option>
+          <option value="jonas">Apenas jonasbarros98@gmail.com</option>
+          <option value="educaflow">Apenas educaflowone@gmail.com</option>
+        </select>
+      </div>
+
+      <div class="resend-popup-actions" style="margin-top:18px;">
+        <button class="btn" onclick="closeSubscriptionEmailTestPopup()" type="button">Cancelar</button>
+        <button class="btn btn-dark" id="subEmailTestSendBtn" onclick="sendSubscriptionEmailTest()" type="button">Enviar teste</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ EMAIL MODAL ════════════════════════════════════════ -->
   <div class="em-overlay" id="emailModal">
     <div class="em-wrap">
@@ -784,6 +838,91 @@
         <iframe id="emPreviewFrame" class="em-iframe" sandbox="allow-same-origin"></iframe>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ═══ FEATURE EMAIL CAMPAIGN MODAL (MVP) ═════════════════ -->
+  <div class="em-overlay" id="featureEmailCampaignModal">
+    <div class="em-wrap">
+      <div class="em-left">
+        <div class="em-head">
+          <div>
+            <span class="em-type-badge"
+              style="background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0;border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700;">
+              Nova funcionalidade
+            </span>
+            <div class="em-user-info" id="feCampaignRecipientInfo"></div>
+          </div>
+          <button class="drawer-x" onclick="closeFeatureCampaignModal()" style="flex-shrink:0">×</button>
+        </div>
+
+        <div class="em-fields" id="featureEmailFields">
+          <div class="em-field">
+            <label class="em-label">Título interno</label>
+            <input type="text" id="feCampaignTitle" class="d-input" placeholder="ex: Arquivos — Março 2026">
+          </div>
+
+          <div class="em-field">
+            <label class="em-label">Assunto do email</label>
+            <input type="text" id="feSubject" class="d-input em-subject-input" placeholder="ex: Chega de procurar PDF no WhatsApp">
+          </div>
+
+          <div class="em-field">
+            <label class="em-label">Preview text</label>
+            <input type="text" id="fePreviewText" class="d-input" placeholder="pre-header, ~85 chars">
+          </div>
+
+          <div class="em-field">
+            <label class="em-label">Nome da funcionalidade</label>
+            <input type="text" id="feFeatureName" class="d-input" placeholder="ex: Arquivos">
+          </div>
+
+          <div class="em-field">
+            <label class="em-label">Parágrafos do corpo</label>
+            <div id="feParagraphs"></div>
+            <div style="display:flex;justify-content:flex-start;margin-top:8px;">
+              <button
+                type="button"
+                class="btn"
+                id="feAddParagraphBtn"
+                style="background:var(--surface-2);color:var(--text-2);border:1.5px solid var(--border-2);padding:8px 12px;font-size:12px;"
+              >
+                + Adicionar parágrafo
+              </button>
+            </div>
+          </div>
+
+          <div class="em-field">
+            <label class="em-label">Texto do botao CTA</label>
+            <input type="text" id="feCTALabel" class="d-input" placeholder="ex: Abrir meus Arquivos">
+          </div>
+
+          <div class="em-field">
+            <label class="em-label">URL do botao CTA</label>
+            <input type="url" id="feCTAURL" class="d-input" placeholder="https://educaflowone.com.br/arquivos/">
+          </div>
+        </div>
+
+        <div class="em-foot">
+          <button class="btn btn-cancel" onclick="closeFeatureCampaignModal()">Cancelar</button>
+          <button class="btn" id="fePreviewBtn"
+            style="background:var(--surface-2);color:var(--text-2);border:1.5px solid var(--border-2);"
+            onclick="updateFeatureEmailPreview()">
+            Atualizar preview
+          </button>
+          <button class="btn btn-send" id="feSendBtn" onclick="sendFeatureCampaign()">
+            Enviar para todos →
+          </button>
+        </div>
+      </div>
+
+      <div class="em-right">
+        <div class="em-preview-bar">
+          <span class="em-preview-label">Pre-visualizacao</span>
+          <span class="em-preview-to" id="fePreviewTo">Personalizando com dados de exemplo</span>
+        </div>
+        <iframe id="fePreviewFrame" class="em-iframe" sandbox="allow-same-origin"></iframe>
+      </div>
     </div>
   </div>
 
@@ -1418,6 +1557,240 @@
     }
   };
 
+  // ── Feature announcement campaign (MVP) ───────────────────────────────
+  function openFeatureCampaignModal() {
+    const modal = document.getElementById("featureEmailCampaignModal");
+    if (!modal) return;
+    modal.classList.add("open");
+
+    // Reset inputs (MVP: keep it simple / predictable)
+    const ids = [
+      "feCampaignTitle",
+      "feSubject",
+      "fePreviewText",
+      "feFeatureName",
+      "feCTALabel",
+      "feCTAURL",
+    ];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    resetFeatureParagraphs();
+
+    const frame = document.getElementById("fePreviewFrame");
+    if (frame) {
+      frame.srcdoc = `<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:13px;">
+        Preencha os campos e clique em "Atualizar preview".
+      </body>`;
+    }
+  }
+
+  function closeFeatureCampaignModal() {
+    const modal = document.getElementById("featureEmailCampaignModal");
+    if (modal) modal.classList.remove("open");
+  }
+
+  window.openFeatureCampaignModal = openFeatureCampaignModal;
+  window.closeFeatureCampaignModal = closeFeatureCampaignModal;
+
+  function getFeatureParagraphValues() {
+    return Array.from(document.querySelectorAll(".fe-body-input"))
+      .map(el => (el.value || "").trim())
+      .filter(Boolean);
+  }
+
+  function updateFeatureParagraphLabels() {
+    const blocks = Array.from(document.querySelectorAll("#feParagraphs .fe-paragraph-block"));
+    blocks.forEach((block, idx) => {
+      const label = block.querySelector(".em-label");
+      if (label) {
+        label.innerHTML = `Parágrafo ${idx + 1}` + (idx > 0 ? ' <span class="em-label-hint">opcional</span>' : '');
+      }
+      const removeBtn = block.querySelector(".fe-remove-paragraph");
+      if (removeBtn) removeBtn.style.display = blocks.length > 1 ? "" : "none";
+    });
+  }
+
+  function addFeatureParagraph(initialValue = "") {
+    const container = document.getElementById("feParagraphs");
+    if (!container) return;
+    const current = container.querySelectorAll(".fe-paragraph-block").length;
+    if (current >= 12) {
+      toast("Limite de 12 parágrafos por campanha.", true);
+      return;
+    }
+
+    const block = document.createElement("div");
+    block.className = "fe-paragraph-block";
+    block.style.marginBottom = "10px";
+    block.innerHTML = `
+      <label class="em-label">Parágrafo</label>
+      <textarea class="d-input d-textarea fe-body-input" placeholder="Escreva o parágrafo..."></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+        <button
+          type="button"
+          class="btn fe-remove-paragraph"
+          style="background:transparent;color:var(--muted);border:1px solid var(--border);padding:4px 8px;font-size:11px;"
+        >
+          Remover
+        </button>
+      </div>
+    `;
+    container.appendChild(block);
+
+    const ta = block.querySelector(".fe-body-input");
+    if (ta) ta.value = initialValue;
+
+    block.querySelector(".fe-remove-paragraph")?.addEventListener("click", () => {
+      block.remove();
+      updateFeatureParagraphLabels();
+    });
+
+    updateFeatureParagraphLabels();
+  }
+
+  function resetFeatureParagraphs() {
+    const container = document.getElementById("feParagraphs");
+    if (!container) return;
+    container.innerHTML = "";
+    addFeatureParagraph("");
+    addFeatureParagraph("");
+    addFeatureParagraph("");
+  }
+
+  async function updateFeatureEmailPreview() {
+    const frame = document.getElementById("fePreviewFrame");
+    if (frame) {
+      frame.srcdoc = `<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:13px;">Carregando preview…</body>`;
+    }
+
+    const feature_name = (document.getElementById("feFeatureName")?.value || "").trim();
+    const preview_text = (document.getElementById("fePreviewText")?.value || "").trim();
+    const body_json = getFeatureParagraphValues();
+    const cta_label = (document.getElementById("feCTALabel")?.value || "").trim();
+    const cta_url = (document.getElementById("feCTAURL")?.value || "").trim();
+
+    try {
+      const data = await req("/api/admin/feature-email-preview/", {
+        method: "POST",
+        body: JSON.stringify({
+          feature_name,
+          preview_text,
+          body_json,
+          cta_label,
+          cta_url,
+        }),
+      });
+      if (frame) frame.srcdoc = data.html || "";
+    } catch (e) {
+      if (frame) {
+        frame.srcdoc = `<body style="font-family:sans-serif;padding:32px;color:#be123c;">Erro ao carregar preview.</body>`;
+      }
+      toast("Erro ao carregar preview.", true);
+      console.error(e);
+    }
+  }
+
+  async function sendFeatureCampaign() {
+    const btn = document.getElementById("feSendBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "⏳ Enviando…";
+    }
+
+    try {
+      const title = (document.getElementById("feCampaignTitle")?.value || "").trim();
+      const subject = (document.getElementById("feSubject")?.value || "").trim();
+      const preview_text = (document.getElementById("fePreviewText")?.value || "").trim();
+      const feature_name = (document.getElementById("feFeatureName")?.value || "").trim();
+      const body_json = getFeatureParagraphValues();
+      const cta_label = (document.getElementById("feCTALabel")?.value || "").trim();
+      const cta_url = (document.getElementById("feCTAURL")?.value || "").trim();
+
+      if (!title || !subject || !feature_name || !body_json.length || !cta_label || !cta_url) {
+        toast("Preencha todos os campos obrigatórios.", true);
+        return;
+      }
+
+      let count = 0;
+      try {
+        const cc = await req("/api/admin/feature-email-recipient-count/");
+        count = cc.count || 0;
+      } catch (e) {
+        toast("Erro ao calcular destinatários.", true);
+      }
+
+      const ok = confirm(`Confirmar envio para ${count} assinantes ativos? Esta ação não pode ser desfeita.`);
+      if (!ok) return;
+
+      const result = await req("/api/admin/send-feature-campaign/", {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          subject,
+          preview_text,
+          feature_name,
+          body_json,
+          cta_label,
+          cta_url,
+        }),
+      });
+
+      toast(`✅ Campanha enviada. Enviados: ${result.sent_count} • Falhas: ${result.failed_count}`);
+      closeFeatureCampaignModal();
+    } catch (e) {
+      toast(e?.message || "Erro ao enviar campanha.", true);
+      console.error(e);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Enviar para todos →";
+      }
+    }
+  }
+
+  window.sendFeatureCampaign = sendFeatureCampaign;
+
+  // ── Subscription email tests (admin) ────────────────────────────────
+  function openSubscriptionEmailTestPopup() {
+    document.getElementById("subscriptionEmailTestPopup")?.classList.add("open");
+  }
+  function closeSubscriptionEmailTestPopup() {
+    document.getElementById("subscriptionEmailTestPopup")?.classList.remove("open");
+  }
+  window.openSubscriptionEmailTestPopup = openSubscriptionEmailTestPopup;
+  window.closeSubscriptionEmailTestPopup = closeSubscriptionEmailTestPopup;
+
+  async function sendSubscriptionEmailTest() {
+    const btn = document.getElementById("subEmailTestSendBtn");
+    const kind = document.getElementById("subEmailTestKind")?.value || "cancel_scheduled";
+    const recipient_mode = document.getElementById("subEmailRecipientMode")?.value || "both";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "⏳ Enviando…";
+    }
+    try {
+      const result = await req("/api/admin/test-subscription-email/", {
+        method: "POST",
+        body: JSON.stringify({ kind, recipient_mode }),
+      });
+      const ok = (result.sent || []).length;
+      const ko = (result.failed || []).length;
+      toast(`✅ Teste enviado. Sucesso: ${ok} • Falhas: ${ko}`);
+      closeSubscriptionEmailTestPopup();
+    } catch (e) {
+      toast("Erro ao enviar teste de e-mail.", true);
+      console.error(e);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Enviar teste";
+      }
+    }
+  }
+  window.sendSubscriptionEmailTest = sendSubscriptionEmailTest;
+
   // ── Init ─────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     // KPI filter
@@ -1436,6 +1809,9 @@
     document.getElementById('emailModal').addEventListener('click', e => {
       if (e.target === e.currentTarget) closeEmailModal();
     });
+    document.getElementById('btnSubscriptionEmailTest')?.addEventListener('click', openSubscriptionEmailTestPopup);
+    document.getElementById('btnNewFeatureCampaign')?.addEventListener('click', openFeatureCampaignModal);
+    document.getElementById('feAddParagraphBtn')?.addEventListener('click', () => addFeatureParagraph(""));
     document.getElementById('btnRefresh').addEventListener('click', load);
     document.getElementById('drawerClose').addEventListener('click', closeDrawer);
     document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);

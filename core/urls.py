@@ -40,6 +40,11 @@ from .views import (
     download_teacher_material_file,
     AdminPanelView, admin_panel_users_api, admin_panel_user_update,
     admin_email_preview, admin_send_retention_email,
+    feature_email_campaigns_list,
+    feature_email_recipient_count,
+    feature_email_preview,
+    send_feature_email_campaign,
+    admin_test_subscription_email,
 )
 
 router = DefaultRouter()
@@ -149,6 +154,11 @@ urlpatterns = [
     path("api/admin/users/<int:user_id>/", admin_panel_user_update, name="api-admin-user-update"),
     path("api/admin/email-preview/", admin_email_preview, name="api-admin-email-preview"),
     path("api/admin/send-retention-email/", admin_send_retention_email, name="api-admin-send-retention-email"),
+    path("api/admin/feature-campaigns/", feature_email_campaigns_list, name="api-admin-feature-campaigns"),
+    path("api/admin/feature-email-recipient-count/", feature_email_recipient_count, name="api-admin-feature-email-recipient-count"),
+    path("api/admin/feature-email-preview/", feature_email_preview, name="api-admin-feature-email-preview"),
+    path("api/admin/send-feature-campaign/", send_feature_email_campaign, name="api-admin-send-feature-campaign"),
+    path("api/admin/test-subscription-email/", admin_test_subscription_email, name="api-admin-test-subscription-email"),
     path("api/students/<int:student_id>/share-link/", student_share_link, name="api-student-share-link"),
     path("api/students/<int:student_id>/share-link/regenerate/", student_share_link_regenerate, name="api-student-share-link-regenerate"),
     path(

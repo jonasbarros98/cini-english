@@ -1298,3 +1298,83 @@ class RetentionEmailLog(models.Model):
 
     def __str__(self):
         return f"{self.user.email} — {self.email_type} em {self.sent_at:%d/%m/%Y %H:%M}"
+
+
+class FeatureEmailCampaign(models.Model):
+    """
+    Campanha de email de anúncio de funcionalidade (enviada pelo admin).
+
+    MVP: apenas criação/preview/envio; edição de rascunho pode vir depois.
+    """
+
+    STATUS_DRAFT = "draft"
+    STATUS_SENT = "sent"
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, "Rascunho"),
+        (STATUS_SENT, "Enviado"),
+    ]
+
+    title = models.CharField(max_length=255, help_text="Título interno da campanha (não aparece no email)")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+
+    subject = models.CharField(max_length=255, help_text="Assunto do email")
+    preview_text = models.CharField(max_length=200, blank=True, help_text="Pre-header (texto oculto)")
+    feature_name = models.CharField(max_length=100, help_text="Nome da funcionalidade")
+
+    # Lista de strings: cada item vira um parágrafo no corpo.
+    body_json = models.JSONField(default=list, help_text="Lista de strings (parágrafos).")
+
+    cta_label = models.CharField(max_length=100, help_text="Texto do botão CTA")
+    cta_url = models.URLField(help_text="URL do botão CTA")
+
+    sent_at = models.DateTimeField(null=True, blank=True)
+    sent_by = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="feature_campaigns_sent",
+    )
+    recipient_count = models.PositiveIntegerField(default=0, help_text="Quantidade de destinatários no envio.")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Campanha de email de funcionalidade"
+        verbose_name_plural = "Campanhas de email de funcionalidade"
+
+    def __str__(self) -> str:
+        return f"{self.title} — {self.get_status_display()}"
+
+
+class FeatureEmailLog(models.Model):
+    """Log individual por destinatário (1 por user/campaign)."""
+
+    STATUS_SENT = "sent"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_SENT, "Enviado"),
+        (STATUS_FAILED, "Falhou"),
+    ]
+
+    campaign = models.ForeignKey(
+        FeatureEmailCampaign,
+        on_delete=models.CASCADE,
+        related_name="logs",
+    )
+    user = models.ForeignKey("auth.User", on_delete=models.CASCADE, related_name="feature_email_logs")
+
+    sent_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SENT)
+    error_message = models.TextField(blank=True, help_text="Erro em caso de falha no envio.")
+
+    class Meta:
+        ordering = ["-sent_at"]
+        verbose_name = "Log de email de funcionalidade"
+        verbose_name_plural = "Logs de email de funcionalidade"
+        unique_together = [("campaign", "user")]
+
+    def __str__(self) -> str:
+        return f"{self.campaign.title} → {self.user.email} [{self.status}]"
