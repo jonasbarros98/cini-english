@@ -2127,13 +2127,27 @@
       }
       function edFetchWithFiles(url, formData, method) {
         return fetch(url, {
-          method: method || 'PUT',
+          method: method || 'PATCH',
           body: formData,
           credentials: 'same-origin',
           headers: { 'X-CSRFToken': getCk('csrftoken') || '' }
         }).then(function (res) {
           return res.json().then(function (body) {
-            if (!res.ok) throw new Error(body.detail || body.error || ('Erro ' + res.status));
+            if (!res.ok) {
+              var msg = body.detail || body.error || ('Erro ' + res.status);
+              if (typeof msg !== 'string' && body && typeof body === 'object') {
+                try {
+                  var parts = [];
+                  Object.keys(body).forEach(function (k) {
+                    var v = body[k];
+                    if (Array.isArray(v)) parts.push(k + ': ' + v.join(', '));
+                    else if (v) parts.push(k + ': ' + String(v));
+                  });
+                  if (parts.length) msg = parts.join(' · ');
+                } catch (e) { /* keep msg */ }
+              }
+              throw new Error(typeof msg === 'string' ? msg : ('Erro ' + res.status));
+            }
             return body;
           });
         });
@@ -2232,7 +2246,7 @@
       }
       if ($('ed_contract_remove')) $('ed_contract_remove').addEventListener('click', function () {
         if (!editStudentSnapshot || !confirm('Remover o contrato PDF deste aluno?')) return;
-        edFetchWithFiles('/api/students/' + STUDENT_ID + '/', edFormDataRemoveContract(editStudentSnapshot), 'PUT').then(function () {
+        edFetchWithFiles('/api/students/' + STUDENT_ID + '/', edFormDataRemoveContract(editStudentSnapshot), 'PATCH').then(function () {
           showToast('Contrato removido.');
           return edFetchJSON('/api/students/' + STUDENT_ID + '/');
         }).then(edFillForm).catch(function (e) { showToast(e.message || 'Erro ao remover.', true); });
@@ -2295,34 +2309,36 @@
           var at = $('ed_assigned_teacher');
           if (at) fd.append('assigned_teacher', at.value ? at.value : '');
           fd.append('contract_pdf', contractFile);
-          edFetchWithFiles('/api/students/' + STUDENT_ID + '/', fd, 'PUT').then(doneOk).catch(doneErr);
+          edFetchWithFiles('/api/students/' + STUDENT_ID + '/', fd, 'PATCH').then(doneOk).catch(doneErr);
         } else {
-          var data = Object.assign({}, st);
-          ['contract_pdf_url', 'assigned_teacher_name', 'created_at', 'updated_at', 'user', 'user_username', 'contract_pdf'].forEach(function (k) { delete data[k]; });
-          data.name = name;
-          data.guardians = ($('ed_responsible') && $('ed_responsible').value || '').trim() || 'Responsável próprio';
-          data.phone = ($('ed_phone') && $('ed_phone').value || '').trim();
-          data.email = ($('ed_email') && $('ed_email').value || '').trim();
-          data.address = ($('ed_address') && $('ed_address').value || '').trim();
-          data.status = ($('ed_status') && $('ed_status').value) || 'active';
-          data.level = editorPayload.level;
-          data.billing_type = editorPayload.billing_type;
-          data.plan_name = editorPayload.plan_name;
-          data.lessons_total = editorPayload.lessons_total;
-          data.plan_start_date = ($('ed_start') && $('ed_start').value) || null;
-          data.default_due_day = editorPayload.default_due_day;
-          data.monthly_amount = editorPayload.monthly_amount;
-          data.per_lesson_amount = editorPayload.per_lesson_amount;
-          data.preferred_payment_method = ($('ed_payment') && $('ed_payment').value) || '';
-          data.pix_key = ($('ed_pix') && $('ed_pix').value || '').trim();
+          /* PATCH + payload explícito: PUT com cópia do GET reenviava campos extras (ex.: URL do PDF) e gerava 400. */
           var at2 = $('ed_assigned_teacher');
-          if (at2) data.assigned_teacher = at2.value ? parseInt(at2.value, 10) : null;
+          var data = {
+            name: name,
+            guardians: ($('ed_responsible') && $('ed_responsible').value || '').trim() || 'Responsável próprio',
+            phone: ($('ed_phone') && $('ed_phone').value || '').trim(),
+            email: ($('ed_email') && $('ed_email').value || '').trim(),
+            address: ($('ed_address') && $('ed_address').value || '').trim(),
+            status: ($('ed_status') && $('ed_status').value) || 'active',
+            level: editorPayload.level,
+            billing_type: editorPayload.billing_type,
+            plan_name: editorPayload.plan_name,
+            lessons_total: editorPayload.lessons_total,
+            plan_start_date: ($('ed_start') && $('ed_start').value) || null,
+            default_due_day: editorPayload.default_due_day,
+            monthly_amount: editorPayload.monthly_amount,
+            per_lesson_amount: editorPayload.per_lesson_amount,
+            preferred_payment_method: ($('ed_payment') && $('ed_payment').value) || '',
+            pix_key: ($('ed_pix') && $('ed_pix').value || '').trim(),
+            assigned_teacher: at2 && at2.value ? parseInt(at2.value, 10) : null,
+            teacher_notes: (st.teacher_notes != null && st.teacher_notes !== undefined) ? st.teacher_notes : ''
+          };
           ['phone', 'email', 'address', 'plan_name', 'level', 'pix_key', 'preferred_payment_method'].forEach(function (key) {
             if (data[key] === '') delete data[key];
           });
           if (data.plan_start_date === '') data.plan_start_date = null;
           if (data.default_due_day === '' || data.default_due_day == null) delete data.default_due_day;
-          edFetchJSON('/api/students/' + STUDENT_ID + '/', { method: 'PUT', body: JSON.stringify(data) }).then(doneOk).catch(doneErr);
+          edFetchJSON('/api/students/' + STUDENT_ID + '/', { method: 'PATCH', body: JSON.stringify(data) }).then(doneOk).catch(doneErr);
         }
       });
     })();

@@ -93,7 +93,16 @@ class StudentSerializer(serializers.ModelSerializer):
         if len(name) > 120:
             raise serializers.ValidationError("Nome muito longo. Use no máximo 120 caracteres.")
         return name
-    
+
+    def validate(self, attrs):
+        # JSON às vezes reenvia a URL do contrato como string (eco do GET); FileField rejeita → 400.
+        # String não vazia: ignorar e manter o PDF atual. String vazia: deixa o update() remover o arquivo.
+        if self.instance and "contract_pdf" in attrs:
+            v = attrs.get("contract_pdf")
+            if isinstance(v, str) and v.strip() != "":
+                attrs.pop("contract_pdf", None)
+        return super().validate(attrs)
+
     def get_contract_pdf_url(self, obj):
         if obj.contract_pdf:
             request = self.context.get('request')

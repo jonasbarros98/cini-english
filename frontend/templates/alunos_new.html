@@ -2733,7 +2733,7 @@
               // Enviar string vazia para remover o arquivo
               formData.append('contract_pdf', '');
               
-              const updatedStudent = await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PUT');
+              const updatedStudent = await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PATCH');
               showToast('Contrato removido com sucesso!');
               await loadStudents();
               // Recarregar aluno no editor
@@ -2836,7 +2836,7 @@
             
             if (currentEditingId) {
               // Editar
-              await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PUT');
+              await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PATCH');
               showToast('Aluno atualizado com sucesso!');
               // Se estava editando, atualizar a lista e recarregar no editor
               await loadStudents();
@@ -2854,7 +2854,7 @@
             if (currentEditingId) {
               // Editar
               await fetchJSON(`${API_BASE}${currentEditingId}/`, {
-                method: 'PUT',
+                method: 'PATCH',
                 body: JSON.stringify(data),
               });
               showToast('Aluno atualizado com sucesso!');
@@ -2936,7 +2936,7 @@
           formData.append('contract_pdf', contractFile);
 
           try {
-            await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PUT');
+            await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PATCH');
             showToast('Aluno atualizado com sucesso!');
             if ($('#f_contract')) $('#f_contract').value = '';
             await loadStudents();
@@ -2945,8 +2945,8 @@
             showToast(`Erro ao atualizar: ${error.message}`, true);
           }
         } else {
+          const fAt = $('#f_assigned_teacher');
           const data = {
-            ...student,
             name,
             guardians: ($('#f_responsible')?.value || '').trim() || 'Responsável próprio',
             phone: ($('#f_phone')?.value || '').trim() || '',
@@ -2963,13 +2963,19 @@
             per_lesson_amount: editorPayload.per_lesson_amount,
             preferred_payment_method: $('#f_payment')?.value || '',
             pix_key: ($('#f_pix')?.value || '').trim() || '',
+            assigned_teacher: fAt && fAt.value ? parseInt(fAt.value, 10) : null,
+            teacher_notes:
+              student.teacher_notes != null && student.teacher_notes !== undefined ? student.teacher_notes : '',
           };
-          var fAt = $('#f_assigned_teacher');
-          if (fAt) data.assigned_teacher = fAt.value ? parseInt(fAt.value, 10) : null;
+          ['phone', 'email', 'address', 'plan_name', 'level', 'pix_key', 'preferred_payment_method'].forEach((key) => {
+            if (data[key] === '') delete data[key];
+          });
+          if (data.plan_start_date === '') data.plan_start_date = null;
+          if (data.default_due_day === '' || data.default_due_day == null) delete data.default_due_day;
 
           try {
             await fetchJSON(`${API_BASE}${currentEditingId}/`, {
-              method: 'PUT',
+              method: 'PATCH',
               body: JSON.stringify(data),
             });
             showToast('Aluno atualizado com sucesso!');

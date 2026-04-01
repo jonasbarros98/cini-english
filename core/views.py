@@ -212,6 +212,8 @@ class StudentViewSet(viewsets.ModelViewSet):
         if not self._is_admin() and instance.user_id != request.user.id:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Você não pode editar este aluno.")
+        # PUT como atualização parcial (igual PATCH): evita 400 ao omitir campos ou reenviar URL de PDF em JSON.
+        kwargs["partial"] = True
         return super().update(request, *args, **kwargs)
     
     def partial_update(self, request, *args, **kwargs):
