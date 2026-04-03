@@ -1,0 +1,966 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  {% include '_meta_pixel.html' %}
+  <title>Plano e Faturamento</title>
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+  <style>
+    :root {
+      --bg: #eef0f7;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: rgba(15,23,42,0.09);
+      --shadow-soft: 0 8px 28px rgba(15,23,42,0.08);
+      --primary: #6366f1;
+      --primary-2: #4f46e5;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --gold: #f59e0b;
+      --indigo-900: #1e1b4b;
+      --glass: rgba(255,255,255,0.65);
+      --ring: 0 0 0 4px rgba(99,102,241,0.18);
+      --radius: 20px;
+      --radius-sm: 14px;
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { overflow-x: hidden; }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background:
+        radial-gradient(ellipse 1400px 700px at 15% -5%, rgba(99,102,241,.14), transparent 55%),
+        radial-gradient(ellipse 900px 500px at 92% 12%, rgba(16,185,129,.09), transparent 45%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    .page { max-width: 100%; width: 100%; min-width: 0; overflow-x: hidden; }
+
+    /* ── Header ── */
+    .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
+    .titleBlock h1 { font-size: 26px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.15; margin: 0 0 5px; }
+    .titleBlock p  { margin: 0; color: var(--muted); font-size: 14px; max-width: 60ch; line-height: 1.55; }
+    .headerActions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+
+    /* ── Buttons ── */
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.9);
+      transition: transform .1s ease, box-shadow .12s ease, border-color .12s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      user-select: none;
+      font-family: var(--font);
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(15,23,42,0.11), inset 0 1px 0 rgba(255,255,255,0.9); border-color: rgba(99,102,241,0.3); }
+    .btn:active { transform: translateY(0); }
+    .btn:focus  { outline: none; box-shadow: var(--ring); }
+
+    .btnPrimary {
+      border: none; color: #fff;
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      box-shadow: 0 6px 20px rgba(79,70,229,0.30), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .btnPrimary:hover { box-shadow: 0 10px 28px rgba(79,70,229,0.38), inset 0 1px 0 rgba(255,255,255,0.15); }
+
+    /* ── Grid ── */
+    .grid { display: grid; grid-template-columns: 1.35fr .9fr; gap: 16px; margin-top: 16px; }
+
+    /* ── Cards ── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-soft); overflow: hidden; }
+    .cardHeader {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      background: linear-gradient(180deg, rgba(99,102,241,0.05) 0%, transparent 100%);
+    }
+    .cardHeader h2 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+    .cardBody { padding: 20px; }
+
+    /* ── Plan Hero ── */
+    .planHero {
+      background: linear-gradient(145deg, var(--indigo-900) 0%, #0f172a 100%);
+      padding: 28px 24px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+    .planHero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 420px 280px at 95% 50%, rgba(99,102,241,.28), transparent),
+        radial-gradient(ellipse 280px 220px at 5% 100%, rgba(16,185,129,.14), transparent);
+      pointer-events: none;
+    }
+    .planHeroInner { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .planHeroName {
+      font-size: clamp(22px, 3vw, 28px); font-weight: 900; letter-spacing: -0.03em; margin: 0 0 6px;
+      background: linear-gradient(130deg, #c7d2fe 0%, #a5b4fc 50%, #818cf8 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .planHeroSub { margin: 0; color: rgba(255,255,255,0.52); font-size: 13px; line-height: 1.45; max-width: 32ch; }
+    .planHeroLimit {
+      display: inline-block; margin-top: 12px; padding: 4px 11px;
+      background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 999px; color: rgba(255,255,255,0.70); font-size: 12px; font-weight: 600;
+    }
+    .planHeroPrice { text-align: right; flex-shrink: 0; }
+    .planHeroValue {
+      display: block; font-size: clamp(28px, 4vw, 38px); font-weight: 900;
+      letter-spacing: -0.04em; color: #fff; font-variant-numeric: tabular-nums;
+    }
+    .planHeroPeriod { display: block; color: rgba(255,255,255,0.48); font-size: 13px; margin-top: 3px; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 5px 11px; border-radius: 999px; font-weight: 700; font-size: 12px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.70); backdrop-filter: blur(8px);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--muted); flex-shrink: 0; }
+
+    @keyframes pulse-ring {
+      0%   { box-shadow: 0 0 0 0   rgba(22,163,74,0.55); }
+      70%  { box-shadow: 0 0 0 7px rgba(22,163,74,0);    }
+      100% { box-shadow: 0 0 0 0   rgba(22,163,74,0);    }
+    }
+
+    .badge.success { color: var(--success); border-color: rgba(22,163,74,0.28); background: rgba(22,163,74,0.07); }
+    .badge.success .dot { background: var(--success); animation: pulse-ring 2.2s ease-out infinite; }
+    .badge.warning { color: var(--warning); border-color: rgba(245,158,11,0.30); background: rgba(245,158,11,0.07); }
+    .badge.warning .dot { background: var(--warning); }
+    .badge.danger  { color: var(--danger);  border-color: rgba(239,68,68,0.30);  background: rgba(239,68,68,0.07); }
+    .badge.danger  .dot { background: var(--danger); }
+
+    /* ── Stats ── */
+    .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 20px; }
+
+    .stat {
+      border: 1px solid var(--border); border-left-width: 3px;
+      border-radius: var(--radius-sm); padding: 14px 14px 12px;
+      background: var(--glass); backdrop-filter: blur(8px);
+      transition: box-shadow .15s ease, transform .12s ease;
+    }
+    .stat:hover { box-shadow: 0 6px 20px rgba(15,23,42,0.09); transform: translateY(-1px); }
+    .stat--indigo  { border-left-color: #6366f1; }
+    .stat--emerald { border-left-color: #10b981; }
+    .stat--amber   { border-left-color: #f59e0b; }
+
+    .stat-icon {
+      width: 28px; height: 28px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 10px;
+    }
+    .stat--indigo  .stat-icon { background: rgba(99,102,241,0.10); }
+    .stat--emerald .stat-icon { background: rgba(16,185,129,0.10); }
+    .stat--amber   .stat-icon { background: rgba(245,158,11,0.10); }
+
+    .stat .label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; margin: 0 0 5px; }
+    .stat .data  { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+    .stat .hint  { margin: 6px 0 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+    /* ── Divider & Section Label ── */
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+    .sectionLabel { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .sectionLabel h2 { font-size: 14px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+    .sectionLabelIcon {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: rgba(99,102,241,0.10); border: 1px solid rgba(99,102,241,0.12);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    /* ── Table ── */
+    .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrapper .table { margin: 0; }
+
+    .table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.80); overflow: hidden;
+    }
+    .table th, .table td { padding: 12px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .table th { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; background: rgba(99,102,241,0.04); }
+    .table tbody tr { transition: background .1s ease; }
+    .table tbody tr:hover { background: rgba(99,102,241,0.04); }
+    .table tr:last-child td { border-bottom: none; }
+
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 11px; border: 1px solid transparent; }
+    .pill.paid    { color: var(--success); border-color: rgba(22,163,74,0.25);  background: rgba(22,163,74,0.07); }
+    .pill.pending { color: var(--warning); border-color: rgba(245,158,11,0.28); background: rgba(245,158,11,0.07); }
+    .pill.failed  { color: var(--danger);  border-color: rgba(239,68,68,0.28);  background: rgba(239,68,68,0.07); }
+
+    .receiptBtn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 8px;
+      background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.18);
+      color: var(--primary-2); text-decoration: none;
+      transition: background .12s ease, transform .1s ease;
+    }
+    .receiptBtn:hover { background: rgba(99,102,241,0.16); transform: translateY(-1px); }
+
+    .emptyState { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px; color: var(--muted); font-size: 14px; text-align: center; }
+    .emptyState svg { opacity: 0.30; }
+
+    /* ── Right Column ── */
+    .miniList { display: flex; flex-direction: column; gap: 14px; }
+    .supportBox { display: flex; flex-direction: column; gap: 12px; }
+    .mutedSmall { color: var(--muted); font-size: 13px; margin: 0; line-height: 1.5; }
+    .note { border: 1px dashed rgba(99,102,241,0.32); background: rgba(99,102,241,0.06); border-radius: var(--radius-sm); padding: 12px 14px; color: rgba(15,23,42,0.85); line-height: 1.5; font-size: 13px; }
+    .note strong { font-weight: 800; }
+
+    /* ── Upgrade Cards ── */
+    .upgradeCardsWrap { display: flex; flex-direction: column; gap: 10px; }
+
+    .upgradeCard {
+      border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px;
+      background: var(--glass); backdrop-filter: blur(8px); position: relative; overflow: hidden;
+      transition: box-shadow .15s ease, transform .12s ease;
+    }
+    .upgradeCard:hover { box-shadow: 0 8px 28px rgba(15,23,42,0.10); transform: translateY(-1px); }
+    .upgradeCard--platinum { border-color: rgba(245,158,11,0.40); background: linear-gradient(160deg, rgba(251,191,36,0.07), rgba(99,102,241,0.05)); }
+
+    .recommendedBadge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 800;
+      letter-spacing: .05em; text-transform: uppercase;
+      background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .upgradeCardTop { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+    .upgradeCardName { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+    .upgradeCardPrice { font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .featureList { margin: 0 0 14px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .featureList li { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+    .featureList li::before {
+      content: '';
+      width: 15px; height: 15px; flex-shrink: 0;
+      background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%2310b981' fill-opacity='.14'/%3E%3Cpath stroke='%2310b981' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M8 12l3 3 5-5'/%3E%3C/svg%3E");
+    }
+
+    /* ── Security Card ── */
+    .securityShield {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(79,70,229,0.06));
+      border: 1px solid rgba(99,102,241,0.15);
+      display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+    }
+    .securityTags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .securityTag {
+      display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
+      background: rgba(15,23,42,0.04); border: 1px solid var(--border);
+      border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--muted);
+    }
+
+    /* ── Inactive Banner ── */
+    .inactiveBanner {
+      background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+      color: #fff; padding: 20px 24px; border-radius: var(--radius); margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 14px 40px rgba(67,56,202,0.30);
+      display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap;
+    }
+    .inactiveBannerIcon {
+      width: 42px; height: 42px; border-radius: 13px;
+      background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.20);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+    }
+    .inactiveBannerBody { flex: 1; min-width: 200px; }
+    .inactiveBannerBody h2 { margin: 0 0 6px; font-size: 17px; font-weight: 800; letter-spacing: -0.015em; }
+    .inactiveBannerBody p  { margin: 0; opacity: 0.86; font-size: 14px; line-height: 1.5; }
+    .inactiveBannerActions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+
+    .bannerBtn {
+      appearance: none; border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.15); backdrop-filter: blur(8px);
+      color: #fff; padding: 9px 15px; border-radius: 10px;
+      font-weight: 700; font-size: 13px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 7px;
+      transition: background .12s ease, transform .1s ease; font-family: var(--font);
+    }
+    .bannerBtn:hover { background: rgba(255,255,255,0.24); transform: translateY(-1px); }
+    .bannerBtn--primary { background: rgba(255,255,255,0.95); color: #4338ca; font-weight: 800; border-color: transparent; }
+    .bannerBtn--primary:hover { background: #fff; }
+
+    /* ── Icons ── */
+    .icon { width: 18px; height: 18px; display: inline-block; flex-shrink: 0; }
+    .ic-gear { background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M11.983 2.25a2.25 2.25 0 0 1 2.171 1.657l.18.636a7.95 7.95 0 0 1 1.793 1.037l.63-.226a2.25 2.25 0 0 1 2.84 1.317l.072.192a2.25 2.25 0 0 1-.74 2.66l-.51.39a8.07 8.07 0 0 1 0 2.078l.51.39a2.25 2.25 0 0 1 .74 2.66l-.072.192a2.25 2.25 0 0 1-2.84 1.317l-.63-.226a7.95 7.95 0 0 1-1.793 1.037l-.18.636a2.25 2.25 0 0 1-2.171 1.657h-.24a2.25 2.25 0 0 1-2.171-1.657l-.18-.636a7.95 7.95 0 0 1-1.793-1.037l-.63.226a2.25 2.25 0 0 1-2.84-1.317l-.072-.192a2.25 2.25 0 0 1 .74-2.66l.51-.39a8.07 8.07 0 0 1 0-2.078l-.51-.39a2.25 2.25 0 0 1-.74-2.66l.072-.192A2.25 2.25 0 0 1 6.63 6.384l.63.226A7.95 7.95 0 0 1 9.053 5.573l.18-.636A2.25 2.25 0 0 1 11.224 2.25h.759Z'/%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'/%3E%3C/svg%3E"); }
+    .ic-gear-dark { background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M11.983 2.25a2.25 2.25 0 0 1 2.171 1.657l.18.636a7.95 7.95 0 0 1 1.793 1.037l.63-.226a2.25 2.25 0 0 1 2.84 1.317l.072.192a2.25 2.25 0 0 1-.74 2.66l-.51.39a8.07 8.07 0 0 1 0 2.078l.51.39a2.25 2.25 0 0 1 .74 2.66l-.072.192a2.25 2.25 0 0 1-2.84 1.317l-.63-.226a7.95 7.95 0 0 1-1.793 1.037l-.18.636a2.25 2.25 0 0 1-2.171 1.657h-.24a2.25 2.25 0 0 1-2.171-1.657l-.18-.636a7.95 7.95 0 0 1-1.793-1.037l-.63.226a2.25 2.25 0 0 1-2.84-1.317l-.072-.192a2.25 2.25 0 0 1 .74-2.66l.51-.39a8.07 8.07 0 0 1 0-2.078l-.51-.39a2.25 2.25 0 0 1-.74-2.66l.072-.192A2.25 2.25 0 0 1 6.63 6.384l.63.226A7.95 7.95 0 0 1 9.053 5.573l.18-.636A2.25 2.25 0 0 1 11.224 2.25h.759Z'/%3E%3Cpath stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'/%3E%3C/svg%3E"); }
+    .ic-refresh { background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3'/%3E%3C/svg%3E"); }
+    .ic-refresh-w { background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3'/%3E%3C/svg%3E"); }
+
+    /* ── Responsive ── */
+    @media (max-width: 980px) {
+      .app-shell { grid-template-columns: 1fr; padding: 16px; }
+      .grid { grid-template-columns: 1fr; }
+      .header { flex-direction: column; align-items: flex-start; }
+      .headerActions { justify-content: flex-start; }
+    }
+    @media (max-width: 768px) {
+      .app-shell { padding: 12px; }
+      .titleBlock h1 { font-size: 20px; }
+      .titleBlock p { font-size: 13px; }
+      .grid { gap: 12px; margin-top: 12px; min-width: 0; }
+      .stats { grid-template-columns: 1fr; gap: 8px; }
+      .planHero { padding: 20px 16px; }
+      .planHeroValue { font-size: 26px; }
+      .planHeroName { font-size: 20px; }
+      .planHeroInner { flex-direction: column; gap: 10px; }
+      .planHeroPrice { text-align: left; }
+      .inactiveBanner { padding: 16px; gap: 12px; }
+      .table th, .table td { padding: 10px; font-size: 12px; }
+      .cardBody { padding: 14px; }
+    }
+    @media (max-width: 560px) {
+      .stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  {% include '_mobile_nav.html' %}
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
+        <div>
+          <p class="brand-kicker">Conta</p>
+          <p class="brand-name">EDUCAflowOne</p>
+        </div>
+      </div>
+      <nav class="nav">
+        {% if not is_partner_teacher %}
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">🏠</span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        {% endif %}
+        <a href="/calendar/" class="nav-item">
+          <span class="nav-emoji">📅</span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/alunos/" class="nav-item">
+          <span class="nav-emoji">🧑‍🎓</span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/planejamento/" class="nav-item">
+          <span class="nav-emoji">📚</span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        {% if not is_partner_teacher %}
+        <a href="/arquivos/" class="nav-item">
+          <span class="nav-emoji">📁</span>
+          <div>
+            <p class="nav-title">Arquivos</p>
+            <p class="nav-subtitle">Sua biblioteca de materiais</p>
+          </div>
+        </a>
+        {% endif %}
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">💵</span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
+        <a href="/" class="nav-item">
+          <span class="nav-emoji">💬</span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        {% endif %}
+        <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+          {% if user_is_admin %}
+          <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
+            <span class="nav-emoji">👥</span>
+            <div>
+              <p class="nav-title">Usuários</p>
+              <p class="nav-subtitle">Gerenciar usuários</p>
+            </div>
+          </a>
+          {% endif %}
+          <a href="/perfil/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">👤</span>
+            <div>
+              <p class="nav-title">Perfil</p>
+              <p class="nav-subtitle">Dados da conta</p>
+            </div>
+          </a>
+          <a href="/planos/" class="nav-item nav-item-nested active">
+            <span class="nav-emoji">💳</span>
+            <div>
+              <p class="nav-title">Plano e Faturamento</p>
+              <p class="nav-subtitle">Gerenciar assinatura</p>
+            </div>
+          </a>
+          <a href="/tutorial/" class="nav-item nav-item-nested">
+            <span class="nav-emoji">🎬</span>
+            <div>
+              <p class="nav-title">Tutorial</p>
+              <p class="nav-subtitle">Vídeos rápidos</p>
+            </div>
+          </a>
+          </div>
+        </div>
+        {% endif %}
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida (mês)</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarRealized">0</strong> realizadas</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <a href="/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Voltar ao Dashboard</a>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
+      </div>
+    </aside>
+
+    <main class="page">
+
+      {% if not is_active %}
+      <div class="inactiveBanner">
+        <div class="inactiveBannerIcon">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+            <path stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0ZM12 9v4m0 4h.01"/>
+          </svg>
+        </div>
+        <div class="inactiveBannerBody">
+          <h2>Ação necessária: assinatura inativa</h2>
+          <p>
+            {% if has_subscription %}
+              Sua assinatura está {{ subscription.get_status_display|lower }}. Renove ou regularize seu pagamento pelo Stripe para continuar.
+            {% else %}
+              Você precisa de uma assinatura ativa para acessar o sistema. Escolha um plano abaixo.
+            {% endif %}
+          </p>
+          <div class="inactiveBannerActions">
+            {% if has_subscription %}
+              <button class="bannerBtn" id="syncStatusBtnBanner">
+                <span class="icon ic-refresh-w" aria-hidden="true"></span>
+                Atualizar status
+              </button>
+              <button class="bannerBtn bannerBtn--primary" id="actionStripeBtn">
+                <span class="icon ic-gear" aria-hidden="true"></span>
+                Renovar no Stripe
+              </button>
+            {% else %}
+              {% if basic_plan_unavailable %}
+              <span style="font-size: 12px; opacity: 0.88;">{{ student_count }} alunos ativos — Basic permite 15. Escolha Premium ou Platinum.</span>
+              {% endif %}
+              <button class="bannerBtn bannerBtn--primary actionSubscribeBtn" data-tier="basic" data-plan="monthly" {% if basic_plan_unavailable %}disabled title="Basic permite até 15 alunos." style="opacity:.6;cursor:not-allowed;"{% endif %}>Assinar Basic</button>
+              <button class="bannerBtn bannerBtn--primary actionSubscribeBtn" data-tier="premium" data-plan="monthly" {% if premium_plan_unavailable %}disabled title="Premium permite até 2 parceiros." style="opacity:.6;cursor:not-allowed;"{% endif %}>Assinar Premium</button>
+              <button class="bannerBtn bannerBtn--primary actionSubscribeBtn" data-tier="platinum" data-plan="monthly">Assinar Platinum</button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="header">
+        <div class="titleBlock">
+          <h1>Plano e Faturamento</h1>
+          <p>Veja seu plano atual, status de pagamento e histórico de cobranças. Pagamentos gerenciados com segurança pelo Stripe.</p>
+        </div>
+        <div class="headerActions">
+          {% if has_subscription and not is_active %}
+          <button class="btn" id="syncStatusBtn" title="Sincronizar status com o Stripe">
+            <span class="icon ic-refresh" aria-hidden="true"></span>
+            Atualizar status
+          </button>
+          {% endif %}
+          <button class="btn btnPrimary" id="manageStripeBtn">
+            <span class="icon ic-gear" aria-hidden="true"></span>
+            Gerenciar no Stripe
+          </button>
+        </div>
+      </div>
+
+      <section class="grid">
+
+        <!-- ── LEFT: Plano + Faturas ── -->
+        <div class="card">
+
+          <!-- Hero -->
+          <div class="planHero">
+            <div class="planHeroInner">
+              <div>
+                <p class="planHeroName">{{ plan_name }}</p>
+                <p class="planHeroSub">{% if has_subscription %}Renovação automática — cancele quando quiser.{% else %}Nenhum plano ativo no momento.{% endif %}</p>
+                {% if has_subscription and subscription and subscription.tier %}
+                <span class="planHeroLimit">
+                  {% if subscription.tier == 'basic' %}Até 15 alunos{% elif subscription.tier == 'premium' %}Alunos ilimitados · Até 2 parceiros{% elif subscription.tier == 'platinum' %}Alunos e parceiros ilimitados{% endif %}
+                </span>
+                {% endif %}
+              </div>
+              <div class="planHeroPrice">
+                <span class="planHeroValue">{{ plan_price }}</span>
+                <span class="planHeroPeriod">{% if has_subscription and subscription %}{% if subscription.plan == 'monthly' %}por mês{% elif subscription.plan == 'semestral' %}a cada 6 meses{% elif subscription.plan == 'annual' %}por ano{% else %}—{% endif %}{% else %}—{% endif %}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Status -->
+          <div class="cardHeader">
+            <h2>Status da assinatura</h2>
+            {% if has_subscription and is_active %}
+            <span class="badge success"><span class="dot"></span>Ativo</span>
+            {% elif has_subscription %}
+            <span class="badge warning"><span class="dot"></span>{{ subscription.get_status_display }}</span>
+            {% else %}
+            <span class="badge"><span class="dot"></span>Sem assinatura</span>
+            {% endif %}
+          </div>
+
+          <div class="cardBody">
+
+            <!-- Stats -->
+            <div class="stats">
+              <div class="stat stat--indigo">
+                <div class="stat-icon">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3" stroke="#6366f1" stroke-width="2"/><path stroke="#6366f1" stroke-width="2" stroke-linecap="round" d="M16 2v4M8 2v4M3 10h18"/></svg>
+                </div>
+                <p class="label">Próxima cobrança</p>
+                <p class="data">{{ next_billing }}</p>
+                <p class="hint">{% if has_subscription %}Acesso ativo até confirmação da próxima fatura.{% else %}Nenhuma cobrança programada.{% endif %}</p>
+              </div>
+              <div class="stat stat--emerald">
+                <div class="stat-icon">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3" stroke="#10b981" stroke-width="2"/><path stroke="#10b981" stroke-width="2" stroke-linecap="round" d="M2 10h20"/></svg>
+                </div>
+                <p class="label">Método de pagamento</p>
+                <p class="data">{% if has_subscription %}Gerenciar no Stripe{% else %}—{% endif %}</p>
+                <p class="hint">{% if has_subscription %}Atualize o cartão no portal do Stripe.{% else %}Configure ao assinar um plano.{% endif %}</p>
+              </div>
+              <div class="stat stat--amber">
+                <div class="stat-icon">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4Z"/><path stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-5"/></svg>
+                </div>
+                <p class="label">Status do acesso</p>
+                <p class="data">{% if is_active %}Liberado{% elif has_subscription %}{{ subscription.get_status_display }}{% else %}Sem acesso{% endif %}</p>
+                <p class="hint">{% if is_active %}Acesso ativo e completo.{% elif has_subscription %}Acesso {{ subscription.get_status_display|lower }}.{% else %}Assine um plano para acesso completo.{% endif %}</p>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- Billing history -->
+            <div class="sectionLabel">
+              <div class="sectionLabelIcon">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3h10a2 2 0 0 1 2 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 0 1 2-2Z"/><path stroke="#6366f1" stroke-width="2" stroke-linecap="round" d="M9 7h6M9 11h6M9 15h4"/></svg>
+              </div>
+              <h2>Histórico de cobranças</h2>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="table" aria-label="Histórico de cobranças">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Descrição</th>
+                    <th>Status</th>
+                    <th style="text-align:right;">Valor</th>
+                    <th style="text-align:right;">Recibo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if invoices %}
+                    {% for invoice in invoices %}
+                    <tr>
+                      <td>{{ invoice.date }}</td>
+                      <td>{{ invoice.description }}</td>
+                      <td>
+                        <span class="pill {% if invoice.status == 'paid' %}paid{% elif invoice.status == 'pending' %}pending{% else %}failed{% endif %}">
+                          {{ invoice.status_label }}
+                        </span>
+                      </td>
+                      <td style="text-align:right; font-variant-numeric: tabular-nums; font-weight: 600;">{{ invoice.amount }}</td>
+                      <td style="text-align:right;">
+                        {% if invoice.receipt_url != '#' %}
+                          <a class="receiptBtn" href="{{ invoice.receipt_url }}" target="_blank" rel="noreferrer" title="Ver recibo">
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg>
+                          </a>
+                        {% else %}
+                          <span style="color: var(--muted);">—</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="5" style="padding: 0; border: none;">
+                        <div class="emptyState">
+                          <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><path stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M7 3h10a2 2 0 0 1 2 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 0 1 2-2Z"/><path stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" d="M9 8h6M9 12h6M9 16h3"/></svg>
+                          <span>{% if has_subscription %}Nenhuma cobrança encontrada ainda.{% else %}Assine um plano para ver o histórico de cobranças.{% endif %}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── RIGHT: Upgrade + Ajuda + Segurança ── -->
+        <div class="miniList">
+
+          {% if has_subscription and subscription.tier == 'basic' %}
+          <div class="card" style="border-color: rgba(99,102,241,0.25);">
+            <div class="cardHeader">
+              <h2>Fazer upgrade</h2>
+            </div>
+            <div class="cardBody">
+              <p class="mutedSmall" style="margin-bottom: 14px;">Precisa de mais alunos ou professores parceiros? Escolha o plano ideal.</p>
+              <div class="upgradeCardsWrap">
+                <div class="upgradeCard">
+                  <div class="upgradeCardTop">
+                    <span class="upgradeCardName">Premium</span>
+                    <span class="upgradeCardPrice">R$ 69,90/mês</span>
+                  </div>
+                  <ul class="featureList">
+                    <li>Alunos ilimitados</li>
+                    <li>Até 2 professores parceiros</li>
+                    <li>Todos os recursos do Basic</li>
+                  </ul>
+                  <button class="btn btnPrimary upgradePlanBtn" data-tier="premium" data-plan="{{ subscription.plan|default:'monthly' }}" style="width:100%; justify-content:center;">Upgrade para Premium</button>
+                </div>
+                <div class="upgradeCard upgradeCard--platinum">
+                  <span class="recommendedBadge">⭐ Recomendado</span>
+                  <div class="upgradeCardTop">
+                    <span class="upgradeCardName">Platinum</span>
+                    <span class="upgradeCardPrice">R$ 89,90/mês</span>
+                  </div>
+                  <ul class="featureList">
+                    <li>Alunos ilimitados</li>
+                    <li>Parceiros ilimitados</li>
+                    <li>Prioridade no suporte</li>
+                    <li>Todos os recursos Premium</li>
+                  </ul>
+                  <button class="btn btnPrimary upgradePlanBtn" data-tier="platinum" data-plan="{{ subscription.plan|default:'monthly' }}" style="width:100%; justify-content:center; background: linear-gradient(135deg,#d97706,#b45309);">Upgrade para Platinum</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="card">
+            <div class="cardHeader">
+              <h2>Ajuda rápida</h2>
+            </div>
+            <div class="cardBody supportBox">
+              <p class="mutedSmall">Precisa trocar cartão, cancelar ou baixar faturas? Clique em <strong>Gerenciar no Stripe</strong>.</p>
+              <div class="note">
+                <strong>Importante:</strong> cobranças e dados do cartão são tratados diretamente pelo Stripe. Seu sistema não armazena dados sensíveis de pagamento.
+              </div>
+              <button class="btn" id="manageStripeBtn2" style="justify-content:center;">
+                <span class="icon ic-gear-dark" aria-hidden="true"></span>
+                Gerenciar no Stripe
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHeader">
+              <h2>Segurança</h2>
+            </div>
+            <div class="cardBody">
+              <div class="securityShield">
+                <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4Z"/><path stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-5"/></svg>
+              </div>
+              <p class="mutedSmall">Pagamentos processados com segurança pelo Stripe, com padrões avançados de proteção e conformidade PCI DSS.</p>
+              <div class="securityTags">
+                <span class="securityTag">🔒 SSL/TLS</span>
+                <span class="securityTag">🛡 PCI DSS</span>
+                <span class="securityTag">✓ Stripe</span>
+              </div>
+              <div class="divider"></div>
+              <p class="mutedSmall">Se seu pagamento falhar, seu acesso pode ficar <strong>temporariamente limitado</strong> até a regularização.</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function createCheckoutSession(tier, plan, btn) {
+      if (btn) { btn.disabled = true; btn.textContent = 'Redirecionando...'; }
+      try {
+        const csrf = getCookie("csrftoken");
+        const response = await fetch("/api/subscription/create-checkout/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+          credentials: "same-origin",
+          body: JSON.stringify({ tier, plan }),
+        });
+        const data = await response.json();
+        if (response.ok && data.checkout_url) {
+          window.location.href = data.checkout_url;
+        } else {
+          alert(data.error || "Erro ao criar sessão. Tente novamente.");
+          if (btn) { btn.disabled = false; btn.textContent = 'Assinar ' + tier.charAt(0).toUpperCase() + tier.slice(1); }
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Erro de conexão. Tente novamente.");
+        if (btn) { btn.disabled = false; btn.textContent = 'Assinar ' + tier.charAt(0).toUpperCase() + tier.slice(1); }
+      }
+    }
+
+    async function createPortalSession(event) {
+      const btn = event.target;
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="icon ic-gear-dark" aria-hidden="true"></span> Carregando...';
+
+      try {
+        const csrf = getCookie("csrftoken");
+        const response = await fetch("/api/subscription/create-portal/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrf || "",
+          },
+          credentials: "same-origin",
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.url) {
+          window.location.href = data.url;
+        } else {
+          alert(data.error || "Erro ao criar sessão do portal. Tente novamente.");
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      } catch (error) {
+        console.error("Erro ao criar portal session:", error);
+        alert("Erro de conexão. Tente novamente.");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    function initContaGroupCollapse() {
+      const STORAGE_KEY = "educaflowone_sidebar_conta_expanded";
+      const group = document.getElementById("navGroupConta");
+      const btn = document.getElementById("navGroupContaBtn");
+      if (!group || !btn) {
+        console.warn("initContaGroupCollapse: elementos não encontrados");
+        return;
+      }
+      function setExpanded(expanded) {
+        if (expanded) {
+          group.classList.remove("nav-group--collapsed");
+          group.classList.add("nav-group--expanded");
+          btn.setAttribute("aria-expanded", "true");
+          try { localStorage.setItem(STORAGE_KEY, "1"); } catch (_) {}
+        } else {
+          group.classList.add("nav-group--collapsed");
+          group.classList.remove("nav-group--expanded");
+          btn.setAttribute("aria-expanded", "false");
+          try { localStorage.setItem(STORAGE_KEY, "0"); } catch (_) {}
+        }
+      }
+      btn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isExpanded = group.classList.contains("nav-group--expanded");
+        setExpanded(!isExpanded);
+      });
+      try {
+        if (localStorage.getItem(STORAGE_KEY) === "1") setExpanded(true);
+      } catch (_) {}
+    }
+
+    async function syncSubscriptionStatus(event) {
+      const btn = event.target.closest("button");
+      if (!btn) return;
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="icon ic-refresh-w" aria-hidden="true"></span> Atualizando...';
+
+      try {
+        const csrf = getCookie("csrftoken");
+        const response = await fetch("/api/subscription/sync/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+          credentials: "same-origin",
+        });
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+          window.location.reload();
+        } else {
+          alert(data.error || "Não foi possível atualizar o status. Tente novamente.");
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Erro de conexão. Tente novamente.");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn1 = document.getElementById("manageStripeBtn");
+      const btn2 = document.getElementById("manageStripeBtn2");
+      const btnAction = document.getElementById("actionStripeBtn");
+      const syncBtn = document.getElementById("syncStatusBtn");
+      const syncBtnBanner = document.getElementById("syncStatusBtnBanner");
+
+      if (syncBtn) syncBtn.addEventListener("click", syncSubscriptionStatus);
+      if (syncBtnBanner) syncBtnBanner.addEventListener("click", syncSubscriptionStatus);
+      if (btn1) btn1.addEventListener("click", createPortalSession);
+      if (btn2) btn2.addEventListener("click", createPortalSession);
+      if (btnAction) btnAction.addEventListener("click", createPortalSession);
+
+      document.querySelectorAll(".upgradePlanBtn").forEach(function(btn) {
+        btn.addEventListener("click", async function() {
+          const tier = this.dataset.tier;
+          const plan = this.dataset.plan || "monthly";
+          const origHtml = this.innerHTML;
+          this.disabled = true;
+          this.innerHTML = "Redirecionando...";
+          try {
+            const csrf = getCookie("csrftoken");
+            const res = await fetch("/api/subscription/upgrade-portal/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+              credentials: "same-origin",
+              body: JSON.stringify({ tier, plan }),
+            });
+            const data = await res.json();
+            if (res.ok && data.url) {
+              window.location.href = data.url;
+            } else {
+              alert(data.error || "Erro ao iniciar upgrade. Tente novamente.");
+              this.disabled = false;
+              this.innerHTML = origHtml;
+            }
+          } catch (err) {
+            console.error(err);
+            alert("Erro de conexão. Tente novamente.");
+            this.disabled = false;
+            this.innerHTML = origHtml;
+          }
+        });
+      });
+
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async function() {
+          try {
+            const csrf = getCookie("csrftoken");
+            await fetch("/api/auth/logout/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CSRFToken": csrf || "" },
+              credentials: "same-origin",
+            });
+            window.location.href = "/login/";
+          } catch (err) {
+            console.error("Erro ao fazer logout:", err);
+            window.location.href = "/login/";
+          }
+        });
+      }
+
+      document.querySelectorAll(".actionSubscribeBtn").forEach(btn => {
+        btn.addEventListener("click", function() {
+          const tier = this.dataset.tier;
+          const plan = this.dataset.plan || "monthly";
+          createCheckoutSession(tier, plan, this);
+        });
+      });
+
+      setTimeout(initContaGroupCollapse, 100);
+
+      async function updateSidebarStats() {
+        try {
+          const response = await fetch('/api/dashboard/summary/', { credentials: 'same-origin' });
+          if (!response.ok) return;
+          const data = await response.json();
+          const kpis = data.kpis || {};
+          const sidebarConfirmed = document.getElementById('sidebarConfirmed');
+          const sidebarPending   = document.getElementById('sidebarPending');
+          const sidebarRealized  = document.getElementById('sidebarRealized');
+          const sidebarStudents  = document.getElementById('sidebarStudents');
+          if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.calendar_confirmed || 0;
+          if (sidebarPending)   sidebarPending.textContent   = kpis.calendar_pending_month || 0;
+          if (sidebarRealized)  sidebarRealized.textContent  = kpis.calendar_realized || 0;
+          if (sidebarStudents)  sidebarStudents.textContent  = kpis.active_students || 0;
+        } catch (error) {
+          console.error('Erro ao atualizar visão rápida:', error);
+        }
+      }
+
+      updateSidebarStats();
+    });
+  </script>
+  {% include '_support_widget.html' %}
+</body>
+</html>

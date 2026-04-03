@@ -119,6 +119,7 @@ urlpatterns = [
     path("api/subscription/upgrade-portal/", upgrade_portal_session, name="upgrade-portal"),
     path("api/webhooks/stripe/", stripe_webhook, name="stripe-webhook"),
     path("planos/", PlanosView.as_view(), name="planos"),
+    path("planos-v2/", RedirectView.as_view(url="/planos/", permanent=True), name="planos-v2"),
     path("tutorial/", TutorialView.as_view(), name="tutorial"),
     path("planejamento/", PlanningListView.as_view(), name="planning-list"),
     path("planejamento/editar/", planning_edit_redirect, name="planning-edit"),

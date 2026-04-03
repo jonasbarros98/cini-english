@@ -4502,7 +4502,7 @@ def _sync_subscription_from_stripe(subscription, raise_on_error=False):
 
 class PlanosView(TemplateView):
     """View para exibir página de planos e faturamento"""
-    template_name = 'planos.html'
+    template_name = "planos_v2.html"
     login_required = True
     
     def dispatch(self, request, *args, **kwargs):
