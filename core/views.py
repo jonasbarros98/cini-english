@@ -3401,16 +3401,23 @@ def stripe_webhook(request):
     print(f"📦 Tipo de evento: {event_type}")
     print(f"🆔 ID do evento: {event_id}")
     
-    # Verificar idempotência
-    stripe_event, created = StripeEvent.objects.get_or_create(
-        event_id=event_id,
-        defaults={
-            'event_type': event_type,
-            'event_data': event,
-        }
-    )
+    # Verificar idempotência (com fallback resiliente para evitar 500 por falha de serialização/DB)
+    stripe_event = None
+    created = False
+    event_data = event.to_dict_recursive() if hasattr(event, "to_dict_recursive") else dict(event)
+    try:
+        stripe_event, created = StripeEvent.objects.get_or_create(
+            event_id=event_id,
+            defaults={
+                'event_type': event_type,
+                'event_data': event_data,
+            }
+        )
+    except Exception as e:
+        # Não derrubar o webhook em produção por falha de persistência de debug.
+        print(f"⚠️ Falha ao registrar StripeEvent (idempotência): {e}")
     
-    if not created:
+    if stripe_event and not created:
         if stripe_event.processed:
             print(f"⚠️ Evento já processado anteriormente")
             return JsonResponse({'status': 'already_processed'})
@@ -3442,9 +3449,10 @@ def stripe_webhook(request):
         else:
             print(f"⚠️ Tipo de evento não tratado: {event_type}")
         
-        stripe_event.processed = True
-        stripe_event.processed_at = timezone.now()
-        stripe_event.save()
+        if stripe_event:
+            stripe_event.processed = True
+            stripe_event.processed_at = timezone.now()
+            stripe_event.save()
         
         print(f"✅ Evento processado com sucesso!")
         return JsonResponse({'status': 'success'})
@@ -3453,8 +3461,9 @@ def stripe_webhook(request):
         print(f"❌ ERRO ao processar evento: {e}")
         import traceback
         traceback.print_exc()
-        stripe_event.error_message = str(e)
-        stripe_event.save()
+        if stripe_event:
+            stripe_event.error_message = str(e)
+            stripe_event.save()
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
@@ -4073,6 +4082,15 @@ def handle_subscription_deleted(subscription_obj):
 
 def handle_subscription_updated(subscription_obj):
     """Processa atualização de assinatura (ex.: troca de plano, cancelamento agendado)"""
+    def _safe_ts_to_aware(ts):
+        """Converte timestamp unix para datetime aware; retorna None se inválido."""
+        if ts in (None, "", 0, "0"):
+            return None
+        try:
+            return timezone.make_aware(datetime.fromtimestamp(int(ts)))
+        except (TypeError, ValueError, OSError):
+            return None
+
     subscription_id = subscription_obj.get('id')
     cancel_at_period_end = subscription_obj.get('cancel_at_period_end', False)
     print(f"[subscription.updated] id={subscription_id} cancel_at_period_end={cancel_at_period_end}")
@@ -4094,11 +4112,12 @@ def handle_subscription_updated(subscription_obj):
                 subscription.plan = plan
         
         # Atualizar período
-        period_end_ts = subscription_obj.get('current_period_end', 0)
-        subscription.current_period_start = timezone.make_aware(
-            datetime.fromtimestamp(subscription_obj.get('current_period_start', 0))
-        )
-        subscription.current_period_end = timezone.make_aware(datetime.fromtimestamp(period_end_ts))
+        period_start = _safe_ts_to_aware(subscription_obj.get('current_period_start'))
+        period_end = _safe_ts_to_aware(subscription_obj.get('current_period_end'))
+        if period_start:
+            subscription.current_period_start = period_start
+        if period_end:
+            subscription.current_period_end = period_end
         
         # Atualizar status baseado no status do Stripe (trialing = trial 7 dias = acesso liberado)
         stripe_status = subscription_obj.get('status', '')
