@@ -3401,10 +3401,30 @@ def stripe_webhook(request):
     print(f"📦 Tipo de evento: {event_type}")
     print(f"🆔 ID do evento: {event_id}")
     
+    def _stripe_event_to_jsonable_dict(ev):
+        """Converte o Event do Stripe em dict JSON-safe para o JSONField (nunca levanta)."""
+        try:
+            if hasattr(ev, "to_dict_recursive"):
+                raw = ev.to_dict_recursive()
+            elif hasattr(ev, "to_dict"):
+                raw = ev.to_dict()
+            else:
+                raw = dict(ev)
+            json.dumps(raw, default=str)
+            return raw
+        except Exception as ex:
+            print(f"⚠️ Falha ao serializar evento completo para StripeEvent: {ex}")
+            return {
+                "id": getattr(ev, "id", None) or (ev.get("id") if isinstance(ev, dict) else None),
+                "type": getattr(ev, "type", None) or (ev.get("type") if isinstance(ev, dict) else None),
+                "object": "event",
+                "serialization_note": "fallback_minimal_payload",
+            }
+
     # Verificar idempotência (com fallback resiliente para evitar 500 por falha de serialização/DB)
     stripe_event = None
     created = False
-    event_data = event.to_dict_recursive() if hasattr(event, "to_dict_recursive") else dict(event)
+    event_data = _stripe_event_to_jsonable_dict(event)
     try:
         stripe_event, created = StripeEvent.objects.get_or_create(
             event_id=event_id,
@@ -3452,7 +3472,10 @@ def stripe_webhook(request):
         if stripe_event:
             stripe_event.processed = True
             stripe_event.processed_at = timezone.now()
-            stripe_event.save()
+            try:
+                stripe_event.save()
+            except Exception as save_ex:
+                print(f"⚠️ Falha ao marcar StripeEvent como processado: {save_ex}")
         
         print(f"✅ Evento processado com sucesso!")
         return JsonResponse({'status': 'success'})
@@ -3463,7 +3486,10 @@ def stripe_webhook(request):
         traceback.print_exc()
         if stripe_event:
             stripe_event.error_message = str(e)
-            stripe_event.save()
+            try:
+                stripe_event.save()
+            except Exception as save_ex:
+                print(f"⚠️ Falha ao gravar error_message no StripeEvent: {save_ex}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
@@ -4092,7 +4118,8 @@ def handle_subscription_updated(subscription_obj):
             return None
 
     subscription_id = subscription_obj.get('id')
-    cancel_at_period_end = subscription_obj.get('cancel_at_period_end', False)
+    # Stripe pode enviar null explicitamente; .get(..., False) ainda retorna None e quebra BooleanField.
+    cancel_at_period_end = bool(subscription_obj.get('cancel_at_period_end') or False)
     print(f"[subscription.updated] id={subscription_id} cancel_at_period_end={cancel_at_period_end}")
     
     try:
