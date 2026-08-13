@@ -2,24 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Dependencias em UTF-8 (evita problema de encoding do requirements.txt no Windows)
-RUN printf '%s\n' \
-  'Django>=4.2' \
-  'djangorestframework' \
-  'django-cors-headers' \
-  'dj-database-url' \
-  'python-dotenv' \
-  'whitenoise' \
-  'stripe' \
-  'Pillow' \
-  'psycopg2-binary' \
-  'gunicorn' \
-  'django-anymail[resend]' \
-  'google-auth>=2.29.0' \
-  'django-storages[s3]' \
-  'boto3' \
-  > requirements.txt
-
+# Dependencias com versoes fixas (ver requirements.txt).
+# Copiado antes do resto do codigo para aproveitar o cache de camada do Docker:
+# alterar um template nao obriga a reinstalar tudo.
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
