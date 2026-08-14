@@ -1,0 +1,3166 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  {% include '_meta_pixel.html' %}
+  <title>Alunos • EDUCAflowOne</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+
+  <style>
+    /* ==========================================================================
+       ALUNOS v2, sistema visual
+       --------------------------------------------------------------------------
+       Direcao: minimalista e refinada, com disciplina suica na grelha e nos
+       rotulos. O sinal de cor e escasso de proposito: azul so em acao primaria e
+       foco, ambar reservado ao fim de pacote. Assim, quando algo fica ambar na
+       lista, o olho encontra na hora.
+
+       Regra da casa: nenhuma cor literal fora do :root. Todos os tons de estado
+       nascem de um canal RGB unico (--rgb-*) com opacidade, por isso nao existem
+       dois cinzas quase iguais brigando entre si.
+       ========================================================================== */
+    :root{
+      /* --- Canais de cor. Toda tinta e sombra do ficheiro sai daqui. --- */
+      --rgb-ink:      15 23 42;
+      --rgb-brand:    37 99 235;
+      --rgb-ok:       22 163 74;
+      --rgb-warn:    217 119 6;
+      --rgb-danger:  220 38 38;
+      --rgb-white:   255 255 255;
+
+      /* --- Escala neutra unica (0 = papel, 9 = tinta) --- */
+      --n-0:#ffffff;
+      --n-1:#f8fafc;
+      --n-2:#f1f5f9;
+      --n-3:#e2e8f0;
+      --n-4:#cbd5e1;
+      --n-5:#94a3b8;
+      --n-6:#64748b;
+      --n-7:#475569;
+      --n-8:#334155;
+      --n-9:#0f172a;
+
+      /* --- Tintas de marca e de estado (as unicas cores cromaticas) --- */
+      --brand:        #2563eb;
+      --brand-strong: #1d4ed8;
+      --ok:           #16a34a;
+      --ok-strong:    #15803d;
+      --warn:         #d97706;
+      --warn-strong:  #92400e;
+      --danger:       #dc2626;
+      --danger-strong:#b91c1c;
+
+      /* --- Superficies --- */
+      --surface:       var(--n-0);
+      --surface-2:     var(--n-1);
+      --surface-3:     var(--n-2);
+      --surface-page:  var(--n-2);
+      --surface-inset: rgb(var(--rgb-ink) / .035);
+      --scrim:         rgb(var(--rgb-ink) / .55);
+
+      /* --- Texto --- */
+      --text:      var(--n-9);
+      --text-2:    var(--n-7);
+      --text-3:    var(--n-6);
+      --text-soft: var(--n-5);
+      --text-inv:  var(--n-0);
+
+      /* --- Linhas --- */
+      --border:      rgb(var(--rgb-ink) / .10);
+      --border-soft: rgb(var(--rgb-ink) / .06);
+      --border-firm: rgb(var(--rgb-ink) / .18);
+
+      /* --- Tintas derivadas de estado (fundo, borda, texto) --- */
+      --brand-tint:    rgb(var(--rgb-brand) / .07);
+      --brand-tint-2:  rgb(var(--rgb-brand) / .13);
+      --brand-line:    rgb(var(--rgb-brand) / .26);
+      --ok-tint:       rgb(var(--rgb-ok) / .09);
+      --ok-line:       rgb(var(--rgb-ok) / .22);
+      --warn-tint:     rgb(var(--rgb-warn) / .12);
+      --warn-tint-2:   rgb(var(--rgb-warn) / .20);
+      --warn-line:     rgb(var(--rgb-warn) / .38);
+      --danger-tint:   rgb(var(--rgb-danger) / .08);
+      --danger-line:   rgb(var(--rgb-danger) / .22);
+
+      /* --- Elevacao: tres degraus, nao mais --- */
+      --shadow-1: 0 1px 2px rgb(var(--rgb-ink) / .04), 0 2px 8px rgb(var(--rgb-ink) / .04);
+      --shadow-2: 0 2px 4px rgb(var(--rgb-ink) / .05), 0 10px 24px rgb(var(--rgb-ink) / .07);
+      --shadow-3: 0 8px 16px rgb(var(--rgb-ink) / .08), 0 32px 64px rgb(var(--rgb-ink) / .14);
+      --shadow-brand: 0 2px 6px rgb(var(--rgb-brand) / .22), 0 10px 24px rgb(var(--rgb-brand) / .18);
+
+      /* --- Foco: um anel so, o mesmo em toda a tela --- */
+      --focus:      var(--brand);
+      --focus-ring: 0 0 0 3px rgb(var(--rgb-brand) / .22);
+      --focus-w:    2px;
+
+      /* --- Ritmo de espaco --- */
+      --sp-1: 4px;
+      --sp-2: 8px;
+      --sp-3: 12px;
+      --sp-4: 16px;
+      --sp-5: 20px;
+      --sp-6: 28px;
+      --sp-7: 40px;
+
+      /* --- Raio --- */
+      --r-1: 8px;
+      --r-2: 12px;
+      --r-3: 16px;
+      --r-4: 22px;
+      --r-pill: 999px;
+
+      /* --- Tipografia --- */
+      --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      --fs-2xs: 10.5px;
+      --fs-xs:  11.5px;
+      --fs-sm:  12.5px;
+      --fs-md:  13.5px;
+      --fs-lg:  15px;
+      --fs-xl:  clamp(19px, 1.1rem + .6vw, 24px);
+      --lh-tight: 1.2;
+      --lh-base:  1.5;
+      --track-tight: -.02em;
+      --track-wide:  .07em;
+
+      /* --- Movimento --- */
+      --dur-1: .12s;
+      --dur-2: .2s;
+      --ease: cubic-bezier(.2, .7, .35, 1);
+
+      /* --- Medidas de grelha (a responsividade mora aqui, nao em breakpoint) --- */
+      --card-min:  300px;  /* largura minima do card de aluno */
+      --field-min: 200px;  /* largura minima de um campo de filtro */
+      --pair-min:  170px;  /* largura minima de campo em par */
+      --gap-card:  var(--sp-3);
+      --list-rows: 3;      /* linhas de cards visiveis antes do scroll interno */
+      --list-row-h: 214px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+
+    body.page-alunos{
+      margin:0;
+      font-family: var(--font);
+      color: var(--text);
+      background-color: var(--surface-page);
+      background-image:
+        radial-gradient(1200px 620px at 8vw 0vh, rgb(var(--rgb-brand) / .06), transparent 60%),
+        linear-gradient(180deg, var(--n-1) 0vh, var(--n-1) 62vh, var(--surface-page) 100vh);
+      background-repeat:no-repeat;
+      background-attachment:fixed;
+      -webkit-font-smoothing:antialiased;
+    }
+    body.page-alunos .app-shell > main.main{
+      border-radius: var(--r-3);
+      min-height:0;
+    }
+
+    /* ==========================================================================
+       Foco. Um anel unico, visivel, em tudo que recebe teclado.
+       ========================================================================== */
+    body.page-alunos a:focus-visible,
+    body.page-alunos button:focus-visible,
+    body.page-alunos input:focus-visible,
+    body.page-alunos select:focus-visible,
+    body.page-alunos textarea:focus-visible,
+    body.page-alunos summary:focus-visible,
+    body.page-alunos [tabindex]:focus-visible{
+      outline: var(--focus-w) solid var(--focus);
+      outline-offset: 2px;
+    }
+    body.page-alunos .nav-item:focus-visible,
+    body.page-alunos .nav-group-header:focus-visible,
+    body.page-alunos .sidebar-card button:focus-visible{
+      outline: var(--focus-w) solid var(--focus);
+      outline-offset: 2px;
+      box-shadow: var(--focus-ring);
+    }
+    body.page-alunos .student-card:focus-within{
+      border-color: var(--brand-line);
+      box-shadow: var(--shadow-2);
+    }
+    /* O input/select ganha o anel tambem no clique de rato, nao so no teclado:
+       aqui a professora digita muito e precisa saber onde esta o cursor. */
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus{
+      border-color: var(--brand-line);
+      box-shadow: var(--focus-ring);
+      outline: none;
+    }
+    .field input:focus-visible,
+    .field select:focus-visible,
+    .field textarea:focus-visible{ outline: none; }
+
+    /* ==========================================================================
+       Icones. Sprite <symbol> proprio, grade 24, traco uniforme, currentColor.
+       ========================================================================== */
+    .icon-sprite{position:absolute;width:0;height:0;overflow:hidden}
+    .ic{
+      width:16px;height:16px;
+      flex: 0 0 auto;
+      fill:none;
+      stroke:currentColor;
+      stroke-width:1.75;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+    }
+    .ic--xs{width:13px;height:13px}
+    .ic--sm{width:14px;height:14px}
+    .ic--lg{width:20px;height:20px}
+    .ic--xl{width:24px;height:24px}
+    .ic--nav{width:22px;height:22px;stroke-width:1.6}
+    .ic--hero{width:38px;height:38px;stroke-width:1.4}
+
+    .sr-only{
+      position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+      overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+    }
+
+    /* ==========================================================================
+       Cabecalho da pagina
+       ========================================================================== */
+    .wrap{max-width:100%;margin:0;padding: var(--sp-5) var(--sp-5) 90px;width:100%;}
+
+    .page-head{
+      display:flex;align-items:center;justify-content:space-between;
+      gap: var(--sp-4);
+      margin-bottom: var(--sp-4);
+      flex-wrap:wrap;
+    }
+    .title h1{
+      margin:0;
+      font-size: var(--fs-xl);
+      font-weight:800;
+      letter-spacing: var(--track-tight);
+      line-height: var(--lh-tight);
+    }
+    .title .page-sub{
+      margin: var(--sp-1) 0 0;
+      font-size: var(--fs-sm);
+      font-weight:600;
+      color: var(--text-3);
+    }
+
+    /* ==========================================================================
+       Botoes
+       ========================================================================== */
+    .btn-primary{
+      display:inline-flex;align-items:center;gap: var(--sp-2);
+      border:none;
+      background: var(--brand);
+      color: var(--text-inv);
+      font-family:inherit;
+      font-weight:700;
+      font-size: var(--fs-md);
+      padding: 11px 16px;
+      border-radius: var(--r-2);
+      box-shadow: var(--shadow-brand);
+      cursor:pointer;
+      transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+      white-space:nowrap;
+    }
+    .btn-primary:hover{background: var(--brand-strong); transform: translateY(-1px);}
+    .btn-primary:active{transform: translateY(0);}
+
+    .btn{
+      display:inline-flex;align-items:center;gap:6px;
+      border:1px solid var(--border);
+      background: var(--surface);
+      padding: 8px 12px;
+      border-radius: var(--r-2);
+      font-family:inherit;
+      font-weight:700;
+      font-size: var(--fs-sm);
+      cursor:pointer;
+      color: var(--text-2);
+      white-space:nowrap;
+      line-height:1.15;
+      transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+    }
+    .btn:hover{background: var(--surface-2); border-color: var(--border-firm); color: var(--text);}
+    .btn .ic{color: var(--text-soft); transition: color var(--dur-1) var(--ease);}
+    .btn:hover .ic{color: var(--text-3);}
+
+    .btn.primary{
+      border-color: transparent;
+      background: var(--brand);
+      color: var(--text-inv);
+      box-shadow: 0 1px 2px rgb(var(--rgb-brand) / .28);
+    }
+    .btn.primary:hover{background: var(--brand-strong); color: var(--text-inv);}
+    .btn.primary .ic,
+    .btn.primary:hover .ic{color: currentColor;}
+
+    /* Acao contextual forte, sem competir com a primaria */
+    .btn--accent{
+      border-color: var(--brand-line);
+      background: var(--brand-tint);
+      color: var(--brand-strong);
+    }
+    .btn--accent:hover{background: var(--brand-tint-2); color: var(--brand-strong); border-color: var(--brand);}
+    .btn--accent .ic,
+    .btn--accent:hover .ic{color: currentColor;}
+
+    /* Acao de manutencao: existe, mas nao chama */
+    .btn--quiet{
+      border-color: transparent;
+      background: transparent;
+      color: var(--text-3);
+      font-weight:650;
+    }
+    .btn--quiet:hover{background: var(--surface-3); border-color: var(--border-soft); color: var(--text);}
+
+    .btn.danger{color: var(--danger-strong);}
+    .btn.danger:hover{background: var(--danger-tint); border-color: var(--danger-line); color: var(--danger-strong);}
+    .btn.danger .ic,
+    .btn.danger:hover .ic{color: currentColor;}
+    .btn.ghost{background: var(--surface-2);}
+    .btn:disabled{opacity:.6;cursor:progress;}
+
+    .btn-link-sm{
+      display:inline-flex;align-items:center;gap: var(--sp-1);
+      background:none;border:none;padding:0;
+      font-family:inherit;
+      font-size: var(--fs-xs);
+      font-weight:700;
+      color: var(--brand);
+      cursor:pointer;
+      border-radius: var(--r-1);
+    }
+    .btn-link-sm:hover{color: var(--brand-strong); text-decoration:underline; text-underline-offset:3px;}
+
+    /* ==========================================================================
+       Barra de filtros
+       ========================================================================== */
+    .filters{
+      position:sticky;
+      top:0;
+      z-index:10;
+      padding: var(--sp-2) 0 var(--sp-3);
+      background: linear-gradient(180deg, var(--n-1) 62%, rgb(var(--rgb-white) / 0));
+    }
+    .filters-toggle-mobile{
+      display:flex;align-items:center;gap: var(--sp-2);
+      width:100%;
+      padding: 10px 14px;
+      margin-bottom: var(--sp-2);
+      border:1px solid var(--border);
+      border-radius: var(--r-2);
+      background: var(--surface);
+      font-family:inherit;
+      font-weight:700;
+      font-size: var(--fs-md);
+      color: var(--text-2);
+      cursor:pointer;
+      box-shadow: var(--shadow-1);
+      transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+    }
+    .filters-toggle-mobile:hover{border-color: var(--brand-line); color: var(--text);}
+    .filters-toggle-mobile .ic{color: var(--text-soft);}
+    .filters-toggle-mobile .filters-chevron{
+      margin-left:auto;
+      transition: transform var(--dur-2) var(--ease);
+    }
+    .filters.filters--collapsed .filters-toggle-mobile .filters-chevron{transform: rotate(-90deg);}
+    .filters.filters--collapsed .filters-inner,
+    .filters.filters--collapsed .filters-footer{display:none;}
+    .filters.filters--collapsed .filters-toggle-mobile{margin-bottom:0;}
+    .filters.filters--collapsed{padding: var(--sp-1) 0 var(--sp-2);}
+    #filtersWrapper.filters--collapsed + .alunos-layout{margin-top: var(--sp-2);}
+
+    /* Grelha intrinseca 1: os campos de filtro se reorganizam pela largura
+       disponivel, sem media query nenhuma. */
+    .filters-inner{
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--r-3);
+      box-shadow: var(--shadow-1);
+      padding: var(--sp-3);
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--field-min)), 1fr));
+      gap: var(--sp-3);
+      align-items:end;
+    }
+    .filters-footer{
+      display:flex;justify-content:space-between;align-items:center;
+      margin-top: var(--sp-2);
+      gap: var(--sp-3);
+      flex-wrap:wrap;
+    }
+    .filters-actions{display:flex;gap: var(--sp-2);flex-wrap:wrap;}
+    .filters-count{
+      display:inline-flex;align-items:center;gap:6px;
+      color: var(--text-3);
+      font-weight:700;
+      font-size: var(--fs-sm);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ==========================================================================
+       Campos
+       ========================================================================== */
+    .field{display:flex;flex-direction:column;gap:6px;min-width:0;}
+    .field label{
+      font-size: var(--fs-xs);
+      color: var(--text-3);
+      font-weight:700;
+      letter-spacing:.01em;
+    }
+    .field input, .field select, .field textarea{
+      width:100%;
+      padding: 10px 12px;
+      border-radius: var(--r-2);
+      border:1px solid var(--border);
+      background: var(--surface);
+      outline:none;
+      font-family:inherit;
+      font-weight:600;
+      font-size: var(--fs-md);
+      color: var(--text);
+      transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+    }
+    .field input::placeholder, .field textarea::placeholder{color: var(--text-soft); font-weight:500;}
+    .field textarea{min-height:88px;resize:vertical;}
+    .field input[readonly], .field .is-readonly{
+      background: var(--surface-3);
+      color: var(--text-3);
+      cursor:not-allowed;
+    }
+    .editor-readonly input,
+    .editor-readonly select,
+    .editor-readonly textarea{
+      background: var(--surface-3);
+      cursor:not-allowed;
+    }
+    .help, .field-note{
+      margin-top: var(--sp-1);
+      color: var(--text-3);
+      font-weight:600;
+      font-size: var(--fs-xs);
+      line-height:1.45;
+      display:block;
+    }
+
+    /* Blocos de campos que aparecem conforme o tipo de cobranca. O JS alterna
+       entre display none e vazio, por isso o valor visivel vive aqui. */
+    .billing-wrap-fields{display:grid;gap: var(--sp-3);}
+
+    /* Campo com icone dentro (busca) */
+    .field-icon-wrap{position:relative;display:flex;align-items:center;}
+    .field-icon-wrap > .ic{position:absolute;left:11px;color: var(--text-soft);pointer-events:none;}
+    .field-icon-wrap input{padding-left:33px;}
+
+    /* Grelha intrinseca 2: pares de campos viram coluna unica sozinhos. */
+    .two{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--pair-min)), 1fr));
+      gap: var(--sp-3);
+    }
+
+    /* ==========================================================================
+       Painel da lista
+       ========================================================================== */
+    .alunos-layout{margin-top: var(--sp-3);}
+    .alunos-layout .panel{
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--r-3);
+      box-shadow: var(--shadow-1);
+      overflow:hidden;
+    }
+    .alunos-layout .panel-head{
+      padding: var(--sp-3) var(--sp-4);
+      border-bottom:1px solid var(--border-soft);
+      background: var(--surface-2);
+      display:flex;align-items:center;justify-content:space-between;
+      gap: var(--sp-3);
+      flex-wrap:wrap;
+    }
+    .panel-head__title{display:flex;align-items:center;gap: var(--sp-2);min-width:0;}
+    .panel-head__title .ic{color: var(--text-soft);}
+    .alunos-layout .panel-head h2{
+      margin:0;
+      font-size: var(--fs-md);
+      font-weight:800;
+      letter-spacing: var(--track-tight);
+    }
+    .alunos-layout .panel-head .meta{
+      color: var(--text-3);
+      font-size: var(--fs-xs);
+      font-weight:600;
+    }
+    .panel-head .meta--tag{
+      display:inline-flex;align-items:center;gap:6px;
+      padding: 5px 10px;
+      border-radius: var(--r-pill);
+      border:1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-3);
+      font-size: var(--fs-2xs);
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing: var(--track-wide);
+    }
+
+    /* Grelha intrinseca 3: a lista de alunos. O numero de colunas vem da
+       largura real do painel, por isso a tela funciona igual num portatil de
+       13 polegadas e num monitor largo, sem breakpoint para cada caso. */
+    .alunos-layout .list{
+      padding: var(--sp-3);
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--card-min)), 1fr));
+      gap: var(--gap-card);
+      align-content:start;
+      max-height: min(
+        calc(
+          var(--list-rows) * var(--list-row-h) +
+          (var(--list-rows) - 1) * var(--gap-card) +
+          var(--sp-6)
+        ),
+        calc(100vh - 210px)
+      );
+      overflow-y:auto;
+      overflow-x:hidden;
+      -webkit-overflow-scrolling:touch;
+      min-height:0;
+      scrollbar-color: var(--n-4) transparent;
+      scrollbar-width:thin;
+    }
+    .alunos-layout .list::-webkit-scrollbar{width:10px;}
+    .alunos-layout .list::-webkit-scrollbar-track{background:transparent;}
+    .alunos-layout .list::-webkit-scrollbar-thumb{
+      background: var(--n-4);
+      border-radius: var(--r-pill);
+      border:3px solid var(--surface);
+    }
+    .alunos-layout .list::-webkit-scrollbar-thumb:hover{background: var(--n-5);}
+
+    /* ==========================================================================
+       Card do aluno
+       --------------------------------------------------------------------------
+       Hierarquia: 1) nome, 2) o que precisa de acao (selo de fim de pacote e a
+       trilha de sinal na borda), 3) quantas aulas faltam, 4) contacto, e so
+       depois as acoes. Os selos de plano, nivel e status viram etiqueta discreta:
+       sao referencia, nao alarme.
+       ========================================================================== */
+    .student-card{
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      gap: var(--sp-3);
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--r-3);
+      box-shadow: var(--shadow-1);
+      padding: var(--sp-3) var(--sp-3) var(--sp-2) var(--sp-4);
+      cursor:pointer;
+      transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+      isolation:isolate;
+    }
+    /* A trilha de sinal: le-se de relance, mesmo em visao periferica. */
+    .student-card::before{
+      content:'';
+      position:absolute;
+      left:0;top: var(--sp-3);bottom: var(--sp-3);
+      width:3px;
+      border-radius:0 var(--r-pill) var(--r-pill) 0;
+      background: var(--rail, transparent);
+    }
+    .student-card[data-status="active"]{--rail: rgb(var(--rgb-ok) / .45);}
+    .student-card[data-status="paused"]{--rail: rgb(var(--rgb-warn) / .45);}
+    .student-card[data-status="ended"]{--rail: rgb(var(--rgb-ink) / .16);}
+    .student-card:hover{
+      border-color: var(--border-firm);
+      box-shadow: var(--shadow-2);
+      transform: translateY(-1px);
+    }
+    .student-card.active{
+      border-color: var(--brand);
+      box-shadow: var(--shadow-2), 0 0 0 1px var(--brand);
+    }
+    /* Fim de pacote: o card inteiro assume o aviso, nao so o selo. */
+    .student-card--alerta{
+      --rail: var(--warn);
+      border-color: var(--warn-line);
+      background: linear-gradient(180deg, var(--warn-tint) 0, var(--surface) 64px);
+    }
+
+    .row{display:flex;align-items:flex-start;justify-content:space-between;gap: var(--sp-2);min-width:0;flex-wrap:wrap;}
+    .name{
+      font-weight:750;
+      font-size: var(--fs-lg);
+      letter-spacing: var(--track-tight);
+      line-height:1.25;
+      margin:0;
+      flex:1 1 160px;
+      min-width:0;
+    }
+    .name-link{
+      color:inherit;text-decoration:none;
+      display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      border-radius: var(--r-1);
+    }
+    .name-link:hover{color: var(--brand-strong);text-decoration:underline;text-underline-offset:3px;}
+
+    .badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:0 1 auto;min-width:0;}
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding: 3px 9px;
+      border-radius: var(--r-pill);
+      font-size: var(--fs-2xs);
+      font-weight:750;
+      letter-spacing:.01em;
+      border:1px solid var(--border-soft);
+      background: var(--surface-2);
+      color: var(--text-3);
+      white-space:nowrap;
+    }
+    .dot{width:6px;height:6px;border-radius: var(--r-pill);background: var(--n-5);flex:none;}
+    .badge.ok .dot{background: var(--ok);}
+    .badge.warn .dot{background: var(--warn);}
+    .badge.bad .dot{background: var(--danger);}
+    .badge.primary{color: var(--brand-strong);background: var(--brand-tint);border-color: var(--brand-line);}
+    .badge.primary .dot{background: var(--brand);}
+
+    /* Fim de pacote de aulas. Vem primeiro na linha de selos e e o unico com
+       preenchimento solido: e uma pendencia com prazo, nao um estado. O ponto
+       pulsa devagar para o olho encontrar o card ao percorrer a lista, sem
+       virar aquele piscar que cansa. */
+    .badge.alerta-pacote{
+      background: var(--warn-tint-2);
+      border-color: var(--warn-line);
+      color: var(--warn-strong);
+      font-weight:800;
+      padding: 4px 10px;
+      font-size: var(--fs-xs);
+      order:-1;
+    }
+    .badge.alerta-pacote .dot{
+      width:7px;height:7px;
+      background: var(--warn-strong);
+      animation: pulsoPacote 2.4s ease-in-out infinite;
+    }
+    @keyframes pulsoPacote{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.45;transform:scale(.82);}}
+
+    /* Progresso: o numero que a professora procura depois do nome. */
+    .progress-wrap{display:flex;align-items:center;justify-content:space-between;gap: var(--sp-3);}
+    .progress-wrap.progress-per-lesson{flex-wrap:wrap;align-items:baseline;gap:6px var(--sp-3);}
+    .progress{
+      flex:1 1 auto;
+      height:6px;
+      border-radius: var(--r-pill);
+      background: var(--surface-inset);
+      overflow:hidden;
+    }
+    .bar{
+      height:100%;
+      width: var(--bar-pct, 0%);
+      border-radius: var(--r-pill);
+      background: var(--brand);
+      transition: width var(--dur-2) var(--ease);
+    }
+    .student-card--alerta .bar{background: var(--warn);}
+    .progress-meta{
+      font-size: var(--fs-sm);
+      font-weight:750;
+      color: var(--text-2);
+      white-space:nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .progress-per-lesson .progress-meta{flex:1 1 auto;}
+
+    /* Contacto: referencia, nao destaque. Icone carrega o rotulo. */
+    .info{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+      gap: 5px var(--sp-3);
+      color: var(--text-3);
+      font-size: var(--fs-xs);
+      font-weight:600;
+      line-height:1.35;
+      padding-top: var(--sp-2);
+      border-top:1px dashed var(--border-soft);
+    }
+    .info .line{
+      display:flex;gap:7px;align-items:center;min-width:0;
+    }
+    .info .line .ic{color: var(--text-soft);}
+    .info .line span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .info .line--wide{grid-column:1 / -1;}
+
+    .quick-actions{
+      display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+      padding-top: var(--sp-2);
+      border-top:1px solid var(--border-soft);
+      margin-top:auto;
+    }
+    .quick-actions a{text-decoration:none;}
+    .quick-actions .btn{padding: 7px 11px;font-size: var(--fs-xs);}
+    /* Acao de estado (inativar, excluir): so o icone, com rotulo no title e no
+       aria-label. Sao raras e nao devem disputar espaco com o que se usa todo dia. */
+    .btn--icon{padding:0;width:30px;height:30px;justify-content:center;}
+    .btn--icon .ic{width:15px;height:15px;}
+    /* Empurra a manutencao (editar, inativar, excluir) para a direita:
+       o olho encontra primeiro o que se usa todo dia. */
+    .quick-actions .js-edit{margin-left:auto;}
+
+    /* Estados da lista: vazio, erro e carregamento. */
+    .list-state{
+      grid-column:1 / -1;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap: var(--sp-3);
+      padding: var(--sp-7) var(--sp-4);
+      text-align:center;
+      color: var(--text-3);
+    }
+    .list-state__icon{
+      display:grid;place-items:center;
+      width:72px;height:72px;
+      border-radius: var(--r-4);
+      background: var(--surface-3);
+      color: var(--text-soft);
+    }
+    .list-state--erro .list-state__icon{background: var(--danger-tint);color: var(--danger);}
+    .list-state__title{margin:0;font-size: var(--fs-lg);font-weight:750;color: var(--text-2);letter-spacing: var(--track-tight);}
+    .list-state__text{margin:0;max-width:44ch;font-size: var(--fs-sm);font-weight:600;line-height:1.5;}
+
+    .skel-card{
+      border:1px solid var(--border-soft);
+      border-radius: var(--r-3);
+      background: var(--surface);
+      padding: var(--sp-3) var(--sp-3) var(--sp-2) var(--sp-4);
+      display:flex;flex-direction:column;gap: var(--sp-3);
+      min-height: 176px;
+    }
+    .skel{
+      border-radius: var(--r-pill);
+      background: linear-gradient(90deg, var(--surface-3) 25%, var(--n-3) 37%, var(--surface-3) 63%);
+      background-size: 400% 100%;
+      animation: skelSlide 1.4s ease-in-out infinite;
+      height:10px;
+    }
+    .skel--title{height:15px;width:58%;}
+    .skel--pill{height:18px;width:74px;border-radius: var(--r-pill);}
+    .skel--bar{height:6px;width:100%;}
+    .skel--line{height:9px;width:82%;}
+    .skel--line-2{height:9px;width:64%;}
+    .skel-row{display:flex;gap:6px;align-items:center;justify-content:space-between;}
+    @keyframes skelSlide{0%{background-position:100% 0}100%{background-position:0 0}}
+
+    /* ==========================================================================
+       Editor (blocos dobraveis, usados dentro dos modais)
+       ========================================================================== */
+    .editor{display:grid;gap: var(--sp-3);padding:0;}
+    .hint{
+      padding: var(--sp-3);
+      border-radius: var(--r-2);
+      border:1px dashed var(--border-firm);
+      background: var(--surface-2);
+      color: var(--text-3);
+      font-weight:600;font-size: var(--fs-sm);line-height:1.5;
+    }
+    .section{
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--r-2);
+      overflow:hidden;
+    }
+    .section-head{
+      width:100%;
+      border:none;
+      background: var(--surface-2);
+      text-align:left;
+      cursor:pointer;
+      font-family:inherit;
+      color: var(--text);
+      padding: var(--sp-3);
+      display:flex;justify-content:space-between;align-items:center;
+      gap: var(--sp-3);
+      border-bottom:1px solid var(--border-soft);
+    }
+    .section-head strong{font-size: var(--fs-md);font-weight:750;}
+    .section-head span{
+      font-size: var(--fs-2xs);
+      color: var(--text-3);
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing: var(--track-wide);
+      border:1px solid var(--border);
+      border-radius: var(--r-pill);
+      padding: 4px 10px;
+      background: var(--surface);
+    }
+    .section-body{padding: var(--sp-3);display:grid;gap: var(--sp-3);}
+    .section[data-open="false"] .section-body{display:none;}
+    .section[data-open="true"] .section-head span{color: var(--text-2);}
+
+    .footer-actions{display:flex;gap: var(--sp-3);justify-content:flex-end;flex-wrap:wrap;padding-top:2px;}
+
+    /* Contrato anexado */
+    #f_contract_display{margin-top: var(--sp-2);}
+    .contract-card{
+      display:flex;align-items:center;gap: var(--sp-3);
+      padding: 10px;
+      background: var(--surface-2);
+      border-radius: var(--r-2);
+      border:1px solid var(--border);
+    }
+    .contract-card__ic{color: var(--text-soft);}
+    .contract-card__body{flex:1;min-width:0;}
+    .contract-card__title{font-weight:750;font-size: var(--fs-sm);color: var(--text);}
+    .contract-card__link{font-size: var(--fs-xs);color: var(--brand);text-decoration:none;font-weight:700;border-radius: var(--r-1);}
+    .contract-card__link:hover{text-decoration:underline;text-underline-offset:3px;}
+    .contract-card__remove{
+      display:inline-flex;align-items:center;gap:5px;
+      padding: 5px 9px;font-size: var(--fs-xs);
+      background: var(--danger-tint);
+      color: var(--danger-strong);
+      border:1px solid var(--danger-line);
+      border-radius: var(--r-1);
+      cursor:pointer;font-weight:750;font-family:inherit;
+    }
+    .contract-card__remove:hover{background: rgb(var(--rgb-danger) / .14);}
+    .is-hidden{display:none;}
+
+    /* ==========================================================================
+       Modais
+       ========================================================================== */
+    .modal-overlay{
+      position:fixed;inset:0;
+      display:none;
+      align-items:center;justify-content:center;
+      padding: var(--sp-4);
+      background: var(--scrim);
+      backdrop-filter: blur(6px);
+      z-index:9999;
+    }
+    .modal-overlay.is-open{display:flex;}
+    .modal{
+      width: min(860px, 96vw);
+      max-height: 90vh;
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--r-4);
+      box-shadow: var(--shadow-3);
+      overflow:hidden;
+      transform: translateY(8px) scale(.97);
+      opacity:0;
+      transition: transform var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
+      display:flex;
+      flex-direction:column;
+    }
+    .modal--compact{max-width:380px;}
+    .modal-overlay.is-open .modal{transform: translateY(0) scale(1);opacity:1;}
+    .modal-head{
+      padding: var(--sp-4);
+      display:flex;align-items:flex-start;justify-content:space-between;gap: var(--sp-3);
+      border-bottom:1px solid var(--border-soft);
+      flex-shrink:0;
+    }
+    .modal-head h3{margin:0;font-size: var(--fs-lg);font-weight:750;letter-spacing: var(--track-tight);}
+    .modal-head p{margin: var(--sp-1) 0 0;color: var(--text-3);font-size: var(--fs-sm);font-weight:600;}
+    .modal-close{
+      display:grid;place-items:center;
+      width:34px;height:34px;border-radius: var(--r-2);
+      border:1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-3);
+      cursor:pointer;
+      transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+    }
+    .modal-close:hover{background: var(--surface-3);color: var(--text);}
+    .modal-body{padding: var(--sp-4);overflow-y:auto;flex:1;min-height:0;}
+    .modal-actions{
+      padding: var(--sp-4);
+      display:flex;justify-content:flex-end;gap: var(--sp-3);flex-wrap:wrap;
+      border-top:1px solid var(--border-soft);
+      background: var(--surface-2);
+      flex-shrink:0;
+    }
+    .lessons-month-list{list-style:none;margin:0;padding:0;}
+    .lesson-month{
+      display:flex;justify-content:space-between;align-items:center;
+      padding: 10px 0;
+      border-bottom:1px solid var(--border-soft);
+      font-size: var(--fs-md);
+      font-variant-numeric: tabular-nums;
+    }
+    .lesson-month:last-child{border-bottom:none;}
+    .lesson-month-empty{padding: var(--sp-4);color: var(--text-3);font-size: var(--fs-sm);}
+
+    /* Confirmacao destrutiva */
+    .modal-overlay.modal--danger .modal{max-width:440px;border-top:3px solid var(--danger);}
+    .modal--danger .modal-head h3{color: var(--danger-strong);}
+    .modal--danger .modal-body{font-size: var(--fs-md);line-height:1.55;color: var(--text-2);}
+    .modal--danger .modal-body .confirm-name{
+      font-weight:750;color: var(--text);
+      margin: var(--sp-2) 0 var(--sp-3);
+      padding: 10px 12px;
+      background: var(--danger-tint);
+      border-radius: var(--r-2);
+      border:1px solid var(--danger-line);
+    }
+    .modal--danger .modal-body .confirm-warn{color: var(--text-3);font-size: var(--fs-sm);font-weight:600;}
+    .modal--danger .btn-confirm-delete{
+      display:inline-flex;align-items:center;gap:6px;
+      background: var(--danger);
+      color: var(--text-inv);
+      border:none;font-family:inherit;font-weight:750;
+      padding: 10px 18px;
+      border-radius: var(--r-2);
+      cursor:pointer;
+      box-shadow: 0 2px 6px rgb(var(--rgb-danger) / .3);
+      transition: background var(--dur-1) var(--ease);
+    }
+    .modal--danger .btn-confirm-delete:hover{background: var(--danger-strong);}
+
+    /* ==========================================================================
+       Modal: editar aluno
+       ========================================================================== */
+    @keyframes modal-enter{
+      from{opacity:0;transform: scale(.96) translateY(10px);}
+      to{opacity:1;transform: scale(1) translateY(0);}
+    }
+    #editStudentOverlay.modal-overlay.is-open .modal.modal--edit-student,
+    #newStudentOverlay.modal-overlay.is-open .modal.modal--new-student{
+      animation: modal-enter var(--dur-2) var(--ease) both;
+    }
+    #editStudentOverlay .modal.modal--edit-student{width: min(880px, 96vw);max-height: min(92vh, 900px);}
+    #newStudentOverlay .modal.modal--new-student{width: min(840px, 96vw);max-height:90vh;}
+
+    #editStudentOverlay .edit-modal-head,
+    #newStudentOverlay .new-modal-head{
+      display:flex;align-items:center;justify-content:space-between;gap: var(--sp-3);
+      padding: var(--sp-4) var(--sp-5);
+      background: var(--surface);
+      border-bottom:1px solid var(--border-soft);
+      flex-shrink:0;
+    }
+    #editStudentOverlay .edit-modal-head__left,
+    #newStudentOverlay .new-modal-head__left{
+      display:flex;align-items:center;gap: var(--sp-3);min-width:0;flex:1;
+    }
+    #editStudentOverlay .edit-modal-head__icon,
+    #newStudentOverlay .new-modal-head__icon{
+      flex-shrink:0;
+      display:grid;place-items:center;
+      width:42px;height:42px;
+      border-radius: var(--r-2);
+      background: var(--brand-tint);
+      border:1px solid var(--brand-line);
+      color: var(--brand-strong);
+    }
+    #editStudentOverlay .edit-modal-head__text,
+    #newStudentOverlay .new-modal-head__text{flex:1;min-width:0;}
+    #editStudentOverlay .edit-modal-head #editStudentTitle,
+    #newStudentOverlay .new-modal-head #newStudentTitle{
+      margin:0 0 2px;
+      font-size: var(--fs-lg);
+      font-weight:750;
+      letter-spacing: var(--track-tight);
+      color: var(--text);
+      line-height:1.2;
+    }
+    #editStudentOverlay .edit-modal-head #editorMeta,
+    #newStudentOverlay .new-modal-head .new-modal-head__sub{
+      margin:0;
+      font-size: var(--fs-sm);
+      font-weight:600;
+      color: var(--text-3);
+      line-height:1.4;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    #editStudentOverlay .edit-modal-head__close,
+    #newStudentOverlay .new-modal-head__close{
+      flex-shrink:0;
+      display:grid;place-items:center;
+      width:34px;height:34px;
+      border-radius: var(--r-2);
+      background: var(--surface);
+      border:1px solid var(--border);
+      color: var(--text-3);
+      cursor:pointer;
+      transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+    }
+    #editStudentOverlay .edit-modal-head__close:hover,
+    #newStudentOverlay .new-modal-head__close:hover{background: var(--surface-3);color: var(--text);}
+
+    #editStudentOverlay .edit-modal-body{padding: var(--sp-4) var(--sp-5) var(--sp-3);}
+    #newStudentOverlay .new-modal-body{
+      flex:1 1 auto;min-height:0;overflow-y:auto;
+      padding: var(--sp-4) var(--sp-5) var(--sp-3);
+      display:flex;flex-direction:column;gap: var(--sp-3);
+    }
+    /* Filhos nao podem encolher: .section tem overflow hidden e, em flex column,
+       isso zera o min-height automatico, o card comprime e corta campos no fim. */
+    #newStudentOverlay .new-modal-body > *{flex-shrink:0;}
+
+    #editStudentOverlay .edit-modal-hint,
+    #newStudentOverlay .new-modal-hint{
+      display:flex;align-items:flex-start;gap: var(--sp-2);
+      margin-bottom: var(--sp-4);
+      padding: 11px 13px;
+      background: var(--brand-tint);
+      border-radius: var(--r-2);
+      border-left:3px solid var(--brand);
+      font-size: var(--fs-sm);
+      line-height:1.55;
+      color: var(--text-2);
+    }
+    #newStudentOverlay .new-modal-hint{margin-bottom:0;}
+    #editStudentOverlay .edit-modal-hint--muted{
+      background: var(--surface-2);
+      border-left-color: var(--border-firm);
+      color: var(--text-3);
+    }
+    #editStudentOverlay .edit-modal-hint strong,
+    #newStudentOverlay .new-modal-hint strong{font-weight:800;color: var(--brand-strong);}
+    #editStudentOverlay .edit-modal-hint--muted strong{color: var(--text-2);}
+    .edit-modal-hint__ic, .new-modal-hint__ic{flex-shrink:0;margin-top:1px;color: var(--brand);}
+    #editStudentOverlay .edit-modal-hint--muted .edit-modal-hint__ic{color: var(--text-soft);}
+
+    #editStudentOverlay .editor .section,
+    #newStudentOverlay .new-modal-body > .section{
+      margin:0;
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--r-2);
+      overflow:hidden;
+    }
+    #editStudentOverlay .section-head,
+    #newStudentOverlay .new-modal-body .section-head{
+      width:100%;
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--surface-2);
+      border-bottom:1px solid var(--border-soft);
+    }
+    #editStudentOverlay .section-body,
+    #newStudentOverlay .new-modal-body .section-body{padding: var(--sp-4);}
+
+    #editStudentOverlay .modal-actions #editStudentCancel,
+    #newStudentOverlay .modal-actions #newStudentCancel{
+      background: var(--surface);
+      border:1px solid var(--border);
+      color: var(--text-2);
+      border-radius: var(--r-2);
+      padding: 10px 20px;
+      font-family:inherit;
+      font-size: var(--fs-md);
+      font-weight:650;
+      min-width:104px;
+      cursor:pointer;
+      transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+    }
+    #editStudentOverlay .modal-actions #editStudentCancel:hover,
+    #newStudentOverlay .modal-actions #newStudentCancel:hover{background: var(--surface-3);border-color: var(--border-firm);}
+    #editStudentOverlay .modal-actions #editStudentSave,
+    #newStudentOverlay .modal-actions #newStudentSave{
+      background: var(--brand);
+      border:none;
+      color: var(--text-inv);
+      border-radius: var(--r-2);
+      padding: 10px 22px;
+      font-family:inherit;
+      font-size: var(--fs-md);
+      font-weight:700;
+      min-width:132px;
+      cursor:pointer;
+      box-shadow: var(--shadow-brand);
+      transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+    }
+    #editStudentOverlay .modal-actions #editStudentSave:hover,
+    #newStudentOverlay .modal-actions #newStudentSave:hover:not(:disabled){
+      background: var(--brand-strong);
+      transform: translateY(-1px);
+    }
+    #newStudentOverlay .modal-actions #newStudentSave:disabled{opacity:.7;cursor:wait;transform:none;}
+
+    /* ==========================================================================
+       Sidebar, FAB e toast
+       ========================================================================== */
+    body.page-alunos .sidebar-card .primary{
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;
+      width:100%;
+      margin-top: var(--sp-2);
+      font-size: var(--fs-md);
+      padding: 9px 12px;
+    }
+
+    .fab{
+      position:fixed;right: var(--sp-5);bottom: var(--sp-5);z-index:20;
+      display:grid;place-items:center;
+      border:none;width:54px;height:54px;border-radius: var(--r-4);
+      background: var(--brand);
+      color: var(--text-inv);
+      box-shadow: var(--shadow-brand);
+      cursor:pointer;
+      transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+    }
+    .fab:hover{background: var(--brand-strong);transform: translateY(-2px);}
+
+    .toast{
+      position:fixed;left:50%;bottom: var(--sp-5);
+      transform: translateX(-50%);
+      background: var(--n-9);
+      color: var(--text-inv);
+      padding: 11px 16px;
+      border-radius: var(--r-2);
+      font-weight:650;
+      font-size: var(--fs-md);
+      box-shadow: var(--shadow-3);
+      display:none;
+      z-index:99999;
+      max-width:92vw;
+      text-align:center;
+    }
+    .toast--error{background: var(--danger-strong);}
+    .toast.show{display:block;animation: pop var(--dur-2) var(--ease);}
+    @keyframes pop{
+      from{opacity:0;transform: translateX(-50%) translateY(6px) scale(.98);}
+      to{opacity:1;transform: translateX(-50%) translateY(0) scale(1);}
+    }
+
+    /* ==========================================================================
+       Ajustes por tamanho. Sobraram poucos: quase tudo se resolve nas grelhas
+       intrinsecas acima.
+       ========================================================================== */
+    @media (max-width: 768px){
+      :root{
+        --card-min: 240px;
+        --list-row-h: 200px;
+      }
+      .wrap{padding: var(--sp-3) var(--sp-3) 80px;}
+      .page-head{flex-direction:column;align-items:stretch;}
+      .page-head .btn-primary{justify-content:center;}
+      .alunos-layout .list{max-height: min(calc(100vh - 190px), 1400px);}
+      .quick-actions .js-edit{margin-left:0;}
+      #editStudentOverlay .edit-modal-head,
+      #newStudentOverlay .new-modal-head{padding: var(--sp-3) var(--sp-4);}
+      #editStudentOverlay .edit-modal-body,
+      #newStudentOverlay .new-modal-body{padding: var(--sp-3) var(--sp-4);}
+      #editStudentOverlay .modal-actions #editStudentCancel,
+      #editStudentOverlay .modal-actions #editStudentSave,
+      #newStudentOverlay .modal-actions #newStudentCancel,
+      #newStudentOverlay .modal-actions #newStudentSave{flex:1;min-width:0;}
+    }
+
+    /* Respeita quem pediu menos movimento no sistema. */
+    @media (prefers-reduced-motion: reduce){
+      body.page-alunos *,
+      body.page-alunos *::before,
+      body.page-alunos *::after{
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+      }
+      .badge.alerta-pacote .dot{animation:none;}
+      .skel{animation:none;background: var(--surface-3);}
+    }
+  </style>
+</head>
+
+<body class="page-alunos" data-user-id="{{ request.user.id }}" data-user-name="{{ request.user.get_full_name|default:request.user.username }}" data-user-email="{{ request.user.email }}">
+  {% include '_mobile_nav.html' %}
+  <!-- Conjunto de icones proprio da tela de Alunos: grade 24x24, traco de 1.75,
+       pontas arredondadas, sempre em currentColor. Um sprite so, nenhum emoji. -->
+  <svg class="icon-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.4 12 4l8 7.4V19a1.6 1.6 0 0 1-1.6 1.6H15v-6H9v6H5.6A1.6 1.6 0 0 1 4 19z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5.2" width="17" height="15.3" rx="2.6"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M12 4 2.6 8.8 12 13.6l9.4-4.8z"/><path d="M6.4 11v4.6c0 1.6 2.5 2.9 5.6 2.9s5.6-1.3 5.6-2.9V11"/><path d="M21.4 8.8v5.4"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M20.2 4.6v13.1c0 .4-.3.8-.7.8-3 .4-5.3 1.1-7.5 2.3-2.2-1.2-4.5-1.9-7.5-2.3a.8.8 0 0 1-.7-.8V4.6"/><path d="M3.8 4.6c3 .4 6 1.2 8.2 2.6 2.2-1.4 5.2-2.2 8.2-2.6M12 7.2v13.6"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.6 7.4a2 2 0 0 1 2-2h3.1l2 2.5h7.7a2 2 0 0 1 2 2v7.7a2 2 0 0 1-2 2h-12.8a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-money" viewBox="0 0 24 24"><rect x="2.6" y="6" width="18.8" height="12" rx="2.4"/><circle cx="12" cy="12" r="2.7"/><path d="M6.2 9.6v4.8M17.8 9.6v4.8"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20.5 12.2c0 3.7-3.8 6.7-8.5 6.7-.98 0-1.93-.13-2.8-.38L4.2 20.3l1.5-3.4a6.4 6.4 0 0 1-2.2-4.7c0-3.7 3.8-6.7 8.5-6.7s8.5 3 8.5 6.7z"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.9"/><path d="M19.2 13.4a7.8 7.8 0 0 0 0-2.8l1.9-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2.4-1.4L14 2.4h-4l-.4 2.8a7.6 7.6 0 0 0-2.4 1.4l-2.3-.9-2 3.4 1.9 1.5a7.8 7.8 0 0 0 0 2.8l-1.9 1.5 2 3.4 2.3-.9c.72.6 1.53 1.08 2.4 1.4l.4 2.8h4l.4-2.8a7.6 7.6 0 0 0 2.4-1.4l2.3.9 2-3.4z"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="2.6" y="5.2" width="18.8" height="13.6" rx="2.4"/><path d="M2.6 10h18.8M6.4 14.8h3.4"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12.4" height="12" rx="2.4"/><path d="m15.4 10.6 5.6-3.2v9.2l-5.6-3.2z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 20.2a7.4 7.4 0 0 1 14.4 0"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9.6" cy="8.4" r="3.4"/><path d="M3.2 19.6a6.6 6.6 0 0 1 12.8 0"/><path d="M16.4 5.4a3.4 3.4 0 0 1 0 6M17.8 13.6a6.6 6.6 0 0 1 3.2 5"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.6 3.6h2.9l1.4 3.6-2 1.4a12.2 12.2 0 0 0 6.5 6.5l1.4-2 3.6 1.4v2.9a2 2 0 0 1-2.2 2A17.6 17.6 0 0 1 4.6 5.8a2 2 0 0 1 2-2.2z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M19 10.4c0 5-7 11-7 11s-7-6-7-11a7 7 0 0 1 14 0z"/><circle cx="12" cy="10.2" r="2.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.4"/><path d="m20 20-4.4-4.4"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7.2h8.4M17.4 7.2H20M4 16.8h3.4M12.4 16.8H20"/><circle cx="14.9" cy="7.2" r="2.5"/><circle cx="9.9" cy="16.8" r="2.5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6.5 9.5 5.5 5.5 5.5-5.5"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M8 4.4v15.2M8 19.6 5 16.6M8 19.6l3-3M16 19.6V4.4M16 4.4l-3 3M16 4.4l3 3"/></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><path d="M20 12V6.2a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11.6a2 2 0 0 0 2 2h6"/><path d="M4 9.6h16M9.6 9.6v10.2"/><path d="M17.6 14.6v6.4M17.6 21l2.6-2.6M17.6 21 15 18.4"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M4.6 12h14M13 6.4l5.6 5.6-5.6 5.6"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4.2L20.3 7.9a2 2 0 0 0 0-2.8l-1.4-1.4a2 2 0 0 0-2.8 0L4 15.8z"/><path d="m15.4 5.2 3.4 3.4"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9.4 5v14M14.6 5v14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.2 5.2 19 12 8.2 18.8z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.6 6.8h14.8M9.6 6.8V4.6h4.8v2.2"/><path d="M6.6 6.8 7.5 19a2 2 0 0 0 2 1.8h5a2 2 0 0 0 2-1.8l.9-12.2"/><path d="M10.5 10.6v6M13.5 10.6v6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11.2v5.2M12 7.7v.5"/></symbol>
+    <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M7 3.6h10M7 20.4h10"/><path d="M8.2 3.6v3.1c0 2 3.8 3.9 3.8 5.3s-3.8 3.3-3.8 5.3v3.1M15.8 3.6v3.1c0 2-3.8 3.9-3.8 5.3s3.8 3.3 3.8 5.3v3.1"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M5.8 3.6h12.4v17.2l-2.5-1.6-2.4 1.6L12 19.6l-1.3 1.2-2.4-1.6-2.5 1.6z"/><path d="M9 8.6h6M9 12.6h6"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M13.6 3.6H7.4a2 2 0 0 0-2 2v12.8a2 2 0 0 0 2 2h9.2a2 2 0 0 0 2-2V8.6z"/><path d="M13.6 3.6v5h5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4.2 2.9 20h18.2z"/><path d="M12 10v4.4M12 17.2v.5"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M10.4 3.4 12 8.4l5 1.6-5 1.6-1.6 5-1.6-5-5-1.6 5-1.6z"/><path d="M17.8 14.6l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14.4 7.6V5.6a2 2 0 0 0-2-2H6.6a2 2 0 0 0-2 2v12.8a2 2 0 0 0 2 2h5.8a2 2 0 0 0 2-2v-2"/><path d="M9.6 12h10.8M20.4 12l-3.2-3.2M20.4 12l-3.2 3.2"/></symbol>
+    <symbol id="i-broom" viewBox="0 0 24 24"><path d="m14.4 3.6 6 6-4.2 4.2-6-6z"/><path d="M10.2 7.8 4.4 13.6a3 3 0 0 0-.6 3.4l1.6 3.4 3.4-1.6a3 3 0 0 0 3.4-.6l5.8-5.8"/></symbol>
+  </svg>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
+        <div>
+          <p class="brand-kicker">Dashboard</p>
+          <p class="brand-name">EDUCAflowOne</p>
+        </div>
+      </div>
+      <nav class="nav">
+        {% if not is_partner_teacher %}
+        <a href="/dashboard/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-home"></use></svg></span>
+          <div>
+            <p class="nav-title">Dashboard</p>
+            <p class="nav-subtitle">Visão geral</p>
+          </div>
+        </a>
+        {% endif %}
+        <a href="/calendar/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-calendar"></use></svg></span>
+          <div>
+            <p class="nav-title">Calendário</p>
+            <p class="nav-subtitle">Agenda visual do mês</p>
+          </div>
+        </a>
+        <a href="/alunos/" class="nav-item active">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-cap"></use></svg></span>
+          <div>
+            <p class="nav-title">Alunos</p>
+            <p class="nav-subtitle">Cadastro e planos</p>
+          </div>
+        </a>
+        <a href="/planejamento/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-book"></use></svg></span>
+          <div>
+            <p class="nav-title">Planejamento</p>
+            <p class="nav-subtitle">Planejar aulas por aluno</p>
+          </div>
+        </a>
+        {% if not is_partner_teacher %}
+        <a href="/arquivos/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-folder"></use></svg></span>
+          <div>
+            <p class="nav-title">Arquivos</p>
+            <p class="nav-subtitle">Sua biblioteca de materiais</p>
+          </div>
+        </a>
+        {% endif %}
+        <a href="/financeiro/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-money"></use></svg></span>
+          <div>
+            <p class="nav-title">Financeiro</p>
+            <p class="nav-subtitle">Recebimentos do mês</p>
+          </div>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        {% if not is_partner_teacher %}
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-chat"></use></svg></span>
+          <div>
+            <p class="nav-title">Cobrança</p>
+            <p class="nav-subtitle">WhatsApp + Pix</p>
+          </div>
+        </a>
+        {% endif %}
+        
+        <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
+            <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-gear"></use></svg></span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+            <a href="/perfil/" class="nav-item nav-item-nested">
+              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-user"></use></svg></span>
+              <div>
+                <p class="nav-title">Perfil</p>
+                <p class="nav-subtitle">Dados da conta</p>
+              </div>
+            </a>
+            <a href="/planos/" class="nav-item nav-item-nested">
+              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-card"></use></svg></span>
+              <div>
+                <p class="nav-title">Plano e Faturamento</p>
+                <p class="nav-subtitle">Gerenciar assinatura</p>
+              </div>
+            </a>
+            <a href="/tutorial/" class="nav-item nav-item-nested">
+              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-video"></use></svg></span>
+              <div>
+                <p class="nav-title">Tutorial</p>
+                <p class="nav-subtitle">Vídeos rápidos</p>
+              </div>
+            </a>
+          </div>
+        </div>
+        {% endif %}
+        
+        <div class="nav-divider"></div>
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Visão rápida (mês)</p>
+        <ul class="sidebar-highlights">
+          <li><strong id="sidebarConfirmed">0</strong> aulas confirmadas</li>
+          <li><strong id="sidebarPending">0</strong> pendências</li>
+          <li><strong id="sidebarRealized">0</strong> realizadas</li>
+          <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
+        </ul>
+        <button class="primary ghost" id="createLessonBtn"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-plus"></use></svg> Novo agendamento</button>
+        <button class="primary ghost" id="logoutBtn"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-logout"></use></svg> Sair</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="wrap">
+    <div class="page-head">
+      <div class="title">
+        <h1>Cadastro de Alunos</h1>
+        <p class="page-sub">Quem está ativo, quanto falta de cada pacote e o que precisa de atenção.</p>
+      </div>
+      {% if not is_partner_teacher %}<button class="btn-primary" type="button" id="btnNew"><svg class="ic" aria-hidden="true"><use href="#i-plus"></use></svg> Novo aluno</button>{% endif %}
+    </div>
+
+    <div class="filters filters--collapsed" id="filtersWrapper">
+      <button type="button" class="filters-toggle-mobile" id="filtersToggleMobile" aria-expanded="false" aria-controls="filtersFields">
+        <svg class="ic" aria-hidden="true"><use href="#i-sliders"></use></svg>
+        <span>Filtros: clique aqui para buscar e filtrar a lista</span>
+        <svg class="ic ic--sm filters-chevron" aria-hidden="true"><use href="#i-chevron"></use></svg>
+      </button>
+      <div class="filters-inner" id="filtersFields">
+        <div class="field">
+          <label for="q">Buscar aluno</label>
+          <div class="field-icon-wrap">
+            <svg class="ic ic--sm" aria-hidden="true"><use href="#i-search"></use></svg>
+            <input id="q" type="search" placeholder="Nome, telefone, email, plano..." />
+          </div>
+        </div>
+        <div class="field">
+          <label for="status">Status</label>
+          <select id="status">
+            <option value="all" selected>Todos</option>
+            <option value="active">Ativos</option>
+            <option value="inactive">Pausados/Encerrados</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="plan">Plano</label>
+          <input type="text" id="plan" placeholder="Filtrar por nome do plano..." />
+        </div>
+      </div>
+
+      <div class="filters-footer">
+        <div class="filters-count" id="studentCount">
+          Carregando...
+        </div>
+        <div class="filters-actions">
+          <button class="btn ghost" type="button" id="btnSort"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-sort"></use></svg><span class="btn-label">Ordenar</span></button>
+          <button class="btn ghost" type="button" id="btnExport" title="Baixar a lista de alunos em Excel, com os mesmos filtros que estão aplicados aqui"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-sheet"></use></svg><span class="btn-label">Exportar Excel</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="alunos-layout">
+      <section class="panel" aria-label="Lista de alunos">
+        <div class="panel-head">
+          <div class="panel-head__title">
+            <svg class="ic ic--lg" aria-hidden="true"><use href="#i-users"></use></svg>
+            <div>
+              <h2>Lista</h2>
+              <div class="meta">Cards com ações rápidas · use <strong>Editar</strong> no card para alterar dados</div>
+            </div>
+          </div>
+          <div class="meta meta--tag">Ativos primeiro</div>
+        </div>
+
+        <div class="list" id="studentsList" aria-busy="true">
+          <!-- Alunos serão carregados via JavaScript -->
+        </div>
+      </section>
+    </div>
+  </div>
+
+  {% if not is_partner_teacher %}<button class="fab" type="button" title="Novo aluno" id="fabNew" aria-label="Novo aluno"><svg class="ic ic--xl" aria-hidden="true"><use href="#i-plus"></use></svg></button>{% endif %}
+
+  <!-- MODAL: EDITAR ALUNO (ex-edição rápida lateral) -->
+  <div class="modal-overlay" id="editStudentOverlay" aria-hidden="true">
+    <div class="modal modal--edit-student" role="dialog" aria-modal="true" aria-labelledby="editStudentTitle">
+      <div class="modal-head edit-modal-head">
+        <div class="edit-modal-head__left">
+          <div class="edit-modal-head__icon">{% if is_partner_teacher %}<svg class="ic ic--lg" aria-hidden="true"><use href="#i-user"></use></svg>{% else %}<svg class="ic ic--lg" aria-hidden="true"><use href="#i-pencil"></use></svg>{% endif %}</div>
+          <div class="edit-modal-head__text">
+            <h3 id="editStudentTitle">{% if is_partner_teacher %}Detalhes do aluno{% else %}Editar aluno{% endif %}</h3>
+            <p id="editorMeta">Selecione um aluno</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close edit-modal-head__close" id="editStudentClose" aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg></button>
+      </div>
+      <div class="modal-body edit-modal-body">
+        {% if is_partner_teacher %}
+        <div class="edit-modal-hint edit-modal-hint--muted">
+          <svg class="ic ic--sm edit-modal-hint__ic" aria-hidden="true"><use href="#i-info"></use></svg>
+          <span>Visualização dos dados do aluno. Para alterar conteúdo, use a conta do professor titular.</span>
+        </div>
+        {% else %}
+        <div class="edit-modal-hint">
+          <svg class="ic ic--sm edit-modal-hint__ic" aria-hidden="true"><use href="#i-info"></use></svg>
+          <span><strong>Nome</strong> é obrigatório. Use os blocos para organizar identidade, plano e <strong>financeiro</strong> (Pix, contrato PDF).</span>
+        </div>
+        {% endif %}
+        <div class="editor {% if is_partner_teacher %}editor-readonly{% endif %}" id="studentEditor">
+          <!-- Section: Identity -->
+          <section class="section" data-open="true">
+            <button class="section-head" type="button">
+              <strong>Identidade</strong>
+              <span>Aberto</span>
+            </button>
+            <div class="section-body">
+              <div class="field">
+                <label>Nome completo *</label>
+                <input type="text" id="f_name" placeholder="Nome do aluno" maxlength="120"/>
+              </div>
+              <div class="field">
+                <label>Responsável</label>
+                <input type="text" id="f_responsible" placeholder="Pai/mãe ou 'Responsável próprio'"/>
+              </div>
+              <div class="two">
+                <div class="field">
+                  <label>Telefone</label>
+                  <input type="tel" id="f_phone" placeholder="DDD + número"/>
+                </div>
+                <div class="field">
+                  <label>E-mail</label>
+                  <input type="email" id="f_email" placeholder="Opcional"/>
+                </div>
+              </div>
+              <div class="field">
+                <label>Endereço</label>
+                <input type="text" id="f_address" placeholder="Cidade / bairro (ou endereço completo)"/>
+              </div>
+              {% if not is_partner_teacher and assignable_teachers %}
+              <div class="field">
+                <label for="f_assigned_teacher">Professor que dará aula</label>
+                <select id="f_assigned_teacher">
+                  <option value="">Nenhum (dono da conta)</option>
+                  {% for t in assignable_teachers %}
+                  <option value="{{ t.id }}">{{ t.name }}</option>
+                  {% endfor %}
+                </select>
+                <small class="field-note">Atribua a um prof. parceiro para ele dar as aulas deste aluno.</small>
+              </div>
+              {% endif %}
+            </div>
+          </section>
+
+          <!-- Section: Plan -->
+          <section class="section" data-open="true">
+            <button class="section-head" type="button">
+              <strong>Plano e Cobrança</strong>
+              <span>Aberto</span>
+            </button>
+            <div class="section-body">
+              <div class="two">
+                <div class="field">
+                  <label>Status *</label>
+                  <select id="f_status">
+                    <option value="active">Ativo</option>
+                    <option value="paused">Pausado</option>
+                    <option value="ended">Encerrado</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="f_level">Nível (CEFR)</label>
+                  <select id="f_level">
+                    <option value="">Não informado</option>
+                    <option value="A1">A1</option>
+                    <option value="A2">A2</option>
+                    <option value="B1">B1</option>
+                    <option value="B2">B2</option>
+                    <option value="C1">C1</option>
+                    <option value="C2">C2</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label for="f_billing_type">Tipo de Cobrança (Como você cobra esse aluno)</label>
+                <select id="f_billing_type">
+                  <option value="package">Pacote de aulas</option>
+                  <option value="monthly_fixed">Mensal fixo</option>
+                  <option value="per_lesson">Por aula realizada</option>
+                  <option value="other">Outro</option>
+                </select>
+              </div>
+
+              <!-- Pacote de aulas -->
+              <div id="f_wrap_package" class="billing-wrap-fields">
+                <div class="field">
+                  <label>Plano do aluno (pacote)</label>
+                  <select id="f_plan">
+                    <option value="">Sem plano</option>
+                    <option value="Mensal">Mensal</option>
+                    <option value="Trimestral">Trimestral</option>
+                    <option value="Semestral">Semestral</option>
+                    <option value="Anual">Anual</option>
+                    <option value="Outro">Outro</option>
+                  </select>
+                  <small class="field-note">Só para alunos com pacote.</small>
+                </div>
+                <div class="field">
+                  <label>Aulas do plano</label>
+                  <input type="number" id="f_total" placeholder="Ex: 23"/>
+                </div>
+                <div class="two">
+                  <div class="field">
+                    <label>Data de início</label>
+                    <input type="date" id="f_start"/>
+                  </div>
+                  <div class="field">
+                    <label>Dia de vencimento</label>
+                    <input type="number" id="f_due" min="1" max="28" placeholder="1 a 28"/>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Mensal fixo -->
+              <div id="f_wrap_monthly_fixed" class="billing-wrap-fields" style="display:none;">
+                <div class="two">
+                  <div class="field">
+                    <label>Valor mensal</label>
+                    <input type="number" id="f_monthly_amount" min="0" step="0.01" placeholder="Ex: 150,00"/>
+                  </div>
+                  <div class="field">
+                    <label>Dia de vencimento</label>
+                    <input type="number" id="f_due_monthly" min="1" max="28" placeholder="1 a 28"/>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Por aula realizada -->
+              <div id="f_wrap_per_lesson" class="billing-wrap-fields" style="display:none;">
+                <div class="field">
+                  <label>Valor por aula</label>
+                  <input type="number" id="f_per_lesson_amount" min="0" step="0.01" placeholder="Ex: 50,00"/>
+                </div>
+              </div>
+
+              <div class="field" id="f_wrap_done">
+                <label>Aulas realizadas</label>
+                <input type="number" id="f_done" placeholder="Calculado automaticamente" readonly />
+                <small class="field-note">Calculado automaticamente com base nas aulas marcadas como "Realizado".</small>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section: Finance (optional, collapsed by default) -->
+          <section class="section" data-open="false">
+            <button class="section-head" type="button">
+              <strong>Financeiro (opcional)</strong>
+              <span>Fechado</span>
+            </button>
+            <div class="section-body">
+                <div class="field">
+                  <label>Forma de pagamento preferida</label>
+                  <select id="f_payment">
+                    <option value="">Selecione...</option>
+                    <option value="pix">PIX</option>
+                    <option value="card">Cartão</option>
+                    <option value="cash">Dinheiro</option>
+                    <option value="transfer">Transferência</option>
+                  </select>
+                </div>
+              <div class="field">
+                <label>Chave Pix</label>
+                <input type="text" id="f_pix" placeholder="Opcional"/>
+              </div>
+              <div class="field">
+                <label>Contrato PDF</label>
+                <input id="f_contract" type="file" accept="application/pdf"/>
+                <div class="help">Somente PDF.</div>
+                <div id="f_contract_display" class="is-hidden">
+                  <div class="contract-card">
+                    <svg class="ic ic--lg contract-card__ic" aria-hidden="true"><use href="#i-file"></use></svg>
+                    <div class="contract-card__body">
+                      <div class="contract-card__title">Contrato anexado</div>
+                      <a id="f_contract_link" href="#" target="_blank" class="contract-card__link">Ver PDF</a>
+                    </div>
+                    <button type="button" id="f_contract_remove" class="contract-card__remove"><svg class="ic ic--xs" aria-hidden="true"><use href="#i-trash"></use></svg> Remover</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+      {% if not is_partner_teacher %}
+      <div class="modal-actions">
+        <button type="button" id="editStudentCancel">Cancelar</button>
+        <button type="button" id="editStudentSave">Salvar alterações</button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- MODAL: NOVO ALUNO -->
+  <div class="modal-overlay" id="newStudentOverlay" aria-hidden="true">
+    <div class="modal modal--new-student" role="dialog" aria-modal="true" aria-labelledby="newStudentTitle">
+      <div class="modal-head new-modal-head">
+        <div class="new-modal-head__left">
+          <div class="new-modal-head__icon"><svg class="ic ic--lg" aria-hidden="true"><use href="#i-sparkle"></use></svg></div>
+          <div class="new-modal-head__text">
+            <h3 id="newStudentTitle">Novo aluno</h3>
+            <p class="new-modal-head__sub">Cadastro rápido: complete o essencial agora e o restante nos blocos.</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close new-modal-head__close" id="newStudentClose" aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg></button>
+      </div>
+
+      <div class="modal-body new-modal-body">
+        <div class="new-modal-hint">
+          <svg class="ic ic--sm new-modal-hint__ic" aria-hidden="true"><use href="#i-info"></use></svg>
+          <span>O <strong>nome</strong> é obrigatório. Plano, vencimento e <strong>contrato PDF</strong> podem ir no bloco <strong>Financeiro (opcional)</strong>.</span>
+        </div>
+        <!-- ESSENCIAL -->
+        <section class="section" data-open="true">
+          <button class="section-head" type="button">
+            <strong>Essencial</strong>
+            <span>Aberto</span>
+          </button>
+          <div class="section-body">
+            <div class="field">
+              <label for="n_name">Nome completo *</label>
+              <input id="n_name" type="text" placeholder="Ex: Maria Silva" autocomplete="name" maxlength="120"/>
+              <div class="help">Obrigatório. O resto você pode preencher depois.</div>
+            </div>
+
+            <div class="two">
+              <div class="field">
+                <label for="n_phone">Telefone</label>
+                <input id="n_phone" type="tel" placeholder="DDD + número" autocomplete="tel"/>
+              </div>
+              <div class="field">
+                <label for="n_email">E-mail</label>
+                <input id="n_email" type="email" placeholder="Opcional" autocomplete="email"/>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="n_responsible">Responsável</label>
+              <input id="n_responsible" type="text" placeholder="Pai/mãe ou 'Responsável próprio'"/>
+            </div>
+
+            <div class="field">
+              <label for="n_address">Endereço</label>
+              <input id="n_address" type="text" placeholder="Cidade / bairro (ou endereço completo)"/>
+            </div>
+
+            <div class="two">
+              <div class="field">
+                <label for="n_status">Status *</label>
+                <select id="n_status">
+                  <option value="active" selected>Ativo</option>
+                  <option value="paused">Pausado</option>
+                  <option value="ended">Encerrado</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="n_level">Nível (CEFR)</label>
+                <select id="n_level">
+                  <option value="" selected>Não informado</option>
+                  <option value="A1">A1</option>
+                  <option value="A2">A2</option>
+                  <option value="B1">B1</option>
+                  <option value="B2">B2</option>
+                  <option value="C1">C1</option>
+                  <option value="C2">C2</option>
+                </select>
+                <div class="help">Padrão para idiomas; opcional para outros tipos de aula.</div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="n_billing_type">Tipo de Cobrança (Como você cobra esse aluno)</label>
+              <select id="n_billing_type">
+                <option value="package" selected>Pacote de aulas</option>
+                <option value="monthly_fixed">Mensal fixo</option>
+                <option value="per_lesson">Por aula realizada</option>
+                <option value="other">Outro</option>
+              </select>
+            </div>
+
+            <!-- Pacote de aulas: Plano + Aulas do plano -->
+            <div id="n_wrap_package" class="billing-wrap-fields">
+              <div class="field">
+                <label for="n_plan">Plano do aluno (pacote)</label>
+                <select id="n_plan">
+                  <option value="none" selected>Sem plano</option>
+                  <option value="Mensal">Mensal</option>
+                  <option value="Trimestral">Trimestral</option>
+                  <option value="Semestral">Semestral</option>
+                  <option value="Anual">Anual</option>
+                  <option value="Outro">Outro</option>
+                </select>
+                <div class="help">Só para alunos com pacote.</div>
+              </div>
+              <div class="field">
+                <label for="n_total">Aulas do plano</label>
+                <input id="n_total" type="number" min="0" placeholder="Ex: 8, 12, 23"/>
+              </div>
+            </div>
+
+            <!-- Mensal fixo: Valor mensal + Dia de vencimento -->
+            <div id="n_wrap_monthly_fixed" class="billing-wrap-fields" style="display:none;">
+              <div class="two">
+                <div class="field">
+                  <label for="n_monthly_amount">Valor mensal</label>
+                  <input id="n_monthly_amount" type="number" min="0" step="0.01" placeholder="Ex: 150,00"/>
+                </div>
+                <div class="field">
+                  <label for="n_due_monthly">Dia de vencimento</label>
+                  <input id="n_due_monthly" type="number" min="1" max="28" placeholder="1 a 28"/>
+                </div>
+              </div>
+            </div>
+
+            <!-- Por aula realizada: Valor por aula -->
+            <div id="n_wrap_per_lesson" class="billing-wrap-fields" style="display:none;">
+              <div class="field">
+                <label for="n_per_lesson_amount">Valor por aula</label>
+                <input id="n_per_lesson_amount" type="number" min="0" step="0.01" placeholder="Ex: 50,00"/>
+              </div>
+            </div>
+            {% if assignable_teachers %}
+            <div class="field">
+              <label for="n_assigned_teacher">Professor que dará aula</label>
+              <select id="n_assigned_teacher">
+                <option value="">Nenhum (eu mesmo)</option>
+                {% for t in assignable_teachers %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+                {% endfor %}
+              </select>
+              <div class="help">Atribua a um prof. parceiro para ele dar as aulas deste aluno.</div>
+            </div>
+            {% endif %}
+          </div>
+        </section>
+
+        <!-- OPCIONAL -->
+        <section class="section" data-open="false">
+          <button class="section-head" type="button">
+            <strong>Financeiro (opcional)</strong>
+            <span>Fechado</span>
+          </button>
+          <div class="section-body">
+            <div class="two">
+              <div class="field" id="n_wrap_financeiro_due">
+                <label for="n_due">Dia de vencimento padrão</label>
+                <input id="n_due" type="number" min="1" max="28" placeholder="1 a 28"/>
+              </div>
+              <div class="field">
+                <label for="n_payment">Forma de pagamento preferida</label>
+                <select id="n_payment">
+                  <option value="" selected>Selecione...</option>
+                  <option value="pix">PIX</option>
+                  <option value="card">Cartão</option>
+                  <option value="cash">Dinheiro</option>
+                  <option value="transfer">Transferência</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="n_pix">Chave Pix</label>
+              <input id="n_pix" type="text" placeholder="Opcional"/>
+            </div>
+
+            <div class="field">
+              <label for="n_contract">Contrato PDF</label>
+              <input id="n_contract" type="file" accept="application/pdf"/>
+              <div class="help">Somente PDF. Você pode anexar depois.</div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="newStudentCancel">Cancelar</button>
+        <button type="button" id="newStudentSave">Salvar aluno</button>
+      </div>
+    </div>
+  </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Modal: Detalhes de aulas por mês (per_lesson) -->
+  <div class="modal-overlay" id="lessonsDetailOverlay" aria-hidden="true">
+    <div class="modal modal--compact" role="dialog">
+      <div class="modal-head">
+        <h3 id="lessonsDetailTitle">Aulas realizadas por mês</h3>
+        <button class="modal-close" type="button" id="lessonsDetailClose" aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg></button>
+      </div>
+      <div class="modal-body">
+        <ul id="lessonsDetailList" class="lessons-month-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmar exclusão de aluno -->
+  <div class="modal-overlay modal--danger" id="deleteStudentOverlay" aria-hidden="true" data-delete-id="" data-delete-name="">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteStudentTitle">
+      <div class="modal-head">
+        <div>
+          <h3 id="deleteStudentTitle">Excluir aluno</h3>
+          <p>Esta ação não pode ser desfeita.</p>
+        </div>
+        <button class="modal-close" type="button" id="deleteStudentClose" aria-label="Fechar"><svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg></button>
+      </div>
+      <div class="modal-body">
+        <span>Deseja realmente excluir da base de dados o aluno:</span>
+        <div class="confirm-name" id="deleteStudentName"></div>
+        <p class="confirm-warn">O registro será removido permanentemente. Histórico de aulas e financeiro vinculado pode ser afetado conforme as regras do sistema.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" type="button" id="deleteStudentCancel">Cancelar</button>
+        <button class="btn-confirm-delete" type="button" id="deleteStudentConfirm"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-trash"></use></svg> Excluir aluno</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.IS_PARTNER_TEACHER = {{ is_partner_teacher|yesno:"true,false" }};
+  </script>
+  <script>
+    (function(){
+      const $ = (s, root=document) => root.querySelector(s);
+      const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
+      const isPartnerTeacher = window.IS_PARTNER_TEACHER === true;
+
+      const API_BASE = '/api/students/';
+      const PLANNING_URL_BASE = "/planejamento/novo";
+
+      const overlay = $('#newStudentOverlay');
+      const editOverlay = $('#editStudentOverlay');
+      const btnOpen = $('#btnNew');
+      const fabOpen = $('#fabNew');
+      const btnClose = $('#newStudentClose');
+      const btnCancel = $('#newStudentCancel');
+      const btnSave = $('#newStudentSave');
+      const editStudentClose = $('#editStudentClose');
+      const editStudentCancel = $('#editStudentCancel');
+      const editStudentSave = $('#editStudentSave');
+      const toast = $('#toast');
+      const studentsList = $('#studentsList');
+      const qInput = $('#q');
+      const statusFilter = $('#status');
+      const planFilter = $('#plan');
+      const btnSort = $('#btnSort');
+      const btnExport = $('#btnExport');
+      
+      // Troca apenas o rótulo do botão e preserva o ícone SVG ao lado dele.
+      function setBtnLabel(btn, text){
+        if (!btn) return;
+        const label = btn.querySelector('.btn-label');
+        if (label) label.textContent = text;
+        else btn.textContent = text;
+      }
+      function getBtnLabel(btn){
+        if (!btn) return '';
+        const label = btn.querySelector('.btn-label');
+        return label ? label.textContent : btn.textContent;
+      }
+
+      let allStudents = [];
+      let currentEditingId = null;
+      let currentSort = null; // null, 'name-asc', 'name-desc', 'status', 'progress-asc', 'progress-desc'
+
+      // Toggle campos conforme Tipo de cobrança (modal usa n_, editor usa f_)
+      function toggleBillingFields(prefix) {
+        const bt = $(`#${prefix}_billing_type`)?.value || 'package';
+        const wrapPackage = $(`#${prefix}_wrap_package`);
+        const wrapMonthly = $(`#${prefix}_wrap_monthly_fixed`);
+        const wrapPerLesson = $(`#${prefix}_wrap_per_lesson`);
+        if (wrapPackage) wrapPackage.style.display = bt === 'package' ? '' : 'none';
+        if (wrapMonthly) wrapMonthly.style.display = bt === 'monthly_fixed' ? '' : 'none';
+        if (wrapPerLesson) wrapPerLesson.style.display = bt === 'per_lesson' ? '' : 'none';
+        // Modal: Mensal fixo já tem dia no bloco acima; esconde o duplicado em Financeiro
+        if (prefix === 'n') {
+          const wrapFinanceiroDue = $('#n_wrap_financeiro_due');
+          if (wrapFinanceiroDue) wrapFinanceiroDue.style.display = bt === 'monthly_fixed' ? 'none' : '';
+        }
+      }
+
+      // Função para calcular aulas realizadas de um aluno (retorna total e por mês)
+      async function calculateLessonsDone(studentId) {
+        try {
+          if (!studentId) return { total: 0, byMonth: {} };
+          
+          const lessons = await fetchJSON(`/api/lessons/?student=${studentId}`);
+          if (!Array.isArray(lessons)) return { total: 0, byMonth: {} };
+          
+          const realized = lessons.filter(l => l.realized === true);
+          const byMonth = {};
+          realized.forEach(l => {
+            if (l.date) {
+              const key = l.date.slice(0, 7); // YYYY-MM
+              byMonth[key] = (byMonth[key] || 0) + 1;
+            }
+          });
+          return { total: realized.length, byMonth };
+        } catch (error) {
+          console.error('Erro ao calcular aulas realizadas:', error);
+          return { total: 0, byMonth: {} };
+        }
+      }
+
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+
+      async function fetchJSON(url, options = {}) {
+        const csrf = getCookie('csrftoken');
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf || '',
+            ...options.headers,
+          },
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+          throw new Error(error.error || error.detail || `Erro ${response.status}`);
+        }
+        return response.json();
+      }
+
+      // Função para enviar dados com arquivos (FormData)
+      async function fetchWithFiles(url, formData, method = 'POST') {
+        const csrf = getCookie('csrftoken');
+        const response = await fetch(url, {
+          method: method,
+          body: formData,
+          headers: {
+            'X-CSRFToken': csrf || '',
+          },
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+          throw new Error(error.error || error.detail || `Erro ${response.status}`);
+        }
+        return response.json();
+      }
+
+      function showToast(msg, isError = false){
+        if(!toast) return;
+        toast.textContent = msg;
+        toast.classList.toggle('toast--error', !!isError);
+        toast.classList.add('show');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove('show'), 3000);
+      }
+
+      function refreshBodyScrollLock(){
+        const newOpen = overlay?.classList.contains('is-open');
+        const editOpen = editOverlay?.classList.contains('is-open');
+        document.documentElement.style.overflow = (newOpen || editOpen) ? 'hidden' : '';
+      }
+
+      function openModal(){
+        if(!overlay) return;
+        overlay.classList.add('is-open');
+        overlay.setAttribute('aria-hidden','false');
+        refreshBodyScrollLock();
+        toggleBillingFields('n');
+        setTimeout(() => $('#n_name')?.focus(), 0);
+      }
+
+      function closeModal(){
+        if(!overlay) return;
+        overlay.classList.remove('is-open');
+        overlay.setAttribute('aria-hidden','true');
+        refreshBodyScrollLock();
+      }
+
+      function openEditStudentModal(){
+        if(!editOverlay) return;
+        editOverlay.classList.add('is-open');
+        editOverlay.setAttribute('aria-hidden','false');
+        refreshBodyScrollLock();
+        toggleBillingFields('f');
+        setTimeout(() => { try { $('#f_name')?.focus(); } catch(_){} }, 0);
+      }
+
+      function closeEditStudentModal(){
+        if(!editOverlay) return;
+        editOverlay.classList.remove('is-open');
+        editOverlay.setAttribute('aria-hidden','true');
+        refreshBodyScrollLock();
+      }
+
+      function resetEditModalState(){
+        closeEditStudentModal();
+        currentEditingId = null;
+        const meta = $('#editorMeta');
+        if (meta) meta.textContent = 'Selecione um aluno';
+        $$('.student-card').forEach(c => c.classList.remove('active'));
+      }
+
+      $('#n_billing_type')?.addEventListener('change', () => toggleBillingFields('n'));
+      $('#f_billing_type')?.addEventListener('change', () => toggleBillingFields('f'));
+      btnOpen?.addEventListener('click', openModal);
+      fabOpen?.addEventListener('click', openModal);
+      btnClose?.addEventListener('click', closeModal);
+      btnCancel?.addEventListener('click', closeModal);
+      editStudentClose?.addEventListener('click', () => resetEditModalState());
+      editStudentCancel?.addEventListener('click', () => resetEditModalState());
+      $('#lessonsDetailClose')?.addEventListener('click', () => {
+        const o = $('#lessonsDetailOverlay');
+        if (o) { o.style.display = 'none'; o.classList.remove('is-open'); o.setAttribute('aria-hidden', 'true'); }
+      });
+      $('#lessonsDetailOverlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'lessonsDetailOverlay') {
+          e.target.style.display = 'none';
+          e.target.classList.remove('is-open');
+          e.target.setAttribute('aria-hidden', 'true');
+        }
+      });
+      function closeDeleteModal() {
+        const o = $('#deleteStudentOverlay');
+        if (o) { o.classList.remove('is-open'); o.setAttribute('aria-hidden', 'true'); o.dataset.deleteId = ''; o.dataset.deleteName = ''; }
+      }
+      function openDeleteModal(studentId, studentName) {
+        const o = $('#deleteStudentOverlay');
+        const nameEl = $('#deleteStudentName');
+        if (o && nameEl) {
+          o.dataset.deleteId = String(studentId);
+          o.dataset.deleteName = studentName || 'este aluno';
+          nameEl.textContent = o.dataset.deleteName;
+          o.classList.add('is-open');
+          o.setAttribute('aria-hidden', 'false');
+        }
+      }
+      $('#deleteStudentClose')?.addEventListener('click', closeDeleteModal);
+      $('#deleteStudentCancel')?.addEventListener('click', closeDeleteModal);
+      $('#deleteStudentOverlay')?.addEventListener('click', (e) => {
+        if (e.target.id === 'deleteStudentOverlay') closeDeleteModal();
+      });
+      $('#deleteStudentConfirm')?.addEventListener('click', async () => {
+        const o = $('#deleteStudentOverlay');
+        const studentId = o?.dataset?.deleteId;
+        const name = o?.dataset?.deleteName || 'aluno';
+        if (!studentId) return;
+        closeDeleteModal();
+        try {
+          const csrf = getCookie('csrftoken');
+          const response = await fetch(`${API_BASE}${studentId}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': csrf || '' },
+            credentials: 'same-origin',
+          });
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || err.detail || `Erro ${response.status}`);
+          }
+          showToast(`Aluno "${name}" excluído.`);
+          await loadStudents();
+        } catch (error) {
+          showToast(`Erro ao excluir aluno: ${error.message}`, true);
+        }
+      });
+      // Modal fixo: só fecha ao clicar em X ou Cancelar (não fecha ao clicar fora nem com Escape)
+
+      // Prof. parceiro: desabilitar todos os campos do editor (somente exibição)
+      if (isPartnerTeacher) {
+        const editor = document.getElementById('studentEditor');
+        if (editor) {
+          editor.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
+          const removeBtn = $('#f_contract_remove');
+          if (removeBtn) removeBtn.disabled = true;
+        }
+      }
+
+      // Collapsible sections (both page + modal)
+      document.addEventListener('click', (e) => {
+        const el = e.target instanceof Element ? e.target : null;
+        if(!el) return;
+        const head = el.closest('.section-head');
+        if(!head) return;
+        const section = head.closest('.section');
+        if(!section) return;
+
+        const open = section.getAttribute('data-open') === 'true';
+        section.setAttribute('data-open', String(!open));
+        const tag = head.querySelector('span');
+        if(tag) tag.textContent = open ? 'Fechado' : 'Aberto';
+      });
+
+      // Esqueleto de carregamento: a lista já mostra a forma do resultado
+      // enquanto a API responde, em vez de um vazio que parece erro.
+      function renderSkeleton(qtd) {
+        if (!studentsList) return;
+        studentsList.setAttribute('aria-busy', 'true');
+        let html = '';
+        for (let i = 0; i < (qtd || 6); i++) {
+          html += '<div class="skel-card" aria-hidden="true">'
+            + '<div class="skel-row"><span class="skel skel--title"></span><span class="skel skel--pill"></span></div>'
+            + '<span class="skel skel--bar"></span>'
+            + '<span class="skel skel--line"></span>'
+            + '<span class="skel skel--line-2"></span>'
+            + '</div>';
+        }
+        studentsList.innerHTML = html;
+      }
+
+      // Carregar alunos da API (cache-busting para evitar lista desatualizada após criar/editar)
+      async function loadStudents() {
+        try {
+          if (!allStudents.length) renderSkeleton(6);
+          const url = API_BASE + (API_BASE.includes('?') ? '&' : '?') + '_=' + Date.now();
+          const raw = await fetchJSON(url);
+          // Suportar resposta paginada (results) ou lista direta
+          allStudents = Array.isArray(raw) ? raw : (raw.results || []);
+          await renderStudents();
+          updateCount();
+        } catch (error) {
+          console.error('Erro ao carregar alunos:', error);
+          showToast('Erro ao carregar alunos', true);
+          if (studentsList) {
+            studentsList.innerHTML = '<div class="list-state list-state--erro">'
+              + '<div class="list-state__icon"><svg class="ic ic--hero" aria-hidden="true"><use href="#i-alert"></use></svg></div>'
+              + '<p class="list-state__title">Não consegui carregar seus alunos</p>'
+              + '<p class="list-state__text">Verifique a ligação à internet e atualize a página. Se continuar, fale com o suporte.</p>'
+              + '</div>';
+            studentsList.setAttribute('aria-busy', 'false');
+          }
+        }
+      }
+
+      // Renderizar lista de alunos
+      async function renderStudents() {
+        if (!studentsList) return;
+        
+        try {
+          const filtered = getFilteredStudents();
+          
+          if (!filtered || filtered.length === 0) {
+            const semNenhum = !allStudents || allStudents.length === 0;
+            studentsList.innerHTML = semNenhum
+              ? '<div class="list-state">'
+              + '<div class="list-state__icon"><svg class="ic ic--hero" aria-hidden="true"><use href="#i-users"></use></svg></div>'
+              + '<p class="list-state__title">Nenhum aluno cadastrado ainda</p>'
+              + '<p class="list-state__text">Comece pelo botão Novo aluno. Basta o nome: plano, contacto e financeiro podem entrar depois.</p>'
+              + '</div>'
+              : '<div class="list-state">'
+              + '<div class="list-state__icon"><svg class="ic ic--hero" aria-hidden="true"><use href="#i-search"></use></svg></div>'
+              + '<p class="list-state__title">Nenhum aluno com esses filtros</p>'
+              + '<p class="list-state__text">Tente outro termo de busca ou volte a ver a lista inteira.</p>'
+              + '<button type="button" class="btn js-clear-filters"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-broom"></use></svg> Limpar filtros</button>'
+              + '</div>';
+            studentsList.setAttribute('aria-busy', 'false');
+            return;
+          }
+
+          // Calcular aulas realizadas para todos os alunos antes de renderizar
+          const studentsWithDone = await Promise.all(
+            filtered.map(async (student) => {
+              const res = await calculateLessonsDone(student.id);
+              return { ...student, calculated_lessons_done: res.total, calculated_lessons_by_month: res.byMonth };
+            })
+          );
+
+        const MONTH_NAMES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+        const today = new Date();
+        const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2,'0')}`;
+
+        studentsList.innerHTML = studentsWithDone.map(student => {
+          const status = student.status || 'active';
+          const plan = student.plan_name || '';
+          const total = student.lessons_total || 0;
+          const done = student.calculated_lessons_done || 0;
+          const byMonth = student.calculated_lessons_by_month || {};
+          const isPerLesson = student.billing_type === 'per_lesson';
+          const pct = !isPerLesson && total > 0 ? Math.min(100, Math.round((done/total)*100)) : 0;
+          
+          const badgePlan = plan 
+            ? `<span class="badge ok"><span class="dot"></span>${escapeHtml(plan)}</span>`
+            : `<span class="badge warn"><span class="dot"></span>Sem plano</span>`;
+          const level = student.level || '';
+          const badgeLevel = level
+            ? `<span class="badge primary"><span class="dot"></span>${escapeHtml(level)}</span>`
+            : '';
+          
+          const badgeStatus = status === 'active'
+            ? `<span class="badge ok"><span class="dot"></span>Ativo</span>`
+            : status === 'paused'
+            ? `<span class="badge warn"><span class="dot"></span>Pausado</span>`
+            : `<span class="badge bad"><span class="dot"></span>Encerrado</span>`;
+
+          // Fim de pacote. Quem decide é o servidor (package_ending), que usa
+          // a mesma contagem de aulas realizadas mostrada aqui no card, então
+          // o selo nunca discorda do "3/8 aulas" logo abaixo.
+          const restantes = student.lessons_remaining;
+          const badgeFimPacote = student.package_ending
+            ? `<span class="badge alerta-pacote" title="Combine a renovação com o aluno antes que as aulas acabem"><span class="dot"></span>${
+                restantes === 0 ? 'Pacote acabou' : restantes === 1 ? 'Última aula' : `Faltam ${restantes} aulas`
+              }</span>`
+            : '';
+
+          // Para per_lesson: mostrar aulas do mês atual + botão Ver detalhes
+          const currentMonthCount = byMonth[currentMonthKey] || 0;
+          const monthLabel = `${MONTH_NAMES[today.getMonth()]}/${today.getFullYear()}`;
+          const progressHtml = isPerLesson
+            ? `<div class="progress-wrap progress-per-lesson">
+                <div class="progress-meta">${currentMonthCount} aula${currentMonthCount !== 1 ? 's' : ''} em ${monthLabel}</div>
+                ${Object.keys(byMonth).length > 0 ? `<button type="button" class="btn-link-sm js-lessons-detail" data-student-id="${student.id}" data-by-month='${JSON.stringify(byMonth)}'>Ver detalhes por mês</button>` : ''}
+              </div>`
+            : `<div class="progress-wrap">
+                <div class="progress" aria-label="Progresso de aulas">
+                  <div class="bar" style="--bar-pct: ${pct}%;"></div>
+                </div>
+                <div class="progress-meta">${done} de ${total || 0} aulas</div>
+              </div>`;
+
+          return `
+            <article class="student-card${student.package_ending ? ' student-card--alerta' : ''}"
+                     data-student-id="${student.id}"
+                     data-name="${escapeHtml(student.name)}"
+                     data-status="${status}"
+                     data-plan="${escapeHtml(plan)}"
+                     data-level="${escapeHtml(level)}"
+                     data-phone="${escapeHtml(student.phone || '')}"
+                     data-email="${escapeHtml(student.email || '')}"
+                     data-address="${escapeHtml(student.address || '')}"
+                     data-responsible="${escapeHtml(student.guardians || 'Responsável próprio')}"
+                     data-classes-total="${total}"
+                     data-classes-done="${done}">
+              <div class="row">
+                <p class="name"><a href="/alunos/${student.id}/" class="name-link">${escapeHtml(student.name)}</a></p>
+                <div class="badges">
+                  ${badgeFimPacote}
+                  ${badgePlan}
+                  ${badgeLevel}
+                  ${badgeStatus}
+                </div>
+              </div>
+              ${progressHtml}
+              <div class="info">
+                <div class="line" title="Responsável"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-user"></use></svg><b class="sr-only">Responsável:</b> <span>${escapeHtml(student.guardians || 'Responsável próprio')}</span></div>
+                <div class="line" title="Telefone"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-phone"></use></svg><b class="sr-only">Telefone:</b> <span>${escapeHtml(student.phone || 'Sem telefone')}</span></div>
+                <div class="line line--wide" title="Endereço"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-pin"></use></svg><b class="sr-only">Endereço:</b> <span>${escapeHtml(student.address || 'Sem endereço')}</span></div>
+              </div>
+              <div class="quick-actions">
+                <a href="/alunos/${student.id}/" class="btn primary">Ver detalhes <svg class="ic ic--sm" aria-hidden="true"><use href="#i-arrow-right"></use></svg></a>
+                <button class="btn js-plan" type="button"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-book"></use></svg> Criar planejamento</button>
+                ${student.billing_type === 'per_lesson' && !isPartnerTeacher ? `<button class="btn btn--accent js-generate-billing" type="button" data-student-id="${student.id}"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-receipt"></use></svg><span class="btn-label">Gerar cobrança do mês</span></button>` : ''}
+                ${!isPartnerTeacher ? `<button class="btn btn--quiet js-edit" type="button"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-pencil"></use></svg> Editar</button><button class="btn btn--quiet btn--icon js-toggle" type="button" title="${status === 'active' ? 'Inativar aluno' : 'Ativar aluno'}" aria-label="${status === 'active' ? 'Inativar aluno' : 'Ativar aluno'}">${status === 'active' ? '<svg class="ic ic--sm" aria-hidden="true"><use href="#i-pause"></use></svg>' : '<svg class="ic ic--sm" aria-hidden="true"><use href="#i-play"></use></svg>'}</button>${status === 'ended' ? `<button class="btn btn--quiet btn--icon danger js-delete" type="button" title="Excluir aluno da base" aria-label="Excluir aluno da base"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-trash"></use></svg></button>` : ''}` : ''}
+              </div>
+            </article>
+          `;
+        }).join('');
+        studentsList.setAttribute('aria-busy', 'false');
+        } catch (error) {
+          console.error('Erro ao renderizar alunos:', error);
+          studentsList.innerHTML = '<div class="list-state list-state--erro">'
+            + '<div class="list-state__icon"><svg class="ic ic--hero" aria-hidden="true"><use href="#i-alert"></use></svg></div>'
+            + '<p class="list-state__title">Não consegui montar a lista</p>'
+            + '<p class="list-state__text">Atualize a página. Se o problema continuar, fale com o suporte.</p>'
+            + '</div>';
+          studentsList.setAttribute('aria-busy', 'false');
+        }
+      }
+
+      function getFilteredStudents() {
+        const q = (qInput?.value || '').toLowerCase().trim();
+        const statusVal = statusFilter?.value || 'all';
+        const planVal = planFilter?.value || 'all';
+
+        let filtered = allStudents.filter(s => {
+          if (q && !s.name.toLowerCase().includes(q) && 
+              !(s.phone || '').includes(q) && 
+              !(s.email || '').toLowerCase().includes(q) &&
+              !(s.address || '').toLowerCase().includes(q) &&
+              !(s.plan_name || '').toLowerCase().includes(q)) {
+            return false;
+          }
+          if (statusVal !== 'all') {
+            const statusMap = { 'active': 'active', 'inactive': ['paused', 'ended'] };
+            if (statusVal === 'active' && s.status !== 'active') return false;
+            if (statusVal === 'inactive' && !['paused', 'ended'].includes(s.status)) return false;
+          }
+          if (planVal && planVal !== 'all') {
+            if (!s.plan_name || !s.plan_name.toLowerCase().includes(planVal.toLowerCase())) return false;
+          }
+          return true;
+        });
+        
+        // Aplicar ordenação se houver
+        if (currentSort && filtered.length > 0) {
+          filtered = sortStudents(filtered, currentSort);
+        }
+        
+        return filtered;
+      }
+      
+      function sortStudents(students, sortType) {
+        if (!students || !Array.isArray(students) || students.length === 0) {
+          return students || [];
+        }
+        if (!sortType) {
+          return students;
+        }
+        
+        const sorted = [...students];
+        
+        try {
+          switch(sortType) {
+          case 'name-asc':
+            sorted.sort((a, b) => {
+              const nameA = (a.name || '').toLowerCase();
+              const nameB = (b.name || '').toLowerCase();
+              return nameA.localeCompare(nameB, 'pt-BR');
+            });
+            break;
+          case 'name-desc':
+            sorted.sort((a, b) => {
+              const nameA = (a.name || '').toLowerCase();
+              const nameB = (b.name || '').toLowerCase();
+              return nameB.localeCompare(nameA, 'pt-BR');
+            });
+            break;
+          case 'status':
+            sorted.sort((a, b) => {
+              // Ativos primeiro, depois pausados, depois encerrados
+              const order = { 'active': 1, 'paused': 2, 'ended': 3 };
+              const orderA = order[a.status] || 99;
+              const orderB = order[b.status] || 99;
+              if (orderA !== orderB) return orderA - orderB;
+              // Se mesmo status, ordenar por nome
+              return (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase(), 'pt-BR');
+            });
+            break;
+          case 'progress-asc':
+            // Para ordenação, precisamos calcular os valores primeiro
+            // Mas como é síncrono, vamos usar o valor do backend como fallback
+            sorted.sort((a, b) => {
+              const totalA = a.lessons_total || 0;
+              const doneA = a.calculated_lessons_done !== undefined ? a.calculated_lessons_done : (a.lessons_done || 0);
+              const progressA = totalA > 0 ? (doneA / totalA) : 0;
+              
+              const totalB = b.lessons_total || 0;
+              const doneB = b.calculated_lessons_done !== undefined ? b.calculated_lessons_done : (b.lessons_done || 0);
+              const progressB = totalB > 0 ? (doneB / totalB) : 0;
+              
+              if (progressA !== progressB) return progressA - progressB;
+              // Se mesmo progresso, ordenar por nome
+              return (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase(), 'pt-BR');
+            });
+            break;
+          case 'progress-desc':
+            sorted.sort((a, b) => {
+              const totalA = a.lessons_total || 0;
+              const doneA = a.calculated_lessons_done !== undefined ? a.calculated_lessons_done : (a.lessons_done || 0);
+              const progressA = totalA > 0 ? (doneA / totalA) : 0;
+              
+              const totalB = b.lessons_total || 0;
+              const doneB = b.calculated_lessons_done !== undefined ? b.calculated_lessons_done : (b.lessons_done || 0);
+              const progressB = totalB > 0 ? (doneB / totalB) : 0;
+              
+              if (progressA !== progressB) return progressB - progressA;
+              // Se mesmo progresso, ordenar por nome
+              return (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase(), 'pt-BR');
+            });
+            break;
+          }
+        } catch (error) {
+          console.error('Erro ao ordenar alunos:', error);
+          return students; // Retornar lista original em caso de erro
+        }
+        
+        return sorted;
+      }
+      
+      function handleSort() {
+        if (!btnSort) return;
+        
+        const options = [
+          { value: null, label: 'Sem ordenação' },
+          { value: 'name-asc', label: 'Nome (A-Z)' },
+          { value: 'name-desc', label: 'Nome (Z-A)' },
+          { value: 'status', label: 'Status (Ativos primeiro)' },
+          { value: 'progress-asc', label: 'Progresso (do menor para o maior)' },
+          { value: 'progress-desc', label: 'Progresso (do maior para o menor)' }
+        ];
+        
+        // Encontrar índice atual
+        let currentIndex = options.findIndex(opt => opt.value === currentSort);
+        if (currentIndex === -1) currentIndex = 0;
+        
+        // Próxima opção (circular)
+        const nextIndex = (currentIndex + 1) % options.length;
+        currentSort = options[nextIndex].value;
+        
+        // Atualizar texto do botão
+        setBtnLabel(btnSort, currentSort ? `Ordenar: ${options[nextIndex].label}` : 'Ordenar');
+        
+        // Re-renderizar
+        renderStudents().then(() => {
+          showToast(`Ordenação: ${options[nextIndex].label}`, false);
+        });
+      }
+      
+      // Exportação em Excel. Substituiu o CSV que era montado aqui no
+      // navegador, que levava 7 dos cerca de 20 campos do aluno e abria no
+      // Excel como texto puro, sem formatação nenhuma.
+      //
+      // Quem monta a planilha agora é o servidor (core/exports.py). Enviamos
+      // os IDs já filtrados e na ordem em que aparecem na tela, então o
+      // ficheiro sai exatamente igual ao que o professor está vendo, sem a
+      // lógica de filtro precisar ser reescrita no backend e as duas versões
+      // divergirem com o tempo.
+      async function handleExport() {
+        if (!btnExport) return;
+
+        const filtered = getFilteredStudents();
+        if (!filtered || filtered.length === 0) {
+          showToast('Nenhum aluno para exportar', true);
+          return;
+        }
+
+        btnExport.disabled = true;
+        const originalText = getBtnLabel(btnExport);
+        setBtnLabel(btnExport, 'Gerando planilha...');
+
+        try {
+          const resp = await fetch('/api/students/export-excel/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken') || '',
+            },
+            body: JSON.stringify({ ids: filtered.map(s => s.id) }),
+          });
+
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+          const blob = await resp.blob();
+
+          // Preferimos o nome sugerido pelo servidor no Content-Disposition;
+          // se o cabeçalho não vier, montamos um com a data de hoje.
+          let filename = '';
+          const disp = resp.headers.get('Content-Disposition') || '';
+          const m = disp.match(/filename="?([^";]+)"?/);
+          if (m) filename = m[1];
+          if (!filename) {
+            const d = new Date();
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            filename = `alunos_${dateStr}.xlsx`;
+          }
+
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          showToast(`Planilha gerada com ${filtered.length} aluno(s).`, false);
+        } catch (error) {
+          console.error('Erro ao exportar:', error);
+          showToast('Não consegui gerar a planilha. Tente novamente.', true);
+        } finally {
+          btnExport.disabled = false;
+          setBtnLabel(btnExport, originalText);
+        }
+      }
+
+      function updateCount() {
+        const countEl = document.getElementById('studentCount');
+        if (countEl) {
+          if (!allStudents || allStudents.length === 0) {
+            countEl.textContent = 'Carregando...';
+            return;
+          }
+          const filtered = getFilteredStudents();
+          const count = filtered ? filtered.length : 0;
+          countEl.textContent = `${count} aluno(s) • clique em um aluno para editar`;
+        }
+      }
+
+      // Filtros
+      [qInput, statusFilter, planFilter].forEach(el => {
+        if (el) el.addEventListener('input', () => {
+          renderStudents().then(() => {
+            updateCount();
+          });
+        });
+      });
+      
+      // Botões Ordenar e Exportar
+      if (btnSort) {
+        btnSort.addEventListener('click', handleSort);
+      }
+      if (btnExport) {
+        btnExport.addEventListener('click', handleExport);
+      }
+
+      // Mobile: toggle recolher filtros
+      const filtersToggle = document.getElementById('filtersToggleMobile');
+      const filtersWrapper = document.getElementById('filtersWrapper');
+      if (filtersToggle && filtersWrapper) {
+        filtersToggle.addEventListener('click', () => {
+          filtersWrapper.classList.toggle('filters--collapsed');
+          filtersToggle.setAttribute('aria-expanded', filtersWrapper.classList.contains('filters--collapsed') ? 'false' : 'true');
+        });
+      }
+
+      // Student card actions
+      document.addEventListener('click', async (e) => {
+        const el = e.target instanceof Element ? e.target : null;
+        if(!el) return;
+
+        const clearFiltersBtn = el.closest('.js-clear-filters');
+        if (clearFiltersBtn) {
+          if (qInput) qInput.value = '';
+          if (statusFilter) statusFilter.value = 'all';
+          if (planFilter) planFilter.value = '';
+          renderStudents().then(() => updateCount());
+          return;
+        }
+
+        const planBtn = el.closest('.js-plan');
+        if(planBtn){
+          const c = planBtn.closest('.student-card');
+          const id = c?.dataset?.studentId || '';
+          // Redirecionar para planejamento com student_id na URL
+          window.location.href = `/planejamento/?student_id=${encodeURIComponent(id)}`;
+          return;
+        }
+
+        const editBtn = el.closest('.js-edit');
+        if(editBtn){
+          const c = editBtn.closest('.student-card');
+          if (!c) return;
+          const student = allStudents.find(s => s.id === parseInt(c.dataset.studentId));
+          if (student) {
+            loadStudentIntoEditor(student);
+            currentEditingId = student.id;
+            openEditStudentModal();
+          }
+          return;
+        }
+
+        const toggleBtn = el.closest('.js-toggle');
+        if(toggleBtn){
+          const c = toggleBtn.closest('.student-card');
+          if(!c) return;
+          const name = c.dataset.name || 'este aluno';
+          const current = c.dataset.status || 'active';
+          const newStatus = current === 'active' ? 'paused' : 'active';
+          const actionText = newStatus === 'paused' ? 'Pausar' : 'Ativar';
+          const ok = confirm(`${actionText} ${name}?`);
+          if(!ok) return;
+          
+          try {
+            const student = allStudents.find(s => s.id === parseInt(c.dataset.studentId));
+            if (!student) return;
+            
+            // PATCH apenas o status para evitar 400 (PUT com objeto completo pode enviar contract_pdf/url que o backend rejeita)
+            await fetchJSON(`${API_BASE}${student.id}/`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: newStatus }),
+            });
+            
+            showToast(`${name}: ${newStatus === 'active' ? 'ativado' : 'pausado'}.`);
+            await loadStudents();
+          } catch (error) {
+            showToast(`Erro ao ${actionText.toLowerCase()} aluno: ${error.message}`, true);
+          }
+          return;
+        }
+
+        const deleteBtn = el.closest('.js-delete');
+        if (deleteBtn) {
+          const c = deleteBtn.closest('.student-card');
+          if (!c) return;
+          const name = c.dataset.name || 'este aluno';
+          const studentId = c.dataset.studentId;
+          if (!studentId) return;
+          openDeleteModal(studentId, name);
+          return;
+        }
+
+        const lessonsDetailBtn = el.closest('.js-lessons-detail');
+        if (lessonsDetailBtn) {
+          const card = lessonsDetailBtn.closest('.student-card');
+          const studentName = card?.dataset?.name || 'Aluno';
+          let byMonth = {};
+          try {
+            byMonth = JSON.parse(lessonsDetailBtn.dataset.byMonth || '{}');
+          } catch (_) {}
+          const entries = Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12);
+          const MONTH_NAMES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+          const list = $('#lessonsDetailList');
+          const overlay = $('#lessonsDetailOverlay');
+          if (list) {
+            list.innerHTML = entries.length ? entries.map(([key, count]) => {
+              const [y, m] = key.split('-');
+              const label = `${MONTH_NAMES[parseInt(m, 10) - 1]}/${y}`;
+              return `<li class="lesson-month"><span>${label}</span><strong>${count} aula${count !== 1 ? 's' : ''}</strong></li>`;
+            }).join('') : '<li class="lesson-month-empty">Nenhuma aula realizada registrada.</li>';
+          }
+          const title = $('#lessonsDetailTitle');
+          if (title) title.textContent = `${studentName}: aulas por mês`;
+          if (overlay) { overlay.style.display = 'flex'; overlay.classList.add('is-open'); overlay.setAttribute('aria-hidden', 'false'); }
+          return;
+        }
+
+        const generateBillingBtn = el.closest('.js-generate-billing');
+        if (generateBillingBtn) {
+          const studentId = generateBillingBtn.dataset.studentId;
+          if (!studentId) return;
+          generateBillingBtn.disabled = true;
+          setBtnLabel(generateBillingBtn, 'Gerando...');
+          try {
+            const res = await fetchJSON('/api/students/generate-monthly-billing/', {
+              method: 'POST',
+              body: JSON.stringify({ student_id: parseInt(studentId, 10) }),
+            });
+            showToast(res.message || 'Cobrança gerada.', false);
+            const firstCreated = res.created && res.created[0];
+            const firstUpdated = res.updated && res.updated[0];
+            if (firstCreated) {
+              window.location.href = '/?view=view-billing&entry=' + firstCreated.id;
+            } else if (firstUpdated) {
+              window.location.href = '/?view=view-billing&entry=' + firstUpdated.id;
+            } else {
+              await loadStudents();
+            }
+          } catch (err) {
+            showToast(err.message || 'Erro ao gerar cobrança', true);
+          } finally {
+            generateBillingBtn.disabled = false;
+            setBtnLabel(generateBillingBtn, 'Gerar cobrança do mês');
+          }
+          return;
+        }
+
+        // Selecionar aluno ao clicar no card (prof. parceiro: abre modal só leitura)
+        const card = el.closest('.student-card');
+        if (card && !el.closest('.quick-actions')) {
+          $$('.student-card').forEach(c => c.classList.remove('active'));
+          card.classList.add('active');
+          if (isPartnerTeacher) {
+            const student = allStudents.find(s => s.id === parseInt(card.dataset.studentId));
+            if (student) {
+              loadStudentIntoEditor(student);
+              currentEditingId = student.id;
+              openEditStudentModal();
+            }
+          }
+        }
+      });
+
+      // Carregar dados do aluno no editor
+      function loadStudentIntoEditor(student) {
+        if (!$('#f_name')) return; // Editor não existe
+        
+        $('#f_name').value = student.name || '';
+        $('#f_responsible').value = student.guardians || '';
+        $('#f_phone').value = student.phone || '';
+        $('#f_email').value = student.email || '';
+        $('#f_address').value = student.address || '';
+        $('#f_status').value = student.status || 'active';
+        const fLevel = $('#f_level');
+        if (fLevel) fLevel.value = student.level || '';
+        $('#f_billing_type').value = student.billing_type || 'package';
+        $('#f_monthly_amount').value = student.monthly_amount ?? '';
+        $('#f_per_lesson_amount').value = student.per_lesson_amount ?? '';
+        const dueVal = student.default_due_day ?? '';
+        $('#f_due').value = dueVal;
+        $('#f_due_monthly').value = dueVal;
+        toggleBillingFields('f');
+        // Mapear plano para select
+        const planValue = student.plan_name || '';
+        const planSelect = $('#f_plan');
+        if (planSelect) {
+          const options = Array.from(planSelect.options).map(opt => opt.value);
+          if (planValue && options.includes(planValue)) {
+            planSelect.value = planValue;
+          } else {
+            planSelect.value = ''; // Sem plano
+          }
+        }
+        $('#f_total').value = student.lessons_total || '';
+        calculateLessonsDone(student.id).then(res => {
+          $('#f_done').value = res.total;
+        });
+        $('#f_start').value = student.plan_start_date ? student.plan_start_date.split('T')[0] : '';
+        $('#f_payment').value = student.preferred_payment_method || '';
+        $('#f_pix').value = student.pix_key || '';
+        const fAssigned = $('#f_assigned_teacher');
+        if (fAssigned) fAssigned.value = student.assigned_teacher || '';
+        
+        // Exibir contrato se existir
+        const contractDisplay = $('#f_contract_display');
+        const contractLink = $('#f_contract_link');
+        if (student.contract_pdf_url) {
+          if (contractDisplay) contractDisplay.style.display = 'block';
+          if (contractLink) {
+            contractLink.href = student.contract_pdf_url;
+            contractLink.textContent = 'Ver PDF';
+          }
+        } else {
+          if (contractDisplay) contractDisplay.style.display = 'none';
+        }
+        
+        // Limpar input de arquivo ao carregar aluno
+        if ($('#f_contract')) $('#f_contract').value = '';
+        
+        // Anexar listener do botão remover
+        attachContractRemoveListener();
+        
+        const meta = $('#editorMeta');
+        if (meta) meta.textContent = `Editando: ${student.name}`;
+        currentEditingId = student.id;
+      }
+      
+      // Remover contrato - listener será adicionado dinamicamente
+      function attachContractRemoveListener() {
+        const removeBtn = $('#f_contract_remove');
+        if (removeBtn) {
+          // Remover listener anterior se existir
+          const newBtn = removeBtn.cloneNode(true);
+          removeBtn.parentNode.replaceChild(newBtn, removeBtn);
+          // Adicionar novo listener
+          newBtn.addEventListener('click', async () => {
+            if (!currentEditingId) return;
+            
+            if (!confirm('Deseja remover o contrato PDF deste aluno?')) return;
+            
+            try {
+              // Buscar aluno atual para manter outros campos
+              const student = allStudents.find(s => s.id === currentEditingId);
+              if (!student) return;
+              
+              // Criar FormData com todos os dados do aluno, mas sem o contrato
+              const formData = new FormData();
+              formData.append('name', student.name || '');
+              formData.append('guardians', student.guardians || 'Responsável próprio');
+              formData.append('phone', student.phone || '');
+              formData.append('email', student.email || '');
+              formData.append('address', student.address || '');
+              formData.append('status', student.status || 'active');
+              if (student.level) formData.append('level', student.level);
+              formData.append('billing_type', student.billing_type || 'package');
+              formData.append('plan_name', student.plan_name || '');
+              formData.append('lessons_total', student.lessons_total || 0);
+              if (student.plan_start_date) formData.append('plan_start_date', student.plan_start_date);
+              if (student.default_due_day) formData.append('default_due_day', student.default_due_day);
+              if (student.monthly_amount != null) formData.append('monthly_amount', student.monthly_amount);
+              if (student.per_lesson_amount != null) formData.append('per_lesson_amount', student.per_lesson_amount);
+              if (student.preferred_payment_method) formData.append('preferred_payment_method', student.preferred_payment_method);
+              if (student.pix_key) formData.append('pix_key', student.pix_key);
+              // Enviar string vazia para remover o arquivo
+              formData.append('contract_pdf', '');
+              
+              const updatedStudent = await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PATCH');
+              showToast('Contrato removido com sucesso!');
+              await loadStudents();
+              // Recarregar aluno no editor
+              const updated = allStudents.find(s => s.id === currentEditingId);
+              if (updated) loadStudentIntoEditor(updated);
+            } catch (error) {
+              showToast(`Erro ao remover contrato: ${error.message}`, true);
+            }
+          });
+        }
+      }
+
+      const MAX_STUDENT_NAME_LEN = 120;
+      function validateStudentNameFront(name, inputId){
+        if (!name) {
+          showToast('Preencha o nome do aluno.', true);
+          $(inputId)?.focus();
+          return false;
+        }
+        if (name.length > MAX_STUDENT_NAME_LEN) {
+          showToast(`Nome muito longo. Use no máximo ${MAX_STUDENT_NAME_LEN} caracteres.`, true);
+          $(inputId)?.focus();
+          return false;
+        }
+        return true;
+      }
+
+      // Salvar aluno (criar ou editar)
+      btnSave?.addEventListener('click', async () => {
+        const name = ($('#n_name')?.value || '').trim();
+        if(!validateStudentNameFront(name, 'n_name')){
+          return;
+        }
+
+          const billingType = $('#n_billing_type')?.value || 'package';
+          const planValue = $('#n_plan')?.value || 'none';
+          const defaultDue = billingType === 'monthly_fixed'
+            ? ($('#n_due_monthly')?.value ? parseInt($('#n_due_monthly').value, 10) : null)
+            : ($('#n_due')?.value ? parseInt($('#n_due').value, 10) : null);
+          const data = {
+            name,
+            guardians: ($('#n_responsible')?.value || '').trim() || 'Responsável próprio',
+            phone: ($('#n_phone')?.value || '').trim(),
+            email: ($('#n_email')?.value || '').trim(),
+            address: ($('#n_address')?.value || '').trim(),
+            status: $('#n_status')?.value || 'active',
+            level: ($('#n_level')?.value || '').trim() || null,
+            billing_type: billingType,
+            plan_name: billingType === 'package' && planValue !== 'none' ? planValue : '',
+            lessons_total: billingType === 'package' ? (parseInt(($('#n_total')?.value || '0'), 10) || 0) : 0,
+            plan_start_date: $('#n_start')?.value || null,
+            default_due_day: defaultDue,
+            preferred_payment_method: $('#n_payment')?.value || '',
+            pix_key: ($('#n_pix')?.value || '').trim(),
+            monthly_amount: billingType === 'monthly_fixed' && $('#n_monthly_amount')?.value ? parseFloat($('#n_monthly_amount').value) : null,
+            per_lesson_amount: billingType === 'per_lesson' && $('#n_per_lesson_amount')?.value ? parseFloat($('#n_per_lesson_amount').value) : null,
+          };
+          var nAt = $('#n_assigned_teacher');
+          if (nAt && nAt.value) data.assigned_teacher = parseInt(nAt.value, 10);
+
+          // Limpar campos vazios (manter campos obrigatórios)
+          const optionalFields = ['phone', 'email', 'address', 'plan_name', 'level', 'pix_key', 'preferred_payment_method'];
+          optionalFields.forEach(key => {
+            if (data[key] === '') delete data[key];
+          });
+          
+          if (data.plan_start_date === '') data.plan_start_date = null;
+          if (data.default_due_day === '' || data.default_due_day === null) delete data.default_due_day;
+
+        // Verificar se há arquivo de contrato
+        const contractFile = $('#n_contract')?.files?.[0];
+        const hasContractFile = contractFile && contractFile.size > 0;
+
+        try {
+          btnSave.disabled = true;
+          btnSave.textContent = 'Salvando...';
+          
+          if (hasContractFile) {
+            // Usar FormData para enviar arquivo
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('guardians', ($('#n_responsible')?.value || '').trim() || 'Responsável próprio');
+            formData.append('phone', ($('#n_phone')?.value || '').trim() || '');
+            formData.append('email', ($('#n_email')?.value || '').trim() || '');
+            formData.append('address', ($('#n_address')?.value || '').trim() || '');
+            formData.append('status', $('#n_status')?.value || 'active');
+            if (data.level) formData.append('level', data.level);
+            formData.append('billing_type', billingType);
+            formData.append('plan_name', data.plan_name || '');
+            formData.append('lessons_total', data.lessons_total || 0);
+            if ($('#n_start')?.value) formData.append('plan_start_date', $('#n_start').value);
+            if (data.default_due_day) formData.append('default_due_day', data.default_due_day);
+            if (data.monthly_amount != null) formData.append('monthly_amount', data.monthly_amount);
+            if (data.per_lesson_amount != null) formData.append('per_lesson_amount', data.per_lesson_amount);
+            if ($('#n_payment')?.value) formData.append('preferred_payment_method', $('#n_payment').value);
+            if (($('#n_pix')?.value || '').trim()) formData.append('pix_key', ($('#n_pix').value || '').trim());
+            var nAt = $('#n_assigned_teacher');
+            if (nAt && nAt.value) formData.append('assigned_teacher', nAt.value);
+            formData.append('contract_pdf', contractFile);
+            
+            if (currentEditingId) {
+              // Editar
+              await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PATCH');
+              showToast('Aluno atualizado com sucesso!');
+              // Se estava editando, atualizar a lista e recarregar no editor
+              await loadStudents();
+              const student = allStudents.find(s => s.id === currentEditingId);
+              if (student) loadStudentIntoEditor(student);
+            } else {
+              // Criar
+              await fetchWithFiles(API_BASE, formData, 'POST');
+              showToast('Aluno criado com sucesso!');
+              // Se criou novo aluno, recarregar lista
+              await loadStudents();
+            }
+          } else {
+            // Sem arquivo, usar JSON normal (data já foi montado acima)
+            if (currentEditingId) {
+              // Editar
+              await fetchJSON(`${API_BASE}${currentEditingId}/`, {
+                method: 'PATCH',
+                body: JSON.stringify(data),
+              });
+              showToast('Aluno atualizado com sucesso!');
+            } else {
+              // Criar
+              await fetchJSON(API_BASE, {
+                method: 'POST',
+                body: JSON.stringify(data),
+              });
+              showToast('Aluno criado com sucesso!');
+            }
+          }
+          
+          closeModal();
+          clearNewForm();
+          currentEditingId = null;
+          await loadStudents();
+        } catch (error) {
+          showToast(`Erro ao salvar: ${error.message}`, true);
+        } finally {
+          btnSave.disabled = false;
+          btnSave.textContent = 'Salvar aluno';
+        }
+      });
+
+      // Salvar do modal de edição
+      editStudentSave?.addEventListener('click', async () => {
+        if (!currentEditingId) {
+          showToast('Selecione um aluno para editar', true);
+          return;
+        }
+
+        const name = ($('#f_name')?.value || '').trim();
+        if(!validateStudentNameFront(name, 'f_name')){
+          return;
+        }
+
+        const student = allStudents.find(s => s.id === currentEditingId);
+        if (!student) return;
+
+        // Verificar se há arquivo de contrato
+        const contractFile = $('#f_contract')?.files?.[0];
+        const hasContractFile = contractFile && contractFile.size > 0;
+
+        const billingType = $('#f_billing_type')?.value || 'package';
+        const defaultDue = billingType === 'monthly_fixed'
+          ? ($('#f_due_monthly')?.value ? parseInt($('#f_due_monthly').value, 10) : null)
+          : ($('#f_due')?.value ? parseInt($('#f_due').value, 10) : null);
+        const editorPayload = {
+          billing_type: billingType,
+          plan_name: billingType === 'package' ? (($('#f_plan')?.value || '').trim() || '') : '',
+          level: ($('#f_level')?.value || '').trim() || null,
+          lessons_total: billingType === 'package' ? (parseInt(($('#f_total')?.value || '0'), 10) || 0) : 0,
+          monthly_amount: billingType === 'monthly_fixed' && $('#f_monthly_amount')?.value ? parseFloat($('#f_monthly_amount').value) : null,
+          per_lesson_amount: billingType === 'per_lesson' && $('#f_per_lesson_amount')?.value ? parseFloat($('#f_per_lesson_amount').value) : null,
+          default_due_day: defaultDue,
+        };
+
+        if (hasContractFile) {
+          const formData = new FormData();
+          formData.append('name', name);
+          formData.append('guardians', ($('#f_responsible')?.value || '').trim() || 'Responsável próprio');
+          formData.append('phone', ($('#f_phone')?.value || '').trim() || '');
+          formData.append('email', ($('#f_email')?.value || '').trim() || '');
+          formData.append('address', ($('#f_address')?.value || '').trim() || '');
+          formData.append('status', $('#f_status')?.value || 'active');
+          if (editorPayload.level) formData.append('level', editorPayload.level);
+          formData.append('billing_type', editorPayload.billing_type);
+          formData.append('plan_name', editorPayload.plan_name);
+          formData.append('lessons_total', editorPayload.lessons_total);
+          if ($('#f_start')?.value) formData.append('plan_start_date', $('#f_start').value);
+          if (editorPayload.default_due_day) formData.append('default_due_day', editorPayload.default_due_day);
+          if (editorPayload.monthly_amount != null) formData.append('monthly_amount', editorPayload.monthly_amount);
+          if (editorPayload.per_lesson_amount != null) formData.append('per_lesson_amount', editorPayload.per_lesson_amount);
+          if ($('#f_payment')?.value) formData.append('preferred_payment_method', $('#f_payment').value);
+          if (($('#f_pix')?.value || '').trim()) formData.append('pix_key', ($('#f_pix').value || '').trim());
+          var fAt = $('#f_assigned_teacher');
+          if (fAt && fAt.value) formData.append('assigned_teacher', fAt.value);
+          formData.append('contract_pdf', contractFile);
+
+          try {
+            await fetchWithFiles(`${API_BASE}${currentEditingId}/`, formData, 'PATCH');
+            showToast('Aluno atualizado com sucesso!');
+            if ($('#f_contract')) $('#f_contract').value = '';
+            await loadStudents();
+            resetEditModalState();
+          } catch (error) {
+            showToast(`Erro ao atualizar: ${error.message}`, true);
+          }
+        } else {
+          const fAt = $('#f_assigned_teacher');
+          const data = {
+            name,
+            guardians: ($('#f_responsible')?.value || '').trim() || 'Responsável próprio',
+            phone: ($('#f_phone')?.value || '').trim() || '',
+            email: ($('#f_email')?.value || '').trim() || '',
+            address: ($('#f_address')?.value || '').trim() || '',
+            status: $('#f_status')?.value || 'active',
+            level: editorPayload.level,
+            billing_type: editorPayload.billing_type,
+            plan_name: editorPayload.plan_name,
+            lessons_total: editorPayload.lessons_total,
+            plan_start_date: $('#f_start')?.value || null,
+            default_due_day: editorPayload.default_due_day,
+            monthly_amount: editorPayload.monthly_amount,
+            per_lesson_amount: editorPayload.per_lesson_amount,
+            preferred_payment_method: $('#f_payment')?.value || '',
+            pix_key: ($('#f_pix')?.value || '').trim() || '',
+            assigned_teacher: fAt && fAt.value ? parseInt(fAt.value, 10) : null,
+            teacher_notes:
+              student.teacher_notes != null && student.teacher_notes !== undefined ? student.teacher_notes : '',
+          };
+          ['phone', 'email', 'address', 'plan_name', 'level', 'pix_key', 'preferred_payment_method'].forEach((key) => {
+            if (data[key] === '') delete data[key];
+          });
+          if (data.plan_start_date === '') data.plan_start_date = null;
+          if (data.default_due_day === '' || data.default_due_day == null) delete data.default_due_day;
+
+          try {
+            await fetchJSON(`${API_BASE}${currentEditingId}/`, {
+              method: 'PATCH',
+              body: JSON.stringify(data),
+            });
+            showToast('Aluno atualizado com sucesso!');
+            await loadStudents();
+            resetEditModalState();
+          } catch (error) {
+            showToast(`Erro ao atualizar: ${error.message}`, true);
+          }
+        }
+      });
+
+        function clearNewForm(){
+        ['n_name','n_phone','n_email','n_responsible','n_address','n_level','n_total','n_start','n_due','n_due_monthly','n_monthly_amount','n_per_lesson_amount','n_pix','n_assigned_teacher'].forEach(id=>{
+          const el = document.getElementById(id);
+          if(el) el.value = '';
+        });
+        $('#n_status') && ($('#n_status').value = 'active');
+        $('#n_billing_type') && ($('#n_billing_type').value = 'package');
+        $('#n_plan') && ($('#n_plan').value = 'none');
+        $('#n_level') && ($('#n_level').value = '');
+        toggleBillingFields('n');
+        $('#n_payment') && ($('#n_payment').value = '');
+        const f = $('#n_contract'); if(f) f.value = '';
+        currentEditingId = null;
+      }
+
+      function escapeHtml(str){
+        return String(str)
+          .replaceAll('&','&amp;')
+          .replaceAll('<','&lt;')
+          .replaceAll('>','&gt;')
+          .replaceAll('"','&quot;')
+          .replaceAll("'","&#039;");
+      }
+
+      // Ctrl+Enter: salvar no modal aberto (novo aluno ou edição)
+      document.addEventListener('keydown', (e) => {
+        if (!e.ctrlKey || e.key !== 'Enter') return;
+        if (editOverlay?.classList.contains('is-open')) {
+          e.preventDefault();
+          editStudentSave?.click();
+          return;
+        }
+        if (overlay?.classList.contains('is-open')) {
+          e.preventDefault();
+          btnSave?.click();
+        }
+      });
+
+      // Inicializar; ?novo=1 abre o modal de novo aluno (ex.: vindo do modal de boas-vindas)
+      loadStudents().finally(function() {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          if (params.get('novo') !== '1' && params.get('novo') !== 'true') return;
+          if (isPartnerTeacher) return;
+          openModal();
+          params.delete('novo');
+          var qs = params.toString();
+          window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+        } catch (_) {}
+      });
+
+      // ====== Atualizar Visão Rápida ======
+      async function updateSidebarStats() {
+        try {
+          const response = await fetch('/api/dashboard/summary/', {
+            credentials: 'same-origin',
+          });
+          if (!response.ok) return;
+          
+          const data = await response.json();
+          const kpis = data.kpis || {};
+          
+          const sidebarConfirmed = document.getElementById('sidebarConfirmed');
+          const sidebarPending = document.getElementById('sidebarPending');
+          const sidebarRealized = document.getElementById('sidebarRealized');
+          const sidebarStudents = document.getElementById('sidebarStudents');
+          
+          if (sidebarConfirmed) sidebarConfirmed.textContent = kpis.calendar_confirmed || 0;
+          if (sidebarPending) sidebarPending.textContent = kpis.calendar_pending_month || 0;
+          if (sidebarRealized) sidebarRealized.textContent = kpis.calendar_realized || 0;
+          if (sidebarStudents) sidebarStudents.textContent = kpis.active_students || 0;
+        } catch (error) {
+          console.error('Erro ao atualizar visão rápida:', error);
+        }
+      }
+
+      // Atualizar visão rápida ao carregar
+      updateSidebarStats();
+
+      // Menu colapsável "Conta"
+      const navGroupConta = document.getElementById('navGroupConta');
+      const navGroupContaBtn = document.getElementById('navGroupContaBtn');
+      if (navGroupConta && navGroupContaBtn) {
+        navGroupContaBtn.addEventListener('click', () => {
+          const isCollapsed = navGroupConta.classList.contains('nav-group--collapsed');
+          if (isCollapsed) {
+            navGroupConta.classList.remove('nav-group--collapsed');
+            navGroupConta.classList.add('nav-group--expanded');
+            navGroupContaBtn.setAttribute('aria-expanded', 'true');
+          } else {
+            navGroupConta.classList.remove('nav-group--expanded');
+            navGroupConta.classList.add('nav-group--collapsed');
+            navGroupContaBtn.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
+
+      // Logout
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await fetch('/api/auth/logout/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'X-CSRFToken': getCookie('csrftoken') || '',
+              },
+            });
+            window.location.href = '/login/';
+          } catch (error) {
+            console.error('Erro ao fazer logout:', error);
+            window.location.href = '/login/';
+          }
+        });
+      }
+    })();
+  </script>
+  {% include '_support_widget.html' %}
+</body>
+</html>

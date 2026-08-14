@@ -1,7 +1,7 @@
 """Popula o banco LOCAL com dados de teste realistas.
 
 Cria uma professora com alunos, aulas, lançamentos financeiros, planejamentos,
-tarefas de casa, materiais e agendamentos — o suficiente para abrir qualquer
+tarefas de casa, materiais e agendamentos, o suficiente para abrir qualquer
 tela do sistema e ver conteúdo de verdade.
 
 Este comando NUNCA deve rodar em produção. Ele aborta sozinho se detectar
@@ -200,7 +200,7 @@ class Command(BaseCommand):
                 "default_due_day": 10,
                 "lessons_total": 10,
                 "lessons_done": 3,
-                "teacher_notes": "12 anos. Gosta de jogos — usar vocabulário de games.",
+                "teacher_notes": "12 anos. Gosta de jogos, usar vocabulário de games.",
             },
             {
                 "name": "Beatriz Nogueira",
@@ -310,7 +310,7 @@ class Command(BaseCommand):
                 date=dia,
                 defaults={
                     "time": "18:00" if dia.weekday() % 2 == 0 else "19:30",
-                    "title": f"Aula de inglês — {aluno.name.split()[0]}",
+                    "title": f"Aula de inglês com {aluno.name.split()[0]}",
                     "info": "Revisão + conversação.",
                     "status": status,
                     "realized": realizada,
@@ -325,7 +325,7 @@ class Command(BaseCommand):
             date=hoje - timedelta(days=4),
             defaults={
                 "time": "20:00",
-                "title": "Aula extra — remarcada",
+                "title": "Aula extra (remarcada)",
                 "info": "Aluna avisou no dia anterior.",
                 "status": "canceled",
                 "realized": False,
@@ -343,8 +343,8 @@ class Command(BaseCommand):
             (marina, "Mensalidade agosto", Decimal("640.00"), -8, FinancialEntry.STATUS_PAID, -8),
             (marina, "Mensalidade setembro", Decimal("640.00"), 22, FinancialEntry.STATUS_PENDING, None),
             (pedro, "Pacote 10 aulas", Decimal("850.00"), 3, FinancialEntry.STATUS_PENDING, None),
-            (beatriz, "Aulas avulsas — julho", Decimal("380.00"), -20, FinancialEntry.STATUS_PAID, -19),
-            (beatriz, "Aulas avulsas — agosto", Decimal("285.00"), 12, FinancialEntry.STATUS_PENDING, None),
+            (beatriz, "Aulas avulsas de julho", Decimal("380.00"), -20, FinancialEntry.STATUS_PAID, -19),
+            (beatriz, "Aulas avulsas de agosto", Decimal("285.00"), 12, FinancialEntry.STATUS_PENDING, None),
             (lucas, "Mensalidade agosto", Decimal("360.00"), -12, FinancialEntry.STATUS_OVERDUE, None),
             (lucas, "Mensalidade julho", Decimal("360.00"), -42, FinancialEntry.STATUS_PAID, -35),
         ]
@@ -390,7 +390,7 @@ class Command(BaseCommand):
             (alunos[0], hoje + timedelta(days=1), "Simulação de entrevista em inglês.\nRevisar past perfect.",
              "https://docs.google.com/presentation/d/exemplo\nhttps://youtube.com/watch?v=exemplo"),
             (alunos[1], hoje + timedelta(days=2), "Vocabulário de games. Present continuous.", ""),
-            (alunos[2], hoje + timedelta(days=3), "IELTS Speaking Part 2 — cue cards.", "https://ielts.org/exemplo"),
+            (alunos[2], hoje + timedelta(days=3), "IELTS Speaking Part 2, cue cards.", "https://ielts.org/exemplo"),
         ]
         for aluno, data, objetivos, links in planos:
             LessonPlan.objects.get_or_create(
@@ -431,7 +431,7 @@ class Command(BaseCommand):
         StudentHomework.objects.get_or_create(
             student=pedro,
             assigned_by=professora,
-            title="Exercícios de present continuous — págs. 24 e 25",
+            title="Exercícios de present continuous, págs. 24 e 25",
             defaults={
                 "description": "Fazer os exercícios 1 a 6.",
                 "due_date": hoje - timedelta(days=3),
@@ -444,7 +444,7 @@ class Command(BaseCommand):
     # ── materiais ───────────────────────────────────────────────────────
 
     def _criar_materiais(self, professora, alunos, hoje):
-        # Só materiais do tipo link — evita depender de upload de ficheiro real.
+        # Só materiais do tipo link, evita depender de upload de ficheiro real.
         StudentMaterial.objects.get_or_create(
             student=alunos[0],
             user=professora,
@@ -482,7 +482,7 @@ class Command(BaseCommand):
         DayNote.objects.get_or_create(
             user=professora,
             date=hoje + timedelta(days=7),
-            defaults={"text": "Feriado — sem aulas."},
+            defaults={"text": "Feriado, sem aulas."},
         )
 
         PublicBookingRequest.objects.get_or_create(

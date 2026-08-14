@@ -18,6 +18,7 @@ from .views import (
     planning_edit_redirect, planning_new_redirect,
     upload_planning_attachment, delete_planning_attachment, upload_student_material, delete_student_material, update_student_material,
     AlunosView, AlunoDetalheView, CalendarNewView, FinanceView, ReciboView, TicketsView,
+    AlunosPreviaView, CalendarioPreviaView,
     calendar_events, calendar_event_status, calendar_event_create, calendar_event_update,
     calendar_day_note, calendar_day_note_update,
     support_ticket_create, support_tickets_list, support_ticket_detail, landing_contact_view,
@@ -137,6 +138,19 @@ urlpatterns = [
     ),
     path("arquivos/", ArquivosView.as_view(), name="arquivos"),
     path("arquivos-v2/", ArquivosView.as_view(template_name="arquivos_v2.html"), name="arquivos-v2"),
+    # Telas em avaliacao. Mesma view, mesmos dados e mesmas permissoes das
+    # originais: muda so o template. As telas de producao continuam intactas
+    # em /alunos/ e /calendar/, entao da para abrir as duas versoes lado a
+    # lado e comparar.
+    #
+    # O endereco e propositalmente dificil de adivinhar E a view exige conta
+    # administradora, devolvendo 404 para todos os outros. Sao duas camadas
+    # porque endereco secreto sozinho nao e controlo de acesso: basta vazar
+    # num historico de navegacao ou num print para deixar de ser secreto.
+    #
+    # Remover estas tres rotas se a versao nova nao for adiante.
+    path("previa-8t3kqz/alunos/", AlunosPreviaView.as_view(), name="previa-alunos"),
+    path("previa-8t3kqz/calendario/", CalendarioPreviaView.as_view(), name="previa-calendario"),
     path("api/arquivos/", list_teacher_materials, name="api-arquivos-list"),
     path("api/arquivos/upload/", upload_teacher_material, name="api-arquivos-upload"),
     path("api/arquivos/<int:material_id>/", update_teacher_material, name="api-arquivos-update"),

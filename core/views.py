@@ -7115,6 +7115,73 @@ class CalendarNewView(TemplateView):
         return context
 
 
+def _pode_ver_previa(user):
+    """Quem enxerga as telas em avaliação.
+
+    Sempre a conta administradora, mais quem estiver em PREVIA_USUARIOS,
+    separados por vírgula e definidos no Railway.
+
+    Cada item da lista pode ser o nome de utilizador OU o e-mail. Aceitar os
+    dois é deliberado: quem convida sabe de cor o e-mail da pessoa, mas
+    raramente sabe o nome de utilizador dela, e ir buscá-lo obrigaria a
+    remexer no banco de produção só para isto.
+
+    A lista vive numa variável de ambiente, e não no código, para o dono do
+    produto convidar ou retirar quem testa sem precisar de um deploy. Como a
+    variável só entra em vigor no arranque do container, mexer nela exige um
+    redeploy, que no Railway é um clique.
+
+    Estas telas existem para serem testadas em aparelho real antes de
+    decidir. Nenhum professor deve esbarrar nelas por acaso.
+    """
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    try:
+        if user.profile.is_admin:
+            return True
+    except UserProfile.DoesNotExist:
+        pass
+
+    convidados = {
+        item.strip().lower()
+        for item in os.environ.get("PREVIA_USUARIOS", "").split(",")
+        if item.strip()
+    }
+    if not convidados:
+        return False
+    identificadores = {
+        (user.username or "").lower(),
+        (user.email or "").lower(),
+    }
+    identificadores.discard("")
+    return bool(identificadores & convidados)
+
+
+class PreviaMixin:
+    """Fecha a tela para quem não é administrador.
+
+    Devolve 404 e não 403 de propósito: um 403 confirmaria que o endereço
+    existe, e a ideia é que ele seja invisível para quem não deve chegar lá.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if not _pode_ver_previa(request.user):
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
+
+
+class AlunosPreviaView(PreviaMixin, AlunosView):
+    """Tela de alunos em avaliação. A de produção segue intacta em /alunos/."""
+    template_name = "alunos_v2.html"
+
+
+class CalendarioPreviaView(PreviaMixin, CalendarNewView):
+    """Calendário em avaliação. O de produção segue intacto em /calendar/."""
+    template_name = "calendar_v2.html"
+
+
 def _user_can_use_public_calendar(user):
     """
     Agenda pública disponível para:
