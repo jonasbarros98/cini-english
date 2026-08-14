@@ -1,0 +1,1530 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDUCAflowOne: o sistema de quem dá aula particular</title>
+  <meta name="description" content="Agenda, alunos, financeiro, planejamento, tarefas com chat e professores parceiros. Um sistema para o professor particular parar de ser secretário e cobrador. 7 dias grátis, sem cartão.">
+  <meta name="theme-color" content="#171310">
+  {% include '_meta_pixel.html' %}
+  <style>
+  /* ══════════════════════════════════════════════════════════════════════
+     EDUCAflowOne: landing v8
+     Direção: Editorial / Magazine (caderno pautado do professor).
+     Âncora: índice numerado em pauta + conjunto próprio de ícones monolineares.
+     Sem CDN, sem fontes externas, sem emoji. Mobile-first.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  /* ─── TOKENS ─────────────────────────────────────────────────────────── */
+  :root {
+    /* tipografia */
+    --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", "Times New Roman", serif;
+    --font-body:    "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Helvetica, sans-serif;
+    --font-mono:    "Cascadia Mono", Consolas, "SF Mono", "Roboto Mono", "Courier New", monospace;
+
+    --fs-display: clamp(2.35rem, 1.5rem + 4.2vw, 4.5rem);
+    --fs-h2:      clamp(1.75rem, 1.25rem + 2.4vw, 3rem);
+    --fs-h3:      clamp(1.15rem, 1.02rem + 0.6vw, 1.4rem);
+    --fs-lead:    clamp(1.02rem, 0.96rem + 0.45vw, 1.22rem);
+    --fs-body:    1rem;
+    --fs-sm:      0.875rem;
+    --fs-xs:      0.75rem;
+    --fs-num:     clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+
+    --lh-tight: 1.06;
+    --lh-snug:  1.25;
+    --lh-body:  1.62;
+    --tr-tight: -0.025em;
+    --tr-wide:  0.14em;
+
+    /* cor: papel (60%) / tinta (30%) / índigo + grifo (10%) */
+    --c-paper:       #faf7f2;
+    --c-paper-deep:  #f2ece2;
+    --c-surface:     #ffffff;
+    --c-ink:         #171310;
+    --c-ink-soft:    #3d362e;
+    --c-ink-muted:   #564e43;
+    --c-rule:        #e2d9cb;
+    --c-rule-strong: #cabfad;
+
+    --c-primary:      #4b32cf;
+    --c-primary-deep: #33219b;
+    --c-primary-tint: #ede9ff;
+    --c-primary-line: #c9befb;
+    --c-on-primary:   #ffffff;
+
+    --c-accent:      #f0b429;
+    --c-accent-soft: #fdf0cf;
+    --c-success:      #0f7a53;
+    --c-success-soft: #dcf1e7;
+    --c-danger:       #b4291f;
+    --c-danger-soft:  #fbe3e0;
+
+    /* superfícies escuras */
+    --c-night:       #171310;
+    --c-night-2:     #221c17;
+    --c-night-rule:  #3a312a;
+    --c-night-text:  #f6f1e8;
+    --c-night-muted: #b7ab9a;
+
+    --c-focus: #4b32cf;
+
+    /* espaço */
+    --s-1: 0.25rem;
+    --s-2: 0.5rem;
+    --s-3: 0.75rem;
+    --s-4: 1rem;
+    --s-5: 1.5rem;
+    --s-6: 2rem;
+    --s-7: 2.75rem;
+    --s-8: 4rem;
+    --s-9: 6rem;
+    --gutter:    clamp(1.15rem, 0.6rem + 2.4vw, 2.5rem);
+    --section-y: clamp(3.5rem, 2rem + 7vw, 7rem);
+
+    /* forma */
+    --r-xs:   4px;
+    --r-sm:   8px;
+    --r-md:   14px;
+    --r-lg:   22px;
+    --r-pill: 999px;
+    --hair:   1px;
+
+    /* elevação */
+    --sh-1: 0 1px 2px rgba(23,19,16,.06), 0 2px 6px rgba(23,19,16,.04);
+    --sh-2: 0 2px 6px rgba(23,19,16,.05), 0 10px 26px rgba(23,19,16,.08);
+    --sh-3: 0 4px 12px rgba(23,19,16,.06), 0 26px 60px rgba(23,19,16,.14);
+    --sh-key: 0 10px 30px rgba(75,50,207,.28);
+
+    /* movimento */
+    --ease:      cubic-bezier(.32,.72,0,1);
+    --ease-soft: cubic-bezier(.4,0,.2,1);
+    --dur-1: .18s;
+    --dur-2: .42s;
+
+    /* layout */
+    --container: 74rem;
+    --measure:   62ch;
+  }
+
+  /* ─── RESET ──────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 5.5rem; }
+  body {
+    font-family: var(--font-body);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--c-ink-soft);
+    background: var(--c-paper);
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  h1, h2, h3, h4 { font-family: var(--font-display); color: var(--c-ink); font-weight: 700; }
+  strong { color: var(--c-ink); font-weight: 600; }
+  ::selection { background: var(--c-accent-soft); color: var(--c-ink); }
+
+  :focus-visible {
+    outline: 2px solid var(--c-focus);
+    outline-offset: 3px;
+    border-radius: var(--r-xs);
+  }
+  .on-night :focus-visible { outline-color: var(--c-accent); }
+
+  .skip-link {
+    position: absolute; left: var(--s-4); top: -4rem; z-index: 999;
+    background: var(--c-ink); color: var(--c-paper);
+    padding: var(--s-3) var(--s-4); border-radius: var(--r-sm);
+    font-size: var(--fs-sm); font-weight: 600;
+    transition: top var(--dur-1) var(--ease);
+  }
+  .skip-link:focus { top: var(--s-4); }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* ─── LAYOUT ─────────────────────────────────────────────────────────── */
+  .wrap {
+    width: 100%;
+    max-width: var(--container);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+  .section { padding-block: var(--section-y); }
+  .section--rule { border-top: var(--hair) solid var(--c-rule); }
+  .section--paper-deep { background: var(--c-paper-deep); }
+
+  .on-night { background: var(--c-night); color: var(--c-night-muted); }
+  .on-night h1, .on-night h2, .on-night h3 { color: var(--c-night-text); }
+  .on-night strong { color: var(--c-night-text); }
+
+  /* ─── ÍCONES (conjunto próprio, grade 24, traço 1.75) ────────────────── */
+  .ico {
+    width: 1.5rem; height: 1.5rem;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .ico--sm { width: 1.125rem; height: 1.125rem; stroke-width: 2; }
+  .ico--lg { width: 1.75rem; height: 1.75rem; }
+
+  /* ─── TIPOGRAFIA UTILITÁRIA ──────────────────────────────────────────── */
+  .kicker {
+    display: inline-flex; align-items: center; gap: var(--s-2);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    letter-spacing: var(--tr-wide);
+    text-transform: uppercase;
+    color: var(--c-ink-muted);
+  }
+  .kicker::before {
+    content: ""; width: 1.75rem; height: var(--hair);
+    background: var(--c-rule-strong);
+  }
+  .on-night .kicker { color: var(--c-night-muted); }
+  .on-night .kicker::before { background: var(--c-night-rule); }
+
+  .title {
+    font-size: var(--fs-h2);
+    line-height: var(--lh-tight);
+    letter-spacing: var(--tr-tight);
+    margin-block: var(--s-4) var(--s-4);
+    max-width: 20ch;
+  }
+  .lead {
+    font-size: var(--fs-lead);
+    max-width: var(--measure);
+  }
+  .mark {
+    background: linear-gradient(to top, var(--c-accent-soft) 0 0.42em, transparent 0.42em);
+    padding-inline: 0.1em;
+  }
+  .quiet { color: var(--c-ink-muted); }
+  .em-serif { font-style: italic; }
+
+  /* ─── BOTÕES ─────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+    font-family: var(--font-body);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    padding: 0.85rem 1.45rem;
+    border-radius: var(--r-pill);
+    border: var(--hair) solid transparent;
+    transition: transform var(--dur-1) var(--ease),
+                background-color var(--dur-1) var(--ease-soft),
+                box-shadow var(--dur-1) var(--ease-soft),
+                border-color var(--dur-1) var(--ease-soft);
+    will-change: transform;
+  }
+  .btn .ico { transition: transform var(--dur-2) var(--ease); }
+  .btn:hover .ico { transform: translateX(3px); }
+  .btn:active { transform: translateY(1px); }
+
+  .btn--primary {
+    background: var(--c-primary);
+    color: var(--c-on-primary);
+    box-shadow: var(--sh-key);
+  }
+  .btn--primary:hover { background: var(--c-primary-deep); }
+
+  .btn--ghost {
+    color: var(--c-ink);
+    border-color: var(--c-rule-strong);
+    background: transparent;
+  }
+  .btn--ghost:hover { border-color: var(--c-ink); background: rgba(23,19,16,.04); }
+
+  .btn--paper {
+    background: var(--c-paper);
+    color: var(--c-ink);
+  }
+  .btn--paper:hover { background: #fff; }
+
+  .btn--outline-night {
+    color: var(--c-night-text);
+    border-color: var(--c-night-rule);
+  }
+  .btn--outline-night:hover { border-color: var(--c-night-text); background: rgba(255,255,255,.05); }
+
+  .btn--lg { font-size: 1rem; padding: 1.02rem 1.9rem; }
+  .btn--block { width: 100%; }
+
+  /* faixa de garantia sob CTA */
+  .cta-note {
+    font-size: var(--fs-xs);
+    color: var(--c-ink-muted);
+    letter-spacing: 0.01em;
+  }
+  .on-night .cta-note { color: var(--c-night-muted); }
+
+  /* ─── REVEAL ─────────────────────────────────────────────────────────── */
+  .rv { opacity: 0; transform: translateY(14px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+  .rv.is-in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .rv { opacity: 1; transform: none; transition: none; }
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  /* ─── NAV ────────────────────────────────────────────────────────────── */
+  .nav {
+    position: sticky; top: 0; z-index: 90;
+    background: rgba(250,247,242,.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: var(--hair) solid transparent;
+    transition: border-color var(--dur-1) var(--ease-soft), box-shadow var(--dur-1) var(--ease-soft);
+  }
+  .nav.is-stuck { border-bottom-color: var(--c-rule); box-shadow: 0 6px 18px rgba(23,19,16,.05); }
+  .nav__inner {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
+    min-height: 4.25rem;
+  }
+  .brand { display: inline-flex; align-items: center; gap: var(--s-2); }
+  .brand img { width: 2rem; height: 2rem; object-fit: contain; }
+  .brand__name {
+    font-family: var(--font-body);
+    font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em;
+    color: var(--c-ink);
+  }
+  .brand__name span { color: var(--c-primary); }
+
+  .nav__links { display: none; }
+  .nav__links a {
+    font-size: var(--fs-sm); font-weight: 500; color: var(--c-ink-soft);
+    padding: var(--s-2) 0;
+    border-bottom: 2px solid transparent;
+    transition: color var(--dur-1) var(--ease-soft), border-color var(--dur-1) var(--ease-soft);
+  }
+  .nav__links a:hover { color: var(--c-ink); border-bottom-color: var(--c-accent); }
+
+  .nav__actions { display: flex; align-items: center; gap: var(--s-2); }
+  .nav__login { display: none; font-size: var(--fs-sm); font-weight: 600; color: var(--c-ink); padding: var(--s-2) var(--s-3); }
+  .nav__login:hover { color: var(--c-primary); }
+  .nav__cta { padding: 0.62rem 1.1rem; font-size: var(--fs-sm); }
+
+  .nav__toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.5rem; height: 2.5rem;
+    border: var(--hair) solid var(--c-rule-strong);
+    border-radius: var(--r-sm);
+    color: var(--c-ink);
+  }
+  .nav__toggle .ico--close, .nav__toggle[aria-expanded="true"] .ico--menu { display: none; }
+  .nav__toggle[aria-expanded="true"] .ico--close { display: block; }
+
+  .drawer {
+    display: none;
+    border-top: var(--hair) solid var(--c-rule);
+    background: var(--c-paper);
+    padding-block: var(--s-4) var(--s-5);
+  }
+  .drawer.is-open { display: block; }
+  .drawer a.drawer__link {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--s-3) 0;
+    border-bottom: var(--hair) solid var(--c-rule);
+    font-size: 1.05rem; font-weight: 500; color: var(--c-ink);
+  }
+  .drawer__foot { display: grid; gap: var(--s-3); margin-top: var(--s-5); }
+
+  /* ─── HERO ───────────────────────────────────────────────────────────── */
+  .hero { position: relative; overflow: hidden; padding-block: clamp(2.5rem, 1rem + 6vw, 5.5rem) var(--section-y); }
+  .hero::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 2.25rem, var(--c-rule) 2.25rem calc(2.25rem + 1px));
+    opacity: .5;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 72%);
+            mask-image: linear-gradient(to bottom, #000 0%, transparent 72%);
+    pointer-events: none;
+  }
+  .hero__grid {
+    position: relative;
+    display: grid;
+    gap: clamp(2rem, 1rem + 4vw, 3.5rem);
+    align-items: center;
+  }
+  .hero h1 {
+    font-size: var(--fs-display);
+    line-height: var(--lh-tight);
+    letter-spacing: var(--tr-tight);
+    margin-block: var(--s-4) var(--s-5);
+    max-width: 15ch;
+  }
+  .hero h1 em { font-style: italic; color: var(--c-primary); }
+  .hero__lead { font-size: var(--fs-lead); max-width: 46ch; }
+  .hero__actions {
+    display: flex; flex-wrap: wrap; gap: var(--s-3);
+    margin-block: var(--s-6) var(--s-4);
+  }
+  .hero__facts {
+    display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5);
+    font-size: var(--fs-sm);
+  }
+  .hero__facts li { display: flex; align-items: center; gap: var(--s-2); color: var(--c-ink-muted); }
+  .hero__facts .ico { color: var(--c-success); }
+
+  /* moldura de captura de tela */
+  .shot {
+    position: relative;
+    background: var(--c-surface);
+    border: var(--hair) solid var(--c-rule);
+    border-radius: var(--r-md);
+    box-shadow: var(--sh-3);
+    overflow: hidden;
+  }
+  .shot__bar {
+    display: flex; align-items: center; gap: var(--s-2);
+    padding: 0.55rem 0.8rem;
+    background: var(--c-paper-deep);
+    border-bottom: var(--hair) solid var(--c-rule);
+  }
+  .shot__dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--c-rule-strong); }
+  .shot__url {
+    margin-left: auto; margin-right: auto;
+    font-family: var(--font-mono); font-size: 0.68rem; color: var(--c-ink-muted);
+    letter-spacing: 0.02em;
+  }
+  .shot img { width: 100%; display: block; }
+
+  /* Zoom carinhoso ao passar o mouse pelas capturas de tela.
+     O quadro ja tem overflow:hidden, entao a imagem cresce contida na
+     moldura, sem empurrar o layout: nada ao redor se mexe.
+     Condicoes da media query, todas necessarias:
+       hover:hover + pointer:fine  -> so onde ha cursor de verdade. No
+         telemovel o toque dispara :hover e a imagem ficaria presa ampliada.
+       prefers-reduced-motion      -> quem pediu menos movimento no sistema
+         nao recebe a animacao.
+     3,5% e o suficiente para o olho perceber vida sem parecer que a pagina
+     esta pulando; a curva de saida faz o movimento desacelerar no fim. */
+  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .shot img {
+      transform: scale(1);
+      transition: transform 620ms cubic-bezier(.22, .61, .24, 1);
+    }
+    .shot {
+      transition: box-shadow 620ms cubic-bezier(.22, .61, .24, 1);
+    }
+    .shot:hover img,
+    .shot:focus-within img {
+      transform: scale(1.035);
+    }
+    .shot:hover,
+    .shot:focus-within {
+      box-shadow: var(--sh-3), 0 24px 56px rgba(23, 19, 16, .10);
+    }
+  }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: var(--s-2);
+    background: var(--c-surface);
+    border: var(--hair) solid var(--c-rule);
+    border-left: 3px solid var(--c-success);
+    border-radius: var(--r-sm);
+    box-shadow: var(--sh-2);
+    padding: 0.6rem 0.85rem;
+    font-size: var(--fs-xs); font-weight: 600; color: var(--c-ink);
+    white-space: nowrap;
+  }
+  .chip--late { border-left-color: var(--c-danger); }
+  .hero__chips { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-4); }
+
+  /* ─── FAIXA DE FATOS ─────────────────────────────────────────────────── */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--s-5) var(--s-4);
+    border-block: var(--hair) solid var(--c-rule);
+    padding-block: var(--s-6);
+  }
+  .fact__n {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.2rem);
+    line-height: 1; color: var(--c-ink);
+    letter-spacing: var(--tr-tight);
+  }
+  .fact__l { font-size: var(--fs-sm); color: var(--c-ink-muted); margin-top: var(--s-2); max-width: 22ch; }
+
+  /* ─── DOR ────────────────────────────────────────────────────────────── */
+  .pain__head { max-width: 44rem; }
+  .pain__head h2 { font-size: var(--fs-h2); line-height: var(--lh-tight); letter-spacing: var(--tr-tight); margin-block: var(--s-4); }
+  .pain__head h2 em { font-style: italic; color: var(--c-accent); }
+  .pain__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    column-gap: var(--s-7);
+    margin-top: var(--s-8);
+    border-top: var(--hair) solid var(--c-night-rule);
+  }
+  .pain__item {
+    padding: var(--s-5) 0;
+    border-bottom: var(--hair) solid var(--c-night-rule);
+  }
+  .pain__n {
+    font-family: var(--font-mono); font-size: var(--fs-xs);
+    letter-spacing: var(--tr-wide); color: var(--c-accent);
+  }
+  .pain__item h3 { font-size: var(--fs-h3); margin-block: var(--s-2) var(--s-2); line-height: var(--lh-snug); }
+  .pain__item p { font-size: var(--fs-sm); max-width: 34ch; }
+  .pain__turn {
+    margin-top: var(--s-8);
+    display: grid; gap: var(--s-5);
+    align-items: center;
+  }
+  .pain__turn p { font-size: var(--fs-lead); max-width: 34ch; font-family: var(--font-display); line-height: var(--lh-snug); }
+
+  /* ─── ÍNDICE DE MÓDULOS (âncora do layout) ───────────────────────────── */
+  .index__head { display: grid; gap: var(--s-4); margin-bottom: var(--s-7); }
+  .index {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16.5rem, 1fr));
+    column-gap: var(--s-7);
+    border-top: var(--hair) solid var(--c-rule-strong);
+  }
+  .index__item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--s-4);
+    row-gap: var(--s-2);
+    padding: var(--s-5) var(--s-4) var(--s-5) 0;
+    border-bottom: var(--hair) solid var(--c-rule);
+    position: relative;
+  }
+  .index__item::after {
+    content: ""; position: absolute; left: 0; bottom: -1px; height: 2px; width: 0;
+    background: var(--c-primary);
+    transition: width var(--dur-2) var(--ease);
+  }
+  .index__item:hover::after { width: 100%; }
+  .index__mark {
+    display: grid; place-items: center;
+    width: 2.75rem; height: 2.75rem;
+    border: var(--hair) solid var(--c-rule-strong);
+    border-radius: var(--r-sm);
+    color: var(--c-primary);
+    background: var(--c-surface);
+    transition: background var(--dur-1) var(--ease-soft), border-color var(--dur-1) var(--ease-soft);
+  }
+  .index__item:hover .index__mark { background: var(--c-primary-tint); border-color: var(--c-primary-line); }
+  .index__n {
+    font-family: var(--font-mono); font-size: var(--fs-xs);
+    letter-spacing: var(--tr-wide); color: var(--c-ink-muted);
+    align-self: center;
+  }
+  .index__body { grid-column: 1 / -1; }
+  .index__body h3 { font-size: var(--fs-h3); line-height: var(--lh-snug); margin-bottom: var(--s-2); }
+  .index__body p { font-size: var(--fs-sm); max-width: 38ch; }
+  .index__tag {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    margin-top: var(--s-3);
+    font-family: var(--font-mono); font-size: 0.68rem;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--c-primary-deep);
+    background: var(--c-primary-tint);
+    border-radius: var(--r-pill);
+    padding: 0.25rem 0.6rem;
+  }
+  .index__tag--new { color: #7a4f00; background: var(--c-accent-soft); }
+
+  /* ─── BLOCOS DE FUNCIONALIDADE ───────────────────────────────────────── */
+  .feature { display: grid; gap: clamp(1.75rem, 1rem + 3vw, 3.5rem); align-items: center; }
+  .feature + .feature { margin-top: var(--s-8); padding-top: var(--section-y); border-top: var(--hair) solid var(--c-rule); }
+  .feature__text h2 { font-size: var(--fs-h2); line-height: var(--lh-tight); letter-spacing: var(--tr-tight); margin-block: var(--s-4); max-width: 16ch; }
+  .feature__text h2 em { font-style: italic; color: var(--c-primary); }
+  .feature__text > p { max-width: 46ch; }
+  .points { display: grid; gap: var(--s-3); margin-top: var(--s-5); }
+  .points li { display: grid; grid-template-columns: auto 1fr; gap: var(--s-3); font-size: var(--fs-sm); align-items: start; }
+  .points .ico { color: var(--c-primary); margin-top: 0.15rem; }
+  .figs { display: grid; gap: var(--s-4); }
+  figure { margin: 0; }
+  figcaption {
+    font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.06em;
+    color: var(--c-ink-muted); margin-top: var(--s-2); text-transform: uppercase;
+  }
+
+  /* ─── DIFERENCIAIS (tarefas + parceiros) ─────────────────────────────── */
+  .diffs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: var(--s-5);
+    margin-top: var(--s-7);
+  }
+  .diff {
+    background: var(--c-night-2);
+    border: var(--hair) solid var(--c-night-rule);
+    border-radius: var(--r-lg);
+    padding: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+    display: grid;
+    align-content: start;
+    gap: var(--s-4);
+  }
+  .diff__badge {
+    justify-self: start;
+    display: inline-flex; align-items: center; gap: var(--s-2);
+    font-family: var(--font-mono); font-size: 0.68rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--c-accent);
+    border: var(--hair) solid var(--c-night-rule);
+    border-radius: var(--r-pill);
+    padding: 0.3rem 0.7rem;
+  }
+  .diff h3 { font-size: clamp(1.35rem, 1.1rem + 1.1vw, 1.85rem); line-height: var(--lh-snug); }
+  .diff h3 em { font-style: italic; color: var(--c-accent); }
+  .diff p { font-size: var(--fs-sm); }
+  .diff ul { display: grid; gap: var(--s-3); }
+  .diff li { display: grid; grid-template-columns: auto 1fr; gap: var(--s-3); font-size: var(--fs-sm); align-items: start; }
+  .diff .ico { color: var(--c-accent); margin-top: .1rem; }
+  .diff__plan {
+    font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.06em;
+    color: var(--c-night-muted);
+    border-top: var(--hair) solid var(--c-night-rule);
+    padding-top: var(--s-4);
+  }
+
+  /* ─── PASSOS ─────────────────────────────────────────────────────────── */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--s-5);
+    margin-top: var(--s-7);
+    counter-reset: step;
+  }
+  .step { border-top: 2px solid var(--c-ink); padding-top: var(--s-4); }
+  .step__n {
+    font-family: var(--font-display);
+    font-size: var(--fs-num); line-height: 1;
+    color: var(--c-primary); letter-spacing: var(--tr-tight);
+  }
+  .step h3 { font-size: var(--fs-h3); margin-block: var(--s-3) var(--s-2); }
+  .step p { font-size: var(--fs-sm); max-width: 32ch; }
+  .step__time {
+    display: inline-flex; align-items: center; gap: var(--s-2);
+    margin-top: var(--s-3);
+    font-family: var(--font-mono); font-size: 0.68rem; color: var(--c-ink-muted);
+  }
+
+  /* ─── PLANOS ─────────────────────────────────────────────────────────── */
+  .plans {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17.5rem, 1fr));
+    gap: var(--s-5);
+    margin-top: var(--s-7);
+    align-items: stretch;
+  }
+  .plan {
+    display: grid;
+    grid-template-rows: auto auto auto auto 1fr auto;
+    gap: var(--s-4);
+    background: var(--c-surface);
+    border: var(--hair) solid var(--c-rule);
+    border-radius: var(--r-lg);
+    padding: clamp(1.5rem, 1rem + 1.5vw, 2rem);
+    transition: box-shadow var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+  }
+  .plan:hover { box-shadow: var(--sh-2); transform: translateY(-3px); }
+  .plan--pick {
+    background: var(--c-ink);
+    border-color: var(--c-ink);
+    color: var(--c-night-muted);
+    position: relative;
+  }
+  .plan--pick h3, .plan--pick .plan__price { color: var(--c-night-text); }
+  .plan--pick .plan__line { border-color: var(--c-night-rule); }
+  .plan--pick .plan__feats .ico { color: var(--c-accent); }
+  .plan__flag {
+    position: absolute; top: 0; right: var(--s-5); transform: translateY(-50%);
+    background: var(--c-accent); color: #3a2a00;
+    font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 0.25rem 0.7rem; border-radius: var(--r-pill);
+  }
+  .plan__tier { font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: var(--tr-wide); text-transform: uppercase; color: var(--c-ink-muted); }
+  .plan--pick .plan__tier { color: var(--c-night-muted); }
+  .plan h3 { font-size: 1.5rem; line-height: 1.1; }
+  .plan__price { font-family: var(--font-display); font-size: 2.4rem; line-height: 1; color: var(--c-ink); letter-spacing: var(--tr-tight); }
+  .plan__price small { font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 500; color: var(--c-ink-muted); letter-spacing: 0; }
+  .plan--pick .plan__price small { color: var(--c-night-muted); }
+  .plan__line { border: 0; border-top: var(--hair) solid var(--c-rule); }
+  .plan__feats { display: grid; gap: var(--s-3); font-size: var(--fs-sm); }
+  .plan__feats li { display: grid; grid-template-columns: auto 1fr; gap: var(--s-3); align-items: start; }
+  .plan__feats .ico { color: var(--c-success); margin-top: .12rem; }
+  .plan__feats li.is-off { color: var(--c-ink-muted); }
+  .plan__feats li.is-off .ico { color: var(--c-rule-strong); }
+  .plan--pick .plan__feats li.is-off { color: #8d8375; }
+  .plan--pick .plan__feats li.is-off .ico { color: #6b6255; }
+
+  .guarantees {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: var(--s-4);
+    margin-top: var(--s-6);
+    padding-top: var(--s-5);
+    border-top: var(--hair) solid var(--c-rule);
+    font-size: var(--fs-sm);
+  }
+  .guarantees li { display: flex; align-items: center; gap: var(--s-3); color: var(--c-ink-muted); }
+  .guarantees .ico { color: var(--c-ink); }
+
+  /* ─── PROVA SOCIAL (placeholder) ─────────────────────────────────────── */
+  .proof {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--s-4);
+    margin-top: var(--s-6);
+  }
+  .proof__slot {
+    border: 1px dashed var(--c-rule-strong);
+    border-radius: var(--r-md);
+    padding: var(--s-5);
+    background: transparent;
+    display: grid; gap: var(--s-3); align-content: start;
+    min-height: 11rem;
+  }
+  .proof__slot span {
+    font-family: var(--font-mono); font-size: 0.68rem;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-ink-muted);
+  }
+  .proof__slot p { font-size: var(--fs-sm); color: var(--c-ink-muted); }
+
+  /* ─── FAQ ────────────────────────────────────────────────────────────── */
+  .faq { max-width: 48rem; margin-top: var(--s-6); border-top: var(--hair) solid var(--c-rule); }
+  .faq details { border-bottom: var(--hair) solid var(--c-rule); }
+  .faq summary {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
+    padding: var(--s-5) 0;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 1.05rem; font-weight: 700; color: var(--c-ink);
+    list-style: none;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary:hover { color: var(--c-primary); }
+  .faq summary .ico { color: var(--c-primary); transition: transform var(--dur-2) var(--ease); }
+  .faq details[open] summary .ico { transform: rotate(45deg); }
+  .faq__a { padding-bottom: var(--s-5); font-size: var(--fs-sm); max-width: var(--measure); }
+
+  /* ─── CTA FINAL ──────────────────────────────────────────────────────── */
+  .final { position: relative; overflow: hidden; }
+  .final::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(to bottom, transparent 0 2.25rem, var(--c-night-rule) 2.25rem calc(2.25rem + 1px));
+    opacity: .45;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);
+            mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);
+  }
+  .final__inner { position: relative; display: grid; gap: var(--s-5); justify-items: start; max-width: 42rem; }
+  .final h2 { font-size: var(--fs-h2); line-height: var(--lh-tight); letter-spacing: var(--tr-tight); }
+  .final h2 em { font-style: italic; color: var(--c-accent); }
+
+  /* ─── RODAPÉ ─────────────────────────────────────────────────────────── */
+  .foot { background: var(--c-night); color: var(--c-night-muted); border-top: var(--hair) solid var(--c-night-rule); }
+  .foot__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: var(--s-6);
+    padding-block: var(--s-8) var(--s-6);
+  }
+  .foot .brand__name { color: var(--c-night-text); }
+  .foot .brand__name span { color: var(--c-accent); }
+  .foot__tag { font-size: var(--fs-sm); margin-top: var(--s-3); max-width: 26ch; }
+  .foot h4 {
+    font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 600;
+    letter-spacing: var(--tr-wide); text-transform: uppercase;
+    color: var(--c-night-text); margin-bottom: var(--s-4);
+  }
+  .foot ul { display: grid; gap: var(--s-3); font-size: var(--fs-sm); }
+  .foot a:hover { color: var(--c-night-text); text-decoration: underline; text-underline-offset: 3px; }
+  .foot__bottom {
+    border-top: var(--hair) solid var(--c-night-rule);
+    padding-block: var(--s-5);
+    display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5);
+    justify-content: space-between;
+    font-size: var(--fs-xs);
+  }
+
+  /* ─── BREAKPOINTS (apenas onde o grid intrínseco não resolve) ────────── */
+  @media (min-width: 48rem) {
+    .nav__login { display: inline-flex; }
+    .hero__grid { grid-template-columns: 1.05fr 1fr; }
+    .pain__turn { grid-template-columns: 1fr auto; }
+    .index__item { grid-template-columns: auto 1fr; align-items: start; }
+    .index__mark { grid-row: 1 / span 2; }
+    .index__n { align-self: start; }
+    .index__body { grid-column: 2 / -1; }
+    .feature { grid-template-columns: 1fr 1.1fr; }
+    .feature--flip .feature__text { order: 2; }
+    .feature--flip .figs { order: 1; }
+    /* as etiquetas sobem sobre a captura só quando há largura para isso */
+    .hero__chips { margin-top: -1.6rem; margin-left: var(--s-5); position: relative; }
+    .final__inner { justify-items: start; }
+  }
+  @media (min-width: 62rem) {
+    .nav__links { display: flex; align-items: center; gap: var(--s-5); }
+    .nav__toggle { display: none; }
+    .drawer { display: none !important; }
+    .hero__grid { grid-template-columns: 1fr 1.08fr; gap: 4rem; }
+  }
+  </style>
+  <noscript>
+    <style>
+      /* Sem JavaScript não há observador de rolagem: mostra tudo de imediato. */
+      .rv { opacity: 1 !important; transform: none !important; }
+      .nav__toggle { display: none !important; }
+      .nav__links { display: flex !important; flex-wrap: wrap; gap: var(--s-4); }
+    </style>
+  </noscript>
+</head>
+<body>
+
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     CONJUNTO DE ÍCONES: desenho próprio, grade 24×24, traço 1.75,
+     pontas e junções arredondadas. Nenhum emoji na página.
+     ══════════════════════════════════════════════════════════════════════ -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <symbol id="i-calendario" viewBox="0 0 24 24">
+    <rect x="3" y="5" width="18" height="16" rx="2.5"/>
+    <path d="M8 3v4M16 3v4M3 10h18M7.5 14h3M7.5 17.5h8"/>
+  </symbol>
+  <symbol id="i-aluno" viewBox="0 0 24 24">
+    <rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/>
+    <circle cx="8.5" cy="10.5" r="2.2"/>
+    <path d="M5 16.4c.6-1.7 1.9-2.6 3.5-2.6s2.9.9 3.5 2.6M15 9.6h4M15 13.2h4"/>
+  </symbol>
+  <symbol id="i-financeiro" viewBox="0 0 24 24">
+    <rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/>
+    <circle cx="12" cy="12" r="2.6"/>
+    <path d="M6 12h.01M18 12h.01"/>
+  </symbol>
+  <symbol id="i-planejamento" viewBox="0 0 24 24">
+    <path d="M6.5 3.5h11a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z"/>
+    <path d="M8.5 3.5v17M11.5 8.5h5M11.5 12h5M11.5 15.5h3"/>
+  </symbol>
+  <symbol id="i-biblioteca" viewBox="0 0 24 24">
+    <path d="M3 9V6.5a2 2 0 0 1 2-2h3.4l1.8 2H19a2 2 0 0 1 2 2V9"/>
+    <path d="M3.3 9.5h17.4a1 1 0 0 1 .98 1.2l-1.28 6.4a2 2 0 0 1-1.96 1.6H5.56a2 2 0 0 1-1.96-1.6L2.32 10.7a1 1 0 0 1 .98-1.2Z"/>
+  </symbol>
+  <symbol id="i-link" viewBox="0 0 24 24">
+    <path d="M10.2 13.4a4 4 0 0 0 5.6 0l2.4-2.4a4 4 0 1 0-5.6-5.6l-1.2 1.2"/>
+    <path d="M13.8 10.6a4 4 0 0 0-5.6 0l-2.4 2.4a4 4 0 1 0 5.6 5.6l1.2-1.2"/>
+  </symbol>
+  <symbol id="i-tarefas" viewBox="0 0 24 24">
+    <path d="M20.5 12.1c0 3.9-3.8 7.1-8.5 7.1-1 0-1.9-.14-2.8-.4L4.2 20.4l1.4-3.5a6.8 6.8 0 0 1-2.1-4.8C3.5 8.2 7.3 5 12 5s8.5 3.2 8.5 7.1Z"/>
+    <path d="m8.8 12.1 2 2 4.4-4.2"/>
+  </symbol>
+  <symbol id="i-parceiros" viewBox="0 0 24 24">
+    <circle cx="9.2" cy="8.8" r="3"/>
+    <path d="M3.6 19c.7-3 2.9-4.7 5.6-4.7s4.9 1.7 5.6 4.7"/>
+    <path d="M16.4 6.2a3 3 0 0 1 0 5.4M17.9 14.6c1.7.7 2.7 2.2 3 4.4"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4.8 12.4 4.8 4.8L19.4 6.6"/></symbol>
+  <symbol id="i-menos" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-seta" viewBox="0 0 24 24"><path d="M4 12h14.5M13 6.2 18.8 12 13 17.8"/></symbol>
+  <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 1.9"/></symbol>
+  <symbol id="i-escudo" viewBox="0 0 24 24"><path d="M12 3.2 5 6v5.4c0 4 2.9 7.7 7 9.4 4.1-1.7 7-5.4 7-9.4V6l-7-2.8Z"/><path d="m9.2 11.9 2 2 3.7-3.9"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-fechar" viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></symbol>
+</svg>
+
+<!-- ══════════════════════════ NAVEGAÇÃO ══════════════════════════ -->
+<header class="nav" id="nav">
+  <div class="wrap nav__inner">
+    <a href="/" class="brand" aria-label="EDUCAflowOne, página inicial">
+      <img src="{% static 'img/educaflow-new.png' %}" alt="Logotipo do EDUCAflowOne">
+      <span class="brand__name">EDUCA<span>flow</span>One</span>
+    </a>
+
+    <nav class="nav__links" aria-label="Seções da página">
+      <a href="#modulos">Módulos</a>
+      <a href="#recursos">Por dentro</a>
+      <a href="#planos">Planos</a>
+      <a href="#duvidas">Dúvidas</a>
+    </nav>
+
+    <div class="nav__actions">
+      <a href="/login/" class="nav__login">Entrar</a>
+      <a href="/signup/?tier=basic&plan=monthly" class="btn btn--primary nav__cta">Começar grátis</a>
+      <button class="nav__toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="drawer">
+        <span class="sr-only">Abrir menu</span>
+        <svg class="ico ico--menu" aria-hidden="true"><use href="#i-menu"/></svg>
+        <svg class="ico ico--close" aria-hidden="true"><use href="#i-fechar"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="drawer" id="drawer">
+    <div class="wrap">
+      <a class="drawer__link" href="#modulos">Módulos <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg></a>
+      <a class="drawer__link" href="#recursos">Por dentro <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg></a>
+      <a class="drawer__link" href="#planos">Planos <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg></a>
+      <a class="drawer__link" href="#duvidas">Dúvidas <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg></a>
+      <div class="drawer__foot">
+        <a href="/login/" class="btn btn--ghost btn--block">Entrar</a>
+        <a href="/signup/?tier=basic&plan=monthly" class="btn btn--primary btn--block">Começar grátis</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="conteudo">
+
+<!-- ══════════════════════════ HERO ══════════════════════════ -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero__grid">
+      <div class="hero__text rv">
+        <p class="kicker">Para professores particulares</p>
+        <h1>Você virou professor, secretário e <em>cobrador</em> ao mesmo tempo.</h1>
+        <p class="hero__lead">
+          O EDUCAflowOne devolve a parte administrativa para onde ela deveria estar:
+          <strong>fora da sua cabeça</strong>. Agenda, alunos, dinheiro, planejamento,
+          tarefas e materiais em um só sistema, <span class="mark">em português, feito para aula particular</span>.
+        </p>
+
+        <div class="hero__actions">
+          <a href="/signup/?tier=basic&plan=monthly" class="btn btn--primary btn--lg">
+            Começar grátis
+            <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg>
+          </a>
+          <a href="#modulos" class="btn btn--ghost btn--lg">Ver os módulos</a>
+        </div>
+
+        <ul class="hero__facts">
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> 7 dias grátis</li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> Sem cartão de crédito</li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> Funciona no celular</li>
+        </ul>
+      </div>
+
+      <div class="hero__media rv">
+        <div class="shot">
+          <div class="shot__bar" aria-hidden="true">
+            <span class="shot__dot"></span><span class="shot__dot"></span><span class="shot__dot"></span>
+            <span class="shot__url">educaflowone.com.br/dashboard</span>
+          </div>
+          <img src="{% static 'img/dash.png' %}"
+               alt="Painel do EDUCAflowOne mostrando aulas do dia, alunos e resumo financeiro do mês"
+               width="1200" height="750" fetchpriority="high">
+        </div>
+        <!-- Etiquetas ilustrativas dos estados que o sistema mostra. Sem números
+             de faturamento inventados: são rótulos de interface, não promessas. -->
+        <div class="hero__chips" aria-hidden="true">
+          <span class="chip">Recebido no mês</span>
+          <span class="chip chip--late">Pagamentos vencidos</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ FATOS DO PRODUTO ══════════════════════════ -->
+<!-- Somente números verificáveis do produto. Nada de "200+ professores" ou
+     nota média inventada: se não dá para provar, não entra na página. -->
+<section class="wrap">
+  <ul class="facts rv">
+    <li class="fact">
+      <div class="fact__n">8</div>
+      <p class="fact__l">módulos que conversam entre si, do calendário ao recibo</p>
+    </li>
+    <li class="fact">
+      <div class="fact__n">7 dias</div>
+      <p class="fact__l">de teste completo, sem cartão de crédito</p>
+    </li>
+    <li class="fact">
+      <div class="fact__n">R$ 49,90</div>
+      <p class="fact__l">o plano de entrada, por mês</p>
+    </li>
+    <li class="fact">
+      <div class="fact__n">0</div>
+      <p class="fact__l">planilhas para manter em paralelo</p>
+    </li>
+  </ul>
+</section>
+
+<!-- ══════════════════════════ A DOR ══════════════════════════ -->
+<section class="section on-night">
+  <div class="wrap">
+    <div class="pain__head rv">
+      <p class="kicker">A rotina que ninguém contratou</p>
+      <h2>Dar aula é uma hora.<br>O resto <em>come a sua semana.</em></h2>
+      <p class="lead">Quem dá aula particular não perde tempo com a aula. Perde com tudo que vem em volta dela.</p>
+    </div>
+
+    <ol class="pain__list">
+      <li class="pain__item rv">
+        <span class="pain__n">01</span>
+        <h3>O WhatsApp virou seu sistema</h3>
+        <p>Confirmação, material, dúvida e cobrança misturados em trinta conversas. O que importa some no meio.</p>
+      </li>
+      <li class="pain__item rv">
+        <span class="pain__n">02</span>
+        <h3>A planilha nunca fecha</h3>
+        <p>Aluno faltou, trocou o horário, tem desconto neste mês. Você só descobre o erro quando ele reclama.</p>
+      </li>
+      <li class="pain__item rv">
+        <span class="pain__n">03</span>
+        <h3>Cobrar dá constrangimento</h3>
+        <p>Escrever cada mensagem na mão, com receio de soar inconveniente. Aí você deixa passar, e o mês fecha menor.</p>
+      </li>
+      <li class="pain__item rv">
+        <span class="pain__n">04</span>
+        <h3>Fim do mês no escuro</h3>
+        <p>Quanto entrou, quanto falta, quem está devendo há dois meses. A resposta chega sempre tarde demais.</p>
+      </li>
+    </ol>
+
+    <div class="pain__turn rv">
+      <p>Nada disso é falta de organização sua. É falta de um lugar onde a aula, o aluno e o dinheiro conversem.</p>
+      <a href="/signup/?tier=basic&plan=monthly" class="btn btn--paper btn--lg">
+        Começar grátis
+        <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ÍNDICE DE MÓDULOS ══════════════════════════ -->
+<section class="section" id="modulos">
+  <div class="wrap">
+    <div class="index__head rv">
+      <p class="kicker">Índice do sistema</p>
+      <h2 class="title">Oito módulos. Uma rotina só.</h2>
+      <p class="lead quiet">Cada módulo resolve uma tarefa concreta do professor particular, e todos falam entre si: a aula do calendário puxa o plano, o plano puxa o material, a aula realizada puxa o lançamento financeiro.</p>
+    </div>
+
+    <ol class="index">
+      <li class="index__item rv">
+        <span class="index__mark"><svg class="ico" aria-hidden="true"><use href="#i-calendario"/></svg></span>
+        <span class="index__n">01</span>
+        <div class="index__body">
+          <h3>Calendário de aulas</h3>
+          <p>Visão mensal e semanal, status por aula (confirmada, realizada, cancelada) e reagendamento direto no calendário.</p>
+        </div>
+      </li>
+
+      <li class="index__item rv">
+        <span class="index__mark"><svg class="ico" aria-hidden="true"><use href="#i-aluno"/></svg></span>
+        <span class="index__n">02</span>
+        <div class="index__body">
+          <h3>Cadastro e ficha do aluno</h3>
+          <p>Contato, responsável, nível, tipo de plano, valor e forma de pagamento, mais o histórico completo de aulas.</p>
+        </div>
+      </li>
+
+      <li class="index__item rv">
+        <span class="index__mark"><svg class="ico" aria-hidden="true"><use href="#i-financeiro"/></svg></span>
+        <span class="index__n">03</span>
+        <div class="index__body">
+          <h3>Financeiro e cobrança</h3>
+          <p>A receber, recebido e vencido separados por aluno. Cobrança com o valor certo, sem escrever a mensagem do zero.</p>
+        </div>
+      </li>
+
+      <li class="index__item rv">
+        <span class="index__mark"><svg class="ico" aria-hidden="true"><use href="#i-planejamento"/></svg></span>
+        <span class="index__n">04</span>
+        <div class="index__body">
+          <h3>Planejamento de aulas</h3>
+          <p>Plano por aluno e por data, com objetivos, links e arquivos anexados ao próprio plano.</p>
+        </div>
+      </li>
+
+      <li class="index__item rv">
+        <span class="index__mark"><svg class="ico" aria-hidden="true"><use href="#i-biblioteca"/></svg></span>
+        <span class="index__n">05</span>
+        <div class="index__body">
+          <h3>Biblioteca de arquivos</h3>
+          <p>PDF, áudio, vídeo, imagem e links guardados com etiquetas. Envie para o aluno sem subir o mesmo arquivo de novo.</p>
+        </div>
+      </li>
+
+      <li class="index__item rv">
+        <span class="index__mark"><svg class="ico" aria-hidden="true"><use href="#i-link"/></svg></span>
+        <span class="index__n">06</span>
+        <div class="index__body">
+          <h3>Área do aluno por link</h3>
+          <p>Um link público por aluno. Ele abre e vê a próxima aula, as tarefas e os materiais, sem app, sem conta, sem senha.</p>
+        </div>
+      </li>
+
+      <li class="index__item rv">
+        <span class="index__mark"><svg class="ico" aria-hidden="true"><use href="#i-tarefas"/></svg></span>
+        <span class="index__n">07</span>
+        <div class="index__body">
+          <h3>Tarefas de casa com conversa</h3>
+          <p>Cada tarefa tem o seu próprio chat: o aluno pergunta ali, você responde ali, e a dúvida não se perde no WhatsApp.</p>
+          <span class="index__tag index__tag--new">Pouca gente sabe que existe</span>
+        </div>
+      </li>
+
+      <li class="index__item rv">
+        <span class="index__mark"><svg class="ico" aria-hidden="true"><use href="#i-parceiros"/></svg></span>
+        <span class="index__n">08</span>
+        <div class="index__body">
+          <h3>Professores parceiros</h3>
+          <p>Atribua alunos a outro professor e acompanhe a agenda e o financeiro de cada parceiro separadamente.</p>
+          <span class="index__tag">Premium e Platinum</span>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══════════════════════════ POR DENTRO ══════════════════════════ -->
+<section class="section section--rule section--paper-deep" id="recursos">
+  <div class="wrap">
+
+    <!-- Agenda + planejamento -->
+    <article class="feature rv">
+      <div class="feature__text">
+        <p class="kicker">Calendário + planejamento</p>
+        <h2>A semana inteira <em>em uma tela.</em></h2>
+        <p>Abra o mês para enxergar o volume, abra a semana para enxergar o dia. Cada aula carrega o aluno, o horário, o status e o plano daquela data.</p>
+        <ul class="points">
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Mensal e semanal</strong>: alterne conforme a pergunta que você tem</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Status por aula</strong>: confirmada, realizada, cancelada</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Plano vinculado</strong>: objetivos, links e anexos por data</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Notas do dia</strong>: lembretes que só você vê</span></li>
+        </ul>
+      </div>
+      <div class="figs">
+        <figure class="shot">
+          <img src="{% static 'img/calendario_img.png' %}" alt="Calendário mensal do EDUCAflowOne com as aulas marcadas por aluno e status" loading="lazy">
+        </figure>
+        <figure>
+          <div class="shot"><img src="{% static 'img/semanal.png' %}" alt="Visão semanal da agenda, com as aulas distribuídas por dia e horário" loading="lazy"></div>
+          <figcaption>Visão semanal</figcaption>
+        </figure>
+      </div>
+    </article>
+
+    <!-- Financeiro -->
+    <article class="feature feature--flip rv">
+      <div class="feature__text">
+        <p class="kicker">Financeiro + cobrança</p>
+        <h2>Saiba o que entra <em>antes do fim do mês.</em></h2>
+        <p>Três colunas resolvem a pergunta de sempre: o que já foi recebido, o que ainda vai entrar e o que está vencido. Por aluno, com data e valor.</p>
+        <ul class="points">
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>A receber, recebido e vencido</strong>: separados, sem conta de cabeça</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Lançamento por aula realizada</strong>: para quem cobra por aula</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Cobrança pronta</strong>: mensagem com o valor certo, num clique</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Recibos</strong>: gerados a cada pagamento registrado</span></li>
+        </ul>
+      </div>
+      <div class="figs">
+        <figure class="shot">
+          <img src="{% static 'img/financeiro.png' %}" alt="Painel financeiro do EDUCAflowOne com valores a receber, recebidos e vencidos por aluno" loading="lazy">
+        </figure>
+      </div>
+    </article>
+
+    <!-- Planejamento + biblioteca -->
+    <article class="feature rv">
+      <div class="feature__text">
+        <p class="kicker">Planejamento + biblioteca</p>
+        <h2>O material certo <em>já anexado à aula.</em></h2>
+        <p>Guarde uma vez na sua biblioteca e reaproveite para sempre. O arquivo vai do seu acervo para o plano de aula e do plano para o aluno, sem subir de novo.</p>
+        <ul class="points">
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Plano por aluno e por data</strong>: com objetivos e links</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Anexos no plano</strong>: PDF, áudio, vídeo e imagem</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Busca por tipo e etiqueta</strong>: achar rápido no meio da correria</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Envio direto ao aluno</strong>: aparece no material dele</span></li>
+        </ul>
+      </div>
+      <div class="figs">
+        <figure>
+          <div class="shot"><img src="{% static 'img/Planejamento.png' %}" alt="Tela de planejamento de aula com objetivos, conteúdos e arquivos anexados" loading="lazy"></div>
+          <figcaption>Plano de aula</figcaption>
+        </figure>
+        <figure>
+          <div class="shot"><img src="{% static 'img/arquivos_biblioteca.png' %}" alt="Biblioteca de arquivos do professor, com filtros por tipo e etiquetas" loading="lazy"></div>
+          <figcaption>Biblioteca de arquivos</figcaption>
+        </figure>
+      </div>
+    </article>
+
+    <!-- Ficha do aluno + área do aluno -->
+    <article class="feature feature--flip rv">
+      <div class="feature__text">
+        <p class="kicker">Ficha + área do aluno</p>
+        <h2>Seu aluno acompanha <em>sem baixar nada.</em></h2>
+        <p>A ficha guarda tudo que você precisa saber antes da aula. E cada aluno recebe um link público próprio: ele abre no celular e vê a próxima aula, as tarefas e os materiais, sem criar conta e sem senha.</p>
+        <ul class="points">
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Ficha completa</strong>: contato, responsável, nível, plano e valor</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Link individual</strong>: você pode revogar quando quiser</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Sem login para o aluno</strong>: abre e usa, inclusive no celular</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Bom para o responsável</strong>: dá para acompanhar de fora</span></li>
+        </ul>
+      </div>
+      <div class="figs">
+        <figure class="shot">
+          <img src="{% static 'img/Cadastro_aluno.png' %}" alt="Ficha de cadastro do aluno com dados de contato, plano e valores" loading="lazy">
+        </figure>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════ DIFERENCIAIS ══════════════════════════ -->
+<section class="section on-night">
+  <div class="wrap">
+    <div class="rv" style="max-width:44rem">
+      <p class="kicker">O que quase ninguém tem</p>
+      <h2 class="title">Duas coisas que uma planilha nunca vai fazer por você.</h2>
+    </div>
+
+    <div class="diffs">
+      <article class="diff rv">
+        <span class="diff__badge"><svg class="ico ico--sm" aria-hidden="true"><use href="#i-tarefas"/></svg> Tarefas de casa</span>
+        <h3>Cada tarefa tem <em>a sua conversa.</em></h3>
+        <p>Você envia a tarefa pelo sistema e a dúvida do aluno nasce dentro dela, não num grupo de WhatsApp às onze da noite. A resposta fica registrada junto do exercício, e você reabre no mês seguinte para ver o que já foi tratado.</p>
+        <ul>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Chat por tarefa, entre aluno e professor</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Histórico preservado por aluno e por atividade</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>O aluno responde pelo link, sem instalar aplicativo</span></li>
+        </ul>
+        <p class="diff__plan">Disponível em todos os planos.</p>
+      </article>
+
+      <article class="diff rv">
+        <span class="diff__badge"><svg class="ico ico--sm" aria-hidden="true"><use href="#i-parceiros"/></svg> Professores parceiros</span>
+        <h3>Passe alunos adiante <em>sem perder o controle.</em></h3>
+        <p>Quando a agenda enche, você atribui alunos a outro professor dentro da sua conta. O parceiro enxerga apenas os alunos dele; você continua vendo a operação inteira, agenda, planejamento e financeiro separados por professor.</p>
+        <ul>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Alunos atribuídos ao professor parceiro</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Financeiro com visão individual por parceiro</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Você segue como dono da conta e dos dados</span></li>
+        </ul>
+        <p class="diff__plan">Até 2 parceiros no Premium · ilimitados no Platinum.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ COMO COMEÇAR ══════════════════════════ -->
+<section class="section">
+  <div class="wrap">
+    <div class="rv" style="max-width:42rem">
+      <p class="kicker">Como começar</p>
+      <h2 class="title">Do cadastro à primeira cobrança, no mesmo dia.</h2>
+    </div>
+
+    <ol class="steps">
+      <li class="step rv">
+        <div class="step__n">01</div>
+        <h3>Cadastre seus alunos</h3>
+        <p>Nome, contato, plano e valor. Cada aluno vira uma ficha, e a ficha alimenta agenda e financeiro.</p>
+        <span class="step__time"><svg class="ico ico--sm" aria-hidden="true"><use href="#i-relogio"/></svg> cerca de 2 min por aluno</span>
+      </li>
+      <li class="step rv">
+        <div class="step__n">02</div>
+        <h3>Monte a agenda</h3>
+        <p>Marque as aulas no calendário e vincule o planejamento e os materiais de cada data.</p>
+        <span class="step__time"><svg class="ico ico--sm" aria-hidden="true"><use href="#i-relogio"/></svg> cerca de 5 min de ajuste</span>
+      </li>
+      <li class="step rv">
+        <div class="step__n">03</div>
+        <h3>Acompanhe e cobre</h3>
+        <p>O sistema mostra o que está a receber e o que venceu. A cobrança sai com o valor certo, sem constrangimento.</p>
+        <span class="step__time"><svg class="ico ico--sm" aria-hidden="true"><use href="#i-relogio"/></svg> segundos por cobrança</span>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══════════════════════════ PLANOS ══════════════════════════ -->
+<section class="section section--rule section--paper-deep" id="planos">
+  <div class="wrap">
+    <div class="rv" style="max-width:42rem">
+      <p class="kicker">Planos</p>
+      <h2 class="title">Preço à vista. Sem taxa escondida.</h2>
+      <p class="lead quiet">A rotina inteira já vem no plano de entrada: calendário, ficha do aluno, financeiro, planejamento, tarefas e área do aluno. O que muda nos planos maiores é o tamanho da operação: quantos alunos, quanto acervo, e se você divide o trabalho com professores parceiros.</p>
+    </div>
+
+    <div class="plans">
+      <!-- Basic -->
+      <article class="plan rv">
+        <p class="plan__tier">Para começar</p>
+        <h3>Basic</h3>
+        <p class="plan__price">R$ 49,90 <small>/mês</small></p>
+        <hr class="plan__line">
+        <ul class="plan__feats">
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Até 15 alunos</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Calendário, ficha do aluno e planejamento</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Financeiro e cobrança</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Tarefas de casa com conversa</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Biblioteca com até 50 arquivos</span></li>
+          <li class="is-off"><svg class="ico ico--sm" aria-hidden="true"><use href="#i-menos"/></svg> <span>Sem professores parceiros</span></li>
+        </ul>
+        <a href="/signup/?tier=basic&plan=monthly" class="btn btn--ghost btn--block">Começar grátis</a>
+      </article>
+
+      <!-- Premium -->
+      <article class="plan plan--pick rv">
+        <span class="plan__flag">Mais escolhido</span>
+        <p class="plan__tier">Para crescer</p>
+        <h3>Premium</h3>
+        <p class="plan__price">R$ 69,90 <small>/mês</small></p>
+        <hr class="plan__line">
+        <ul class="plan__feats">
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Alunos ilimitados</strong></span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Até 2 professores parceiros</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Área do aluno por link público</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Biblioteca com até 200 arquivos</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Tudo do Basic</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Suporte prioritário</span></li>
+        </ul>
+        <a href="/signup/?tier=premium&plan=monthly" class="btn btn--primary btn--block">Começar grátis</a>
+      </article>
+
+      <!-- Platinum -->
+      <article class="plan rv">
+        <p class="plan__tier">Para escalar</p>
+        <h3>Platinum</h3>
+        <p class="plan__price">R$ 89,90 <small>/mês</small></p>
+        <hr class="plan__line">
+        <ul class="plan__feats">
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Alunos ilimitados</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span><strong>Professores parceiros ilimitados</strong></span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Área do aluno por link público</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Biblioteca sem limite de arquivos</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Tudo do Premium</span></li>
+          <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> <span>Suporte VIP</span></li>
+        </ul>
+        <a href="/signup/?tier=platinum&plan=monthly" class="btn btn--ghost btn--block">Começar grátis</a>
+      </article>
+    </div>
+
+    <ul class="guarantees rv">
+      <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-escudo"/></svg> Pagamento processado pela Stripe</li>
+      <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> 7 dias grátis, sem cartão</li>
+      <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> Cancele quando quiser</li>
+      <li><svg class="ico ico--sm" aria-hidden="true"><use href="#i-check"/></svg> Sem contrato de fidelidade</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════════════════ PROVA SOCIAL ══════════════════════════ -->
+<!-- ATENÇÃO, NÃO PUBLICAR SEM DEPOIMENTO REAL.
+     Os depoimentos das versões v6/v7 ("Mariana A., São Paulo", "João B. ,
+     Belo Horizonte", "Letícia C., Curitiba") são fictícios e por isso NÃO
+     foram trazidos para a v8. Preencha os espaços abaixo somente com:
+       1. nome real e autorização por escrito do professor;
+       2. cidade e disciplina conferidas;
+       3. frase exatamente como ele escreveu (sem reescrever);
+       4. de preferência, um número que ele mesmo confirme.
+     Enquanto não houver depoimento real, mantenha esta seção fora do ar:
+     basta remover este <section> inteiro antes de publicar. -->
+<section class="section">
+  <div class="wrap">
+    <div class="rv" style="max-width:42rem">
+      <p class="kicker">Quem usa</p>
+      <h2 class="title">Espaço reservado para depoimentos reais.</h2>
+      <p class="lead quiet">Preferimos deixar a seção vazia a encher a página com nomes inventados. Se você usa o EDUCAflowOne e quer contar como foi, escreva para <a href="mailto:contato@educaflowone.com.br" style="color:var(--c-primary);text-decoration:underline;text-underline-offset:3px">contato@educaflowone.com.br</a>.</p>
+    </div>
+
+    <div class="proof rv" role="list">
+      <div class="proof__slot" role="listitem">
+        <span>Depoimento 01 (pendente)</span>
+        <p>Nome real, disciplina, cidade e frase autorizada.</p>
+      </div>
+      <div class="proof__slot" role="listitem">
+        <span>Depoimento 02 (pendente)</span>
+        <p>Nome real, disciplina, cidade e frase autorizada.</p>
+      </div>
+      <div class="proof__slot" role="listitem">
+        <span>Depoimento 03 (pendente)</span>
+        <p>Nome real, disciplina, cidade e frase autorizada.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ DÚVIDAS ══════════════════════════ -->
+<section class="section section--rule" id="duvidas">
+  <div class="wrap">
+    <div class="rv" style="max-width:42rem">
+      <p class="kicker">Dúvidas frequentes</p>
+      <h2 class="title">O que perguntam antes de assinar.</h2>
+    </div>
+
+    <div class="faq rv">
+      <details>
+        <summary>Preciso de cartão de crédito para testar?<svg class="ico ico--sm" aria-hidden="true"><use href="#i-mais"/></svg></summary>
+        <p class="faq__a">Não. Os 7 dias são gratuitos e não pedem nenhum dado de pagamento. Você só informa a forma de pagamento se decidir continuar depois do período de teste.</p>
+      </details>
+      <details>
+        <summary>Meu aluno precisa criar conta?<svg class="ico ico--sm" aria-hidden="true"><use href="#i-mais"/></svg></summary>
+        <p class="faq__a">Não. Cada aluno recebe um link público exclusivo e abre direto no navegador do celular, sem cadastro, sem senha e sem aplicativo. Você pode revogar o link a qualquer momento.</p>
+      </details>
+      <details>
+        <summary>Como funciona a conversa nas tarefas de casa?<svg class="ico ico--sm" aria-hidden="true"><use href="#i-mais"/></svg></summary>
+        <p class="faq__a">Cada tarefa enviada tem um espaço de conversa próprio entre você e o aluno. A dúvida fica registrada junto do exercício a que se refere, em vez de se perder no meio do WhatsApp, e continua acessível depois, no histórico do aluno.</p>
+      </details>
+      <details>
+        <summary>O que são professores parceiros?<svg class="ico ico--sm" aria-hidden="true"><use href="#i-mais"/></svg></summary>
+        <p class="faq__a">São outros professores que trabalham dentro da sua conta. Você atribui alunos a eles; cada parceiro acompanha apenas os alunos que recebeu, enquanto você mantém a visão completa de agenda e financeiro. O Premium permite até 2 parceiros e o Platinum não tem limite.</p>
+      </details>
+      <details>
+        <summary>Quantos alunos posso cadastrar?<svg class="ico ico--sm" aria-hidden="true"><use href="#i-mais"/></svg></summary>
+        <p class="faq__a">No Basic, até 15 alunos. No Premium e no Platinum, sem limite.</p>
+      </details>
+      <details>
+        <summary>Funciona bem no celular?<svg class="ico ico--sm" aria-hidden="true"><use href="#i-mais"/></svg></summary>
+        <p class="faq__a">Sim. O sistema é usado no navegador e se adapta à tela, do celular entre uma aula e outra ao computador na hora de fechar o mês. Não há nada para instalar.</p>
+      </details>
+      <details>
+        <summary>Posso cancelar quando quiser?<svg class="ico ico--sm" aria-hidden="true"><use href="#i-mais"/></svg></summary>
+        <p class="faq__a">Sim. Não há fidelidade nem multa: o cancelamento é feito pela própria conta e vale a partir do ciclo seguinte.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ CTA FINAL ══════════════════════════ -->
+<section class="section on-night final">
+  <div class="wrap">
+    <div class="final__inner">
+      <p class="kicker">Comece hoje</p>
+      <h2>Volte a ser só professor.<br><em>O resto o sistema segura.</em></h2>
+      <p class="lead">Sete dias para colocar seus alunos, sua agenda e seu mês dentro do EDUCAflowOne. Se não fizer diferença, você não paga nada.</p>
+      <a href="/signup/?tier=basic&plan=monthly" class="btn btn--paper btn--lg">
+        Começar grátis
+        <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg>
+      </a>
+      <p class="cta-note">7 dias grátis · sem cartão de crédito · cancele quando quiser</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ══════════════════════════ RODAPÉ ══════════════════════════ -->
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <div class="brand">
+          <img src="{% static 'img/educaflow-new.png' %}" alt="Logotipo do EDUCAflowOne">
+          <span class="brand__name">EDUCA<span>flow</span>One</span>
+        </div>
+        <p class="foot__tag">Gestão para quem dá aula particular. Feito no Brasil, em português.</p>
+      </div>
+
+      <div>
+        <h4>Produto</h4>
+        <ul>
+          <li><a href="#modulos">Módulos</a></li>
+          <li><a href="#recursos">Por dentro</a></li>
+          <li><a href="#planos">Planos</a></li>
+          <li><a href="#duvidas">Dúvidas</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Conta</h4>
+        <ul>
+          <li><a href="/login/">Entrar</a></li>
+          <li><a href="/signup/?tier=basic&plan=monthly">Criar conta</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Legal</h4>
+        <!-- As rotas /termos/ e /privacidade/ NAO existem no core/urls.py, entao
+             os links davam 404. Ficam como texto ate as paginas serem criadas.
+             Um site que vende assinatura no Brasil precisa das duas: crie-as,
+             adicione as rotas, e volte a transformar estes itens em <a>. -->
+        <ul>
+          <li>Termos de uso <span class="quiet">(em breve)</span></li>
+          <li>Privacidade <span class="quiet">(em breve)</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="foot__bottom">
+      <span>© 2026 EDUCAflowOne. Todos os direitos reservados.</span>
+      <span>Pagamentos processados pela Stripe.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* 1. sombra da barra fixa ao rolar */
+  var nav = document.getElementById('nav');
+  var onScroll = function () {
+    nav.classList.toggle('is-stuck', window.scrollY > 8);
+  };
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  /* 2. menu no celular */
+  var toggle = document.getElementById('navToggle');
+  var drawer = document.getElementById('drawer');
+
+  var setDrawer = function (open) {
+    drawer.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.querySelector('.sr-only').textContent = open ? 'Fechar menu' : 'Abrir menu';
+  };
+
+  toggle.addEventListener('click', function () {
+    setDrawer(toggle.getAttribute('aria-expanded') !== 'true');
+  });
+
+  drawer.addEventListener('click', function (e) {
+    if (e.target.closest('a')) setDrawer(false);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && drawer.classList.contains('is-open')) {
+      setDrawer(false);
+      toggle.focus();
+    }
+  });
+
+  /* 3. entrada escalonada dos blocos */
+  var items = document.querySelectorAll('.rv');
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (reduced || !('IntersectionObserver' in window)) {
+    items.forEach(function (el) { el.classList.add('is-in'); });
+    return;
+  }
+
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry, i) {
+      if (!entry.isIntersecting) return;
+      var el = entry.target;
+      el.style.transitionDelay = (Math.min(i, 5) * 70) + 'ms';
+      el.classList.add('is-in');
+      io.unobserve(el);
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -8% 0px' });
+
+  items.forEach(function (el) { io.observe(el); });
+})();
+</script>
+
+</body>
+</html>
