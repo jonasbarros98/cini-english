@@ -130,7 +130,7 @@
       --fs-2xl: clamp(21px, 1.6vw + 15px, 27px);
       --fw-reg: 400; --fw-med: 500; --fw-semi: 600; --fw-bold: 700; --fw-black: 800;
       --lh-tight: 1.15; --lh-snug: 1.3; --lh-base: 1.5;
-      --tr-tight: -0.02em; --tr-flat: 0; --tr-wide: .07em; --tr-dense: -0.035em;
+      --tr-tight: -0.02em; --tr-flat: 0; --tr-wide: .07em;
 
       /* --- movimento --- */
       --dur-1: 110ms; --dur-2: 180ms; --dur-3: 280ms;
@@ -882,218 +882,81 @@
 
     .list{ padding: var(--sp-3); display: grid; gap: var(--sp-2); }
 
-    /* -------------------------------------------------------------------------
-       LISTA DO DIA: trilho de horas
-       Este painel serve para LER o dia. Cada aula é uma linha de altura única,
-       ancorada numa coluna de hora tabular que corre de cima a baixo. Agir é o
-       caso pontual: as acções só existem depois de a linha abrir.
-       ------------------------------------------------------------------------- */
-    .list--day{ --lrow-time: 44px; padding: 0; display: block; gap: 0; }
-    .list--day > .empty-day,
-    .list--day > .day-skeleton{ margin: var(--sp-3); }
-
-    /* ---- Grupo de período (manhã / tarde / noite) ---- */
-    .dgroup + .dgroup{ border-top: 1px solid var(--c-line); }
-    .dgroup-head{
-      display: flex; align-items: baseline; justify-content: space-between;
-      gap: var(--sp-3);
-      padding: var(--sp-3) var(--sp-3) var(--sp-1);
-      font-size: var(--fs-3xs);
-      font-weight: var(--fw-bold);
-      letter-spacing: var(--tr-wide);
-      text-transform: uppercase;
-      color: var(--c-ink-4);
-    }
-    .dgroup-n{ font-variant-numeric: tabular-nums; letter-spacing: var(--tr-flat); }
-
-    /* ---- A linha ---- */
-    .lesson{ display: block; }
-    .lesson + .lesson{ border-top: 1px solid var(--c-line); }
-    .lrow{
+    /* Cartão de aula. Hierarquia: quem > que horas + estado > o resto. */
+    .lesson{
+      border: 1px solid var(--c-line);
+      border-radius: var(--r-md);
+      background: var(--c-surface);
+      padding: var(--sp-4);
       display: grid;
-      grid-template-columns: var(--lrow-time) minmax(0,1fr) auto auto auto;
-      align-items: center;
       gap: var(--sp-3);
-      width: 100%;
-      padding: var(--sp-2) var(--sp-3);
-      border: 0;
-      background: transparent;
-      font-family: inherit;
-      text-align: left;
-      cursor: pointer;
-      color: var(--c-ink);
-      transition: background var(--dur-1) var(--ease);
+      transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
     }
-    .lrow:hover{ background: var(--c-surface-2); }
-    .lrow-time{
+    .lesson:hover{ border-color: var(--c-line-3); box-shadow: var(--sh-1); }
+    .lesson-top{ display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+    .lesson-title{ display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+    .lesson-title .n{
+      font-size: var(--fs-base);
+      font-weight: var(--fw-bold);
+      letter-spacing: var(--tr-tight);
+      color: var(--c-ink);
+      line-height: var(--lh-snug);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-word;
+    }
+    .lesson-title .m{
+      display: flex; align-items: center; gap: var(--sp-2);
+      color: var(--c-ink-3);
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-med);
+    }
+    .lesson-title .m .lt{
       font-size: var(--fs-md);
       font-weight: var(--fw-bold);
       font-variant-numeric: tabular-nums;
       letter-spacing: var(--tr-tight);
       color: var(--c-ink-2);
     }
-    .lrow-name{
-      font-size: var(--fs-sm);
-      font-weight: var(--fw-semi);
-      letter-spacing: var(--tr-tight);
-      color: var(--c-ink);
-      line-height: var(--lh-snug);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    .lesson-title .m .sep{
+      width: 3px; height: 3px; border-radius: var(--r-full);
+      background: var(--c-line-3); flex: 0 0 auto;
     }
-    /* Cancelada: risco no nome, a mesma regra do resto da tela. */
-    .lesson[data-status="cancelled"] .lrow-name{
-      text-decoration: line-through; text-decoration-thickness: 1px;
-      color: var(--c-bad-ink);
-    }
-    .lesson[data-status="done"] .lrow-time,
-    .lesson[data-status="done"] .lrow-name{ color: var(--c-ink-3); }
-    .lrow-tags{ display: inline-flex; align-items: center; }
-    .lrow-tags:empty{ display: none; }
-    .lrow-state{ display: inline-flex; align-items: center; }
-    .lrow-chev{
-      color: var(--c-ink-4);
-      transition: transform var(--dur-2) var(--ease);
-    }
-    .lesson.is-open .lrow{ background: var(--c-surface-2); }
-    .lesson.is-open .lrow-chev{ transform: rotate(180deg); }
-
-    /* ---- Gaveta de acções ---- */
-    .ldet{
-      display: grid;
-      grid-template-rows: 0fr;
-      transition: grid-template-rows var(--dur-2) var(--ease);
-    }
-    .lesson.is-open .ldet{ grid-template-rows: 1fr; }
-    .ldet-wrap{
-      overflow: hidden;
-      min-height: 0;
-      visibility: hidden;
-      transition: visibility 0s linear var(--dur-2);
-    }
-    .lesson.is-open .ldet-wrap{ visibility: visible; transition-delay: 0s; }
-    /* Grelha, não flex: o controlo e o menu ficam sempre na mesma linha, e é o
-       controlo que cede largura. Nada de menu a saltar para baixo. */
-    .ldet-in{
-      display: grid;
-      grid-template-columns: minmax(0,1fr) auto;
-      align-items: center;
-      gap: var(--sp-1);
-      padding: var(--sp-1) var(--sp-3) var(--sp-3);
-    }
-
-    /* ---- Controlo segmentado: quatro valores de UMA decisão ----
-       As quatro palavras têm de caber inteiras num painel de 320px: por isso o
-       aperto milimétrico nos preenchimentos. Abaixo disso o menu desce de linha
-       em vez de espremer as palavras. */
-    .state-seg{
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
-      gap: 1px;
-      min-width: 0;
-      padding: 1px;
-      border: 1px solid var(--c-line-2);
-      border-radius: var(--r-sm);
-      background: var(--c-surface-3);
-    }
-    .state-opt{
-      min-width: 0;
-      padding: var(--sp-2) 1px;
-      border: 1px solid transparent;
-      border-radius: var(--r-xs);
-      background: transparent;
-      font-family: inherit;
-      font-size: var(--fs-3xs);
-      font-weight: var(--fw-semi);
-      letter-spacing: var(--tr-dense);
-      color: var(--c-ink-3);
-      cursor: pointer;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
-    }
-    .state-opt:hover:not(:disabled){ color: var(--c-ink); background: var(--c-surface); }
-    .state-opt:disabled{ opacity: .38; cursor: not-allowed; }
-    .state-opt[aria-checked="true"]{
-      background: var(--c-surface);
-      box-shadow: var(--sh-1);
-      font-weight: var(--fw-bold);
-      color: var(--c-ink);
-    }
-    /* O segmento activo herda a cor do estado, mas a palavra continua a dizer tudo. */
-    .state-opt[aria-checked="true"][data-act="confirmed"]{ border-color: var(--c-ok-line);   color: var(--c-ok-ink); }
-    .state-opt[aria-checked="true"][data-act="pending"]{   border-color: var(--c-warn-line); color: var(--c-warn-ink); }
-    .state-opt[aria-checked="true"][data-act="cancelled"]{ border-color: var(--c-bad-line);  color: var(--c-bad-ink); }
-    .state-opt[aria-checked="true"][data-act="done"]{      border-color: var(--c-done-line); color: var(--c-done-ink); }
-    .state-opt[aria-checked="true"]:disabled{ opacity: .55; }
-
-    /* ---- Menu de manutenção ---- */
-    .lmenu{ position: relative; flex: 0 0 auto; margin-left: auto; }
-    .lmenu-btn{
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 26px; height: 26px;
-      border: 1px solid var(--c-line-2);
-      border-radius: var(--r-sm);
-      background: var(--c-surface);
-      color: var(--c-ink-3);
-      cursor: pointer;
-      transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
-    }
-    .lmenu-btn:hover{ background: var(--c-surface-2); border-color: var(--c-line-3); color: var(--c-ink); }
-    .lmenu-btn[aria-expanded="true"]{ background: var(--c-surface-2); border-color: var(--c-line-3); color: var(--c-ink); }
-    .lmenu-pop{
-      position: absolute; right: 0; top: calc(100% + 4px);
-      z-index: var(--z-sticky);
-      min-width: 128px;
-      padding: var(--sp-1);
-      display: grid; gap: 1px;
-      border: 1px solid var(--c-line-2);
-      border-radius: var(--r-sm);
-      background: var(--c-surface);
-      box-shadow: var(--sh-3);
-    }
-    .lmenu-pop[hidden]{ display: none; }
-    .lmenu-item{
-      display: flex; align-items: center; gap: var(--sp-2);
-      width: 100%;
-      padding: var(--sp-2) var(--sp-3);
-      border: 0; border-radius: var(--r-xs);
-      background: transparent;
-      font-family: inherit;
-      font-size: var(--fs-xs);
-      font-weight: var(--fw-semi);
-      color: var(--c-ink-2);
-      text-align: left;
-      cursor: pointer;
-    }
-    .lmenu-item:hover:not(:disabled){ background: var(--c-surface-2); color: var(--c-ink); }
-    .lmenu-item:disabled{ opacity: .38; cursor: not-allowed; }
-    .lmenu-item.is-bad{ color: var(--c-bad-ink); }
-    .lmenu-item.is-bad:hover:not(:disabled){ background: var(--c-bad-tint); }
-
-    /* ---- Acção em lote ---- */
-    .day-bulk{
-      display: grid; gap: var(--sp-2);
-      padding: var(--sp-3) var(--sp-4) var(--sp-4);
-      border-top: 1px solid var(--c-line);
-      background: var(--c-surface-2);
-    }
-    .day-bulk[hidden]{ display: none; }
-    .day-bulk .btn{ width: 100%; }
-    .day-bulk-note{
-      margin: 0;
-      font-size: var(--fs-3xs);
-      font-weight: var(--fw-med);
-      line-height: var(--lh-snug);
-      color: var(--c-ink-3);
-    }
-
     .lesson-meta{
-      padding: 0 var(--sp-3) var(--sp-3);
       display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4);
       font-size: var(--fs-xs);
       font-weight: var(--fw-med);
       color: var(--c-ink-3);
     }
     .lesson-meta span{ display: inline-flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+
+    .status-pill{
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--r-full);
+      border: 1px solid transparent;
+      font-size: var(--fs-2xs);
+      font-weight: var(--fw-bold);
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+    .status-pill::before{
+      content: "";
+      width: 8px; height: 8px;
+      border-radius: var(--r-full);
+      background: currentColor;
+      flex: 0 0 auto;
+    }
+    .status-pill.ok{   background: var(--c-ok-tint);   border-color: var(--c-ok-line);   color: var(--c-ok-ink); }
+    .status-pill.warn{ background: var(--c-warn-tint); border-color: var(--c-warn-line); color: var(--c-warn-ink); }
+    .status-pill.bad{  background: var(--c-bad-tint);  border-color: var(--c-bad-line);  color: var(--c-bad-ink); }
+    .status-pill.done{ background: var(--c-done-tint); border-color: var(--c-done-line); color: var(--c-done-ink); }
+    /* A mesma língua de formas do calendário, agora ao lado da palavra. */
+    .status-pill.warn::before{ background: transparent; border: 2px solid currentColor; }
+    .status-pill.bad::before{  border-radius: 1px; transform: rotate(45deg); }
+    .status-pill.done::before{ border-radius: 2px; }
 
     .public-badge, .public-badge-pill{
       display: inline-flex; align-items: center; gap: var(--sp-1);
@@ -1109,13 +972,11 @@
     }
     .evt .public-badge{ flex: 0 0 auto; }
 
-    /* Acções da agenda pública: confirmar ou recusar, e mais nada. */
+    /* Acções: grelha intrínseca, secundárias por natureza. */
     .lesson-actions{
       display: grid;
-      grid-template-columns: repeat(2, minmax(0,1fr));
+      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
       gap: var(--sp-2);
-      grid-column: 1 / -1;
-      min-width: 0;
     }
     .act{
       display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1);
@@ -1289,19 +1150,18 @@
       from{ background-position: 140% 0; }
       to{ background-position: -40% 0; }
     }
-    /* O esqueleto promete o que a lista entrega: linhas, não cartões. */
-    .day-skeleton{ display: grid; }
-    .day-skeleton .sk-row{
-      display: grid;
-      grid-template-columns: 40px minmax(0,1fr) 10px;
-      align-items: center;
-      gap: var(--sp-3);
-      padding: var(--sp-3) 0;
+    .day-skeleton{ display: grid; gap: var(--sp-2); }
+    .day-skeleton .sk-card{
+      display: grid; gap: var(--sp-3);
+      padding: var(--sp-4);
+      border: 1px solid var(--c-line);
+      border-radius: var(--r-md);
+      background: var(--c-surface);
     }
-    .day-skeleton .sk-row + .sk-row{ border-top: 1px solid var(--c-line); }
-    .day-skeleton .sk-row .skel-line{ height: 11px; }
-    .day-skeleton .sk-row .skel-line:nth-child(2){ width: 68%; }
-    .day-skeleton .sk-row .sk-mark{ width: 10px; height: 10px; border-radius: var(--r-full); }
+    .day-skeleton .sk-card .skel-line:first-child{ width: 62%; height: 13px; }
+    .day-skeleton .sk-card .skel-line:nth-child(2){ width: 40%; }
+    .day-skeleton .sk-card .sk-acts{ display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
+    .day-skeleton .sk-card .sk-acts .skel{ height: 26px; border-radius: var(--r-sm); }
 
     /* =========================================================================
        9. TOAST
@@ -1726,11 +1586,8 @@
       .day-card-head{ flex-wrap: wrap; }
       .day-actions{ width: 100%; justify-content: stretch; }
       .day-actions .mini-btn{ flex: 1 1 0; justify-content: center; padding: var(--sp-3); font-size: var(--fs-sm); }
+      .lesson-actions{ grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); }
       .act{ padding: var(--sp-3) var(--sp-2); font-size: var(--fs-3xs); }
-      /* No telemóvel a linha é alvo de dedo: ganha altura sem ganhar conteúdo. */
-      .lrow{ padding: var(--sp-3); }
-      .state-opt{ padding: var(--sp-3) 2px; }
-      .lmenu-btn{ width: 38px; height: 38px; }
       .modal{ padding: var(--sp-3); align-items: flex-end; }
       .modal-content{ max-height: 92vh; }
       .modal-body{ padding: var(--sp-5); }
@@ -1755,15 +1612,13 @@
       .daynum > span:first-child{ font-size: var(--fs-xs); }
       .events{ gap: 2px; }
       .evt{ width: 7px; height: 7px; }
-      .list--day{ --lrow-time: 40px; }
-      .lrow{ padding: var(--sp-3); gap: var(--sp-2); }
-      .dgroup-head{ padding: var(--sp-3) var(--sp-3) var(--sp-1); }
+      .lesson{ padding: var(--sp-3); }
+      .lesson-actions{ grid-template-columns: repeat(2, minmax(0,1fr)); }
     }
 
     /* ---- Ponteiro grosseiro: alvos maiores ---- */
     @media (pointer: coarse){
       .act, .mini-btn, .btn{ min-height: 40px; }
-      .lrow{ min-height: 44px; }
       .cell{ -webkit-tap-highlight-color: transparent; }
     }
 
@@ -1776,9 +1631,6 @@
         scroll-behavior: auto !important;
       }
       .skel{ background-image: none; }
-      /* A gaveta abre de uma vez: sem deslize de altura, sem rotação do galo. */
-      .ldet, .lrow-chev{ transition: none !important; }
-      .ldet-wrap{ transition-delay: 0s !important; }
     }
 
     /* ---- Mais contraste ---- */
@@ -1847,8 +1699,6 @@
     </symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></symbol>
-    <symbol id="i-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m5.5 9.5 6.5 6.5 6.5-6.5"/></symbol>
-    <symbol id="i-dots" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5.5" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="12" cy="18.5" r="1.75"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></symbol>
     <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
@@ -2195,22 +2045,19 @@
                   </div>
                 </div>
 
-                <div class="list list--day" id="dayLessons">
+                <div class="list" id="dayLessons">
                   <div class="day-skeleton" aria-hidden="true">
-                    <div class="sk-row"><div class="skel skel-line"></div><div class="skel skel-line"></div><div class="skel sk-mark"></div></div>
-                    <div class="sk-row"><div class="skel skel-line"></div><div class="skel skel-line"></div><div class="skel sk-mark"></div></div>
-                    <div class="sk-row"><div class="skel skel-line"></div><div class="skel skel-line"></div><div class="skel sk-mark"></div></div>
-                    <div class="sk-row"><div class="skel skel-line"></div><div class="skel skel-line"></div><div class="skel sk-mark"></div></div>
+                    <div class="sk-card">
+                      <div class="skel skel-line"></div>
+                      <div class="skel skel-line"></div>
+                      <div class="sk-acts"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+                    </div>
+                    <div class="sk-card">
+                      <div class="skel skel-line"></div>
+                      <div class="skel skel-line"></div>
+                      <div class="sk-acts"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+                    </div>
                   </div>
-                </div>
-
-                <!-- Acção em lote: só aparece quando existe aula elegível neste dia. -->
-                <div class="day-bulk" id="dayBulk" hidden>
-                  <button class="btn primary" id="btnBulkDone" type="button">
-                    <svg class="ico ico-sm" aria-hidden="true"><use href="#i-calendar-check"></use></svg>
-                    <span id="bulkLabel">Marcar como realizadas</span>
-                  </button>
-                  <p class="day-bulk-note" id="bulkNote">Só aulas deste dia que já passaram. Canceladas e já realizadas ficam de fora.</p>
                 </div>
               </div>
 
@@ -2538,9 +2385,9 @@
         calPanel.dataset.loading = calLoadingDepth > 0 ? 'true' : 'false';
       }
       function daySkeletonHTML(){
-        const row = '<div class="sk-row"><div class="skel skel-line"></div>'
-          + '<div class="skel skel-line"></div><div class="skel sk-mark"></div></div>';
-        return '<div class="day-skeleton" aria-hidden="true">' + row.repeat(4) + '</div>';
+        const card = '<div class="sk-card"><div class="skel skel-line"></div><div class="skel skel-line"></div>'
+          + '<div class="sk-acts"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>';
+        return '<div class="day-skeleton" aria-hidden="true">' + card + card + '</div>';
       }
 
       const toast = $('#toast');
@@ -3083,386 +2930,64 @@
           dayLessons.innerHTML = `<div class="empty-day"><svg class="ico" aria-hidden="true"><use href="#i-inbox"></use></svg><span>Nenhuma aula agendada neste dia.</span></div>`;
         } else {
           dayLessons.innerHTML = "";
-          // Uma aula por linha, agrupada por período. O dia lê-se de cima a baixo
-          // pela coluna de horas; as acções vivem dentro da linha que se abre.
-          groupByPeriod(dayList).forEach(group => {
-            const g = document.createElement('div');
-            g.className = "dgroup";
-            const head = document.createElement('div');
-            head.className = "dgroup-head";
-            head.innerHTML = `<span>${group.label}</span><span class="dgroup-n">${group.items.length}</span>`;
-            g.appendChild(head);
+          dayList.forEach(l => {
+            const card = document.createElement('div');
+            card.className = "lesson";
+            card.dataset.id = String(l.id);
 
-            const rows = document.createElement('div');
-            rows.className = "dgroup-rows";
-            group.items.forEach(l => rows.appendChild(buildLessonRow(l)));
-            g.appendChild(rows);
+            // Determinar status para exibição: se realized é true, mostrar como "done"
+            const displayStatus = (l.realized || l.status === "done") ? "done" : l.status;
+            const isRealized = l.realized || l.status === "done";
+            const isPublicBooking = l.source === 'public_booking';
+            
+            const publicBookingMeta = isPublicBooking && (l.student_email || l.student_whatsapp) ?
+              `<div class="lesson-meta">
+                ${l.student_email ? `<span><svg class="ico ico-xs" aria-hidden="true"><use href="#i-mail"></use></svg>${escapeHtml(l.student_email)}</span>` : ''}
+                ${l.student_whatsapp ? `<span><svg class="ico ico-xs" aria-hidden="true"><use href="#i-phone"></use></svg>${escapeHtml(l.student_whatsapp)}</span>` : ''}
+              </div>` : '';
+            
+            const publicBadgePill = isPublicBooking ? '<span class="public-badge-pill" title="Solicitação via agenda pública"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-globe"></use></svg>Agenda pública</span>' : '';
+            
+            const actionsHtml = isPublicBooking ? `
+              <div class="lesson-actions">
+                <button class="act ok" data-act="public_confirm" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Confirmar</button>
+                <button class="act bad" data-act="public_reject" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-close"></use></svg>Recusar</button>
+              </div>
+            ` : `
+              <div class="lesson-actions">
+                <button class="act ok" data-act="confirmed" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Confirmar</button>
+                <button class="act warn" data-act="pending" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-clock"></use></svg>Pendente</button>
+                <button class="act bad" data-act="cancelled" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-close"></use></svg>Cancelar</button>
+                <button class="act done" data-act="done" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Realizado</button>
+                <button class="act" data-act="edit" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-edit"></use></svg>Editar</button>
+                <button class="act bad" data-act="delete" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-trash"></use></svg>Excluir</button>
+              </div>
+            `;
+            
+            card.innerHTML = `
+              <div class="lesson-top">
+                <div class="lesson-title">
+                  <div class="n">${escapeHtml(l.student)} ${publicBadgePill}</div>
+                  <div class="m"><span class="lt">${l.time}</span></div>
+                </div>
+                <span class="status-pill ${statusClass(displayStatus)}">${statusLabel(displayStatus)}</span>
+              </div>
+              ${publicBookingMeta}
+              ${actionsHtml}
+            `;
 
-            dayLessons.appendChild(g);
+            card.addEventListener('click', (e)=>{
+              const btn = e.target.closest('button');
+              if(!btn) return;
+              const act = btn.dataset.act;
+              handleLessonAction(l.id, act);
+            });
+
+            dayLessons.appendChild(card);
           });
         }
         dayLessons.dataset.ready = '1';
-        renderDayBulk(dayList);
-        // Reabre a linha que estava aberta antes deste render.
-        if(openLessonId != null){
-          const again = $$('.lesson', dayLessons).find(el => el.dataset.id === String(openLessonId));
-          if(again) setLessonOpen(again, true);
-          else openLessonId = null;
-        }
-      }
 
-      // ==========
-      // Linha de aula: fechada mostra hora, aluno e marca de estado
-      // ==========
-      // Manhã até 12h, tarde das 12h às 18h, noite a partir das 18h.
-      function periodOf(time){
-        const h = parseInt(String(time || '').slice(0,2), 10);
-        if(isNaN(h)) return 'morning';
-        if(h < 12) return 'morning';
-        if(h < 18) return 'afternoon';
-        return 'evening';
-      }
-      const PERIOD_LABELS = { morning: 'Manhã', afternoon: 'Tarde', evening: 'Noite' };
-      function groupByPeriod(list){
-        return ['morning','afternoon','evening']
-          .map(key => ({ key, label: PERIOD_LABELS[key], items: list.filter(l => periodOf(l.time) === key) }))
-          .filter(g => g.items.length > 0);
-      }
-
-      // Os ids de aula são numéricos ou "pbr_123". Isto só garante que o que vai
-      // parar a um atributo id do HTML não traz caracteres estranhos.
-      function domSafeId(v){
-        return String(v).replace(/[^A-Za-z0-9_-]/g, '_');
-      }
-
-      // Qual linha está aberta. Só uma de cada vez, e sobrevive ao re-render.
-      let openLessonId = null;
-
-      function buildLessonRow(l){
-        const displayStatus = (l.realized || l.status === "done") ? "done" : l.status;
-        const isRealized = l.realized || l.status === "done";
-        const isPublicBooking = l.source === 'public_booking';
-        const domId = domSafeId(l.id);
-
-        const wrap = document.createElement('div');
-        wrap.className = "lesson";
-        wrap.dataset.id = String(l.id);
-        wrap.dataset.status = displayStatus;
-
-        const publicBadgePill = isPublicBooking
-          ? '<span class="public-badge-pill" title="Solicitação via agenda pública"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-globe"></use></svg>Agenda pública</span>'
-          : '';
-
-        const publicBookingMeta = isPublicBooking && (l.student_email || l.student_whatsapp) ?
-          `<div class="lesson-meta">
-            ${l.student_email ? `<span><svg class="ico ico-xs" aria-hidden="true"><use href="#i-mail"></use></svg>${escapeHtml(l.student_email)}</span>` : ''}
-            ${l.student_whatsapp ? `<span><svg class="ico ico-xs" aria-hidden="true"><use href="#i-phone"></use></svg>${escapeHtml(l.student_whatsapp)}</span>` : ''}
-          </div>` : '';
-
-        // Agenda pública: não é mudança de estado, é aceitar ou recusar um pedido.
-        // Sem controlo segmentado e sem menu, porque editar e excluir não se aplicam.
-        const detailInner = isPublicBooking ? `
-          <div class="lesson-actions">
-            <button class="act ok" data-act="public_confirm" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Confirmar</button>
-            <button class="act bad" data-act="public_reject" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-close"></use></svg>Recusar</button>
-          </div>
-        ` : `
-          <div class="state-seg" role="radiogroup" aria-label="Estado da aula de ${escapeHtml(l.student)} às ${l.time}">
-            ${stateSegHTML(displayStatus, isRealized)}
-          </div>
-          <div class="lmenu">
-            <button class="lmenu-btn" type="button" aria-haspopup="true" aria-expanded="false"
-                    aria-label="Mais ações da aula de ${escapeHtml(l.student)} às ${l.time}">
-              <svg class="ico ico-xs" aria-hidden="true"><use href="#i-dots"></use></svg>
-            </button>
-            <div class="lmenu-pop" role="menu" hidden>
-              <button class="lmenu-item" role="menuitem" type="button" data-act="edit" tabindex="-1" ${isRealized ? 'disabled' : ''}>
-                <svg class="ico ico-xs" aria-hidden="true"><use href="#i-edit"></use></svg>Editar
-              </button>
-              <button class="lmenu-item is-bad" role="menuitem" type="button" data-act="delete" tabindex="-1">
-                <svg class="ico ico-xs" aria-hidden="true"><use href="#i-trash"></use></svg>Excluir
-              </button>
-            </div>
-          </div>
-        `;
-
-        wrap.innerHTML = `
-          <button class="lrow" type="button" id="lrow-${domId}" aria-expanded="false" aria-controls="ldet-${domId}">
-            <span class="lrow-time">${l.time}</span>
-            <span class="lrow-name" title="${escapeHtml(l.student)}">${escapeHtml(l.student)}</span>
-            <span class="lrow-tags">${publicBadgePill}</span>
-            <span class="lrow-state">
-              <i class="mark mark--${statusClass(displayStatus)}" aria-hidden="true"></i>
-              <span class="sr-only">${statusLabel(displayStatus)}</span>
-            </span>
-            <svg class="ico ico-xs lrow-chev" aria-hidden="true"><use href="#i-chevron-down"></use></svg>
-          </button>
-          <div class="ldet" id="ldet-${domId}" role="group" aria-labelledby="lrow-${domId}" inert>
-            <div class="ldet-wrap">
-              <div class="ldet-in">${detailInner}</div>
-              ${publicBookingMeta}
-            </div>
-          </div>
-        `;
-
-        wrap.querySelector('.lrow').addEventListener('click', () => {
-          setLessonOpen(wrap, !wrap.classList.contains('is-open'));
-        });
-
-        wrap.addEventListener('click', (e) => {
-          const btn = e.target.closest('button[data-act]');
-          if(!btn || btn.disabled) return;
-          closeLessonMenu(wrap);
-          handleLessonAction(l.id, btn.dataset.act);
-        });
-
-        if(!isPublicBooking){
-          wireStateSeg(wrap);
-          wireLessonMenu(wrap);
-        }
-
-        return wrap;
-      }
-
-      function stateSegHTML(displayStatus, isRealized){
-        // Uma decisão, quatro valores. Numa aula realizada os outros três ficam
-        // desabilitados, tal como na tela original; "Realizada" continua activa
-        // porque é ela que desmarca (era o que o botão "Realizado" já fazia).
-        const opts = [
-          { act: 'confirmed', label: 'Confirmada' },
-          { act: 'pending',   label: 'Pendente'   },
-          { act: 'cancelled', label: 'Cancelada'  },
-          { act: 'done',      label: 'Realizada'  }
-        ];
-        return opts.map(o => {
-          const on = displayStatus === o.act;
-          const off = isRealized && o.act !== 'done';
-          const title = (o.act === 'done' && isRealized) ? ' title="Tocar de novo para desmarcar"' : '';
-          return `<button class="state-opt" type="button" role="radio" data-act="${o.act}"`
-            + ` aria-checked="${on ? 'true' : 'false'}" tabindex="${on ? '0' : '-1'}"`
-            + `${off ? ' disabled' : ''}${title}>${o.label}</button>`;
-        }).join('');
-      }
-
-      // Setas movem o foco; Enter ou espaço é que confirmam. Activação manual de
-      // propósito: cada segmento escreve no banco, seta não pode ser gatilho.
-      function wireStateSeg(wrap){
-        const seg = wrap.querySelector('.state-seg');
-        if(!seg) return;
-        seg.addEventListener('keydown', (e) => {
-          const keys = ['ArrowRight','ArrowDown','ArrowLeft','ArrowUp','Home','End'];
-          if(!keys.includes(e.key)) return;
-          const opts = Array.from(seg.querySelectorAll('.state-opt')).filter(b => !b.disabled);
-          if(!opts.length) return;
-          e.preventDefault();
-          const cur = opts.indexOf(document.activeElement);
-          let next;
-          if(e.key === 'Home') next = 0;
-          else if(e.key === 'End') next = opts.length - 1;
-          else if(e.key === 'ArrowRight' || e.key === 'ArrowDown') next = cur < 0 ? 0 : (cur + 1) % opts.length;
-          else next = cur < 0 ? opts.length - 1 : (cur - 1 + opts.length) % opts.length;
-          opts.forEach(b => { b.tabIndex = -1; });
-          opts[next].tabIndex = 0;
-          opts[next].focus();
-        });
-      }
-
-      function closeLessonMenu(wrap, giveFocusBack){
-        const btn = wrap.querySelector('.lmenu-btn');
-        const pop = wrap.querySelector('.lmenu-pop');
-        if(!btn || !pop || pop.hidden) return;
-        pop.hidden = true;
-        btn.setAttribute('aria-expanded', 'false');
-        if(giveFocusBack) btn.focus();
-      }
-
-      function wireLessonMenu(wrap){
-        const btn = wrap.querySelector('.lmenu-btn');
-        const pop = wrap.querySelector('.lmenu-pop');
-        if(!btn || !pop) return;
-
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const willOpen = pop.hidden;
-          // Nunca dois menus abertos ao mesmo tempo.
-          $$('.lesson').forEach(other => { if(other !== wrap) closeLessonMenu(other); });
-          pop.hidden = !willOpen;
-          btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-          if(willOpen){
-            const first = pop.querySelector('.lmenu-item:not(:disabled)');
-            if(first){ first.tabIndex = 0; first.focus(); }
-          }
-        });
-
-        pop.addEventListener('keydown', (e) => {
-          if(e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-          e.preventDefault();
-          const items = Array.from(pop.querySelectorAll('.lmenu-item')).filter(b => !b.disabled);
-          if(!items.length) return;
-          const cur = items.indexOf(document.activeElement);
-          const next = e.key === 'ArrowDown'
-            ? (cur < 0 ? 0 : (cur + 1) % items.length)
-            : (cur < 0 ? items.length - 1 : (cur - 1 + items.length) % items.length);
-          items.forEach(b => { b.tabIndex = -1; });
-          items[next].tabIndex = 0;
-          items[next].focus();
-        });
-      }
-
-      // Escape fecha o menu; se não houver menu aberto, fecha a linha.
-      document.addEventListener('keydown', (e) => {
-        if(e.key !== 'Escape') return;
-        const openMenu = document.querySelector('.lesson .lmenu-pop:not([hidden])');
-        if(openMenu){
-          e.stopPropagation();
-          closeLessonMenu(openMenu.closest('.lesson'), true);
-          return;
-        }
-        const openRow = document.querySelector('.lesson.is-open');
-        if(openRow && openRow.contains(document.activeElement)){
-          e.stopPropagation();
-          setLessonOpen(openRow, false, { focusRow: true });
-        }
-      }, true);
-
-      // Clique fora fecha o menu aberto.
-      document.addEventListener('click', (e) => {
-        const openMenu = document.querySelector('.lesson .lmenu-pop:not([hidden])');
-        if(!openMenu) return;
-        if(openMenu.closest('.lmenu').contains(e.target)) return;
-        closeLessonMenu(openMenu.closest('.lesson'));
-      });
-
-      function setLessonOpen(wrap, open, opts){
-        opts = opts || {};
-        const row = wrap.querySelector('.lrow');
-        const det = wrap.querySelector('.ldet');
-        if(!row || !det) return;
-
-        if(open){
-          // Só uma linha aberta de cada vez.
-          $$('.lesson.is-open').forEach(other => {
-            if(other !== wrap) setLessonOpen(other, false);
-          });
-        } else {
-          closeLessonMenu(wrap);
-        }
-
-        wrap.classList.toggle('is-open', open);
-        row.setAttribute('aria-expanded', open ? 'true' : 'false');
-        if(open) det.removeAttribute('inert'); else det.setAttribute('inert', '');
-        openLessonId = open ? wrap.dataset.id : (openLessonId === wrap.dataset.id ? null : openLessonId);
-        if(!open && opts.focusRow) row.focus();
-      }
-
-      // ==========
-      // Acção em lote: marcar como realizadas
-      // ==========
-      // Elegível: aula deste dia, que já passou, que não está cancelada nem já
-      // realizada, e que não é pedido da agenda pública (esse ainda nem é aula).
-      function bulkEligible(dayList){
-        const now = new Date();
-        return dayList.filter(l => {
-          if(String(l.id).startsWith('pbr_')) return false;
-          if(l.source === 'public_booking') return false;
-          if(l.status === 'cancelled') return false;
-          if(l.realized || l.status === 'done') return false;
-          const when = lessonDateTime(l);
-          return when != null && when <= now;
-        });
-      }
-
-      function lessonDateTime(l){
-        const d = fromYMD(l.date);
-        if(!d || isNaN(d.getTime())) return null;
-        const parts = String(l.time || '').split(':');
-        const h = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10);
-        if(isNaN(h)) return null;
-        d.setHours(h, isNaN(m) ? 0 : m, 0, 0);
-        return d;
-      }
-
-      function renderDayBulk(dayList){
-        const box = $('#dayBulk');
-        const label = $('#bulkLabel');
-        if(!box || !label) return;
-        const eligible = bulkEligible(dayList);
-        if(!eligible.length){
-          box.hidden = true;
-          box.dataset.ids = '';
-          return;
-        }
-        box.hidden = false;
-        box.dataset.ids = eligible.map(l => String(l.id)).join(',');
-        label.textContent = eligible.length === 1
-          ? 'Marcar 1 aula como realizada'
-          : `Marcar ${eligible.length} aulas como realizadas`;
-      }
-
-      async function runBulkDone(){
-        const btn = $('#btnBulkDone');
-        if(!btn || btn.disabled) return;
-
-        // Recalcula na hora do clique, nunca confia no que estava desenhado.
-        const ymd = toYMD(selected);
-        const dayList = lessons.filter(l => l.date === ymd).sort((a,b) => a.time.localeCompare(b.time));
-        const eligible = bulkEligible(dayList);
-        if(!eligible.length){
-          renderDayBulk(dayList);
-          showToast("Nenhuma aula elegível neste dia.");
-          return;
-        }
-
-        const linhas = eligible.map(l => `${l.time}  ${l.student}`).join('\n');
-        const cabeca = eligible.length === 1
-          ? 'Marcar 1 aula como realizada?'
-          : `Marcar ${eligible.length} aulas como realizadas?`;
-        if(!confirm(`${cabeca}\n\n${linhas}\n\nCanceladas e já realizadas não entram.`)) return;
-
-        const oldLabel = $('#bulkLabel') ? $('#bulkLabel').textContent : '';
-        btn.disabled = true;
-        if($('#bulkLabel')) $('#bulkLabel').textContent = 'Marcando…';
-
-        let ok = 0;
-        const falhas = [];
-        // Mesma chamada do botão "Realizada" individual, uma aula de cada vez.
-        for(const l of eligible){
-          try {
-            const response = await patchLessonStatus(l.id, 'done');
-            const i = lessons.findIndex(x => String(x.id) === String(l.id));
-            if(i >= 0){
-              lessons[i].status = (response && response.status) || 'done';
-              lessons[i].realized = (response && response.realized !== undefined) ? response.realized : true;
-            }
-            ok++;
-          } catch (error) {
-            console.error('Erro ao marcar aula como realizada:', l.id, error);
-            falhas.push(`${l.time} ${l.student}`);
-          }
-        }
-
-        btn.disabled = false;
-        if($('#bulkLabel')) $('#bulkLabel').textContent = oldLabel;
-        loadedRange = null;
-        await refreshAll();
-
-        if(falhas.length && ok){
-          showToast(`${ok} marcada(s). Falhou em ${falhas.length}: ${falhas.join(', ')}.`, true);
-        } else if(falhas.length){
-          showToast(`Não foi possível marcar: ${falhas.join(', ')}.`, true);
-        } else {
-          showToast(ok === 1 ? '1 aula marcada como realizada.' : `${ok} aulas marcadas como realizadas.`);
-        }
-      }
-
-      // A única chamada que muda o estado de uma aula. O botão individual e a
-      // acção em lote passam os dois por aqui: um endpoint só, um contrato só.
-      function patchLessonStatus(id, backendStatus){
-        return fetchJSON(`/api/calendar/events/${id}/status/`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status: backendStatus })
-        });
       }
 
       async function handleLessonAction(id, act){
@@ -3559,8 +3084,11 @@
         await renderDayPanel();
         
         try {
-          const response = await patchLessonStatus(id, backendStatus);
-
+          const response = await fetchJSON(`/api/calendar/events/${id}/status/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: backendStatus })
+          });
+          
           // Atualizar com dados retornados do backend
           if(response){
             // O backend retorna status="done" quando realized=true
@@ -3604,10 +3132,7 @@
         // Criar nova data para evitar problemas de referência
         const newSelected = new Date(d.getFullYear(), d.getMonth(), d.getDate());
         newSelected.setHours(0, 0, 0, 0);
-        const mudouDeDia = !selected || toYMD(selected) !== toYMD(newSelected);
         selected = newSelected;
-        // Dia novo, painel fechado: quem chega aqui vem ler, não vem agir.
-        if(mudouDeDia) openLessonId = null;
         
         // keep cursor in same month if month view
         if(view==="month"){
@@ -3968,7 +3493,6 @@
         initModalElements();
         await openNewLessonModal();
       });
-      $('#btnBulkDone')?.addEventListener('click', runBulkDone);
 
       // Fechar modal - listeners
       function attachModalCloseListeners() {
