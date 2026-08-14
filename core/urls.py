@@ -47,6 +47,7 @@ from .views import (
     send_feature_email_campaign,
     admin_test_subscription_email,
 )
+from .whatsapp_views import whatsapp_webhook, whatsapp_account_status
 
 router = DefaultRouter()
 router.register(r"students", StudentViewSet, basename="student")
@@ -119,6 +120,11 @@ urlpatterns = [
     path("api/subscription/create-portal/", create_portal_session, name="create-portal"),
     path("api/subscription/upgrade-portal/", upgrade_portal_session, name="upgrade-portal"),
     path("api/webhooks/stripe/", stripe_webhook, name="stripe-webhook"),
+    # WhatsApp Business (Cloud API). A URL do webhook é cadastrada na Meta e
+    # vale para todas as contas conectadas: quem identifica a conta é o
+    # phone_number_id de dentro do payload.
+    path("api/webhooks/whatsapp/", whatsapp_webhook, name="whatsapp-webhook"),
+    path("api/whatsapp/status/", whatsapp_account_status, name="whatsapp-status"),
     path("planos/", PlanosView.as_view(), name="planos"),
     path("planos-v2/", RedirectView.as_view(url="/planos/", permanent=True), name="planos-v2"),
     path("tutorial/", TutorialView.as_view(), name="tutorial"),
