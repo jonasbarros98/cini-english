@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Runner de desenvolvimento local — use este ficheiro em vez do manage.py.
+"""Runner de desenvolvimento local: use este ficheiro em vez do manage.py.
 
 Motivo: o `.env` deste repositório contém credenciais REAIS (Resend, n8n).
 Se você rodar o `manage.py` diretamente na sua máquina, qualquer fluxo que
@@ -10,7 +10,7 @@ Este runner neutraliza as integrações externas ANTES de o Django carregar as
 definições:
 
   - E-mail: sem RESEND_API_KEY e sem SMTP, o `config/settings.py` cai no
-    backend de consola — o e-mail é impresso no terminal em vez de enviado.
+    backend de consola, o e-mail é impresso no terminal em vez de enviado.
   - n8n: webhook de onboarding desligado.
   - Estáticos: modo simples, para o runserver os servir sem `collectstatic`.
 
