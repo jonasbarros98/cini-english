@@ -116,6 +116,17 @@ class Student(models.Model):
         help_text="Observações do professor sobre o aluno (visível na ficha do aluno)"
     )
 
+    # Lembrete de fim de pacote: quando faltarem N aulas, o aluno aparece
+    # destacado na lista e no dashboard. Vazio significa "usar o padrão do
+    # professor" (UserProfile.lesson_alert_default), para o professor não ter
+    # de configurar aluno a aluno.
+    lesson_alert_threshold = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(50)],
+        help_text="Avisar quando faltarem N aulas para o pacote acabar. Vazio usa o padrão do professor.",
+    )
+
     # Financeiro
     pix_key = models.CharField(max_length=255, blank=True, help_text="Chave Pix")
     contract_pdf = models.FileField(
@@ -145,6 +156,58 @@ class Student(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    # ── Fim do pacote de aulas ───────────────────────────────────────────
+
+    @property
+    def lessons_realized_count(self):
+        """Aulas efetivamente dadas, contadas a partir das aulas do calendário.
+
+        Não usa o campo `lessons_done` de propósito. A tela de alunos sempre
+        mostrou a contagem real das aulas com `realized=True`, e o campo do
+        modelo pode estar defasado. Com duas fontes, o aviso de fim de pacote
+        discordaria do "3/8 aulas" exibido logo ao lado no mesmo card.
+
+        Prefere a contagem anotada pelo queryset, que resolve a lista inteira
+        numa query. Sem anotação, conta na hora.
+        """
+        anotado = getattr(self, "_realizadas", None)
+        if anotado is not None:
+            return anotado
+        return self.lessons.filter(realized=True).count()
+
+    @property
+    def lessons_remaining(self):
+        """Aulas que faltam no pacote.
+
+        Devolve None quando o aluno não tem pacote com número fechado de
+        aulas (mensal fixo, por aula realizada), caso em que "acabar" não
+        significa nada e não faz sentido alertar.
+        """
+        total = self.lessons_total or 0
+        if not total:
+            return None
+        return max(total - self.lessons_realized_count, 0)
+
+    def lesson_alert_at(self, default=2):
+        """Limite efetivo deste aluno: o dele, ou o padrão do professor."""
+        if self.lesson_alert_threshold is not None:
+            return self.lesson_alert_threshold
+        return default
+
+    def is_package_ending(self, default=2):
+        """True quando o pacote está no fim e vale avisar o professor.
+
+        Só para aluno ativo: pausado ou encerrado não é pendência, é estado
+        deliberado, e alertar sobre eles vira ruído que ensina o professor a
+        ignorar o aviso.
+        """
+        if self.status != self.STATUS_ACTIVE:
+            return False
+        restantes = self.lessons_remaining
+        if restantes is None:
+            return False
+        return restantes <= self.lesson_alert_at(default)
 
 
 class StudentShareToken(models.Model):
@@ -756,6 +819,19 @@ class UserProfile(models.Model):
     welcome_dismissed_forever = models.BooleanField(
         default=False,
         help_text="Se True, o popup de boas-vindas não é exibido novamente"
+    )
+
+    # Lembrete de fim de pacote de aulas. O padrão vale para todos os alunos
+    # do professor; cada aluno pode ter o seu próprio limite
+    # (Student.lesson_alert_threshold).
+    lesson_alert_enabled = models.BooleanField(
+        default=True,
+        help_text="Avisar quando o pacote de aulas de um aluno estiver acabando",
+    )
+    lesson_alert_default = models.PositiveSmallIntegerField(
+        default=2,
+        validators=[MinValueValidator(0), MaxValueValidator(50)],
+        help_text="Padrão: avisar quando faltarem N aulas para o pacote acabar",
     )
     subscription_exempt = models.BooleanField(
         default=False,
