@@ -7118,8 +7118,13 @@ class CalendarNewView(TemplateView):
 def _pode_ver_previa(user):
     """Quem enxerga as telas em avaliação.
 
-    Sempre a conta administradora, mais quem estiver em PREVIA_USUARIOS
-    (nomes de utilizador separados por vírgula, definidos no Railway).
+    Sempre a conta administradora, mais quem estiver em PREVIA_USUARIOS,
+    separados por vírgula e definidos no Railway.
+
+    Cada item da lista pode ser o nome de utilizador OU o e-mail. Aceitar os
+    dois é deliberado: quem convida sabe de cor o e-mail da pessoa, mas
+    raramente sabe o nome de utilizador dela, e ir buscá-lo obrigaria a
+    remexer no banco de produção só para isto.
 
     A lista vive numa variável de ambiente, e não no código, para o dono do
     produto convidar ou retirar quem testa sem precisar de um deploy. Como a
@@ -7140,11 +7145,18 @@ def _pode_ver_previa(user):
         pass
 
     convidados = {
-        nome.strip().lower()
-        for nome in os.environ.get("PREVIA_USUARIOS", "").split(",")
-        if nome.strip()
+        item.strip().lower()
+        for item in os.environ.get("PREVIA_USUARIOS", "").split(",")
+        if item.strip()
     }
-    return bool(convidados) and (user.username or "").lower() in convidados
+    if not convidados:
+        return False
+    identificadores = {
+        (user.username or "").lower(),
+        (user.email or "").lower(),
+    }
+    identificadores.discard("")
+    return bool(identificadores & convidados)
 
 
 class PreviaMixin:
