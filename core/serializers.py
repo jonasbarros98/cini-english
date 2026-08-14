@@ -735,6 +735,7 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
             'partner_teachers', 'partner_teachers_ids',
             'slug_publico', 'agenda_publica_ativa',
             'public_availability', 'public_booking_duration',
+            'lesson_alert_enabled', 'lesson_alert_default',
         ]
         read_only_fields = ['is_admin', 'user_profile', 'username', 'google_picture_url', 'google_hosted_domain']
     

@@ -5761,6 +5761,36 @@ def dashboard_summary_view(request):
                 'description': 'Enviar agora aumenta muito a chance de pagamento hoje.'
             })
         
+        # Alerta: pacotes de aulas chegando ao fim.
+        # Vem antes dos vencimentos porque tem prazo mais curto na prática: se
+        # o pacote acaba e ninguém combinou a renovação, a aula seguinte
+        # simplesmente não acontece.
+        try:
+            perfil_alerta = user.profile
+            alerta_ligado = perfil_alerta.lesson_alert_enabled
+            limite_padrao = perfil_alerta.lesson_alert_default
+        except UserProfile.DoesNotExist:
+            alerta_ligado, limite_padrao = True, 2
+
+        if alerta_ligado:
+            candidatos = (
+                Student.objects
+                .filter(user_id__in=user_ids, status=Student.STATUS_ACTIVE)
+                .exclude(lessons_total=0)
+                .annotate(_realizadas=Count("lessons", filter=Q(lessons__realized=True), distinct=True))
+            )
+            acabando = [a for a in candidatos if a.is_package_ending(limite_padrao)]
+            if acabando:
+                nomes = ", ".join(a.name for a in acabando[:3])
+                if len(acabando) > 3:
+                    nomes += f" e mais {len(acabando) - 3}"
+                quantos = len(acabando)
+                alerts.append({
+                    'type': 'warn',
+                    'title': f'{quantos} aluno{"s" if quantos > 1 else ""} com o pacote de aulas acabando',
+                    'description': f'{nomes}. Combine a renovação antes da última aula.'
+                })
+
         # Alerta 2: Vencimentos próximos (próximos 3 dias)
         upcoming_entries = financial_base.filter(
             due_date__gt=today,
