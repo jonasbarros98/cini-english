@@ -30,7 +30,13 @@ class StudentSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    
+    # Fim de pacote: calculado aqui para a tela não repetir a regra em JS e
+    # as duas versões divergirem. `lessons_remaining` é None quando o aluno
+    # não tem pacote com número fechado de aulas.
+    lessons_remaining = serializers.IntegerField(read_only=True, allow_null=True)
+    package_ending = serializers.SerializerMethodField()
+    lesson_alert_at = serializers.SerializerMethodField()
+
     class Meta:
         model = Student
         fields = [
@@ -59,10 +65,17 @@ class StudentSerializer(serializers.ModelSerializer):
             "user_username",
             "assigned_teacher",
             "assigned_teacher_name",
+            "lesson_alert_threshold",
+            "lessons_remaining",
+            "package_ending",
+            "lesson_alert_at",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["contract_pdf_url", "user", "user_username", "assigned_teacher_name"]
+        read_only_fields = [
+            "contract_pdf_url", "user", "user_username", "assigned_teacher_name",
+            "lessons_remaining", "package_ending", "lesson_alert_at",
+        ]
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -76,6 +89,24 @@ class StudentSerializer(serializers.ModelSerializer):
             return None
         u = obj.assigned_teacher
         return u.get_full_name() or u.username
+
+    def _padrao_do_professor(self, obj):
+        """Padrão de aviso do dono da conta, com fallback se não houver perfil."""
+        try:
+            perfil = obj.user.profile
+        except Exception:
+            return 2, True
+        return perfil.lesson_alert_default, perfil.lesson_alert_enabled
+
+    def get_package_ending(self, obj):
+        padrao, ligado = self._padrao_do_professor(obj)
+        if not ligado:
+            return False
+        return obj.is_package_ending(padrao)
+
+    def get_lesson_alert_at(self, obj):
+        padrao, _ = self._padrao_do_professor(obj)
+        return obj.lesson_alert_at(padrao)
     
     def validate_assigned_teacher(self, value):
         if value is None or value == "" or (isinstance(value, str) and value.strip() == ""):

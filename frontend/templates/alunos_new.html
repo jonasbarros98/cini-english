@@ -883,6 +883,14 @@
     .badge.warn .dot{background: var(--warn);}
     .badge.bad{background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.18); color: rgba(185,28,28,.95);}
     .badge.bad .dot{background: var(--bad);}
+    /* Fim de pacote de aulas. Vem primeiro na linha de selos e é o único
+       com preenchimento sólido: é uma pendência com prazo, não um estado.
+       O ponto pulsa devagar para o olho encontrar o card ao percorrer a
+       lista, sem virar aquele piscar que cansa. */
+    .badge.alerta-pacote{background: rgba(245,158,11,.16); border-color: rgba(180,83,9,.35); color: rgba(146,64,14,1); font-weight: 700;}
+    .badge.alerta-pacote .dot{background: rgb(180,83,9); animation: pulsoPacote 2.4s ease-in-out infinite;}
+    @keyframes pulsoPacote{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.45;transform:scale(.82);}}
+    @media (prefers-reduced-motion: reduce){.badge.alerta-pacote .dot{animation:none;}}
 
     .info{margin-top:8px;color:var(--muted);font-size:12px;font-weight:700;display:grid;gap:4px;line-height:1.35;}
     .info .line{display:flex;gap:8px;align-items:flex-start;}
@@ -2170,6 +2178,16 @@
             ? `<span class="badge warn"><span class="dot"></span>Pausado</span>`
             : `<span class="badge bad"><span class="dot"></span>Encerrado</span>`;
 
+          // Fim de pacote. Quem decide é o servidor (package_ending), que usa
+          // a mesma contagem de aulas realizadas mostrada aqui no card, então
+          // o selo nunca discorda do "3/8 aulas" logo abaixo.
+          const restantes = student.lessons_remaining;
+          const badgeFimPacote = student.package_ending
+            ? `<span class="badge alerta-pacote" title="Combine a renovação com o aluno antes que as aulas acabem"><span class="dot"></span>${
+                restantes === 0 ? 'Pacote acabou' : restantes === 1 ? 'Última aula' : `Faltam ${restantes} aulas`
+              }</span>`
+            : '';
+
           // Para per_lesson: mostrar aulas do mês atual + botão Ver detalhes
           const currentMonthCount = byMonth[currentMonthKey] || 0;
           const monthLabel = `${MONTH_NAMES[today.getMonth()]}/${today.getFullYear()}`;
@@ -2201,6 +2219,7 @@
               <div class="row">
                 <p class="name"><a href="/alunos/${student.id}/" class="name-link">${escapeHtml(student.name)}</a></p>
                 <div class="badges">
+                  ${badgeFimPacote}
                   ${badgePlan}
                   ${badgeLevel}
                   ${badgeStatus}

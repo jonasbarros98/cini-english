@@ -98,7 +98,15 @@ from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerial
 from .exports import MIME_XLSX, planilha_alunos
 
 class StudentViewSet(viewsets.ModelViewSet):
-    queryset = Student.objects.select_related("user", "assigned_teacher").all().order_by("name")
+    # `_realizadas` alimenta Student.lessons_realized_count: resolve a contagem
+    # de aulas dadas da lista inteira numa query, em vez de uma por aluno.
+    queryset = (
+        Student.objects
+        .select_related("user", "assigned_teacher")
+        .annotate(_realizadas=Count("lessons", filter=Q(lessons__realized=True), distinct=True))
+        .all()
+        .order_by("name")
+    )
     serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]  # Suporta FormData e JSON
