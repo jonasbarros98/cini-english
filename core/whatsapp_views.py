@@ -541,6 +541,51 @@ def whatsapp_signup_complete(request):
 
 
 @require_http_methods(["POST"])
+def whatsapp_connect_manual(request):
+    """
+    Conecta com um token colado à mão, caminho do piloto.
+
+    O token chega pelo corpo da requisição, é validado contra a Meta e
+    guardado cifrado. Nunca é devolvido nem impresso em log.
+    """
+    if error := _require_login(request):
+        return error
+
+    from core.models import UserProfile
+
+    try:
+        if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            return JsonResponse({
+                "detail": "Quem conecta o número é o dono da conta.",
+            }, status=403)
+    except UserProfile.DoesNotExist:
+        pass
+
+    try:
+        data = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"detail": "Requisição inválida."}, status=400)
+
+    try:
+        account = signup.connect_manually(
+            user=request.user,
+            access_token=data.get("access_token") or "",
+            waba_id=data.get("waba_id") or "",
+            phone_number_id=data.get("phone_number_id") or "",
+            sync_history=bool(data.get("sync_history", True)),
+        )
+    except signup.SignupError as exc:
+        return JsonResponse({"detail": str(exc)}, status=422)
+
+    return JsonResponse({
+        "connected": True,
+        "phone": account.display_phone_number,
+        "name": account.verified_name,
+        "warning": account.last_error,
+    })
+
+
+@require_http_methods(["POST"])
 def whatsapp_disconnect(request):
     """Desliga o canal sem apagar conversa nenhuma."""
     if error := _require_login(request):

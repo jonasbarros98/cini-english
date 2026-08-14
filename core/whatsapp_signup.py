@@ -266,6 +266,92 @@ def complete_signup(user, code: str, waba_id: str,
     return account
 
 
+@transaction.atomic
+def connect_manually(user, access_token: str, waba_id: str,
+                     phone_number_id: str = "",
+                     sync_history: bool = True) -> WhatsAppAccount:
+    """
+    Conecta com um token colado à mão, sem passar pelo popup.
+
+    Caminho do piloto. Um usuário do sistema no portfólio gera um token
+    permanente, e ele entra aqui. Dispensa Embedded Signup, Tech Provider e
+    revisão de permissões pela Meta, o que corta semanas.
+
+    A app da Meta continua sendo necessária: o token de usuário do sistema é
+    gerado escolhendo uma app. O que se dispensa é a burocracia em volta dela.
+
+    O token é validado contra a Meta antes de ser guardado. Guardar um token
+    inválido deixaria a conta "conectada" e muda, que é o pior estado possível.
+    """
+    access_token = (access_token or "").strip()
+    waba_id = (waba_id or "").strip()
+    phone_number_id = (phone_number_id or "").strip()
+
+    if not access_token:
+        raise SignupError("Cole o token de acesso.")
+    if not waba_id:
+        raise SignupError("Informe o ID da conta de negócio do WhatsApp (WABA).")
+
+    numeros = list_phone_numbers(waba_id, access_token)
+    numero = _pick_phone_number(numeros, phone_number_id)
+    numero_id = numero.get("id", "")
+
+    dono = WhatsAppAccount.objects.filter(
+        phone_number_id=numero_id
+    ).exclude(user=user).first()
+    if dono:
+        raise SignupError(
+            "Este número já está conectado a outra conta do EducaflowOne."
+        )
+
+    # Assinar a app à WABA é o passo que mais some no caminho manual, e a
+    # falha dele é silenciosa: tudo parece certo e nenhuma mensagem chega.
+    try:
+        subscribe_app_to_waba(waba_id, access_token)
+    except SignupError as exc:
+        raise SignupError(
+            f"O token funciona, mas não foi possível assinar a app à WABA: {exc} "
+            f"Sem isso nenhuma mensagem chega ao sistema."
+        ) from exc
+
+    account, _ = WhatsAppAccount.objects.get_or_create(
+        user=user, defaults={"phone_number_id": numero_id}
+    )
+
+    account.phone_number_id = numero_id
+    account.waba_id = waba_id
+    account.display_phone_number = numero.get("display_phone_number", "")
+    account.verified_name = numero.get("verified_name", "")
+    account.quality_rating = numero.get("quality_rating", "") or ""
+    account.is_coexistence = True
+    account.status = WhatsAppAccount.STATUS_CONNECTED
+    account.is_active = True
+    account.connected_at = timezone.now()
+    account.last_synced_at = timezone.now()
+    account.last_error = ""
+    account.last_error_at = None
+    account.set_access_token(access_token)
+    account.save()
+
+    # A importação do passado só existe para número que vem do aplicativo, e
+    # só vale nas primeiras 24 horas depois do vínculo na Meta.
+    if sync_history:
+        for sync_type in (SYNC_CONTACTS, SYNC_HISTORY):
+            try:
+                trigger_sync(numero_id, access_token, sync_type)
+            except SignupError as exc:
+                print(f"[WhatsApp manual] Sincronização '{sync_type}' falhou: {exc}")
+                account.last_error = (
+                    f"Conectado, mas a importação do histórico falhou: {exc}"
+                )[:2000]
+                account.last_error_at = timezone.now()
+                account.save(update_fields=[
+                    "last_error", "last_error_at", "updated_at",
+                ])
+
+    return account
+
+
 def disconnect(account: WhatsAppAccount) -> None:
     """
     Desliga o canal sem apagar conversa nenhuma.

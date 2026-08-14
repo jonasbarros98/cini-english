@@ -881,6 +881,143 @@ class SignupTests(TestCase):
         self.assertEqual(WhatsAppAccount.objects.count(), 1)
 
 
+class ManualConnectTests(TestCase):
+    """
+    Conexão por token colado à mão, o caminho do piloto.
+
+    O risco aqui não é falhar, é *parecer* que funcionou: uma conta marcada
+    como conectada com token inválido, ou sem a app assinada à WABA, fica
+    muda sem dar erro nenhum.
+    """
+
+    def setUp(self):
+        self.dona = User.objects.create_user("bianca", password="x")
+
+    def _fake_graph(self, chamadas, falhar_em=""):
+        def falso(method, path, *, token="", params=None, json_body=None):
+            chamadas.append((method, path, json_body))
+            if falhar_em and falhar_em in path:
+                raise signup.SignupError("recusado pela Meta")
+            if path.endswith("/phone_numbers"):
+                return {"data": [{
+                    "id": "numero-1",
+                    "display_phone_number": "+55 41 98836-9627",
+                    "verified_name": "Cini English",
+                    "quality_rating": "GREEN",
+                }]}
+            return {"success": True}
+        return falso
+
+    def test_conecta_e_guarda_o_token_cifrado(self):
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            account = signup.connect_manually(
+                self.dona, access_token="EAAG-token", waba_id="waba-9"
+            )
+
+        self.assertEqual(account.status, WhatsAppAccount.STATUS_CONNECTED)
+        self.assertTrue(account.is_active)
+        self.assertEqual(account.phone_number_id, "numero-1")
+        self.assertEqual(account.get_access_token(), "EAAG-token")
+        self.assertNotIn("EAAG-token", account.access_token_encrypted)
+
+    def test_nao_registra_o_numero(self):
+        # Vale aqui pelo mesmo motivo do Embedded Signup: na coexistência o
+        # número já está registrado pelo aplicativo do celular.
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            signup.connect_manually(self.dona, "tok", "waba-9")
+
+        self.assertFalse(any(c[1].endswith("/register") for c in chamadas))
+
+    def test_assina_a_app_a_waba(self):
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            signup.connect_manually(self.dona, "tok", "waba-9")
+
+        self.assertIn("waba-9/subscribed_apps", [c[1] for c in chamadas])
+
+    def test_falha_ao_assinar_a_waba_aborta_a_conexao(self):
+        # É a falha mais traiçoeira do caminho manual: sem a assinatura, nada
+        # chega e tudo parece certo. Melhor não conectar do que conectar mudo.
+        chamadas = []
+        falso = self._fake_graph(chamadas, falhar_em="subscribed_apps")
+
+        with mock.patch.object(signup, "_graph", falso):
+            with self.assertRaises(signup.SignupError) as ctx:
+                signup.connect_manually(self.dona, "tok", "waba-9")
+
+        self.assertIn("nenhuma mensagem chega", str(ctx.exception))
+        self.assertEqual(WhatsAppAccount.objects.count(), 0)
+
+    def test_token_invalido_nao_cria_conta(self):
+        chamadas = []
+        falso = self._fake_graph(chamadas, falhar_em="phone_numbers")
+
+        with mock.patch.object(signup, "_graph", falso):
+            with self.assertRaises(signup.SignupError):
+                signup.connect_manually(self.dona, "token-podre", "waba-9")
+
+        self.assertEqual(WhatsAppAccount.objects.count(), 0)
+
+    def test_campos_obrigatorios(self):
+        with self.assertRaises(signup.SignupError):
+            signup.connect_manually(self.dona, "", "waba-9")
+        with self.assertRaises(signup.SignupError):
+            signup.connect_manually(self.dona, "tok", "")
+
+    def test_pode_pular_a_importacao_do_historico(self):
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            signup.connect_manually(self.dona, "tok", "waba-9", sync_history=False)
+
+        self.assertFalse(any("smb_app_data" in c[1] for c in chamadas))
+
+    def test_numero_de_outra_conta_e_recusado(self):
+        outro = User.objects.create_user("outro", password="x")
+        WhatsAppAccount.objects.create(user=outro, phone_number_id="numero-1")
+
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            with self.assertRaises(signup.SignupError) as ctx:
+                signup.connect_manually(self.dona, "tok", "waba-9")
+
+        self.assertIn("outra conta", str(ctx.exception))
+
+    def test_endpoint_nao_devolve_o_token(self):
+        self.client.force_login(self.dona)
+        chamadas = []
+
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            resposta = self.client.post(
+                reverse("whatsapp-connect-manual"),
+                data=json.dumps({"access_token": "EAAG-segredo", "waba_id": "waba-9"}),
+                content_type="application/json",
+            )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertNotIn("EAAG-segredo", resposta.content.decode())
+
+    def test_parceiro_nao_conecta_pelo_caminho_manual(self):
+        from core.models import UserProfile
+
+        parceira = User.objects.create_user("parceira", password="x")
+        UserProfile.objects.update_or_create(
+            user=parceira,
+            defaults={"user_profile": UserProfile.PROFILE_PARTNER_TEACHER},
+        )
+        self.client.force_login(parceira)
+
+        resposta = self.client.post(
+            reverse("whatsapp-connect-manual"),
+            data=json.dumps({"access_token": "tok", "waba_id": "waba-9"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(WhatsAppAccount.objects.count(), 0)
+
+
 class SignupApiTests(TestCase):
     def setUp(self):
         self.dona = User.objects.create_user("bianca", password="x")
