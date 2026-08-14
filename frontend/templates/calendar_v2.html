@@ -149,33 +149,32 @@
       --z-sticky: 5; --z-now: 8; --z-toast: 9500; --z-modal: 10000; --z-modal-2: 10002;
 
       /* =====================================================================
-         Aliases de compatibilidade: o styles.css global (sidebar, botões
-         partilhados, nav móvel) consome estes nomes. Ficam amarrados ao sistema
-         novo para a tela inteira falar a mesma língua.
+         Nomes que o styles.css global consome (barra lateral, botoes
+         partilhados, nav movel). Aqui eles NAO sao apontados para o sistema
+         novo: repetem, literal, os valores de calendar_new.html (producao),
+         para a navegacao e o chao da tela ficarem iguais a tela em uso.
+
+         Nenhuma regra deste ficheiro le estes nomes (o desenho da v2 usa
+         apenas --c-*, --sh-*, --r-*, --fs-*), portanto mexer aqui nao toca
+         na grelha, nos cartoes nem no painel do dia.
          ===================================================================== */
-      --bg: var(--c-paper);
-      --panel: var(--c-surface);
-      --panel-strong: var(--c-surface-3);
-      --card: var(--c-surface);
-      --text: var(--c-ink);
-      --muted: var(--c-ink-3);
-      --muted2: var(--c-ink-4);
-      --accent: var(--c-brand);
-      --accent-2: var(--c-brand-2);
-      --primary: var(--c-brand);
-      --primary2: var(--c-brand-2);
-      --border: var(--c-line);
-      --shadow: var(--sh-3);
-      --shadow-soft: var(--sh-2);
-      --radius: var(--r-xl);
-      --radius-sm: var(--r-lg);
-      --grid-border: var(--c-line);
-      --good: var(--c-ok);        --good-bg: var(--c-ok-tint);
-      --warn: var(--c-warn);      --warn-bg: var(--c-warn-tint);
-      --bad: var(--c-bad);        --bad-bg: var(--c-bad-tint);
-      --info: var(--c-public);    --info-bg: var(--c-public-tint);
-      --ok: var(--c-ok);
-      --done: var(--c-done);
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --muted2:#94a3b8;
+      --border: rgba(15,23,42,.10);
+      --shadow-soft: 0 10px 24px rgba(2,6,23,.06);
+      --shadow: 0 16px 40px rgba(2,6,23,.10);
+      --primary:#2563eb;
+      --primary2:#3b82f6;
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --done:#0ea5e9;
+      --radius: 18px;
+      --radius-sm: 14px;
+      --grid-border: rgba(15,23,42,.08);
     }
 
     /* =========================================================================
@@ -190,10 +189,11 @@
       font-weight: var(--fw-med);
       line-height: var(--lh-base);
       color: var(--c-ink);
+      /* Fundo da pagina: literal de producao (calendar_new.html). */
       background:
-        radial-gradient(1100px 620px at 12% -8%, var(--c-brand-wash), transparent 62%),
-        radial-gradient(820px 520px at 96% 4%, var(--c-surface-2), transparent 58%),
-        var(--c-paper);
+        radial-gradient(900px 520px at 15% 0%, rgba(37,99,235,.10), transparent 60%),
+        radial-gradient(700px 480px at 90% 10%, rgba(59,130,246,.10), transparent 55%),
+        var(--bg);
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
       font-feature-settings: "cv05" 1, "ss01" 1;
@@ -1465,17 +1465,27 @@
     .config-times input[type="time"]:disabled{ background: var(--c-surface-3); color: var(--c-ink-4); }
     .config-times span{ font-size: var(--fs-xs); color: var(--c-ink-3); font-weight: var(--fw-med); }
 
-    /* Barra lateral partilhada: ícone no lugar do emoji. */
-    .nav-emoji .ico{ --ico: 21px; color: var(--c-ink-2); }
-    .nav-item.active .nav-emoji .ico{ color: var(--c-brand); }
-    .nav-group-chevron .ico{ --ico: 15px; }
-    .sidebar-card .sidebar-cta{
-      display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
-      width: 100%;
-      margin-top: var(--sp-3);
-      padding: var(--sp-3) var(--sp-4);
-      font-size: var(--fs-sm);
-      text-decoration: none;
+    /* =========================================================================
+       Barra lateral partilhada.
+
+       Nao ha aqui nenhuma regra de desenho: cores, espacamentos, emoji, estado
+       activo e hover saem todos do styles.css global mais os style= inline do
+       template, tal como em calendar_new.html.
+
+       A unica coisa que a barra precisa e de se desligar da tipografia do body
+       da v2. O body da producao nao define tamanho, peso nem entrelinha, entao
+       a barra herda os padroes do navegador; o body da v2 define 13.5px, peso
+       500 e entrelinha 1.5, e isso escorria para dentro da barra e mudava a
+       altura da marca, dos itens da "Visao rapida" e dos botoes do rodape.
+       Os valores voltam presos ao elemento da barra, sem tocar no conteudo.
+       ========================================================================= */
+    .app-shell > aside.sidebar{
+      font-size: 16px;               /* padrao do navegador, como na producao */
+      font-weight: 400;
+      line-height: normal;
+      font-feature-settings: normal;
+      text-rendering: auto;
+      -webkit-font-smoothing: auto;
     }
 
     /* =========================================================================
@@ -1764,7 +1774,7 @@
       <nav class="nav">
         {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item">
-          <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-dashboard"></use></svg></span>
+          <span class="nav-emoji">🏠</span>
           <div>
             <p class="nav-title">Dashboard</p>
             <p class="nav-subtitle">Visão geral</p>
@@ -1772,21 +1782,21 @@
         </a>
         {% endif %}
         <a href="/calendar/" class="nav-item active">
-          <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-calendar"></use></svg></span>
+          <span class="nav-emoji">📅</span>
           <div>
             <p class="nav-title">Calendário</p>
             <p class="nav-subtitle">Agenda visual do mês</p>
           </div>
         </a>
         <a href="/alunos/" class="nav-item">
-          <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-students"></use></svg></span>
+          <span class="nav-emoji">🧑‍🎓</span>
           <div>
             <p class="nav-title">Alunos</p>
             <p class="nav-subtitle">Cadastro e planos</p>
           </div>
         </a>
         <a href="/planejamento/" class="nav-item">
-          <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-book"></use></svg></span>
+          <span class="nav-emoji">📚</span>
           <div>
             <p class="nav-title">Planejamento</p>
             <p class="nav-subtitle">Planejar aulas por aluno</p>
@@ -1794,7 +1804,7 @@
         </a>
         {% if not is_partner_teacher %}
         <a href="/arquivos/" class="nav-item">
-          <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-folder"></use></svg></span>
+          <span class="nav-emoji">📁</span>
           <div>
             <p class="nav-title">Arquivos</p>
             <p class="nav-subtitle">Sua biblioteca de materiais</p>
@@ -1802,44 +1812,44 @@
         </a>
         {% endif %}
         <a href="/financeiro/" class="nav-item">
-          <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-money"></use></svg></span>
+          <span class="nav-emoji">💵</span>
           <div>
             <p class="nav-title">Financeiro</p>
             <p class="nav-subtitle">Recebimentos do mês</p>
           </div>
         </a>
-
+        
         <div class="nav-divider"></div>
-
+        
         {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
-          <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg></span>
+          <span class="nav-emoji">💬</span>
           <div>
             <p class="nav-title">Cobrança</p>
             <p class="nav-subtitle">WhatsApp + Pix</p>
           </div>
         </a>
         {% endif %}
-
+        
         <div class="nav-divider"></div>
         {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
-            <span class="nav-emoji"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-sliders"></use></svg></span>
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
             <span class="nav-group-title">Conta</span>
-            <span class="nav-group-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chevron-right"></use></svg></span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
           </button>
           <div class="nav-group-items" id="navGroupContaItems">
             {% if user_is_admin %}
               <a href="/?view=view-users" class="nav-item nav-item-nested" id="navUsers">
-                <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-users"></use></svg></span>
+                <span class="nav-emoji">👥</span>
                 <div>
                   <p class="nav-title">Usuários</p>
                   <p class="nav-subtitle">Gerenciar usuários</p>
                 </div>
               </a>
               <a href="/tickets/" class="nav-item nav-item-nested" id="navTickets">
-                <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-ticket"></use></svg></span>
+                <span class="nav-emoji">🎫</span>
                 <div>
                   <p class="nav-title">Tickets</p>
                   <p class="nav-subtitle">Suporte e feedback</p>
@@ -1847,21 +1857,21 @@
               </a>
             {% endif %}
             <a href="/perfil/" class="nav-item nav-item-nested">
-              <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-user"></use></svg></span>
+              <span class="nav-emoji">👤</span>
               <div>
                 <p class="nav-title">Perfil</p>
                 <p class="nav-subtitle">Dados da conta</p>
               </div>
             </a>
             <a href="/planos/" class="nav-item nav-item-nested">
-              <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-card"></use></svg></span>
+              <span class="nav-emoji">💳</span>
               <div>
                 <p class="nav-title">Plano e Faturamento</p>
                 <p class="nav-subtitle">Gerenciar assinatura</p>
               </div>
             </a>
             <a href="/tutorial/" class="nav-item nav-item-nested">
-              <span class="nav-emoji"><svg class="ico" aria-hidden="true"><use href="#i-play"></use></svg></span>
+              <span class="nav-emoji">🎬</span>
               <div>
                 <p class="nav-title">Tutorial</p>
                 <p class="nav-subtitle">Vídeos rápidos</p>
@@ -1880,16 +1890,11 @@
           <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
         </ul>
         {% if not is_partner_teacher %}
-        <a href="/dashboard/" class="primary ghost sidebar-cta">
-          <svg class="ico ico-sm" aria-hidden="true"><use href="#i-dashboard"></use></svg>
-          Ver Dashboard
-        </a>
+        <a href="/dashboard/" class="primary ghost" style="display: block; text-align: center; text-decoration: none; font-size: 13px; padding: 8px 12px; margin-top: 8px;">Ver Dashboard</a>
         {% endif %}
-        <button class="primary ghost sidebar-cta" id="logoutBtn" type="button">
-          <svg class="ico ico-sm" aria-hidden="true"><use href="#i-logout"></use></svg>
-          Sair
-        </button>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
       </div>
+
     </aside>
 
     <main class="main-scroll" id="conteudo">

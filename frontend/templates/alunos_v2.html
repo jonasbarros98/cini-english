@@ -145,21 +145,54 @@
     *{box-sizing:border-box}
     html,body{height:100%}
 
+    /* Fundo da pagina: valores literais de producao, copiados de alunos_new.html.
+       Ficam fora do sistema de tokens da v2 de proposito, para o chao da tela
+       nao mudar quando a paleta do conteudo mudar. */
     body.page-alunos{
       margin:0;
       font-family: var(--font);
       color: var(--text);
-      background-color: var(--surface-page);
+      /* fixed + vh: a faixa azul acompanha a viewport (fica abaixo do painel da lista, nao "no meio" do scroll) */
+      background-color: #d8e3f4;
       background-image:
-        radial-gradient(1200px 620px at 8vw 0vh, rgb(var(--rgb-brand) / .06), transparent 60%),
-        linear-gradient(180deg, var(--n-1) 0vh, var(--n-1) 62vh, var(--surface-page) 100vh);
-      background-repeat:no-repeat;
-      background-attachment:fixed;
+        radial-gradient(1050px 580px at 12vw 6vh, rgba(37,99,235,.055), transparent 58%),
+        radial-gradient(850px 480px at 98vw min(82vh, 900px), rgba(59,130,246,.048), transparent 62%),
+        linear-gradient(
+          180deg,
+          #f5f8fc 0vh,
+          #f5f8fc 82vh,
+          #f0f5fc 88vh,
+          #e6f0fa 94vh,
+          #dce8f5 100vh
+        );
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      background-size: auto, auto, auto;
       -webkit-font-smoothing:antialiased;
     }
+    /* Coluna principal: veu de producao, alinhado a mesma logica (viewport). */
     body.page-alunos .app-shell > main.main{
+      background: linear-gradient(180deg, rgba(255,255,255,.14) 0vh, rgba(255,255,255,.06) 82vh, transparent 92vh);
       border-radius: var(--r-3);
       min-height:0;
+    }
+    @media (max-width: 980px){
+      body.page-alunos .app-shell > main.main{
+        background: transparent;
+        border-radius: 0;
+      }
+    }
+
+    /* ==========================================================================
+       Barra lateral: ambito isolado.
+       O styles.css global desenha a barra e le --muted e --shadow-soft. A v2 nao
+       define esses dois nomes, entao eles caiam nos valores do styles.css, que
+       diferem da producao. Redefinidos aqui, so no elemento da barra, para a
+       navegacao voltar ao visual em uso sem mexer na paleta do conteudo.
+       ========================================================================== */
+    body.page-alunos .app-shell > aside.sidebar{
+      --muted: #64748b;                                /* producao; styles.css usa #6B7280 */
+      --shadow-soft: 0 10px 24px rgba(2,6,23,.06);     /* producao; styles.css usa 0 6px 18px */
     }
 
     /* ==========================================================================
@@ -1086,16 +1119,11 @@
     #newStudentOverlay .modal-actions #newStudentSave:disabled{opacity:.7;cursor:wait;transform:none;}
 
     /* ==========================================================================
-       Sidebar, FAB e toast
+       FAB e toast
+       (os botoes do rodape da barra lateral voltaram ao estilo de producao:
+       ficam com o .primary.ghost do styles.css mais os style= inline do
+       template original, sem regra propria aqui)
        ========================================================================== */
-    body.page-alunos .sidebar-card .primary{
-      display:inline-flex;align-items:center;justify-content:center;gap:6px;
-      width:100%;
-      margin-top: var(--sp-2);
-      font-size: var(--fs-md);
-      padding: 9px 12px;
-    }
-
     .fab{
       position:fixed;right: var(--sp-5);bottom: var(--sp-5);z-index:20;
       display:grid;place-items:center;
@@ -1222,7 +1250,7 @@
       <nav class="nav">
         {% if not is_partner_teacher %}
         <a href="/dashboard/" class="nav-item">
-          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-home"></use></svg></span>
+          <span class="nav-emoji">🏠</span>
           <div>
             <p class="nav-title">Dashboard</p>
             <p class="nav-subtitle">Visão geral</p>
@@ -1230,21 +1258,21 @@
         </a>
         {% endif %}
         <a href="/calendar/" class="nav-item">
-          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-calendar"></use></svg></span>
+          <span class="nav-emoji">📅</span>
           <div>
             <p class="nav-title">Calendário</p>
             <p class="nav-subtitle">Agenda visual do mês</p>
           </div>
         </a>
         <a href="/alunos/" class="nav-item active">
-          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-cap"></use></svg></span>
+          <span class="nav-emoji">🧑‍🎓</span>
           <div>
             <p class="nav-title">Alunos</p>
             <p class="nav-subtitle">Cadastro e planos</p>
           </div>
         </a>
         <a href="/planejamento/" class="nav-item">
-          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-book"></use></svg></span>
+          <span class="nav-emoji">📚</span>
           <div>
             <p class="nav-title">Planejamento</p>
             <p class="nav-subtitle">Planejar aulas por aluno</p>
@@ -1252,7 +1280,7 @@
         </a>
         {% if not is_partner_teacher %}
         <a href="/arquivos/" class="nav-item">
-          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-folder"></use></svg></span>
+          <span class="nav-emoji">📁</span>
           <div>
             <p class="nav-title">Arquivos</p>
             <p class="nav-subtitle">Sua biblioteca de materiais</p>
@@ -1260,7 +1288,7 @@
         </a>
         {% endif %}
         <a href="/financeiro/" class="nav-item">
-          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-money"></use></svg></span>
+          <span class="nav-emoji">💵</span>
           <div>
             <p class="nav-title">Financeiro</p>
             <p class="nav-subtitle">Recebimentos do mês</p>
@@ -1271,7 +1299,7 @@
         
         {% if not is_partner_teacher %}
         <a href="/?view=view-billing" class="nav-item">
-          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-chat"></use></svg></span>
+          <span class="nav-emoji">💬</span>
           <div>
             <p class="nav-title">Cobrança</p>
             <p class="nav-subtitle">WhatsApp + Pix</p>
@@ -1283,27 +1311,27 @@
         {% if not is_partner_teacher %}
         <div class="nav-group nav-group--collapsed" id="navGroupConta">
           <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems" id="navGroupContaBtn">
-            <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-gear"></use></svg></span>
+            <span class="nav-emoji" style="font-size: 16px;">⚙️</span>
             <span class="nav-group-title">Conta</span>
             <span class="nav-group-chevron" aria-hidden="true">›</span>
           </button>
           <div class="nav-group-items" id="navGroupContaItems">
             <a href="/perfil/" class="nav-item nav-item-nested">
-              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-user"></use></svg></span>
+              <span class="nav-emoji">👤</span>
               <div>
                 <p class="nav-title">Perfil</p>
                 <p class="nav-subtitle">Dados da conta</p>
               </div>
             </a>
             <a href="/planos/" class="nav-item nav-item-nested">
-              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-card"></use></svg></span>
+              <span class="nav-emoji">💳</span>
               <div>
                 <p class="nav-title">Plano e Faturamento</p>
                 <p class="nav-subtitle">Gerenciar assinatura</p>
               </div>
             </a>
             <a href="/tutorial/" class="nav-item nav-item-nested">
-              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-video"></use></svg></span>
+              <span class="nav-emoji">🎬</span>
               <div>
                 <p class="nav-title">Tutorial</p>
                 <p class="nav-subtitle">Vídeos rápidos</p>
@@ -1323,8 +1351,8 @@
           <li><strong id="sidebarRealized">0</strong> realizadas</li>
           <li><strong id="sidebarStudents">0</strong> alunos ativos</li>
         </ul>
-        <button class="primary ghost" id="createLessonBtn"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-plus"></use></svg> Novo agendamento</button>
-        <button class="primary ghost" id="logoutBtn"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-logout"></use></svg> Sair</button>
+        <button class="primary ghost" id="createLessonBtn" style="font-size: 13px; padding: 8px 12px; width: 100%; margin-top: 8px;">+ Novo agendamento</button>
+        <button class="primary ghost" id="logoutBtn" style="margin-top: 8px; width: 100%; font-size: 13px; padding: 8px 12px;">Sair</button>
       </div>
     </aside>
 
