@@ -45,8 +45,29 @@ a ser template pela API, que funciona melhor mas custa por mensagem.
 |----------|------------------|
 | `core/whatsapp.py` | Fala com a Meta. Telefones, assinatura, cliente HTTP, leitura do payload. Não conhece modelos. |
 | `core/whatsapp_service.py` | Regra de negócio que toca o banco. Processa webhook, envia, resolve contato e conversa. |
-| `core/whatsapp_views.py` | Webhook e estado da conta. |
-| `core/tests_whatsapp.py` | 38 testes. Rodar antes de qualquer mexida. |
+| `core/whatsapp_views.py` | Webhook, API da caixa de entrada e a página. |
+| `frontend/templates/whatsapp_inbox.html` | A caixa de entrada, em `/whatsapp/`. |
+| `core/tests_whatsapp.py` | 48 testes. Rodar antes de qualquer mexida. |
+
+### A caixa de entrada
+
+Segue a mesma direção visual da tela de Alunos, minimalista com disciplina
+suíça, porque a professora salta entre as duas dezenas de vezes por dia.
+
+O elemento que organiza a tela é o **trilho da janela**: uma barra no topo da
+conversa que esvazia conforme as 24 horas correm. Quando ela acaba, o campo de
+escrita se transforma sozinho no seletor de modelos aprovados. A regra mais
+confusa do WhatsApp Business deixa de ser algo para decorar e passa a ser algo
+que se vê.
+
+Duas decisões que vale não desfazer sem pensar:
+
+- **Mensagem enviada pelo celular não ganha cor nova**, ganha borda tracejada e
+  o rótulo "pelo celular". Cor escassa é regra da casa, e a coexistência já
+  produz muita mensagem de saída que o sistema não originou.
+- **Etiqueta só marca o que exige decisão.** "Janela aberta" seria a maioria
+  das linhas, então não vira etiqueta. O que aparece é "só com modelo", quando
+  há mensagem por responder e a janela já fechou.
 
 ### Modelos
 
@@ -147,10 +168,17 @@ neutraliza antes de o Django carregar as settings.
 
 ## O que ainda não existe
 
-- Interface da caixa de entrada (Fase 2).
 - Embedded Signup, o fluxo de conectar o número (hoje a conta é criada à mão).
 - Ligação com cobrança e lembrete de aula (Fase 3): o serviço já tem
   `conversation_for_student` e `template_for`, falta chamar a partir das views
   do financeiro e do calendário.
 - Download e guarda das mídias recebidas: o `media_id` é gravado, mas o
-  ficheiro ainda não é baixado, e a URL da Meta expira.
+  ficheiro ainda não é baixado, e a URL da Meta expira. Hoje áudio e imagem
+  aparecem na conversa como `[audio]` e `[image]`.
+- Envio de mídia e de áudio pela caixa de entrada.
+- Preenchimento das variáveis do modelo na interface: o envio de template pela
+  tela ainda vai sem parâmetros. Serve para modelo sem variável; a Fase 3 vai
+  precisar disto para a cobrança.
+- Atualização em tempo real: hoje a tela pergunta ao servidor a cada 12
+  segundos. Chega para uma escola, não chega para dezenas de professores no
+  mesmo número.

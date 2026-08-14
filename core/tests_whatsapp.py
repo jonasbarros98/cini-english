@@ -579,6 +579,147 @@ class WebhookViewTests(WhatsAppTestBase):
         self.assertEqual(WhatsAppMessage.objects.count(), 0)
 
 
+class InboxApiTests(WhatsAppTestBase):
+    """
+    A caixa de entrada expõe conversas por HTTP, então a regra de visibilidade
+    deixa de ser detalhe de interface e passa a ser limite de segurança.
+    """
+
+    def setUp(self):
+        super().setUp()
+
+        # João é da parceira; Ana fica com a dona.
+        self.aluno.assigned_teacher = self.parceira
+        self.aluno.save(update_fields=["assigned_teacher"])
+        self.outro_aluno = Student.objects.create(
+            name="Ana", phone="(41) 97777-1111", user=self.dona
+        )
+
+        service.process_webhook(self.build_message_payload())
+        service.process_webhook(self.build_message_payload(
+            wa_id="5541977771111", wamid="wamid.CCC"
+        ))
+
+        self.conversa_joao = WhatsAppConversation.objects.get(
+            contact__student=self.aluno
+        )
+        self.conversa_ana = WhatsAppConversation.objects.get(
+            contact__student=self.outro_aluno
+        )
+
+    def test_sem_sessao_devolve_401(self):
+        resposta = self.client.get(reverse("whatsapp-conversations"))
+        self.assertEqual(resposta.status_code, 401)
+
+    def test_dona_ve_todas_as_conversas(self):
+        self.client.force_login(self.dona)
+        resposta = self.client.get(reverse("whatsapp-conversations"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(len(resposta.json()["conversations"]), 2)
+
+    def test_parceira_ve_so_a_sua(self):
+        self.client.force_login(self.parceira)
+        resposta = self.client.get(reverse("whatsapp-conversations"))
+
+        conversas = resposta.json()["conversations"]
+        self.assertEqual(len(conversas), 1)
+        self.assertEqual(conversas[0]["id"], self.conversa_joao.id)
+
+    def test_parceira_nao_le_conversa_de_outro_aluno(self):
+        self.client.force_login(self.parceira)
+        resposta = self.client.get(reverse(
+            "whatsapp-messages", args=[self.conversa_ana.id]
+        ))
+        self.assertEqual(resposta.status_code, 404)
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_parceira_nao_envia_em_conversa_alheia(self):
+        self.client.force_login(self.parceira)
+
+        cliente = mock.Mock()
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            resposta = self.client.post(
+                reverse("whatsapp-send", args=[self.conversa_ana.id]),
+                data=json.dumps({"body": "oi"}),
+                content_type="application/json",
+            )
+
+        self.assertEqual(resposta.status_code, 404)
+        cliente.send_text.assert_not_called()
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_erro_de_negocio_volta_com_texto_legivel(self):
+        # Fora da janela, a resposta precisa explicar o que fazer, não devolver
+        # um código que a professora não sabe interpretar.
+        self.conversa_ana.last_inbound_at = timezone.now() - timedelta(hours=30)
+        self.conversa_ana.save(update_fields=["last_inbound_at"])
+
+        self.client.force_login(self.dona)
+        resposta = self.client.post(
+            reverse("whatsapp-send", args=[self.conversa_ana.id]),
+            data=json.dumps({"body": "oi"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(resposta.status_code, 422)
+        self.assertIn("24 horas", resposta.json()["detail"])
+
+    def test_ligar_aluno_move_a_conversa_para_o_professor_dele(self):
+        service.process_webhook(self.build_message_payload(
+            wa_id="5511999998888", wamid="wamid.DDD"
+        ))
+        contato = WhatsAppContact.objects.get(wa_id="5511999998888")
+        conversa = WhatsAppConversation.objects.get(contact=contato)
+
+        self.client.force_login(self.dona)
+        resposta = self.client.post(
+            reverse("whatsapp-link-student", args=[conversa.id]),
+            data=json.dumps({"student_id": self.aluno.id}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        conversa.refresh_from_db()
+        self.assertEqual(conversa.assigned_teacher, self.parceira)
+
+    def test_marcar_como_lida_zera_o_contador(self):
+        self.client.force_login(self.dona)
+        self.assertEqual(self.conversa_ana.unread_count, 1)
+
+        resposta = self.client.post(
+            reverse("whatsapp-read", args=[self.conversa_ana.id])
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.conversa_ana.refresh_from_db()
+        self.assertEqual(self.conversa_ana.unread_count, 0)
+
+    def test_filtro_de_nao_lidas(self):
+        self.client.force_login(self.dona)
+        self.conversa_ana.unread_count = 0
+        self.conversa_ana.save(update_fields=["unread_count"])
+
+        resposta = self.client.get(
+            reverse("whatsapp-conversations"), {"filter": "unread"}
+        )
+
+        conversas = resposta.json()["conversations"]
+        self.assertEqual(len(conversas), 1)
+        self.assertEqual(conversas[0]["id"], self.conversa_joao.id)
+
+    def test_busca_por_telefone_acha_com_e_sem_o_nono_digito(self):
+        self.client.force_login(self.dona)
+
+        resposta = self.client.get(
+            reverse("whatsapp-conversations"), {"q": "41988369627"}
+        )
+
+        conversas = resposta.json()["conversations"]
+        self.assertEqual(len(conversas), 1)
+        self.assertEqual(conversas[0]["id"], self.conversa_joao.id)
+
+
 class TokenEncryptionTests(TestCase):
     def test_token_nao_fica_em_claro_no_banco(self):
         dono = User.objects.create_user("prof", password="x")
