@@ -52,6 +52,7 @@ from .whatsapp_views import (
     WhatsAppInboxView, whatsapp_conversations, whatsapp_messages,
     whatsapp_send, whatsapp_mark_read, whatsapp_link_student,
     whatsapp_set_opt_in, whatsapp_templates, whatsapp_students_lookup,
+    whatsapp_signup_config, whatsapp_signup_complete, whatsapp_disconnect,
 )
 
 router = DefaultRouter()
@@ -139,6 +140,9 @@ urlpatterns = [
     path("api/whatsapp/conversations/<int:conversation_id>/opt-in/", whatsapp_set_opt_in, name="whatsapp-opt-in"),
     path("api/whatsapp/templates/", whatsapp_templates, name="whatsapp-templates"),
     path("api/whatsapp/students/", whatsapp_students_lookup, name="whatsapp-students"),
+    path("api/whatsapp/signup/config/", whatsapp_signup_config, name="whatsapp-signup-config"),
+    path("api/whatsapp/signup/complete/", whatsapp_signup_complete, name="whatsapp-signup-complete"),
+    path("api/whatsapp/disconnect/", whatsapp_disconnect, name="whatsapp-disconnect"),
     path("planos/", PlanosView.as_view(), name="planos"),
     path("planos-v2/", RedirectView.as_view(url="/planos/", permanent=True), name="planos-v2"),
     path("tutorial/", TutorialView.as_view(), name="tutorial"),

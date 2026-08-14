@@ -45,6 +45,7 @@ a ser template pela API, que funciona melhor mas custa por mensagem.
 |----------|------------------|
 | `core/whatsapp.py` | Fala com a Meta. Telefones, assinatura, cliente HTTP, leitura do payload. Não conhece modelos. |
 | `core/whatsapp_service.py` | Regra de negócio que toca o banco. Processa webhook, envia, resolve contato e conversa. |
+| `core/whatsapp_signup.py` | Conexão do número pelo Embedded Signup. |
 | `core/whatsapp_views.py` | Webhook, API da caixa de entrada e a página. |
 | `frontend/templates/whatsapp_inbox.html` | A caixa de entrada, em `/whatsapp/`. |
 | `core/tests_whatsapp.py` | 48 testes. Rodar antes de qualquer mexida. |
@@ -124,6 +125,30 @@ o número em uso há pelo menos 7 dias.
 **Depois de conectar:** a sincronização do histórico tem janela de 24 horas, e
 mídia só dos últimos 14 dias. Alguém precisa acompanhar no dia da virada.
 
+### O que acontece no clique de "Conectar WhatsApp"
+
+Implementado em `core/whatsapp_signup.py`. Em ordem:
+
+1. O popup devolve um `code` (pelo callback do `FB.login`) e o `waba_id` (por
+   `postMessage`, evento `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`). São dois
+   caminhos diferentes, e o código só é usado quando os dois chegaram.
+2. Trocamos o código por um token de longa duração. O código é de uso único e
+   expira em minutos, então tudo acontece na mesma requisição.
+3. Assinamos a nossa app à WABA do cliente. Sem isto o webhook nunca dispara e
+   a caixa de entrada fica muda **sem dar erro nenhum**.
+4. Descobrimos o `phone_number_id`: no fluxo de coexistência o popup manda só
+   o `waba_id`.
+5. Disparamos as duas importações, contatos e histórico.
+
+> **Não registramos o número.** Na coexistência ele já está registrado pelo
+> aplicativo do celular, e chamar `POST /{phone_number_id}/register` aqui
+> quebraria a conexão. Tem teste a garantir que essa chamada não acontece,
+> porque nenhum teste de caminho feliz pegaria isso.
+
+Falha na importação do histórico **não derruba a conexão**: as conversas novas
+continuam chegando, só o passado não veio junto, e o aviso fica em
+`WhatsAppAccount.last_error`.
+
 ---
 
 ## Variáveis de ambiente
@@ -168,7 +193,6 @@ neutraliza antes de o Django carregar as settings.
 
 ## O que ainda não existe
 
-- Embedded Signup, o fluxo de conectar o número (hoje a conta é criada à mão).
 - Ligação com cobrança e lembrete de aula (Fase 3): o serviço já tem
   `conversation_for_student` e `template_for`, falta chamar a partir das views
   do financeiro e do calendário.

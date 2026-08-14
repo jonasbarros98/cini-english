@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from core import whatsapp as wa
 from core import whatsapp_service as service
+from core import whatsapp_signup as signup
 from core.models import (
     Student,
     WhatsAppAccount,
@@ -718,6 +719,224 @@ class InboxApiTests(WhatsAppTestBase):
         conversas = resposta.json()["conversations"]
         self.assertEqual(len(conversas), 1)
         self.assertEqual(conversas[0]["id"], self.conversa_joao.id)
+
+
+SIGNUP_ENV = {
+    "WHATSAPP_APP_ID": "app-123",
+    "WHATSAPP_CONFIG_ID": "config-123",
+    "WHATSAPP_APP_SECRET": APP_SECRET,
+    "WHATSAPP_ES_FEATURE_TYPE": "whatsapp_business_app_onboarding",
+}
+
+
+class SignupTests(TestCase):
+    """
+    Conexão do número pelo Embedded Signup.
+
+    O que mais importa aqui: na coexistência o número **não** é registrado,
+    porque já está registrado no aplicativo do celular. Chamar /register
+    quebraria a conexão, e nenhum teste de caminho feliz pegaria isso.
+    """
+
+    def setUp(self):
+        self.dona = User.objects.create_user("bianca", password="x")
+
+    def _fake_graph(self, chamadas):
+        """Substitui a Graph API e guarda o que foi chamado, na ordem."""
+        def falso(method, path, *, token="", params=None, json_body=None):
+            chamadas.append((method, path, json_body))
+
+            if path == "oauth/access_token":
+                return {"access_token": "token-de-longa-duracao"}
+            if path.endswith("/phone_numbers"):
+                return {"data": [{
+                    "id": "numero-1",
+                    "display_phone_number": "+55 41 98836-9627",
+                    "verified_name": "Cini English",
+                    "quality_rating": "GREEN",
+                }]}
+            return {"success": True}
+
+        return falso
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_conexao_completa_cria_a_conta(self):
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            account = signup.complete_signup(
+                user=self.dona, code="codigo-do-popup", waba_id="waba-9"
+            )
+
+        self.assertEqual(account.status, WhatsAppAccount.STATUS_CONNECTED)
+        self.assertTrue(account.is_active)
+        self.assertTrue(account.is_coexistence)
+        self.assertEqual(account.phone_number_id, "numero-1")
+        self.assertEqual(account.waba_id, "waba-9")
+        self.assertEqual(account.verified_name, "Cini English")
+        self.assertEqual(account.get_access_token(), "token-de-longa-duracao")
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_nao_registra_o_numero(self):
+        # A coexistência quebra se chamarmos /register: o número já está
+        # registrado pelo aplicativo do celular.
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            signup.complete_signup(self.dona, "codigo", "waba-9")
+
+        caminhos = [c[1] for c in chamadas]
+        self.assertNotIn("numero-1/register", caminhos)
+        self.assertFalse(any(p.endswith("/register") for p in caminhos))
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_assina_a_waba_e_dispara_as_duas_sincronizacoes(self):
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            signup.complete_signup(self.dona, "codigo", "waba-9")
+
+        caminhos = [c[1] for c in chamadas]
+        self.assertIn("waba-9/subscribed_apps", caminhos)
+
+        # Contatos e histórico. A janela é de 24h e não se repete.
+        sincronias = [c[2]["sync_type"] for c in chamadas
+                      if c[1] == "numero-1/smb_app_data"]
+        self.assertEqual(set(sincronias), {"smb_app_state_sync", "history"})
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_falha_na_importacao_nao_derruba_a_conexao(self):
+        def falso(method, path, *, token="", params=None, json_body=None):
+            if path == "oauth/access_token":
+                return {"access_token": "tok"}
+            if path.endswith("/phone_numbers"):
+                return {"data": [{"id": "numero-1", "display_phone_number": "+55 41 9"}]}
+            if path.endswith("/smb_app_data"):
+                raise signup.SignupError("janela de sincronização expirada")
+            return {}
+
+        with mock.patch.object(signup, "_graph", falso):
+            account = signup.complete_signup(self.dona, "codigo", "waba-9")
+
+        # O canal fica de pé: as conversas novas continuam chegando, só o
+        # passado não veio junto.
+        self.assertEqual(account.status, WhatsAppAccount.STATUS_CONNECTED)
+        self.assertTrue(account.is_active)
+        self.assertIn("importação do histórico", account.last_error)
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_reconectar_nao_duplica_conta_nem_perde_conversas(self):
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            primeira = signup.complete_signup(self.dona, "codigo-1", "waba-9")
+            segunda = signup.complete_signup(self.dona, "codigo-2", "waba-9")
+
+        self.assertEqual(primeira.id, segunda.id)
+        self.assertEqual(WhatsAppAccount.objects.count(), 1)
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_numero_ja_ligado_a_outra_conta_e_recusado(self):
+        outro = User.objects.create_user("outro", password="x")
+        WhatsAppAccount.objects.create(user=outro, phone_number_id="numero-1")
+
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            with self.assertRaises(signup.SignupError) as ctx:
+                signup.complete_signup(self.dona, "codigo", "waba-9")
+
+        self.assertIn("outra conta", str(ctx.exception))
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_waba_sem_numero_da_erro_util(self):
+        def falso(method, path, *, token="", params=None, json_body=None):
+            if path == "oauth/access_token":
+                return {"access_token": "tok"}
+            if path.endswith("/phone_numbers"):
+                return {"data": []}
+            return {}
+
+        with mock.patch.object(signup, "_graph", falso):
+            with self.assertRaises(signup.SignupError) as ctx:
+                signup.complete_signup(self.dona, "codigo", "waba-9")
+
+        self.assertIn("nenhum número", str(ctx.exception).lower())
+
+    @mock.patch.dict(os.environ, {"WHATSAPP_APP_ID": "", "WHATSAPP_CONFIG_ID": "",
+                                 "WHATSAPP_APP_SECRET": ""})
+    def test_ambiente_sem_configuracao_recusa_cedo(self):
+        with self.assertRaises(signup.SignupError):
+            signup.complete_signup(self.dona, "codigo", "waba-9")
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_desconectar_apaga_o_token_e_mantem_o_historico(self):
+        chamadas = []
+        with mock.patch.object(signup, "_graph", self._fake_graph(chamadas)):
+            account = signup.complete_signup(self.dona, "codigo", "waba-9")
+
+        signup.disconnect(account)
+        account.refresh_from_db()
+
+        self.assertFalse(account.is_active)
+        self.assertEqual(account.status, WhatsAppAccount.STATUS_DISCONNECTED)
+        self.assertEqual(account.access_token_encrypted, "")
+        self.assertFalse(account.can_send)
+        # A conta continua existindo, e com ela as conversas guardadas.
+        self.assertEqual(WhatsAppAccount.objects.count(), 1)
+
+
+class SignupApiTests(TestCase):
+    def setUp(self):
+        self.dona = User.objects.create_user("bianca", password="x")
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_config_nao_expoe_o_segredo_da_app(self):
+        self.client.force_login(self.dona)
+        resposta = self.client.get(reverse("whatsapp-signup-config"))
+
+        dados = resposta.json()
+        self.assertTrue(dados["configured"])
+        self.assertEqual(dados["app_id"], "app-123")
+        self.assertNotIn("app_secret", dados)
+        self.assertNotIn(APP_SECRET, json.dumps(dados))
+
+    def test_config_exige_sessao(self):
+        self.assertEqual(
+            self.client.get(reverse("whatsapp-signup-config")).status_code, 401
+        )
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_professor_parceiro_nao_conecta_numero(self):
+        from core.models import UserProfile
+
+        parceira = User.objects.create_user("parceira", password="x")
+        UserProfile.objects.update_or_create(
+            user=parceira,
+            defaults={"user_profile": UserProfile.PROFILE_PARTNER_TEACHER},
+        )
+
+        self.client.force_login(parceira)
+        resposta = self.client.post(
+            reverse("whatsapp-signup-complete"),
+            data=json.dumps({"code": "x", "waba_id": "y"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(WhatsAppAccount.objects.count(), 0)
+
+    @mock.patch.dict(os.environ, SIGNUP_ENV)
+    def test_erro_da_meta_volta_como_422_legivel(self):
+        self.client.force_login(self.dona)
+
+        def falso(method, path, *, token="", params=None, json_body=None):
+            raise signup.SignupError("O código de autorização expirou.")
+
+        with mock.patch.object(signup, "_graph", falso):
+            resposta = self.client.post(
+                reverse("whatsapp-signup-complete"),
+                data=json.dumps({"code": "velho", "waba_id": "waba-9"}),
+                content_type="application/json",
+            )
+
+        self.assertEqual(resposta.status_code, 422)
+        self.assertIn("expirou", resposta.json()["detail"])
 
 
 class TokenEncryptionTests(TestCase):

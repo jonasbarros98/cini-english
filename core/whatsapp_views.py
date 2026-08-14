@@ -20,6 +20,7 @@ from django.views.generic import TemplateView
 
 from core import whatsapp as wa
 from core import whatsapp_service as service
+from core import whatsapp_signup as signup
 from core.models import (
     Student,
     WhatsAppContact,
@@ -468,6 +469,89 @@ def whatsapp_templates(request):
             "variables": t.variable_hints,
         } for t in templates],
     })
+
+
+# ===========================================================================
+# Conexão do número (Embedded Signup)
+# ===========================================================================
+
+@require_http_methods(["GET"])
+def whatsapp_signup_config(request):
+    """
+    Dados públicos que o popup da Meta precisa.
+
+    Só o App ID e o Config ID, que não são segredo. O App Secret nunca sai do
+    servidor.
+    """
+    if error := _require_login(request):
+        return error
+
+    return JsonResponse({
+        "configured": signup.is_configured(),
+        "app_id": signup.app_id(),
+        "config_id": signup.config_id(),
+        "feature_type": signup.feature_type(),
+        "graph_version": wa.GRAPH_VERSION,
+    })
+
+
+@require_http_methods(["POST"])
+def whatsapp_signup_complete(request):
+    """
+    Fecha a conexão com o código devolvido pelo popup.
+
+    O código é de uso único e expira em minutos, então o trabalho todo
+    acontece aqui, na mesma requisição.
+    """
+    if error := _require_login(request):
+        return error
+
+    # Professor parceiro usa o número do dono, não conecta o próprio.
+    from core.models import UserProfile
+
+    try:
+        if request.user.profile.user_profile == UserProfile.PROFILE_PARTNER_TEACHER:
+            return JsonResponse({
+                "detail": "Quem conecta o número é o dono da conta.",
+            }, status=403)
+    except UserProfile.DoesNotExist:
+        pass
+
+    try:
+        data = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"detail": "Requisição inválida."}, status=400)
+
+    try:
+        account = signup.complete_signup(
+            user=request.user,
+            code=(data.get("code") or "").strip(),
+            waba_id=(data.get("waba_id") or "").strip(),
+            phone_number_id=(data.get("phone_number_id") or "").strip(),
+        )
+    except signup.SignupError as exc:
+        return JsonResponse({"detail": str(exc)}, status=422)
+
+    return JsonResponse({
+        "connected": True,
+        "phone": account.display_phone_number,
+        "name": account.verified_name,
+        "warning": account.last_error,
+    })
+
+
+@require_http_methods(["POST"])
+def whatsapp_disconnect(request):
+    """Desliga o canal sem apagar conversa nenhuma."""
+    if error := _require_login(request):
+        return error
+
+    account = getattr(request.user, "whatsapp_account", None)
+    if not account:
+        return JsonResponse({"detail": "Nenhum número conectado."}, status=404)
+
+    signup.disconnect(account)
+    return JsonResponse({"connected": False})
 
 
 @require_http_methods(["GET"])

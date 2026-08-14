@@ -596,6 +596,111 @@
     }
     @keyframes shimmer{to{background-position:-200% 0}}
 
+    /* ==========================================================================
+       Conexão do número. Primeira tela de quem ainda não conectou.
+       --------------------------------------------------------------------------
+       Assimétrica de propósito: a coluna larga carrega a promessa e o botão, a
+       estreita carrega a lista do que ter à mão. Centrar tudo num cartão faria
+       a perda de listas de transmissão passar despercebida, e ela precisa ser
+       lida antes do clique, não depois.
+       ========================================================================== */
+    .connect{
+      display:grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(260px, .95fr);
+      gap: var(--sp-6);
+      align-items:start;
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--r-3);
+      box-shadow: var(--shadow-1);
+      padding: var(--sp-7) var(--sp-6);
+    }
+
+    .connect-kicker{
+      margin:0 0 var(--sp-2);
+      font-size: var(--fs-2xs);font-weight:700;
+      text-transform:uppercase;letter-spacing: var(--track-wide);
+      color: var(--brand);
+    }
+    .connect h1{
+      margin:0 0 var(--sp-3);
+      font-size: clamp(22px, 1.2rem + 1.1vw, 30px);
+      line-height: var(--lh-tight);
+      letter-spacing: var(--track-tight);
+      font-weight:700;
+      max-width: 22ch;
+    }
+    .connect-lead{
+      margin:0 0 var(--sp-5);
+      font-size: var(--fs-lg);
+      line-height: var(--lh-base);
+      color: var(--text-2);
+      max-width: 58ch;
+    }
+
+    .connect-points{
+      list-style:none;margin:0 0 var(--sp-6);padding:0;
+      display:grid;gap: var(--sp-3);
+      max-width: 58ch;
+    }
+    .connect-points li{
+      display:grid;grid-template-columns:auto 1fr;gap: var(--sp-3);
+      align-items:start;
+      font-size: var(--fs-md);
+      line-height: var(--lh-base);
+      color: var(--text-2);
+    }
+    .connect-points .ic{color: var(--ok);margin-top:2px}
+    /* O único ponto que é perda fica ambar, e é o terceiro: a professora lê a
+       promessa antes, e o custo depois, sem que o custo se esconda. */
+    .connect-points li:last-child .ic{color: var(--warn)}
+    .connect-points strong{color: var(--text);font-weight:650}
+
+    .connect-actions{display:flex;align-items:center;gap: var(--sp-4);flex-wrap:wrap}
+    .btn--lg{
+      font-size: var(--fs-lg);
+      padding: 12px 20px;
+      border-radius: var(--r-2);
+    }
+    .connect-hint{margin:0;font-size: var(--fs-sm);color: var(--text-3)}
+
+    .connect-aside{
+      background: var(--surface-2);
+      border:1px solid var(--border-soft);
+      border-radius: var(--r-2);
+      padding: var(--sp-5);
+    }
+    .connect-aside-title{
+      margin:0 0 var(--sp-3);
+      font-size: var(--fs-2xs);font-weight:700;
+      text-transform:uppercase;letter-spacing: var(--track-wide);
+      color: var(--text-soft);
+    }
+    .connect-checklist{
+      margin:0 0 var(--sp-4);padding-left: 1.15rem;
+      display:grid;gap: var(--sp-3);
+      font-size: var(--fs-sm);
+      line-height: var(--lh-base);
+      color: var(--text-2);
+    }
+    .connect-checklist strong{color:var(--text);font-weight:650}
+    .connect-aside-foot{
+      margin:0;padding-top: var(--sp-3);
+      border-top:1px solid var(--border-soft);
+      font-size: var(--fs-sm);
+      line-height: var(--lh-base);
+      color: var(--text-3);
+    }
+
+    @media (max-width: 900px){
+      .connect{
+        grid-template-columns: 1fr;
+        gap: var(--sp-5);
+        padding: var(--sp-5) var(--sp-4);
+      }
+      .connect h1{max-width:none}
+    }
+
     /* --- Aviso de canal desligado --- */
     .notice{
       display:flex;gap:var(--sp-3);align-items:flex-start;
@@ -806,10 +911,58 @@
 
     <main class="main">
       {% if not wa_account %}
-      <div class="notice" role="status">
-        <svg class="ic ic--sm" aria-hidden="true"><use href="#i-alert"></use></svg>
-        <p><strong>Nenhum número conectado.</strong> Enquanto o WhatsApp da escola não for ligado a esta conta, esta tela fica vazia. As conversas aparecem aqui assim que o número for conectado.</p>
-      </div>
+      <section class="connect" aria-labelledby="connectTitle">
+        <div class="connect-copy">
+          <p class="connect-kicker">Canal da escola</p>
+          <h1 id="connectTitle">Conecte o WhatsApp e traga as conversas para cá</h1>
+          <p class="connect-lead">
+            O número continua no seu celular, com o aplicativo do WhatsApp Business funcionando
+            como sempre. O que muda é que as conversas passam a aparecer também aqui, ao lado da
+            ficha do aluno, do financeiro e da agenda.
+          </p>
+
+          <ul class="connect-points">
+            <li>
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-check"></use></svg>
+              <span><strong>Você não perde o aplicativo nem o histórico.</strong> O que responder pelo
+              celular aparece aqui, e o que enviar daqui aparece no celular.</span>
+            </li>
+            <li>
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-check"></use></svg>
+              <span>As conversas individuais dos <strong>últimos 6 meses</strong> são importadas.</span>
+            </li>
+            <li>
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-alert"></use></svg>
+              <span><strong>Listas de transmissão são desativadas</strong> no aplicativo. Grupos,
+              chamadas e status ficam de fora da integração.</span>
+            </li>
+          </ul>
+
+          <div class="connect-actions">
+            <button class="btn btn--primary btn--lg" type="button" id="connectBtn" disabled>
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-link"></use></svg>
+              Conectar WhatsApp
+            </button>
+            <p class="connect-hint" id="connectHint">A preparar a conexão…</p>
+          </div>
+
+          <p class="composer-error" id="connectError" hidden></p>
+        </div>
+
+        <aside class="connect-aside">
+          <p class="connect-aside-title">Antes de clicar, tenha à mão</p>
+          <ol class="connect-checklist">
+            <li>O <strong>WhatsApp Business atualizado</strong> no celular, versão 2.24.17 ou mais recente.</li>
+            <li>Uma <strong>conta do Facebook</strong>, para autorizar no popup da Meta.</li>
+            <li>O <strong>CNPJ</strong>, se tiver. Sem ele dá para conectar igual, com limite menor.</li>
+            <li>O <strong>nome</strong> que quer exibir para os pais e alunos.</li>
+          </ol>
+          <p class="connect-aside-foot">
+            Depois de conectar, fique por perto nas primeiras 24 horas: é a janela em que a Meta
+            importa as conversas antigas, e ela não se repete.
+          </p>
+        </aside>
+      </section>
       {% elif not wa_enabled %}
       <div class="notice" role="status">
         <svg class="ic ic--sm" aria-hidden="true"><use href="#i-alert"></use></svg>
@@ -817,6 +970,7 @@
       </div>
       {% endif %}
 
+      {% if wa_account %}
       <div class="inbox" id="inbox" data-view="list">
 
         <!-- ── Conversas ─────────────────────────────────────────────── -->
@@ -887,6 +1041,7 @@
           </div>
         </section>
       </div>
+      {% endif %}
     </main>
   </div>
 
@@ -965,6 +1120,161 @@
         throw err;
       }
       return data;
+    }
+
+    // A barra lateral existe nos dois estados da página, então liga antes de
+    // qualquer saída antecipada.
+    const logout = el('logoutBtn');
+    if (logout){
+      logout.addEventListener('click', function(){
+        fetch('/api/auth/logout/', {
+          method:'POST',
+          headers:{'X-CSRFToken': getCookie('csrftoken') || ''},
+        }).finally(function(){ window.location.href = '/login/'; });
+      });
+    }
+
+    // Sem número conectado, a página é só o convite para conectar. Todo o
+    // resto deste ficheiro assume a caixa de entrada montada.
+    if (!inbox){
+      setupConnect();
+      return;
+    }
+
+    // ── Conexão do número (Embedded Signup) ─────────────────────────────
+    //
+    // O popup da Meta devolve duas coisas por caminhos diferentes: o `code`
+    // volta no callback do FB.login, e o `waba_id` chega antes, por
+    // postMessage. Por isso o identificador é guardado à parte e só usado
+    // quando o código aparece.
+    function setupConnect(){
+      const button = el('connectBtn');
+      const hint = el('connectHint');
+      const error = el('connectError');
+
+      // Professor parceiro não vê o painel: quem conecta é o dono da conta.
+      if (!button) return;
+
+      const session = {waba_id: '', phone_number_id: ''};
+      let config = null;
+
+      function fail(message){
+        error.textContent = message;
+        error.hidden = false;
+        button.disabled = false;
+        hint.textContent = 'Se o erro insistir, avise o suporte.';
+      }
+
+      window.addEventListener('message', function(event){
+        let host = '';
+        try { host = new URL(event.origin).hostname; } catch (e) { return; }
+        if (host !== 'facebook.com' && !host.endsWith('.facebook.com')) return;
+
+        let data;
+        try {
+          data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        } catch (e) { return; }
+
+        if (!data || data.type !== 'WA_EMBEDDED_SIGNUP') return;
+
+        // FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING é o evento da coexistência;
+        // os outros dois cobrem o fluxo normal, caso a Meta caia nele.
+        const concluiu = data.event === 'FINISH'
+          || data.event === 'FINISH_ONLY_WABA'
+          || data.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING';
+
+        if (concluiu && data.data){
+          session.waba_id = data.data.waba_id || '';
+          session.phone_number_id = data.data.phone_number_id || '';
+        } else if (data.event === 'CANCEL'){
+          hint.textContent = 'Conexão cancelada. Pode tentar de novo quando quiser.';
+          button.disabled = false;
+        }
+      });
+
+      function loadSdk(version){
+        return new Promise(function(resolve, reject){
+          if (window.FB) { resolve(); return; }
+          const script = document.createElement('script');
+          script.src = 'https://connect.facebook.net/pt_BR/sdk.js';
+          script.async = true;
+          script.defer = true;
+          script.crossOrigin = 'anonymous';
+          script.onload = function(){
+            window.FB.init({
+              appId: config.app_id,
+              autoLogAppEvents: true,
+              xfbml: false,
+              version: version,
+            });
+            resolve();
+          };
+          script.onerror = function(){
+            reject(new Error('Não foi possível carregar o conector da Meta.'));
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      async function connect(){
+        error.hidden = true;
+        button.disabled = true;
+        hint.textContent = 'A abrir a janela da Meta…';
+
+        const extras = {setup: {}, sessionInfoVersion: '3'};
+        if (config.feature_type) extras.featureType = config.feature_type;
+
+        window.FB.login(function(response){
+          const code = response && response.authResponse && response.authResponse.code;
+
+          if (!code){
+            hint.textContent = 'A conexão não foi concluída.';
+            button.disabled = false;
+            return;
+          }
+
+          hint.textContent = 'A ligar o número. Isto leva alguns segundos…';
+
+          api('/api/whatsapp/signup/complete/', {
+            method: 'POST',
+            body: JSON.stringify({
+              code: code,
+              waba_id: session.waba_id,
+              phone_number_id: session.phone_number_id,
+            }),
+          }).then(function(data){
+            hint.textContent = 'Conectado! A carregar as conversas…';
+            if (data.warning) console.warn('[WhatsApp]', data.warning);
+            window.location.reload();
+          }).catch(function(e){
+            fail(e.message);
+          });
+        }, {
+          config_id: config.config_id,
+          response_type: 'code',
+          override_default_response_type: true,
+          extras: extras,
+        });
+      }
+
+      api('/api/whatsapp/signup/config/').then(function(data){
+        config = data;
+
+        if (!config.configured){
+          hint.textContent = 'A integração com a Meta ainda não foi configurada '
+                           + 'neste ambiente. Fale com o suporte.';
+          return;
+        }
+
+        return loadSdk(config.graph_version).then(function(){
+          button.disabled = false;
+          hint.textContent = 'Abre uma janela da Meta. Leva uns 3 minutos.';
+          button.addEventListener('click', connect);
+        });
+      }).catch(function(e){
+        hint.textContent = '';
+        fail(e.message);
+      });
     }
 
     // ── Tempo, em português e sem enfeite ───────────────────────────────
@@ -1481,16 +1791,6 @@
     document.addEventListener('keydown', function(event){
       if (event.key === 'Escape' && el('sheet').dataset.open === 'true') closeSheet();
     });
-
-    const logout = el('logoutBtn');
-    if (logout){
-      logout.addEventListener('click', function(){
-        fetch('/api/auth/logout/', {
-          method:'POST',
-          headers:{'X-CSRFToken': getCookie('csrftoken') || ''},
-        }).finally(function(){ window.location.href = '/login/'; });
-      });
-    }
 
     // ── Arranque e atualização ──────────────────────────────────────────
     async function boot(){
