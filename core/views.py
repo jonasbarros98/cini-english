@@ -1844,12 +1844,15 @@ class ReciboView(TemplateView):
 
 class HomeView(View):
     """
-    Rota principal (/): usuário não logado → landing v6 (produção); logado → dashboard/planos/calendar.
+    Rota principal (/): usuário não logado → landing v8 (produção); logado → dashboard/planos/calendar.
     Permite usar educaflow.com.br no Instagram levando direto à landing (trilha de venda).
+
+    A landing v6 continua no repositório e é a volta imediata em caso de
+    problema: basta trocar o nome do template abaixo.
     """
     def get(self, request):
         if not request.user.is_authenticated:
-            return render(request, "landing_v6.html")
+            return render(request, "landing_v8.html")
         # Sincronizar assinatura com Stripe antes de checar (corrige trial/pendente)
         try:
             sub = request.user.subscription
