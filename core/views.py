@@ -95,6 +95,7 @@ from .models import Invoice, FinancialEntry, UserProfile, LessonPlan, LessonPlan
 from .models import Student, Lesson, StudentHomework, StudentHomeworkMessage, StudentHomeworkMessageRead, Subscription, StripeEvent, DayNote, SupportTicket, PublicBookingRequest, StudentShareToken, StudentMaterial, TeacherMaterial
 from .serializers import StudentSerializer, LessonSerializer, StudentHomeworkSerializer, TeacherMaterialSerializer
 from .serializers import InvoiceSerializer, FinancialEntrySerializer, UserSerializer, LessonPlanSerializer, LessonPlanAttachmentSerializer, BillingLogSerializer, ProfileSerializer
+from .exports import MIME_XLSX, planilha_alunos
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.select_related("user", "assigned_teacher").all().order_by("name")
@@ -135,6 +136,44 @@ class StudentViewSet(viewsets.ModelViewSet):
             qs = qs.filter(status=status_filter)
 
         return qs
+
+    @action(detail=False, methods=["post"], url_path="export-excel")
+    def export_excel(self, request):
+        """Relatório de alunos em .xlsx.
+
+        A tela envia os IDs já filtrados e na ordem em que aparecem, para a
+        planilha ser exatamente o que o professor está vendo. Sem isso, a
+        lógica de filtro teria de ser reescrita aqui e as duas versões
+        acabariam divergindo com o tempo.
+
+        O cruzamento com `get_queryset()` é o que garante a segurança: mesmo
+        que alguém envie IDs à mão, só saem os alunos que aquele utilizador
+        já poderia ver.
+        """
+        ids = request.data.get("ids") or []
+        qs = self.get_queryset()
+
+        if ids:
+            posicao = {}
+            for indice, valor in enumerate(ids):
+                try:
+                    posicao[int(valor)] = indice
+                except (TypeError, ValueError):
+                    continue
+            alunos = sorted(
+                qs.filter(id__in=posicao.keys()),
+                key=lambda a: posicao.get(a.id, len(posicao)),
+            )
+        else:
+            alunos = list(qs)
+
+        professor = (request.user.get_full_name() or "").strip() or request.user.username
+        conteudo = planilha_alunos(alunos, nome_professor=professor)
+
+        resposta = HttpResponse(conteudo, content_type=MIME_XLSX)
+        nome = f"alunos_{timezone.localdate():%Y-%m-%d}.xlsx"
+        resposta["Content-Disposition"] = f'attachment; filename="{nome}"'
+        return resposta
     
     def get_serializer_context(self):
         context = super().get_serializer_context()

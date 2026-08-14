@@ -1375,7 +1375,7 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn ghost" type="button" id="btnSort">Ordenar</button>
-          <button class="btn ghost" type="button" id="btnExport">Exportar</button>
+          <button class="btn ghost" type="button" id="btnExport" title="Baixar a lista de alunos em Excel, com os mesmos filtros que estão aplicados aqui">Exportar Excel</button>
         </div>
       </div>
     </div>
@@ -2366,87 +2366,68 @@
         });
       }
       
-      function handleExport() {
+      // Exportação em Excel. Substituiu o CSV que era montado aqui no
+      // navegador, que levava 7 dos cerca de 20 campos do aluno e abria no
+      // Excel como texto puro, sem formatação nenhuma.
+      //
+      // Quem monta a planilha agora é o servidor (core/exports.py). Enviamos
+      // os IDs já filtrados e na ordem em que aparecem na tela, então o
+      // ficheiro sai exatamente igual ao que o professor está vendo, sem a
+      // lógica de filtro precisar ser reescrita no backend e as duas versões
+      // divergirem com o tempo.
+      async function handleExport() {
         if (!btnExport) return;
-        
+
         const filtered = getFilteredStudents();
         if (!filtered || filtered.length === 0) {
           showToast('Nenhum aluno para exportar', true);
           return;
         }
-        
-        // Desabilitar botão durante exportação
+
         btnExport.disabled = true;
         const originalText = btnExport.textContent;
-        btnExport.textContent = 'Exportando...';
-        
+        btnExport.textContent = 'Gerando planilha...';
+
         try {
-          // Preparar dados CSV
-          const headers = ['Nome', 'Status', 'Plano', 'Total de Aulas', 'Aulas Realizadas', 'Telefone', 'Email'];
-          const rows = filtered.map(student => {
-            const status = student.status === 'active' ? 'Ativo' : 
-                          student.status === 'paused' ? 'Pausado' : 'Encerrado';
-            const plan = student.plan_name || 'Sem plano';
-            const total = student.lessons_total || 0;
-            // Calcular aulas realizadas dinamicamente
-          // Por enquanto usa o valor do backend, mas idealmente deveria calcular aqui também
-          const done = student.lessons_done || 0;
-            const phone = student.phone || '';
-            const email = student.email || '';
-            
-            // Escapar valores que podem conter vírgulas ou aspas
-            const escapeCSV = (val) => {
-              if (!val) return '';
-              const str = String(val);
-              if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-              }
-              return str;
-            };
-            
-            return [
-              escapeCSV(student.name || ''),
-              escapeCSV(status),
-              escapeCSV(plan),
-              escapeCSV(total),
-              escapeCSV(done),
-              escapeCSV(phone),
-              escapeCSV(email)
-            ];
+          const resp = await fetch('/api/students/export-excel/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken') || '',
+            },
+            body: JSON.stringify({ ids: filtered.map(s => s.id) }),
           });
-          
-          // Criar conteúdo CSV
-          const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
-          ].join('\n');
-          
-          // Adicionar BOM para UTF-8 (ajuda Excel a abrir corretamente)
-          const BOM = '\uFEFF';
-          const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-          
-          // Criar link de download
+
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+          const blob = await resp.blob();
+
+          // Preferimos o nome sugerido pelo servidor no Content-Disposition;
+          // se o cabeçalho não vier, montamos um com a data de hoje.
+          let filename = '';
+          const disp = resp.headers.get('Content-Disposition') || '';
+          const m = disp.match(/filename="?([^";]+)"?/);
+          if (m) filename = m[1];
+          if (!filename) {
+            const d = new Date();
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            filename = `alunos_${dateStr}.xlsx`;
+          }
+
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          
-          // Nome do arquivo com data
-          const today = new Date();
-          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-          link.download = `alunos_${dateStr}.csv`;
-          
-          // Trigger download
+          link.download = filename;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
-          
-          showToast(`Exportados ${filtered.length} aluno(s) com sucesso!`, false);
+
+          showToast(`Planilha gerada com ${filtered.length} aluno(s).`, false);
         } catch (error) {
           console.error('Erro ao exportar:', error);
-          showToast('Erro ao exportar. Tente novamente.', true);
+          showToast('Não consegui gerar a planilha. Tente novamente.', true);
         } finally {
-          // Reabilitar botão
           btnExport.disabled = false;
           btnExport.textContent = originalText;
         }
