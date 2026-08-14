@@ -137,6 +137,11 @@ urlpatterns = [
     ),
     path("arquivos/", ArquivosView.as_view(), name="arquivos"),
     path("arquivos-v2/", ArquivosView.as_view(template_name="arquivos_v2.html"), name="arquivos-v2"),
+    # Telas em avaliacao. Mesma view, mesmos dados e mesmas permissoes: muda
+    # so o template. As telas originais continuam intactas nas rotas de
+    # sempre, entao da para abrir as duas versoes lado a lado e comparar.
+    # Remover estas rotas se a versao nova nao for adiante.
+    path("alunos-v2/", AlunosView.as_view(template_name="alunos_v2.html"), name="alunos-v2"),
     path("api/arquivos/", list_teacher_materials, name="api-arquivos-list"),
     path("api/arquivos/upload/", upload_teacher_material, name="api-arquivos-upload"),
     path("api/arquivos/<int:material_id>/", update_teacher_material, name="api-arquivos-update"),
