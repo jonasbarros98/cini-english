@@ -191,18 +191,57 @@ neutraliza antes de o Django carregar as settings.
 
 ---
 
+## Cobrança pelo canal (Fase 3)
+
+`send_billing_message` decide sozinho como falar:
+
+- **Janela aberta e texto escrito:** manda o texto da professora, que é de
+  graça e soa como ela.
+- **Janela fechada:** usa o modelo aprovado do tipo pedido, preenchendo nome,
+  valor e vencimento nas chaves `{{1}}`, `{{2}}`, `{{3}}`.
+
+O `BillingLog` e o `WhatsAppMessage` nascem na **mesma transação** e ficam
+ligados, o que permite a ficha do aluno mostrar entrega e leitura. Falha no
+envio não deixa `BillingLog` órfão: registrar cobrança que não saiu seria pior
+do que não registrar.
+
+O endpoint `/api/whatsapp/billing/status/` diz à interface **como** a mensagem
+vai sair, e o botão "Enviar pelo EducaFlow" só aparece quando o envio vai
+funcionar. Botão que promete e falha é pior do que botão ausente.
+
+A interface vive em `frontend/templates/cobranca.html` mais
+`core/static/script.js`.
+
+> [!warning] `cobranca_standalone.html` é código morto
+> Nenhuma view a referencia. A cobrança real é a `cobranca.html`, incluída
+> pelo `index.html`. Perdi tempo editando a errada.
+
+## Anexos
+
+Baixados assim que a mensagem chega, porque **a URL da Meta expira** e depois o
+`media_id` não serve para nada. Teto de 16 MB. Falha no download nunca derruba
+o webhook: anexo perdido é ruim, webhook em erro é pior, porque a Meta
+reentrega o lote e acaba desativando a assinatura.
+
 ## O que ainda não existe
 
-- Ligação com cobrança e lembrete de aula (Fase 3): o serviço já tem
-  `conversation_for_student` e `template_for`, falta chamar a partir das views
-  do financeiro e do calendário.
-- Download e guarda das mídias recebidas: o `media_id` é gravado, mas o
-  ficheiro ainda não é baixado, e a URL da Meta expira. Hoje áudio e imagem
-  aparecem na conversa como `[audio]` e `[image]`.
-- Envio de mídia e de áudio pela caixa de entrada.
-- Preenchimento das variáveis do modelo na interface: o envio de template pela
-  tela ainda vai sem parâmetros. Serve para modelo sem variável; a Fase 3 vai
-  precisar disto para a cobrança.
+- **Recebimento nunca foi exercitado**: precisa de URL pública, e a Meta não
+  alcança `localhost`. É a metade não testada do sistema.
+- Envio de mídia e de áudio **pela** caixa de entrada.
+- Preenchimento das variáveis do modelo na tela da caixa de entrada: o envio de
+  template por ali ainda vai sem parâmetros. A cobrança preenche sozinha.
 - Atualização em tempo real: hoje a tela pergunta ao servidor a cada 12
   segundos. Chega para uma escola, não chega para dezenas de professores no
   mesmo número.
+
+## Armadilha do ambiente local
+
+`staticfiles/script.js` pode ficar **velho** e ser servido no lugar de
+`core/static/script.js`, fazendo parecer que a alteração de JS não pegou.
+Encontrado em 14/08/2026 com uma cópia de março. Se mexeu no JS e nada mudou:
+
+```bash
+.venv/Scripts/python.exe dev_local.py collectstatic --noinput
+```
+
+E depois recarregue ignorando o cache do browser.
