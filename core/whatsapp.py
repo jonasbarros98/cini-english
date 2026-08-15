@@ -40,7 +40,7 @@ from django.utils import timezone
 # Configuração
 # ---------------------------------------------------------------------------
 
-GRAPH_VERSION = os.environ.get("WHATSAPP_GRAPH_VERSION", "v23.0").strip() or "v23.0"
+GRAPH_VERSION = os.environ.get("WHATSAPP_GRAPH_VERSION", "v25.0").strip() or "v25.0"
 GRAPH_BASE_URL = f"https://graph.facebook.com/{GRAPH_VERSION}"
 
 # Janela de atendimento da Meta: 24h a contar da última mensagem do cliente.
