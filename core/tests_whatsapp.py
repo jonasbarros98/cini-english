@@ -12,12 +12,14 @@ import hashlib
 import hmac
 import json
 import os
+import shutil
+import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
 from unittest import mock
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -721,6 +723,170 @@ class InboxApiTests(WhatsAppTestBase):
         conversas = resposta.json()["conversations"]
         self.assertEqual(len(conversas), 1)
         self.assertEqual(conversas[0]["id"], self.conversa_joao.id)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="wa-test-media-"))
+class MediaDownloadTests(WhatsAppTestBase):
+    """
+    Anexos recebidos.
+
+    Na prática: pai manda comprovante de pagamento por foto e recado por
+    áudio. A URL da Meta expira, então ou baixamos na hora ou perdemos.
+
+    Grava numa pasta temporária: teste que suja a pasta `media/` do projeto
+    deixa lixo que ninguém sabe de onde veio.
+    """
+
+    def build_media_payload(self, *, tipo="image", media_id="media-1",
+                            mime="image/jpeg", filename="", caption="",
+                            wamid="wamid.MEDIA"):
+        media = {"id": media_id, "mime_type": mime}
+        if filename:
+            media["filename"] = filename
+        if caption:
+            media["caption"] = caption
+
+        return {
+            "object": "whatsapp_business_account",
+            "entry": [{"id": "waba-1", "changes": [{
+                "field": "messages",
+                "value": {
+                    "messaging_product": "whatsapp",
+                    "metadata": {"phone_number_id": "123456"},
+                    "contacts": [{"profile": {"name": "Maria"}, "wa_id": "554188369627"}],
+                    "messages": [{
+                        "from": "554188369627",
+                        "id": wamid,
+                        "timestamp": str(int(timezone.now().timestamp())),
+                        "type": tipo,
+                        tipo: media,
+                    }],
+                },
+            }]}],
+        }
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_imagem_recebida_e_baixada_e_guardada(self):
+        cliente = mock.Mock()
+        cliente.get_media_url.return_value = {
+            "url": "https://lookaside.fb/x", "mime_type": "image/jpeg",
+            "file_size": 1024,
+        }
+        cliente.download_media.return_value = b"conteudo-binario-falso"
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            service.process_webhook(self.build_media_payload())
+
+        m = WhatsAppMessage.objects.get()
+        self.assertEqual(m.message_type, "image")
+        self.assertTrue(m.media_file)
+        # Sem nome vindo da Meta, o ficheiro ganha extensão pelo mime: assim
+        # abre com dois cliques em vez de virar "download" sem nome.
+        self.assertTrue(m.media_file.name.endswith(".jpg"))
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_audio_ganha_extensao_certa(self):
+        cliente = mock.Mock()
+        cliente.get_media_url.return_value = {
+            "url": "https://lookaside.fb/a", "mime_type": "audio/ogg; codecs=opus",
+            "file_size": 2048,
+        }
+        cliente.download_media.return_value = b"audio"
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            service.process_webhook(
+                self.build_media_payload(tipo="audio", mime="audio/ogg")
+            )
+
+        m = WhatsAppMessage.objects.get()
+        self.assertTrue(m.media_file.name.endswith(".ogg"))
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_documento_mantem_o_nome_original(self):
+        cliente = mock.Mock()
+        cliente.get_media_url.return_value = {
+            "url": "https://lookaside.fb/d", "mime_type": "application/pdf",
+            "file_size": 4096,
+        }
+        cliente.download_media.return_value = b"%PDF-1.4"
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            service.process_webhook(self.build_media_payload(
+                tipo="document", mime="application/pdf", filename="comprovante.pdf"
+            ))
+
+        m = WhatsAppMessage.objects.get()
+        self.assertIn("comprovante", m.media_file.name)
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_anexo_grande_demais_e_recusado_sem_travar(self):
+        cliente = mock.Mock()
+        cliente.get_media_url.return_value = {
+            "url": "https://lookaside.fb/v", "mime_type": "video/mp4",
+            "file_size": service.MAX_MEDIA_BYTES + 1,
+        }
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            service.process_webhook(self.build_media_payload(
+                tipo="video", mime="video/mp4"
+            ))
+
+        m = WhatsAppMessage.objects.get()
+        self.assertFalse(m.media_file)
+        self.assertIn("grande demais", m.error_message)
+        # A mensagem em si continua na conversa: o anexo falhou, não a
+        # mensagem.
+        self.assertEqual(m.message_type, "video")
+        cliente.download_media.assert_not_called()
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_falha_no_download_nao_derruba_o_webhook(self):
+        # Se o webhook falhasse, a Meta reentregaria o lote inteiro. Anexo
+        # perdido é menos grave do que webhook em erro.
+        cliente = mock.Mock()
+        cliente.get_media_url.side_effect = wa.WhatsAppAPIError("expirou", code=100)
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            resumo = service.process_webhook(self.build_media_payload())
+
+        self.assertEqual(resumo["errors"], 0)
+        self.assertEqual(resumo["processed"], 1)
+        m = WhatsAppMessage.objects.get()
+        self.assertFalse(m.media_file)
+        self.assertEqual(m.media_id, "media-1")
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_legenda_da_imagem_vira_o_texto_da_mensagem(self):
+        cliente = mock.Mock()
+        cliente.get_media_url.return_value = {
+            "url": "https://lookaside.fb/x", "mime_type": "image/jpeg", "file_size": 10,
+        }
+        cliente.download_media.return_value = b"x"
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            service.process_webhook(self.build_media_payload(
+                caption="Segue o comprovante do Pix"
+            ))
+
+        m = WhatsAppMessage.objects.get()
+        self.assertEqual(m.body, "Segue o comprovante do Pix")
+        conversa = WhatsAppConversation.objects.get()
+        self.assertEqual(conversa.last_message_preview, "Segue o comprovante do Pix")
+
+    def test_nao_baixa_duas_vezes(self):
+        cliente = mock.Mock()
+        cliente.get_media_url.return_value = {
+            "url": "https://lookaside.fb/x", "mime_type": "image/jpeg", "file_size": 10,
+        }
+        cliente.download_media.return_value = b"x"
+
+        with mock.patch.dict(os.environ, TEST_ENV):
+            with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+                service.process_webhook(self.build_media_payload())
+                m = WhatsAppMessage.objects.get()
+                self.assertTrue(service.download_media(m) is False)
+
+        self.assertEqual(cliente.download_media.call_count, 1)
 
 
 class TemplateTests(WhatsAppTestBase):

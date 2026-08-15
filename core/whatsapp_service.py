@@ -237,7 +237,7 @@ def _record_inbound(account: WhatsAppAccount, raw: dict, profiles: dict) -> None
     conversation = get_or_create_conversation(contact)
     when = wa.parse_timestamp(parsed["timestamp"])
 
-    WhatsAppMessage.objects.create(
+    mensagem = WhatsAppMessage.objects.create(
         conversation=conversation,
         wamid=wamid,
         direction=WhatsAppMessage.DIRECTION_INBOUND,
@@ -265,6 +265,11 @@ def _record_inbound(account: WhatsAppAccount, raw: dict, profiles: dict) -> None
     ])
 
     _check_opt_out(contact, parsed["body"])
+
+    # A URL da mídia na Meta expira. Se não baixarmos agora, o comprovante de
+    # pagamento e o áudio do pai viram um id inútil.
+    if parsed["media_id"]:
+        download_media(mensagem)
 
 
 @transaction.atomic
@@ -317,6 +322,80 @@ def _record_echo(account: WhatsAppAccount, raw: dict) -> None:
     conversation.save(update_fields=[
         "last_message_at", "last_message_preview", "unread_count", "updated_at",
     ])
+
+
+# Tamanho máximo que guardamos de um anexo. A Meta já limita o envio, mas um
+# vídeo de 16 MB por aluno enche o disco do container sem avisar.
+MAX_MEDIA_BYTES = 16 * 1024 * 1024
+
+# Extensão por tipo, para o ficheiro salvo abrir com dois cliques em vez de
+# virar um "download" sem nome no computador da professora.
+_MEDIA_EXTENSIONS = {
+    "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+    "audio/ogg": ".ogg", "audio/mpeg": ".mp3", "audio/mp4": ".m4a",
+    "audio/amr": ".amr", "video/mp4": ".mp4", "video/3gpp": ".3gp",
+    "application/pdf": ".pdf",
+}
+
+
+def download_media(message: WhatsAppMessage) -> bool:
+    """
+    Baixa o anexo e guarda junto da mensagem.
+
+    Vale a pena insistir: a URL que a Meta devolve **expira**, então isto tem
+    de acontecer perto do recebimento. Depois disso o `media_id` não serve
+    para mais nada.
+
+    Nunca levanta. Anexo perdido é ruim; webhook falhando por causa de anexo é
+    pior, porque a Meta reentrega o lote inteiro.
+    """
+    if not message.media_id or message.media_file:
+        return False
+
+    account = message.conversation.account
+    if not account.can_send:
+        return False
+
+    try:
+        client = account.get_client()
+        meta = client.get_media_url(message.media_id)
+
+        url = meta.get("url", "")
+        tamanho = int(meta.get("file_size") or 0)
+        mime = meta.get("mime_type") or message.media_mime
+
+        if not url:
+            return False
+
+        if tamanho and tamanho > MAX_MEDIA_BYTES:
+            print(f"[WhatsApp] Anexo de {tamanho} bytes ignorado (limite "
+                  f"{MAX_MEDIA_BYTES}), wamid={message.wamid}")
+            message.error_message = "Anexo grande demais para guardar."
+            message.save(update_fields=["error_message", "updated_at"])
+            return False
+
+        conteudo = client.download_media(url)
+
+    except wa.WhatsAppAPIError as exc:
+        print(f"[WhatsApp] Falha ao baixar anexo de {message.wamid}: {exc}")
+        return False
+    except Exception as exc:  # noqa: BLE001 - anexo nunca derruba o webhook
+        print(f"[WhatsApp] Erro inesperado ao baixar anexo: {exc}")
+        return False
+
+    from django.core.files.base import ContentFile
+
+    nome = message.media_filename or ""
+    if not nome or "." not in nome:
+        extensao = _MEDIA_EXTENSIONS.get((mime or "").split(";")[0], ".bin")
+        nome = f"{message.media_id}{extensao}"
+
+    message.media_file.save(nome, ContentFile(conteudo), save=False)
+    message.media_mime = mime or message.media_mime
+    message.save(update_fields=["media_file", "media_mime", "updated_at"])
+
+    print(f"[WhatsApp] Anexo guardado: {nome} ({len(conteudo)} bytes)")
+    return True
 
 
 def _apply_status(account: WhatsAppAccount, raw: dict) -> None:

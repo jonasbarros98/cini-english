@@ -488,6 +488,38 @@
       border-color: var(--danger-line);
     }
 
+    /* Anexos. A imagem manda no tamanho do balão, então tem teto. */
+    .msg-media{
+      display:block;
+      max-width:100%;
+      max-height:320px;
+      border-radius: var(--r-2);
+      margin-bottom:6px;
+      background: var(--surface-3);
+    }
+    .msg-audio{
+      display:block;
+      width: min(280px, 100%);
+      margin-bottom:6px;
+    }
+    .msg-file{
+      display:inline-flex;align-items:center;gap:6px;
+      padding: 7px 10px;margin-bottom:6px;
+      border:1px solid var(--border);border-radius: var(--r-2);
+      background: var(--surface);
+      color: var(--text-2);
+      font-size: var(--fs-sm);font-weight:600;
+      text-decoration:none;
+      word-break:break-all;
+    }
+    .msg-file:hover{border-color: var(--brand-line);color: var(--brand-strong)}
+    .msg-media-pending{
+      margin:0 0 4px;
+      font-size: var(--fs-xs);
+      font-style:italic;
+      color: var(--text-soft);
+    }
+
     .msg-foot{
       display:flex;align-items:center;gap:5px;justify-content:flex-end;
       margin-top:4px;
@@ -752,6 +784,15 @@
       .connect h1{max-width:none}
     }
 
+    .side-number{
+      margin: 0 0 var(--sp-3);
+      display:flex;align-items:center;gap:6px;
+      font-size: var(--fs-sm);
+      font-weight:600;
+      color: var(--text-2);
+      font-variant-numeric: tabular-nums;
+    }
+
     /* --- Aviso de canal desligado --- */
     .notice{
       display:flex;gap:var(--sp-3);align-items:flex-start;
@@ -869,6 +910,7 @@
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19.4 12H5.4M11 6.4 5.4 12l5.6 5.6"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11.2v5.2M12 7.7v.5"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M13.6 3.6H7.4a2 2 0 0 0-2 2v12.8a2 2 0 0 0 2 2h9.2a2 2 0 0 0 2-2V8.6z"/><path d="M13.6 3.6v5h5"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.6 3.6h2.9l1.4 3.6-2 1.4a12.2 12.2 0 0 0 6.5 6.5l1.4-2 3.6 1.4v2.9a2 2 0 0 1-2.2 2A17.6 17.6 0 0 1 4.6 5.8a2 2 0 0 1 2-2.2z"/></symbol>
   </svg>
 
   <div class="app-shell">
@@ -951,11 +993,20 @@
       </nav>
       <div class="sidebar-card">
         <p class="sidebar-title">Canal</p>
+        {% if wa_account %}
+        <p class="side-number">
+          <svg class="ic ic--xs" aria-hidden="true"><use href="#i-phone"></use></svg>
+          {{ wa_account.display_phone_number|default:"número conectado" }}
+        </p>
+        {% endif %}
         <ul class="sidebar-highlights">
           <li><strong id="sideUnread">0</strong> conversas não lidas</li>
           <li><strong id="sideOpen">0</strong> dentro da janela</li>
           <li><strong id="sideUnlinked">0</strong> sem aluno ligado</li>
         </ul>
+        {% if wa_account and not is_partner_teacher %}
+        <button class="primary ghost" id="disconnectBtn"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-link"></use></svg> Trocar número</button>
+        {% endif %}
         <button class="primary ghost" id="logoutBtn"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-logout"></use></svg> Sair</button>
       </div>
     </aside>
@@ -1212,6 +1263,30 @@
         throw err;
       }
       return data;
+    }
+
+    // Trocar número: desliga o canal sem apagar conversa nenhuma, e a página
+    // volta a mostrar o painel de conexão. Sem isto era preciso apagar a conta
+    // no banco para trocar credenciais.
+    const desconectar = el('disconnectBtn');
+    if (desconectar){
+      desconectar.addEventListener('click', function(){
+        const ok = window.confirm(
+          'Desligar o WhatsApp desta conta?\n\n' +
+          'As conversas já recebidas continuam guardadas, e o aplicativo no ' +
+          'celular não é afetado. Só para de enviar e de receber até você ' +
+          'conectar de novo.'
+        );
+        if (!ok) return;
+
+        desconectar.disabled = true;
+        api('/api/whatsapp/disconnect/', {method:'POST', body:'{}'})
+          .then(function(){ window.location.reload(); })
+          .catch(function(e){
+            window.alert(e.message || 'Não foi possível desligar.');
+            desconectar.disabled = false;
+          });
+      });
     }
 
     // A barra lateral existe nos dois estados da página, então liga antes de
@@ -1664,7 +1739,8 @@
         out += '<div class="' + classes.join(' ') + '">' +
           (m.template ? '<span class="msg-template">' +
             '<svg class="ic ic--xs" aria-hidden="true"><use href="#i-file"></use></svg>modelo</span>' : '') +
-          '<p>' + escapeHtml(m.body || ('[' + m.type + ']')) + '</p>' +
+          mediaHtml(m) +
+          (m.body ? '<p>' + escapeHtml(m.body) + '</p>' : '') +
           (m.error ? '<p class="msg-error">' + escapeHtml(m.error) + '</p>' : '') +
           '<div class="msg-foot">' + foot.join('') + '</div>' +
         '</div>';
@@ -1673,6 +1749,37 @@
       }).join('');
 
       box.scrollTop = box.scrollHeight;
+    }
+
+    // Anexo dentro do balão. Imagem aparece, áudio toca, o resto vira link.
+    // Enquanto o download não terminou, mostra o tipo em vez de sumir: some
+    // seria a professora achar que a mensagem veio vazia.
+    function mediaHtml(m){
+      const tipos = ['image','audio','voice','video','document','sticker'];
+      if (tipos.indexOf(m.type) === -1) return '';
+
+      if (!m.media_url){
+        const rotulos = {
+          image:'imagem', audio:'áudio', voice:'áudio', video:'vídeo',
+          document:'documento', sticker:'figurinha',
+        };
+        return '<p class="msg-media-pending">' +
+          (rotulos[m.type] || 'anexo') + ' a carregar…</p>';
+      }
+
+      if (m.type === 'image' || m.type === 'sticker'){
+        return '<a href="' + m.media_url + '" target="_blank" rel="noopener">' +
+               '<img class="msg-media" src="' + m.media_url + '" alt="Imagem recebida"></a>';
+      }
+      if (m.type === 'audio' || m.type === 'voice'){
+        return '<audio class="msg-audio" controls preload="none" src="' + m.media_url + '"></audio>';
+      }
+      if (m.type === 'video'){
+        return '<video class="msg-media" controls preload="none" src="' + m.media_url + '"></video>';
+      }
+      return '<a class="msg-file" href="' + m.media_url + '" target="_blank" rel="noopener">' +
+             '<svg class="ic ic--sm" aria-hidden="true"><use href="#i-file"></use></svg>' +
+             escapeHtml(m.media_filename || 'documento') + '</a>';
     }
 
     function ticks(status){

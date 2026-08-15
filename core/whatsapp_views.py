@@ -207,6 +207,9 @@ def _serialize_message(message) -> dict:
         "body": message.body,
         "media_mime": message.media_mime,
         "media_filename": message.media_filename,
+        # Só devolve URL quando o ficheiro foi mesmo guardado. A URL da Meta
+        # expira, então media_id sozinho não serve para a interface.
+        "media_url": message.media_file.url if message.media_file else "",
         "template": message.template.name if message.template_id else "",
         "sent_by": (
             message.sent_by.get_full_name() or message.sent_by.username
