@@ -13,6 +13,7 @@ from django.utils import timezone
 from core import whatsapp as wa
 from core.models import (
     BillingLog,
+    Lesson,
     Student,
     WhatsAppAccount,
     WhatsAppContact,
@@ -203,6 +204,9 @@ def _process_change(account: WhatsAppAccount, field: str, value: dict) -> None:
 
     elif field == wa.FIELD_APP_STATE:
         _sync_contacts(account, value)
+
+    elif field == wa.FIELD_TEMPLATE_STATUS:
+        _apply_template_status(account, value)
 
 
 def _profile_names(value: dict) -> dict:
@@ -458,6 +462,16 @@ def send_template(conversation: WhatsAppConversation,
             f"mensagens iniciadas pela escola."
         )
 
+    # A Meta recusa quando a contagem não bate, com um erro genérico que não
+    # ajuda ninguém. Melhor dizer aqui exatamente o que falta.
+    esperados = wa.count_template_variables(template.body_text)
+    recebidos = len(body_params or [])
+    if esperados != recebidos:
+        raise WhatsAppSendError(
+            f"O modelo '{template.name}' espera {esperados} informação(ões) "
+            f"e recebeu {recebidos}."
+        )
+
     client = conversation.account.get_client()
     try:
         result = client.send_template(
@@ -589,6 +603,138 @@ def conversation_for_student(student: Student) -> WhatsAppConversation | None:
     return get_or_create_conversation(contact)
 
 
+# ---------------------------------------------------------------------------
+# Modelos de mensagem
+# ---------------------------------------------------------------------------
+
+def sync_templates(account: WhatsAppAccount) -> dict:
+    """
+    Traz da Meta o estado dos modelos e reflete no banco.
+
+    A Meta é a fonte da verdade de nome, corpo e aprovação. O `purpose`, que é
+    a ligação com o uso interno (cobrança, lembrete), é nosso e nunca é
+    sobrescrito por esta sincronização.
+    """
+    client = account.get_client()
+    data = client.list_templates()
+
+    resumo = {"criados": 0, "atualizados": 0}
+    vistos = []
+
+    for raw in data.get("data", []) or []:
+        nome = raw.get("name", "")
+        idioma = raw.get("language", "") or "pt_BR"
+        if not nome:
+            continue
+
+        corpo = wa.extract_template_body(raw.get("components"))
+
+        template, criado = WhatsAppTemplate.objects.get_or_create(
+            account=account, name=nome, language=idioma,
+            defaults={"purpose": WhatsAppTemplate.PURPOSE_OTHER},
+        )
+
+        template.status = (raw.get("status") or "").upper() or template.status
+        template.category = (raw.get("category") or "").upper() or template.category
+        template.body_text = corpo
+        template.rejected_reason = raw.get("rejected_reason") or ""
+        template.last_synced_at = timezone.now()
+
+        # Só preenche as dicas de variável quando ainda não há nada escrito à
+        # mão: o texto do professor é melhor do que "variável 1".
+        quantas = wa.count_template_variables(corpo)
+        if quantas and not template.variable_hints:
+            template.variable_hints = [f"variável {i}" for i in range(1, quantas + 1)]
+
+        template.save()
+        vistos.append(template.id)
+        resumo["criados" if criado else "atualizados"] += 1
+
+    resumo["total"] = len(vistos)
+    return resumo
+
+
+def create_template(account: WhatsAppAccount, name: str, body_text: str,
+                    purpose: str, category: str = WhatsAppTemplate.CATEGORY_UTILITY,
+                    language: str = "pt_BR",
+                    variable_hints: list | None = None,
+                    example_params: list | None = None) -> WhatsAppTemplate:
+    """
+    Cria o modelo na Meta e guarda como pendente até ela responder.
+
+    A aprovação chega depois, sozinha, pelo webhook
+    `message_template_status_update`. Pode levar minutos ou dias.
+    """
+    name = (name or "").strip().lower().replace(" ", "_")
+    if not name:
+        raise WhatsAppSendError("Dê um nome ao modelo.")
+    if not body_text.strip():
+        raise WhatsAppSendError("Escreva o corpo do modelo.")
+
+    quantas = wa.count_template_variables(body_text)
+    exemplos = example_params or []
+    if quantas and len(exemplos) != quantas:
+        raise WhatsAppSendError(
+            f"O corpo tem {quantas} variável(is), então precisa de {quantas} "
+            f"exemplo(s). A Meta reprova modelo sem exemplo."
+        )
+
+    client = account.get_client()
+    try:
+        client.create_template(
+            name=name, category=category, language=language,
+            body_text=body_text, example_params=exemplos,
+        )
+    except wa.WhatsAppAPIError as exc:
+        raise WhatsAppSendError(f"A Meta recusou o modelo: {exc.message}") from exc
+
+    template, _ = WhatsAppTemplate.objects.update_or_create(
+        account=account, name=name, language=language,
+        defaults={
+            "purpose": purpose,
+            "category": category,
+            "body_text": body_text,
+            "status": WhatsAppTemplate.STATUS_PENDING,
+            "variable_hints": variable_hints or [
+                f"variável {i}" for i in range(1, quantas + 1)
+            ],
+            "rejected_reason": "",
+            "last_synced_at": timezone.now(),
+        },
+    )
+    return template
+
+
+def _apply_template_status(account: WhatsAppAccount, value: dict) -> None:
+    """
+    Reflete o veredito da Meta sobre um modelo.
+
+    Chega pelo webhook, sem a gente pedir. Se o modelo não existir aqui, é
+    porque foi criado direto no painel da Meta: cria como 'outro', para
+    aparecer na interface em vez de sumir.
+    """
+    nome = value.get("message_template_name", "")
+    idioma = value.get("message_template_language", "") or "pt_BR"
+    estado = (value.get("event") or "").upper()
+
+    if not nome or not estado:
+        return
+
+    template, _ = WhatsAppTemplate.objects.get_or_create(
+        account=account, name=nome, language=idioma,
+        defaults={"purpose": WhatsAppTemplate.PURPOSE_OTHER},
+    )
+
+    template.status = estado
+    template.rejected_reason = value.get("reason") or ""
+    template.last_synced_at = timezone.now()
+    template.save(update_fields=[
+        "status", "rejected_reason", "last_synced_at", "updated_at",
+    ])
+
+    print(f"[WhatsApp] Modelo '{nome}' agora está {estado}")
+
+
 def template_for(account: WhatsAppAccount, purpose: str) -> WhatsAppTemplate | None:
     """Modelo aprovado para um uso interno, ou None se ainda não houver."""
     return (
@@ -597,3 +743,137 @@ def template_for(account: WhatsAppAccount, purpose: str) -> WhatsAppTemplate | N
                 status=WhatsAppTemplate.STATUS_APPROVED)
         .first()
     )
+
+
+# ---------------------------------------------------------------------------
+# Fase 3: cobrança e lembrete de aula saindo do sistema
+# ---------------------------------------------------------------------------
+
+# Cada tipo de cobrança que já existe no BillingLog tem um modelo próprio.
+BILLING_PURPOSE_BY_TYPE = {
+    BillingLog.MESSAGE_TYPE_FRIENDLY: WhatsAppTemplate.PURPOSE_BILLING_FRIENDLY,
+    BillingLog.MESSAGE_TYPE_DUE_TODAY: WhatsAppTemplate.PURPOSE_BILLING_DUE_TODAY,
+    BillingLog.MESSAGE_TYPE_OVERDUE: WhatsAppTemplate.PURPOSE_BILLING_OVERDUE,
+    BillingLog.MESSAGE_TYPE_THANK_YOU: WhatsAppTemplate.PURPOSE_BILLING_THANK_YOU,
+}
+
+
+def _money(valor) -> str:
+    """Formata em real, no padrão que a professora escreveria à mão."""
+    try:
+        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (TypeError, ValueError):
+        return str(valor or "")
+
+
+@transaction.atomic
+def send_billing_message(financial_entry, message_type: str, user,
+                         free_text: str = "") -> tuple:
+    """
+    Envia a cobrança de verdade e registra no BillingLog.
+
+    Escolhe sozinho como falar:
+
+    - **Janela aberta e texto escrito:** manda o texto livre, que é de graça e
+      soa como a professora.
+    - **Janela fechada:** usa o modelo aprovado do tipo pedido, com nome, valor
+      e vencimento preenchidos.
+
+    Devolve (WhatsAppMessage, BillingLog). Levanta WhatsAppSendError com o
+    motivo em português quando não dá para enviar.
+    """
+    aluno = financial_entry.student
+    conversa = conversation_for_student(aluno)
+
+    if not conversa:
+        raise WhatsAppSendError(
+            f"Não há WhatsApp cadastrado para {aluno.name}. "
+            f"Confira o telefone na ficha do aluno."
+        )
+
+    texto = (free_text or "").strip()
+
+    if conversa.window_is_open and texto:
+        mensagem = send_text(conversa, texto, sent_by=user)
+        conteudo = texto
+    else:
+        purpose = BILLING_PURPOSE_BY_TYPE.get(message_type)
+        modelo = template_for(conversa.account, purpose) if purpose else None
+
+        if not modelo:
+            rotulo = dict(BillingLog.MESSAGE_TYPE_CHOICES).get(message_type, message_type)
+            raise WhatsAppSendError(
+                f"A janela de 24 horas está fechada e ainda não há modelo "
+                f"aprovado para '{rotulo}'. Aprove um modelo na Meta, ou espere "
+                f"{aluno.name} escrever para responder livremente."
+            )
+
+        # A ordem dos parâmetros segue as chaves {{1}}, {{2}}, {{3}} do corpo
+        # aprovado: nome, valor, vencimento.
+        parametros = [
+            aluno.name,
+            _money(getattr(financial_entry, "amount", None)),
+            (financial_entry.due_date.strftime("%d/%m/%Y")
+             if getattr(financial_entry, "due_date", None) else ""),
+        ]
+        esperados = wa.count_template_variables(modelo.body_text)
+        parametros = parametros[:esperados]
+
+        mensagem = send_template(
+            conversa, modelo, body_params=parametros, sent_by=user,
+        )
+        conteudo = mensagem.body
+
+    registro = BillingLog.objects.create(
+        financial_entry=financial_entry,
+        user=user,
+        message_type=message_type,
+        send_method=BillingLog.SEND_METHOD_WHATSAPP,
+        message_content=conteudo,
+    )
+
+    # Liga os dois lados: a ficha do aluno passa a mostrar "cobrança enviada"
+    # com o status de entrega vindo da Meta.
+    mensagem.billing_log = registro
+    mensagem.save(update_fields=["billing_log", "updated_at"])
+
+    return mensagem, registro
+
+
+@transaction.atomic
+def send_lesson_reminder(lesson, user, hours_label: str = "") -> WhatsAppMessage:
+    """
+    Lembrete de aula, disparado a partir do calendário.
+
+    Sempre por modelo: lembrete é mensagem que a escola inicia, e quase nunca
+    cai dentro da janela de 24 horas.
+    """
+    aluno = getattr(lesson, "student", None)
+    if not aluno:
+        raise WhatsAppSendError("Esta aula não está ligada a um aluno.")
+
+    conversa = conversation_for_student(aluno)
+    if not conversa:
+        raise WhatsAppSendError(
+            f"Não há WhatsApp cadastrado para {aluno.name}."
+        )
+
+    modelo = template_for(conversa.account, WhatsAppTemplate.PURPOSE_LESSON_REMINDER)
+    if not modelo:
+        raise WhatsAppSendError(
+            "Ainda não há modelo aprovado para lembrete de aula."
+        )
+
+    quando = hours_label
+    if not quando and getattr(lesson, "date", None):
+        hora = getattr(lesson, "time", None)
+        quando = f"{lesson.date.strftime('%d/%m')}" + (
+            f" às {hora.strftime('%H:%M')}" if hora else ""
+        )
+
+    parametros = [aluno.name, quando][:wa.count_template_variables(modelo.body_text)]
+
+    mensagem = send_template(
+        conversa, modelo, body_params=parametros, sent_by=user, lesson=lesson,
+    )
+    return mensagem

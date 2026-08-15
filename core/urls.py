@@ -54,6 +54,8 @@ from .whatsapp_views import (
     whatsapp_set_opt_in, whatsapp_templates, whatsapp_students_lookup,
     whatsapp_signup_config, whatsapp_signup_complete, whatsapp_disconnect,
     whatsapp_connect_manual,
+    whatsapp_sync_templates, whatsapp_create_template,
+    whatsapp_send_billing, whatsapp_billing_status,
 )
 
 router = DefaultRouter()
@@ -145,6 +147,10 @@ urlpatterns = [
     path("api/whatsapp/signup/complete/", whatsapp_signup_complete, name="whatsapp-signup-complete"),
     path("api/whatsapp/signup/manual/", whatsapp_connect_manual, name="whatsapp-connect-manual"),
     path("api/whatsapp/disconnect/", whatsapp_disconnect, name="whatsapp-disconnect"),
+    path("api/whatsapp/templates/sync/", whatsapp_sync_templates, name="whatsapp-templates-sync"),
+    path("api/whatsapp/templates/create/", whatsapp_create_template, name="whatsapp-template-create"),
+    path("api/whatsapp/billing/send/", whatsapp_send_billing, name="whatsapp-billing-send"),
+    path("api/whatsapp/billing/status/", whatsapp_billing_status, name="whatsapp-billing-status"),
     path("planos/", PlanosView.as_view(), name="planos"),
     path("planos-v2/", RedirectView.as_view(url="/planos/", permanent=True), name="planos-v2"),
     path("tutorial/", TutorialView.as_view(), name="tutorial"),

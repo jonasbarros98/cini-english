@@ -491,7 +491,39 @@ class CloudAPIClient:
             raise ValueError("waba_id é obrigatório para listar templates")
         return self._request(
             "GET", f"{self.waba_id}/message_templates",
-            params={"limit": limit, "fields": "name,status,category,language,components"},
+            params={"limit": limit,
+                    "fields": "id,name,status,category,language,components,"
+                              "rejected_reason"},
+        )
+
+    def create_template(self, name: str, category: str, language: str,
+                        body_text: str, example_params: list | None = None) -> dict:
+        """
+        Submete um modelo para aprovação da Meta.
+
+        O corpo usa as chaves {{1}}, {{2}}... e a Meta **exige um exemplo** para
+        cada uma: sem exemplo ela reprova sem explicar direito. O nome só aceita
+        minúsculas, números e sublinhado.
+        """
+        if not self.waba_id:
+            raise ValueError("waba_id é obrigatório para criar template")
+
+        body = {"type": "BODY", "text": body_text}
+        if example_params:
+            body["example"] = {"body_text": [[str(p) for p in example_params]]}
+
+        return self._request("POST", f"{self.waba_id}/message_templates", json_body={
+            "name": name,
+            "category": category,
+            "language": language,
+            "components": [body],
+        })
+
+    def delete_template(self, name: str) -> dict:
+        if not self.waba_id:
+            raise ValueError("waba_id é obrigatório para apagar template")
+        return self._request(
+            "DELETE", f"{self.waba_id}/message_templates", params={"name": name}
         )
 
 
@@ -509,12 +541,18 @@ class CloudAPIClient:
 #   history            importação das conversas antigas, nas primeiras 24h
 #                      depois da conexão
 #   smb_app_state_sync contatos do aplicativo sincronizados para a API
+#   message_template_status_update  a Meta aprovou, reprovou ou pausou um
+#                      modelo. Chega sozinho, horas ou dias depois de submeter.
 FIELD_MESSAGES = "messages"
 FIELD_ECHOES = "smb_message_echoes"
 FIELD_HISTORY = "history"
 FIELD_APP_STATE = "smb_app_state_sync"
+FIELD_TEMPLATE_STATUS = "message_template_status_update"
 
-SUPPORTED_FIELDS = (FIELD_MESSAGES, FIELD_ECHOES, FIELD_HISTORY, FIELD_APP_STATE)
+SUPPORTED_FIELDS = (
+    FIELD_MESSAGES, FIELD_ECHOES, FIELD_HISTORY, FIELD_APP_STATE,
+    FIELD_TEMPLATE_STATUS,
+)
 
 
 def iter_changes(payload: dict):
@@ -595,6 +633,32 @@ def parse_message(raw: dict) -> dict:
         parsed["raw_fallback"] = json.dumps(raw, ensure_ascii=False)[:2000]
 
     return parsed
+
+
+def extract_template_body(components: list | None) -> str:
+    """
+    Tira o texto do corpo da lista de componentes que a Meta devolve.
+
+    Um template tem cabeçalho, corpo, rodapé e botões. Só o corpo interessa
+    para mostrar na conversa e para contar as variáveis.
+    """
+    for component in components or []:
+        if (component or {}).get("type", "").upper() == "BODY":
+            return component.get("text", "") or ""
+    return ""
+
+
+def count_template_variables(body_text: str) -> int:
+    """
+    Quantas chaves {{n}} o corpo tem.
+
+    É o que diz quantos parâmetros o envio precisa. Mandar a menos faz a Meta
+    recusar; mandar a mais também.
+    """
+    if not body_text:
+        return 0
+    numeros = {int(n) for n in re.findall(r"\{\{\s*(\d+)\s*\}\}", body_text)}
+    return max(numeros) if numeros else 0
 
 
 def parse_echo(raw: dict) -> dict:

@@ -599,6 +599,186 @@ def whatsapp_disconnect(request):
     return JsonResponse({"connected": False})
 
 
+# ===========================================================================
+# Modelos de mensagem
+# ===========================================================================
+
+def _account_for(user):
+    """A conta que este utilizador usa: a própria, ou a do dono que o atende."""
+    account = getattr(user, "whatsapp_account", None)
+    if account:
+        return account
+    conversation = _visible_conversations(user).first()
+    return conversation.account if conversation else None
+
+
+@require_http_methods(["POST"])
+def whatsapp_sync_templates(request):
+    """Puxa da Meta o estado dos modelos."""
+    if error := _require_login(request):
+        return error
+
+    account = _account_for(request.user)
+    if not account:
+        return JsonResponse({"detail": "Nenhum número conectado."}, status=404)
+
+    try:
+        resumo = service.sync_templates(account)
+    except wa.WhatsAppAPIError as exc:
+        return JsonResponse({"detail": f"A Meta recusou: {exc.message}"}, status=422)
+
+    return JsonResponse({"ok": True, **resumo})
+
+
+@require_http_methods(["POST"])
+def whatsapp_create_template(request):
+    """
+    Submete um modelo novo para aprovação.
+
+    A resposta volta na hora, mas o veredito da Meta chega depois, sozinho,
+    pelo webhook. Por isso o modelo nasce como pendente.
+    """
+    if error := _require_login(request):
+        return error
+
+    account = _account_for(request.user)
+    if not account:
+        return JsonResponse({"detail": "Nenhum número conectado."}, status=404)
+
+    try:
+        data = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"detail": "Requisição inválida."}, status=400)
+
+    try:
+        template = service.create_template(
+            account=account,
+            name=data.get("name") or "",
+            body_text=data.get("body_text") or "",
+            purpose=data.get("purpose") or WhatsAppTemplate.PURPOSE_OTHER,
+            category=(data.get("category") or WhatsAppTemplate.CATEGORY_UTILITY),
+            language=data.get("language") or "pt_BR",
+            variable_hints=data.get("variable_hints") or [],
+            example_params=data.get("example_params") or [],
+        )
+    except service.WhatsAppSendError as exc:
+        return JsonResponse({"detail": str(exc)}, status=422)
+
+    return JsonResponse({
+        "id": template.id,
+        "name": template.name,
+        "status": template.status,
+        "purpose": template.get_purpose_display(),
+    })
+
+
+# ===========================================================================
+# Cobrança e lembrete saindo do sistema
+# ===========================================================================
+
+@require_http_methods(["POST"])
+def whatsapp_send_billing(request):
+    """
+    Envia a cobrança pelo canal e registra no BillingLog, numa transação só.
+
+    Substitui o fluxo de copiar o texto e colar no WhatsApp. O que a professora
+    escreveu vai como texto livre quando a janela está aberta, e vira modelo
+    aprovado quando está fechada.
+    """
+    if error := _require_login(request):
+        return error
+
+    try:
+        data = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"detail": "Requisição inválida."}, status=400)
+
+    from core.models import FinancialEntry
+
+    entry = FinancialEntry.objects.filter(id=data.get("financial_entry")).first()
+    if not entry:
+        return JsonResponse({"detail": "Lançamento não encontrado."}, status=404)
+
+    # Mesma regra de visibilidade do resto do financeiro: o dono da conta e o
+    # professor do aluno.
+    aluno = entry.student
+    pode = (
+        aluno.user_id == request.user.id
+        or aluno.assigned_teacher_id == request.user.id
+    )
+    if not pode:
+        return JsonResponse({"detail": "Sem acesso a este lançamento."}, status=403)
+
+    try:
+        mensagem, registro = service.send_billing_message(
+            financial_entry=entry,
+            message_type=data.get("message_type") or "",
+            user=request.user,
+            free_text=data.get("message_content") or "",
+        )
+    except service.WhatsAppSendError as exc:
+        return JsonResponse({"detail": str(exc)}, status=422)
+
+    return JsonResponse({
+        "sent": True,
+        "billing_log": registro.id,
+        "message": _serialize_message(mensagem),
+        "conversation": mensagem.conversation_id,
+    })
+
+
+@require_http_methods(["GET"])
+def whatsapp_billing_status(request):
+    """
+    Diz à tela de cobrança se dá para enviar pelo sistema, e como.
+
+    Serve para a interface mostrar "Enviar pelo WhatsApp" em vez de "Copiar
+    mensagem" só quando o envio realmente vai funcionar.
+    """
+    if error := _require_login(request):
+        return error
+
+    from core.models import FinancialEntry
+
+    entry = FinancialEntry.objects.filter(
+        id=request.GET.get("financial_entry")
+    ).first()
+    if not entry:
+        return JsonResponse({"detail": "Lançamento não encontrado."}, status=404)
+
+    conversa = service.conversation_for_student(entry.student)
+
+    if not conversa:
+        return JsonResponse({
+            "can_send": False,
+            "reason": "Sem WhatsApp cadastrado para este aluno.",
+        })
+
+    account = conversa.account
+    janela = conversa.window_is_open
+
+    if not account.can_send:
+        return JsonResponse({
+            "can_send": False,
+            "reason": "O canal WhatsApp não está ativo nesta conta.",
+        })
+
+    modelos = {
+        tipo: bool(service.template_for(account, purpose))
+        for tipo, purpose in service.BILLING_PURPOSE_BY_TYPE.items()
+    }
+
+    return JsonResponse({
+        "can_send": True,
+        "window_open": janela,
+        "window_expires_at": (conversa.window_expires_at.isoformat()
+                              if conversa.window_expires_at else None),
+        "opt_in": conversa.contact.opt_in_status,
+        "templates_ready": modelos,
+        "mode": "texto livre" if janela else "modelo aprovado",
+    })
+
+
 @require_http_methods(["GET"])
 def whatsapp_students_lookup(request):
     """Alunos da conta, para ligar a um contato solto."""

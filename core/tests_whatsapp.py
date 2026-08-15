@@ -12,7 +12,8 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import timedelta
+from datetime import date, timedelta
+from decimal import Decimal
 from unittest import mock
 
 from django.contrib.auth.models import User
@@ -24,6 +25,7 @@ from core import whatsapp as wa
 from core import whatsapp_service as service
 from core import whatsapp_signup as signup
 from core.models import (
+    BillingLog,
     Student,
     WhatsAppAccount,
     WhatsAppContact,
@@ -719,6 +721,371 @@ class InboxApiTests(WhatsAppTestBase):
         conversas = resposta.json()["conversations"]
         self.assertEqual(len(conversas), 1)
         self.assertEqual(conversas[0]["id"], self.conversa_joao.id)
+
+
+class TemplateTests(WhatsAppTestBase):
+    """
+    Modelos de mensagem.
+
+    O que quebra na prática: contagem de variável que não bate, e modelo
+    aprovado no painel da Meta que o sistema não conhece.
+    """
+
+    def test_conta_as_variaveis_do_corpo(self):
+        self.assertEqual(wa.count_template_variables(""), 0)
+        self.assertEqual(wa.count_template_variables("Olá!"), 0)
+        self.assertEqual(
+            wa.count_template_variables("Olá {{1}}, deve {{2}} até {{3}}."), 3
+        )
+        # Chave fora de ordem ainda define quantos parâmetros o envio precisa.
+        self.assertEqual(wa.count_template_variables("{{2}} e {{1}}"), 2)
+
+    def test_extrai_o_corpo_dos_componentes(self):
+        componentes = [
+            {"type": "HEADER", "text": "cabeçalho"},
+            {"type": "BODY", "text": "Olá {{1}}"},
+            {"type": "FOOTER", "text": "rodapé"},
+        ]
+        self.assertEqual(wa.extract_template_body(componentes), "Olá {{1}}")
+        self.assertEqual(wa.extract_template_body([]), "")
+        self.assertEqual(wa.extract_template_body(None), "")
+
+    def test_sincronizacao_traz_os_modelos_da_meta(self):
+        cliente = mock.Mock()
+        cliente.list_templates.return_value = {"data": [
+            {"name": "cobranca_atraso", "language": "pt_BR", "status": "APPROVED",
+             "category": "UTILITY",
+             "components": [{"type": "BODY", "text": "Olá {{1}}, valor {{2}}."}]},
+            {"name": "lembrete", "language": "pt_BR", "status": "REJECTED",
+             "category": "UTILITY", "rejected_reason": "INVALID_FORMAT",
+             "components": [{"type": "BODY", "text": "Oi"}]},
+        ]}
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            resumo = service.sync_templates(self.account)
+
+        self.assertEqual(resumo["criados"], 2)
+
+        aprovado = WhatsAppTemplate.objects.get(name="cobranca_atraso")
+        self.assertEqual(aprovado.status, WhatsAppTemplate.STATUS_APPROVED)
+        self.assertTrue(aprovado.is_usable)
+        # Duas chaves no corpo viram duas dicas de variável.
+        self.assertEqual(len(aprovado.variable_hints), 2)
+
+        reprovado = WhatsAppTemplate.objects.get(name="lembrete")
+        self.assertEqual(reprovado.status, WhatsAppTemplate.STATUS_REJECTED)
+        self.assertEqual(reprovado.rejected_reason, "INVALID_FORMAT")
+        self.assertFalse(reprovado.is_usable)
+
+    def test_sincronizacao_nao_apaga_o_uso_interno(self):
+        # O `purpose` é nosso e liga o modelo à cobrança. A Meta não sabe dele,
+        # e uma sincronização não pode zerá-lo.
+        WhatsAppTemplate.objects.create(
+            account=self.account, name="cobranca_atraso", language="pt_BR",
+            purpose=WhatsAppTemplate.PURPOSE_BILLING_OVERDUE,
+            variable_hints=["nome do aluno", "valor"],
+        )
+
+        cliente = mock.Mock()
+        cliente.list_templates.return_value = {"data": [
+            {"name": "cobranca_atraso", "language": "pt_BR", "status": "APPROVED",
+             "category": "UTILITY",
+             "components": [{"type": "BODY", "text": "Olá {{1}}, valor {{2}}."}]},
+        ]}
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            service.sync_templates(self.account)
+
+        t = WhatsAppTemplate.objects.get(name="cobranca_atraso")
+        self.assertEqual(t.purpose, WhatsAppTemplate.PURPOSE_BILLING_OVERDUE)
+        self.assertEqual(t.variable_hints, ["nome do aluno", "valor"])
+
+    def test_criar_modelo_exige_exemplo_para_cada_variavel(self):
+        cliente = mock.Mock()
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            with self.assertRaises(service.WhatsAppSendError) as ctx:
+                service.create_template(
+                    self.account, name="teste",
+                    body_text="Olá {{1}}, valor {{2}}",
+                    purpose=WhatsAppTemplate.PURPOSE_BILLING_OVERDUE,
+                    example_params=["João"],
+                )
+
+        self.assertIn("2 exemplo", str(ctx.exception))
+        cliente.create_template.assert_not_called()
+
+    def test_criar_modelo_normaliza_o_nome_e_nasce_pendente(self):
+        cliente = mock.Mock()
+        cliente.create_template.return_value = {"id": "1"}
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            t = service.create_template(
+                self.account, name="Cobranca Em Atraso",
+                body_text="Olá {{1}}", purpose=WhatsAppTemplate.PURPOSE_BILLING_OVERDUE,
+                example_params=["João"],
+            )
+
+        # A Meta só aceita minúsculas e sublinhado.
+        self.assertEqual(t.name, "cobranca_em_atraso")
+        self.assertEqual(t.status, WhatsAppTemplate.STATUS_PENDING)
+        self.assertFalse(t.is_usable)
+
+    def test_webhook_de_aprovacao_atualiza_o_modelo(self):
+        WhatsAppTemplate.objects.create(
+            account=self.account, name="cobranca_atraso", language="pt_BR",
+            purpose=WhatsAppTemplate.PURPOSE_BILLING_OVERDUE,
+            status=WhatsAppTemplate.STATUS_PENDING,
+        )
+
+        payload = {
+            "object": "whatsapp_business_account",
+            "entry": [{"id": "waba-1", "changes": [{
+                "field": "message_template_status_update",
+                "value": {
+                    "messaging_product": "whatsapp",
+                    "metadata": {"phone_number_id": "123456"},
+                    "event": "APPROVED",
+                    "message_template_name": "cobranca_atraso",
+                    "message_template_language": "pt_BR",
+                },
+            }]}],
+        }
+
+        service.process_webhook(payload)
+
+        t = WhatsAppTemplate.objects.get(name="cobranca_atraso")
+        self.assertEqual(t.status, WhatsAppTemplate.STATUS_APPROVED)
+        self.assertTrue(t.is_usable)
+
+    def test_webhook_de_reprovacao_guarda_o_motivo(self):
+        payload = {
+            "object": "whatsapp_business_account",
+            "entry": [{"id": "waba-1", "changes": [{
+                "field": "message_template_status_update",
+                "value": {
+                    "metadata": {"phone_number_id": "123456"},
+                    "event": "REJECTED",
+                    "message_template_name": "criado_no_painel",
+                    "message_template_language": "pt_BR",
+                    "reason": "INVALID_FORMAT",
+                },
+            }]}],
+        }
+
+        service.process_webhook(payload)
+
+        # Modelo criado direto no painel da Meta aparece aqui em vez de sumir.
+        t = WhatsAppTemplate.objects.get(name="criado_no_painel")
+        self.assertEqual(t.status, WhatsAppTemplate.STATUS_REJECTED)
+        self.assertEqual(t.rejected_reason, "INVALID_FORMAT")
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_envio_recusa_quando_a_contagem_nao_bate(self):
+        service.process_webhook(self.build_message_payload())
+        conversa = WhatsAppConversation.objects.get()
+        conversa.contact.grant_opt_in(source="teste")
+
+        modelo = WhatsAppTemplate.objects.create(
+            account=self.account, name="cobranca", language="pt_BR",
+            status=WhatsAppTemplate.STATUS_APPROVED,
+            body_text="Olá {{1}}, valor {{2}}, vence {{3}}.",
+        )
+
+        cliente = mock.Mock()
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            with self.assertRaises(service.WhatsAppSendError) as ctx:
+                service.send_template(conversa, modelo, ["João", "R$ 300"])
+
+        self.assertIn("espera 3", str(ctx.exception))
+        cliente.send_template.assert_not_called()
+
+
+class BillingSendTests(WhatsAppTestBase):
+    """
+    Fase 3: a cobrança saindo do sistema em vez de copiada à mão.
+
+    O que importa aqui é a escolha automática entre texto livre e modelo, e o
+    BillingLog ficar ligado à mensagem para a ficha do aluno mostrar entrega.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from core.models import FinancialEntry
+
+        service.process_webhook(self.build_message_payload())
+        self.conversa = WhatsAppConversation.objects.get()
+        self.conversa.contact.grant_opt_in(source="matrícula")
+
+        self.lancamento = FinancialEntry.objects.create(
+            student=self.aluno,
+            user=self.dona,
+            beneficiary_user=self.dona,
+            description="Mensalidade de agosto",
+            amount=Decimal("300.00"),
+            issue_date=date(2026, 8, 1),
+            due_date=date(2026, 8, 10),
+        )
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_janela_aberta_manda_o_texto_da_professora(self):
+        cliente = mock.Mock()
+        cliente.send_text.return_value = {"wamid": "wamid.T", "raw": {}}
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            mensagem, registro = service.send_billing_message(
+                self.lancamento, BillingLog.MESSAGE_TYPE_FRIENDLY, self.dona,
+                free_text="Oi Maria, passando para lembrar da mensalidade!",
+            )
+
+        # Dentro da janela, texto livre: é de graça e soa como ela.
+        cliente.send_text.assert_called_once()
+        cliente.send_template.assert_not_called()
+        self.assertEqual(registro.send_method, BillingLog.SEND_METHOD_WHATSAPP)
+        self.assertEqual(registro.message_content, "Oi Maria, passando para lembrar da mensalidade!")
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_janela_fechada_usa_o_modelo_com_nome_valor_e_vencimento(self):
+        self.conversa.last_inbound_at = timezone.now() - timedelta(hours=30)
+        self.conversa.save(update_fields=["last_inbound_at"])
+
+        WhatsAppTemplate.objects.create(
+            account=self.account, name="cobranca_atraso", language="pt_BR",
+            purpose=WhatsAppTemplate.PURPOSE_OVERDUE if hasattr(
+                WhatsAppTemplate, "PURPOSE_OVERDUE"
+            ) else WhatsAppTemplate.PURPOSE_BILLING_OVERDUE,
+            status=WhatsAppTemplate.STATUS_APPROVED,
+            body_text="Olá {{1}}, a mensalidade de {{2}} venceu em {{3}}.",
+        )
+
+        cliente = mock.Mock()
+        cliente.send_template.return_value = {"wamid": "wamid.M", "raw": {}}
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            mensagem, registro = service.send_billing_message(
+                self.lancamento, BillingLog.MESSAGE_TYPE_OVERDUE, self.dona,
+                free_text="isto deve ser ignorado",
+            )
+
+        cliente.send_template.assert_called_once()
+        cliente.send_text.assert_not_called()
+
+        parametros = cliente.send_template.call_args.kwargs["body_params"]
+        self.assertEqual(parametros, ["João", "R$ 300,00", "10/08/2026"])
+        self.assertIn("R$ 300,00", registro.message_content)
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_a_mensagem_fica_ligada_ao_billing_log(self):
+        cliente = mock.Mock()
+        cliente.send_text.return_value = {"wamid": "wamid.L", "raw": {}}
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            mensagem, registro = service.send_billing_message(
+                self.lancamento, BillingLog.MESSAGE_TYPE_FRIENDLY, self.dona,
+                free_text="oi",
+            )
+
+        mensagem.refresh_from_db()
+        self.assertEqual(mensagem.billing_log_id, registro.id)
+        # É isso que permite a ficha do aluno mostrar "cobrança lida".
+        self.assertEqual(registro.whatsapp_messages.count(), 1)
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_janela_fechada_sem_modelo_explica_o_que_fazer(self):
+        self.conversa.last_inbound_at = timezone.now() - timedelta(hours=30)
+        self.conversa.save(update_fields=["last_inbound_at"])
+
+        with self.assertRaises(service.WhatsAppSendError) as ctx:
+            service.send_billing_message(
+                self.lancamento, BillingLog.MESSAGE_TYPE_OVERDUE, self.dona,
+                free_text="oi",
+            )
+
+        texto = str(ctx.exception)
+        self.assertIn("modelo aprovado", texto)
+        self.assertIn("Em atraso", texto)
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_aluno_sem_whatsapp_da_erro_util(self):
+        from core.models import FinancialEntry
+
+        sem_telefone = Student.objects.create(name="Sem Fone", phone="", user=self.dona)
+        lancamento = FinancialEntry.objects.create(
+            student=sem_telefone, user=self.dona, beneficiary_user=self.dona,
+            description="x",
+            amount=Decimal("10.00"), issue_date=date(2026, 8, 1),
+            due_date=date(2026, 8, 10),
+        )
+
+        with self.assertRaises(service.WhatsAppSendError) as ctx:
+            service.send_billing_message(
+                lancamento, BillingLog.MESSAGE_TYPE_FRIENDLY, self.dona, free_text="oi",
+            )
+
+        self.assertIn("Sem Fone", str(ctx.exception))
+        self.assertIn("telefone na ficha", str(ctx.exception))
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_falha_no_envio_nao_deixa_billing_log_orfao(self):
+        # O registro só existe se a mensagem saiu. Registrar cobrança que não
+        # foi enviada seria pior do que não registrar.
+        cliente = mock.Mock()
+        cliente.send_text.side_effect = wa.WhatsAppAPIError("limite excedido", code=130429)
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            with self.assertRaises(service.WhatsAppSendError):
+                service.send_billing_message(
+                    self.lancamento, BillingLog.MESSAGE_TYPE_FRIENDLY,
+                    self.dona, free_text="oi",
+                )
+
+        self.assertEqual(BillingLog.objects.count(), 0)
+        self.assertEqual(
+            WhatsAppMessage.objects.filter(
+                direction=WhatsAppMessage.DIRECTION_OUTBOUND
+            ).count(), 0
+        )
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_endpoint_recusa_lancamento_de_outro_professor(self):
+        from core.models import FinancialEntry
+
+        estranho = User.objects.create_user("estranho", password="x")
+        outro_aluno = Student.objects.create(name="Alheio", phone="41999990000", user=estranho)
+        alheio = FinancialEntry.objects.create(
+            student=outro_aluno, user=estranho, beneficiary_user=estranho,
+            description="x",
+            amount=Decimal("10.00"), issue_date=date(2026, 8, 1),
+            due_date=date(2026, 8, 10),
+        )
+
+        self.client.force_login(self.dona)
+        resposta = self.client.post(
+            reverse("whatsapp-billing-send"),
+            data=json.dumps({
+                "financial_entry": alheio.id,
+                "message_type": BillingLog.MESSAGE_TYPE_FRIENDLY,
+                "message_content": "oi",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(BillingLog.objects.count(), 0)
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_status_diz_a_interface_como_vai_enviar(self):
+        self.client.force_login(self.dona)
+
+        resposta = self.client.get(
+            reverse("whatsapp-billing-status"),
+            {"financial_entry": self.lancamento.id},
+        )
+
+        dados = resposta.json()
+        self.assertTrue(dados["can_send"])
+        self.assertTrue(dados["window_open"])
+        self.assertEqual(dados["mode"], "texto livre")
+        self.assertIn(BillingLog.MESSAGE_TYPE_OVERDUE, dados["templates_ready"])
 
 
 SIGNUP_ENV = {
