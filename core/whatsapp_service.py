@@ -466,6 +466,27 @@ def _check_opt_out(contact: WhatsAppContact, body: str) -> None:
 # Saída: envio
 # ---------------------------------------------------------------------------
 
+def _raise_send_error(account: WhatsAppAccount, exc: "wa.WhatsAppAPIError"):
+    """
+    Traduz o erro da Meta e, quando é de autenticação, marca a conta.
+
+    Token expira (o de teste dura 24h) e token revogado acontece. Deixar a
+    conta como 'conectada' com credencial morta é o pior estado: a tela diz
+    que está tudo bem e cada envio falha. Marcar aqui faz a interface pedir a
+    reconexão em vez de a professora descobrir uma mensagem de cada vez.
+    """
+    account.register_error(str(exc))
+
+    if exc.is_auth_error:
+        account.status = WhatsAppAccount.STATUS_ERROR
+        account.save(update_fields=["status", "updated_at"])
+        return WhatsAppSendError(
+            "A conexão com o WhatsApp expirou. É preciso reconectar o número."
+        )
+
+    return WhatsAppSendError(f"A Meta recusou o envio: {exc.message}")
+
+
 def _guard_send(conversation: WhatsAppConversation) -> None:
     account = conversation.account
     if not account.can_send:
@@ -478,7 +499,6 @@ def _guard_send(conversation: WhatsAppConversation) -> None:
         )
 
 
-@transaction.atomic
 def send_text(conversation: WhatsAppConversation, body: str,
               sent_by=None) -> WhatsAppMessage:
     """
@@ -501,19 +521,13 @@ def send_text(conversation: WhatsAppConversation, body: str,
     try:
         result = client.send_text(conversation.contact.wa_id, body)
     except wa.WhatsAppAPIError as exc:
-        conversation.account.register_error(str(exc))
-        if exc.is_auth_error:
-            raise WhatsAppSendError(
-                "A conexão com o WhatsApp expirou. É preciso reconectar o número."
-            ) from exc
-        raise WhatsAppSendError(f"A Meta recusou o envio: {exc.message}") from exc
+        raise _raise_send_error(conversation.account, exc) from exc
 
     return _record_outbound(
         conversation, result["wamid"], body, "text", sent_by=sent_by
     )
 
 
-@transaction.atomic
 def send_template(conversation: WhatsAppConversation,
                   template: WhatsAppTemplate,
                   body_params: list | None = None,
@@ -560,12 +574,7 @@ def send_template(conversation: WhatsAppConversation,
             body_params=body_params or [],
         )
     except wa.WhatsAppAPIError as exc:
-        conversation.account.register_error(str(exc))
-        if exc.is_auth_error:
-            raise WhatsAppSendError(
-                "A conexão com o WhatsApp expirou. É preciso reconectar o número."
-            ) from exc
-        raise WhatsAppSendError(f"A Meta recusou o envio: {exc.message}") from exc
+        raise _raise_send_error(conversation.account, exc) from exc
 
     preview = _render_template_preview(template, body_params or [])
 
@@ -590,6 +599,7 @@ def _render_template_preview(template: WhatsAppTemplate, params: list) -> str:
     return body
 
 
+@transaction.atomic
 def _record_outbound(conversation: WhatsAppConversation, wamid: str, body: str,
                      message_type: str, sent_by=None,
                      template: WhatsAppTemplate | None = None,
@@ -845,7 +855,6 @@ def _money(valor) -> str:
         return str(valor or "")
 
 
-@transaction.atomic
 def send_billing_message(financial_entry, message_type: str, user,
                          free_text: str = "") -> tuple:
     """
@@ -903,23 +912,29 @@ def send_billing_message(financial_entry, message_type: str, user,
         )
         conteudo = mensagem.body
 
-    registro = BillingLog.objects.create(
-        financial_entry=financial_entry,
-        user=user,
-        message_type=message_type,
-        send_method=BillingLog.SEND_METHOD_WHATSAPP,
-        message_content=conteudo,
-    )
+    # O registro só nasce depois de a mensagem sair, e os dois ficam ligados
+    # na mesma transação. Isto é o que impede BillingLog órfão: cobrança
+    # registrada que nunca foi enviada é pior do que cobrança não registrada.
+    #
+    # A transação começa aqui, e não no início da função, porque o envio pode
+    # marcar a conta como expirada, e essa marcação precisa sobreviver ao erro.
+    with transaction.atomic():
+        registro = BillingLog.objects.create(
+            financial_entry=financial_entry,
+            user=user,
+            message_type=message_type,
+            send_method=BillingLog.SEND_METHOD_WHATSAPP,
+            message_content=conteudo,
+        )
 
-    # Liga os dois lados: a ficha do aluno passa a mostrar "cobrança enviada"
-    # com o status de entrega vindo da Meta.
-    mensagem.billing_log = registro
-    mensagem.save(update_fields=["billing_log", "updated_at"])
+        # Liga os dois lados: a ficha do aluno passa a mostrar "cobrança
+        # enviada" com o status de entrega vindo da Meta.
+        mensagem.billing_log = registro
+        mensagem.save(update_fields=["billing_log", "updated_at"])
 
     return mensagem, registro
 
 
-@transaction.atomic
 def send_lesson_reminder(lesson, user, hours_label: str = "") -> WhatsAppMessage:
     """
     Lembrete de aula, disparado a partir do calendário.

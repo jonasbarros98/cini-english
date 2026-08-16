@@ -806,6 +806,23 @@
     .notice p{margin:0;font-size:var(--fs-sm);color:var(--warn-strong);line-height:var(--lh-base)}
     .notice strong{font-weight:700}
 
+    /* Aviso que pede acao: fica vermelho e carrega o botao junto, porque o
+       caminho da correcao tem de estar ao lado do problema. */
+    .notice--action{
+      background: var(--danger-tint);
+      border-color: var(--danger-line);
+      align-items:flex-start;
+    }
+    .notice--action .ic{color: var(--danger)}
+    .notice--action p{color: var(--danger)}
+    .notice--action > div{display:grid;gap: var(--sp-2);justify-items:start}
+    .notice-detail{
+      font-size: var(--fs-xs) !important;
+      color: var(--text-3) !important;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break:break-word;
+    }
+
     /* --- Painel lateral de detalhes do contato --- */
     .sheet{
       position:fixed;inset:0;z-index:60;
@@ -1012,16 +1029,44 @@
     </aside>
 
     <main class="main">
-      {% if not wa_account %}
+      {% if wa_account and wa_account.status != 'connected' %}
+      <!-- Conta existe mas nao serve para enviar: token expirado ou canal
+           desligado. O aviso vem no topo e o painel de conexao logo abaixo,
+           porque o caminho do conserto tem de estar ao lado do problema. Antes
+           disto, uma conta desconectada mostrava a caixa de entrada e nenhuma
+           saida, e era preciso apagar a conta no banco. -->
+      <div class="notice notice--action" role="alert">
+        <svg class="ic ic--sm" aria-hidden="true"><use href="#i-alert"></use></svg>
+        <div>
+          {% if wa_account.status == 'error' %}
+          <p><strong>A conexão com o WhatsApp expirou.</strong> As conversas continuam aqui, mas nada é enviado nem recebido até você reconectar.</p>
+          {% else %}
+          <p><strong>O número está desconectado.</strong> As conversas continuam aqui, e o aplicativo no celular não foi afetado. Reconecte para voltar a enviar e receber.</p>
+          {% endif %}
+          {% if wa_account.last_error %}<p class="notice-detail">{{ wa_account.last_error|truncatechars:180 }}</p>{% endif %}
+          {% if is_partner_teacher %}<p class="notice-detail">Quem reconecta é o dono da conta.</p>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if not wa_account or wa_account.status != 'connected' %}
       <section class="connect" aria-labelledby="connectTitle">
         <div class="connect-copy">
           <p class="connect-kicker">Canal da escola</p>
+          {% if wa_account %}
+          <h1 id="connectTitle">Reconecte o número</h1>
+          <p class="connect-lead">
+            As conversas que já chegaram continuam guardadas. Reconectar apenas devolve ao
+            sistema a permissão de enviar e receber, sem mexer no aplicativo do seu celular.
+          </p>
+          {% else %}
           <h1 id="connectTitle">Conecte o WhatsApp e traga as conversas para cá</h1>
           <p class="connect-lead">
             O número continua no seu celular, com o aplicativo do WhatsApp Business funcionando
             como sempre. O que muda é que as conversas passam a aparecer também aqui, ao lado da
             ficha do aluno, do financeiro e da agenda.
           </p>
+          {% endif %}
 
           <ul class="connect-points">
             <li>
@@ -1265,29 +1310,36 @@
       return data;
     }
 
-    // Trocar número: desliga o canal sem apagar conversa nenhuma, e a página
-    // volta a mostrar o painel de conexão. Sem isto era preciso apagar a conta
-    // no banco para trocar credenciais.
-    const desconectar = el('disconnectBtn');
-    if (desconectar){
-      desconectar.addEventListener('click', function(){
-        const ok = window.confirm(
-          'Desligar o WhatsApp desta conta?\n\n' +
-          'As conversas já recebidas continuam guardadas, e o aplicativo no ' +
-          'celular não é afetado. Só para de enviar e de receber até você ' +
-          'conectar de novo.'
-        );
-        if (!ok) return;
+    // Trocar número e reconectar são a mesma operação: desligar o canal sem
+    // apagar conversa nenhuma, para a página voltar a mostrar o painel de
+    // conexão. Sem isto era preciso apagar a conta no banco.
+    function ligarDesconexao(botao, confirmar){
+      if (!botao) return;
+      botao.addEventListener('click', function(){
+        if (confirmar){
+          const ok = window.confirm(
+            'Desligar o WhatsApp desta conta?\n\n' +
+            'As conversas já recebidas continuam guardadas, e o aplicativo no ' +
+            'celular não é afetado. Só para de enviar e de receber até você ' +
+            'conectar de novo.'
+          );
+          if (!ok) return;
+        }
 
-        desconectar.disabled = true;
+        botao.disabled = true;
         api('/api/whatsapp/disconnect/', {method:'POST', body:'{}'})
           .then(function(){ window.location.reload(); })
           .catch(function(e){
             window.alert(e.message || 'Não foi possível desligar.');
-            desconectar.disabled = false;
+            botao.disabled = false;
           });
       });
     }
+
+    // No aviso de credencial expirada não pergunta: a conexão já está morta,
+    // confirmar seria só uma porta a mais no caminho do conserto.
+    ligarDesconexao(el('reconnectBtn'), false);
+    ligarDesconexao(el('disconnectBtn'), true);
 
     // A barra lateral existe nos dois estados da página, então liga antes de
     // qualquer saída antecipada.
@@ -1301,12 +1353,13 @@
       });
     }
 
-    // Sem número conectado, a página é só o convite para conectar. Todo o
-    // resto deste ficheiro assume a caixa de entrada montada.
-    if (!inbox){
-      setupConnect();
-      return;
-    }
+    // O painel de conexão e a caixa de entrada podem coexistir: conta
+    // desconectada mostra os dois, o convite para reconectar em cima e as
+    // conversas guardadas embaixo.
+    setupConnect();
+
+    // O resto deste ficheiro assume a caixa de entrada montada.
+    if (!inbox) return;
 
     // ── Conexão do número (Embedded Signup) ─────────────────────────────
     //

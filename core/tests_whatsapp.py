@@ -471,6 +471,44 @@ class SendingTests(WhatsAppTestBase):
             service.send_text(self.conversa, "Oi")
 
     @mock.patch.dict(os.environ, TEST_ENV)
+    def test_token_expirado_marca_a_conta_para_reconexao(self):
+        # Token expira: o de teste dura 24h. Deixar a conta como "conectada"
+        # com credencial morta é o pior estado, porque a tela diz que está
+        # tudo bem e cada envio falha.
+        cliente = mock.Mock()
+        cliente.send_text.side_effect = wa.WhatsAppAPIError(
+            "Error validating access token: Session has expired",
+            code=190, status_code=401,
+        )
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            with self.assertRaises(service.WhatsAppSendError) as ctx:
+                service.send_text(self.conversa, "oi", sent_by=self.dona)
+
+        self.assertIn("reconectar", str(ctx.exception).lower())
+
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.status, WhatsAppAccount.STATUS_ERROR)
+        self.assertFalse(self.account.can_send)
+        self.assertIn("Session has expired", self.account.last_error)
+
+    @mock.patch.dict(os.environ, TEST_ENV)
+    def test_erro_comum_da_meta_nao_desconecta_a_conta(self):
+        # Limite de envio estourado é passageiro. Marcar a conta como quebrada
+        # obrigaria a reconectar sem motivo.
+        cliente = mock.Mock()
+        cliente.send_text.side_effect = wa.WhatsAppAPIError(
+            "limite excedido", code=130429,
+        )
+
+        with mock.patch.object(WhatsAppAccount, "get_client", return_value=cliente):
+            with self.assertRaises(service.WhatsAppSendError):
+                service.send_text(self.conversa, "oi", sent_by=self.dona)
+
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.status, WhatsAppAccount.STATUS_CONNECTED)
+
+    @mock.patch.dict(os.environ, TEST_ENV)
     def test_contato_bloqueado_nao_recebe(self):
         self.conversa.contact.is_blocked = True
         self.conversa.contact.save(update_fields=["is_blocked"])
