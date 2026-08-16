@@ -234,6 +234,32 @@ reentrega o lote e acaba desativando a assinatura.
   segundos. Chega para uma escola, não chega para dezenas de professores no
   mesmo número.
 
+## `sent` não é `entregue`
+
+Aprendido do jeito caro em 16/08/2026.
+
+Quando a Cloud API responde com um `wamid`, ela só **aceitou** a mensagem. A
+entrega vem depois, por webhook, como `delivered` ou `failed`. O nosso
+`WhatsAppMessage.status` nasce `sent`, e é isso que ele significa: aceito.
+
+> [!danger] Sem webhook, uma falha de entrega é invisível
+> Três mensagens foram dadas como entregues durante os testes porque a API
+> aceitou todas. Nenhuma chegou. O motivo só apareceu no painel da Meta, em
+> "Verifique webhooks de teste":
+>
+> ```
+> "status": "failed",
+> "errors": [{ "code": 130497,
+>   "title": "Business account is restricted from messaging users in this country." }]
+> ```
+
+**Erro 130497:** conta não verificada, com número de teste americano, não pode
+mandar mensagem para números brasileiros. O número de teste da Meta serve para
+validar código, não para ver mensagem chegando no Brasil.
+
+Isto é o argumento mais forte a favor de configurar o webhook cedo: o
+tratamento de `failed` já existe e mostra o erro na conversa, mas nunca rodou.
+
 ## Armadilha do ambiente local
 
 `staticfiles/script.js` pode ficar **velho** e ser servido no lugar de
