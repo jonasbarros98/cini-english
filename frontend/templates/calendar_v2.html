@@ -1489,6 +1489,104 @@
     }
 
     /* =========================================================================
+       10b. LISTA (agenda do telemóvel)
+       Sete colunas em 375px não cabem nomes: a grelha do mês só consegue dizer
+       "há aula", não "com quem". Esta vista troca a grelha por uma coluna só,
+       onde cada aula ocupa a largura toda e mostra nome, hora, estado e ações.
+       ========================================================================= */
+    .agenda{ padding: var(--sp-4); }
+    #agendaList{ display: grid; gap: var(--sp-4); }
+    .agenda-group{
+      border: 1px solid var(--c-line);
+      border-radius: var(--r-lg);
+      background: var(--c-surface);
+      overflow: hidden;
+    }
+    .agenda-group.is-today{ border-color: var(--c-brand-soft); box-shadow: var(--sh-1); }
+    .agenda-head{
+      display: flex; align-items: center; gap: var(--sp-3);
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--c-surface-2);
+      border-bottom: 1px solid var(--c-line);
+    }
+    .agenda-group.is-today .agenda-head{ background: var(--c-brand-wash); border-bottom-color: var(--c-brand-soft); }
+    .agenda-date{
+      display: flex; flex-direction: column; gap: 1px;
+      min-width: 0; flex: 1 1 auto;
+    }
+    .agenda-date .d{
+      font-size: var(--fs-md);
+      font-weight: var(--fw-bold);
+      letter-spacing: var(--tr-tight);
+      color: var(--c-ink);
+      line-height: var(--lh-snug);
+    }
+    .agenda-date .w{
+      font-size: var(--fs-2xs);
+      font-weight: var(--fw-semi);
+      color: var(--c-ink-3);
+      text-transform: uppercase;
+      letter-spacing: var(--tr-wide);
+    }
+    .agenda-count{
+      display: inline-flex; align-items: center; gap: var(--sp-1);
+      padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--r-full);
+      border: 1px solid var(--c-line-2);
+      background: var(--c-surface);
+      font-size: var(--fs-2xs);
+      font-weight: var(--fw-bold);
+      color: var(--c-ink-2);
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+    .agenda-today-tag{
+      padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--r-full);
+      background: var(--c-brand);
+      color: #fff;
+      font-size: var(--fs-3xs);
+      font-weight: var(--fw-bold);
+      text-transform: uppercase;
+      letter-spacing: var(--tr-wide);
+      flex: 0 0 auto;
+    }
+    .agenda-body{ padding: var(--sp-3); display: grid; gap: var(--sp-2); }
+    /* Passado continua legível: baixa o peso do cabeçalho, não o do nome. */
+    .agenda-group.is-past .agenda-head{ background: var(--c-surface-3); }
+    .agenda-group.is-past .agenda-date .d{ color: var(--c-ink-2); }
+    .agenda-past-fold{ display: grid; gap: var(--sp-3); }
+    .agenda-past{ display: grid; gap: var(--sp-4); }
+    .agenda-past-btn{
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+      width: 100%;
+      padding: var(--sp-3) var(--sp-4);
+      border: 1px dashed var(--c-line-2);
+      border-radius: var(--r-md);
+      background: var(--c-surface-2);
+      font-family: inherit;
+      font-size: var(--fs-2xs);
+      font-weight: var(--fw-semi);
+      color: var(--c-ink-3);
+      cursor: pointer;
+      transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+    }
+    .agenda-past-btn:hover{ background: var(--c-surface-3); color: var(--c-ink-2); border-color: var(--c-line-3); }
+    .agenda-empty{
+      display: flex; flex-direction: column; align-items: center; gap: var(--sp-3);
+      padding: var(--sp-7) var(--sp-4);
+      border: 1px dashed var(--c-line-2);
+      border-radius: var(--r-lg);
+      text-align: center;
+      color: var(--c-ink-3);
+      font-size: var(--fs-sm);
+      font-weight: var(--fw-med);
+    }
+    .agenda-empty .ico{ --ico: 26px; color: var(--c-ink-4); }
+    /* A lista existe para o telemóvel; no computador a grelha já mostra nomes. */
+    #tabAgenda{ display: none; }
+
+    /* =========================================================================
        11. RESPONSIVO
        A grelha de 7 colunas não cabe em 375px, então ela muda de função:
        no telemóvel o mês vira mapa de densidade (escolher o dia) e o conteúdo
@@ -1544,7 +1642,9 @@
         gap: var(--sp-2);
       }
       .right-controls .seg{ grid-column: span 2; }
-      .right-controls .seg button{ flex: 1 1 0; }
+      .right-controls .seg button{ flex: 1 1 0; padding: var(--sp-2) var(--sp-2); }
+      /* No telemóvel a lista entra como terceira vista, e é a que abre por omissão. */
+      #tabAgenda{ display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); }
       .right-controls .btn.primary{ grid-column: 1 / -1; padding: var(--sp-4); font-size: var(--fs-md); }
       .nav-arrows{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
       .nav-arrows .btn{ width: 100%; }
@@ -1562,7 +1662,7 @@
         padding: 0 2px;
       }
       .evt{
-        width: 8px; height: 8px;
+        width: 10px; height: 10px;
         padding: 0;
         border-width: 1px;
         border-left-width: 1px;
@@ -1621,7 +1721,9 @@
       .dow{ font-size: 9px; letter-spacing: 0; }
       .daynum > span:first-child{ font-size: var(--fs-xs); }
       .events{ gap: 2px; }
-      .evt{ width: 7px; height: 7px; }
+      .evt{ width: 9px; height: 9px; }
+      .agenda{ padding: var(--sp-3); }
+      #agendaList{ gap: var(--sp-3); }
       .lesson{ padding: var(--sp-3); }
       .lesson-actions{ grid-template-columns: repeat(2, minmax(0,1fr)); }
     }
@@ -1922,6 +2024,7 @@
             <div class="seg" role="tablist" aria-label="Visão do calendário">
               <button class="active" id="tabMonth" type="button" role="tab" aria-selected="true">Mensal</button>
               <button id="tabWeek" type="button" role="tab" aria-selected="false">Semanal</button>
+              <button id="tabAgenda" type="button" role="tab" aria-selected="false">Lista</button>
             </div>
             <button class="btn primary" id="btnNew" type="button">
               <svg class="ico ico-sm" aria-hidden="true"><use href="#i-plus"></use></svg>
@@ -2006,6 +2109,11 @@
                   </div>
                   <div id="monthCells" role="rowgroup"></div>
                 </div>
+              </div>
+
+              <!-- Lista: o mês inteiro em coluna única, com nome e hora legíveis. -->
+              <div class="agenda hide" id="agendaView" aria-label="Lista de aulas do mês">
+                <div id="agendaList"></div>
               </div>
 
               <!-- Semana -->
@@ -2897,6 +3005,194 @@
       }
 
       // ==========
+      // Agenda render (lista do mês, para o telemóvel)
+      // ==========
+      let agendaPassadoAberto = false;
+
+      async function renderAgenda(){
+        const box = $('#agendaList');
+        if(!box) return;
+
+        const first = startOfMonth(cursor);
+        const last = endOfMonth(cursor);
+
+        setCalLoading(true);
+        try {
+          await loadEventsForRange(first, last);
+        } finally {
+          setCalLoading(false);
+        }
+
+        if ($('#rangeTitle')) $('#rangeTitle').textContent = formatMonthTitle(cursor);
+        if ($('#rangeHint')) $('#rangeHint').textContent = "Aulas do mês, dia a dia, com nome e hora.";
+
+        const de = toYMD(first), ate = toYMD(last);
+        const doMes = lessons
+          .filter(l => l.date >= de && l.date <= ate)
+          .sort((a,b) => (a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date)));
+
+        box.innerHTML = "";
+
+        if(!doMes.length){
+          box.innerHTML = `<div class="agenda-empty"><svg class="ico" aria-hidden="true"><use href="#i-inbox"></use></svg><span>Nenhuma aula neste mês.</span></div>`;
+          return;
+        }
+
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const ymdHoje = toYMD(hoje);
+        const fmtDia = new Intl.DateTimeFormat('pt-BR', {day:'2-digit', month:'long'});
+        const fmtSemana = new Intl.DateTimeFormat('pt-BR', {weekday:'long'});
+
+        const porDia = new Map();
+        doMes.forEach(l => {
+          if(!porDia.has(l.date)) porDia.set(l.date, []);
+          porDia.get(l.date).push(l);
+        });
+
+        function montarGrupo(ymd, aulas){
+          const dia = fromYMD(ymd);
+          const grupo = document.createElement('section');
+          grupo.className = "agenda-group";
+          grupo.dataset.ymd = ymd;
+          if(ymd === ymdHoje) grupo.classList.add('is-today');
+          else if(ymd < ymdHoje) grupo.classList.add('is-past');
+
+          const cabeca = document.createElement('div');
+          cabeca.className = "agenda-head";
+          cabeca.innerHTML = `
+            <div class="agenda-date">
+              <span class="d">${fmtDia.format(dia)}</span>
+              <span class="w">${fmtSemana.format(dia)}</span>
+            </div>
+            ${ymd === ymdHoje ? '<span class="agenda-today-tag">Hoje</span>' : ''}
+            <span class="agenda-count">${aulas.length} ${aulas.length === 1 ? 'aula' : 'aulas'}</span>
+          `;
+          grupo.appendChild(cabeca);
+
+          const corpo = document.createElement('div');
+          corpo.className = "agenda-body";
+          aulas.forEach(l => corpo.appendChild(buildLessonCard(l)));
+          grupo.appendChild(corpo);
+          return grupo;
+        }
+
+        const dias = [...porDia.keys()];
+        const passados = dias.filter(ymd => ymd < ymdHoje);
+        const daquiParaFrente = dias.filter(ymd => ymd >= ymdHoje);
+
+        // O mês começa no dia 1, mas a professora vive a partir de hoje. As aulas
+        // já dadas ficam atrás de um botão em vez de empurrarem o resto para baixo.
+        // Num mês inteiramente passado não há o que dobrar: mostra-se tudo.
+        if(passados.length && daquiParaFrente.length){
+          const dobra = document.createElement('div');
+          dobra.className = "agenda-past-fold";
+
+          const guardadas = document.createElement('div');
+          guardadas.className = agendaPassadoAberto ? "agenda-past" : "agenda-past hide";
+          passados.forEach(ymd => guardadas.appendChild(montarGrupo(ymd, porDia.get(ymd))));
+
+          const nAulas = passados.reduce((soma, ymd) => soma + porDia.get(ymd).length, 0);
+          const rotulo = aberto => aberto
+            ? `<svg class="ico ico-xs" aria-hidden="true"><use href="#i-clock"></use></svg>Esconder aulas anteriores`
+            : `<svg class="ico ico-xs" aria-hidden="true"><use href="#i-clock"></use></svg>Ver ${nAulas} ${nAulas === 1 ? 'aula anterior' : 'aulas anteriores'} deste mês`;
+
+          const botao = document.createElement('button');
+          botao.className = "agenda-past-btn";
+          botao.type = "button";
+          botao.setAttribute('aria-expanded', agendaPassadoAberto ? 'true' : 'false');
+          botao.innerHTML = rotulo(agendaPassadoAberto);
+          botao.addEventListener('click', () => {
+            agendaPassadoAberto = guardadas.classList.contains('hide');
+            guardadas.classList.toggle('hide', !agendaPassadoAberto);
+            botao.setAttribute('aria-expanded', agendaPassadoAberto ? 'true' : 'false');
+            botao.innerHTML = rotulo(agendaPassadoAberto);
+          });
+
+          dobra.appendChild(botao);
+          dobra.appendChild(guardadas);
+          box.appendChild(dobra);
+          daquiParaFrente.forEach(ymd => box.appendChild(montarGrupo(ymd, porDia.get(ymd))));
+        } else {
+          dias.forEach(ymd => box.appendChild(montarGrupo(ymd, porDia.get(ymd))));
+        }
+      }
+
+      // "Hoje" tem de aterrar no dia de hoje mesmo quando ele já saiu do ecrã,
+      // por exemplo depois de abrir as aulas anteriores.
+      function scrollAgendaToToday(){
+        const box = $('#agendaList');
+        if(!box) return;
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const ymdHoje = toYMD(hoje);
+        const grupos = [...box.querySelectorAll('.agenda-group')];
+        if(!grupos.length) return;
+        const visiveis = grupos.filter(g => !g.closest('.hide'));
+        const alvo = visiveis.find(g => g.dataset.ymd >= ymdHoje) || visiveis[visiveis.length - 1];
+        if(!alvo) return;
+        const caixa = alvo.getBoundingClientRect();
+        if(caixa.top >= 0 && caixa.top < window.innerHeight - 120) return;
+        const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        alvo.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' });
+      }
+
+      // Cartão de aula. O painel do dia e a lista do mês usam o mesmo cartão:
+      // uma aula tem de se ler igual, venha da grelha ou da lista.
+      function buildLessonCard(l){
+        const card = document.createElement('div');
+        card.className = "lesson";
+        card.dataset.id = String(l.id);
+
+        // Determinar status para exibição: se realized é true, mostrar como "done"
+        const displayStatus = (l.realized || l.status === "done") ? "done" : l.status;
+        const isRealized = l.realized || l.status === "done";
+        const isPublicBooking = l.source === 'public_booking';
+        
+        const publicBookingMeta = isPublicBooking && (l.student_email || l.student_whatsapp) ?
+          `<div class="lesson-meta">
+            ${l.student_email ? `<span><svg class="ico ico-xs" aria-hidden="true"><use href="#i-mail"></use></svg>${escapeHtml(l.student_email)}</span>` : ''}
+            ${l.student_whatsapp ? `<span><svg class="ico ico-xs" aria-hidden="true"><use href="#i-phone"></use></svg>${escapeHtml(l.student_whatsapp)}</span>` : ''}
+          </div>` : '';
+        
+        const publicBadgePill = isPublicBooking ? '<span class="public-badge-pill" title="Solicitação via agenda pública"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-globe"></use></svg>Agenda pública</span>' : '';
+        
+        const actionsHtml = isPublicBooking ? `
+          <div class="lesson-actions">
+            <button class="act ok" data-act="public_confirm" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Confirmar</button>
+            <button class="act bad" data-act="public_reject" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-close"></use></svg>Recusar</button>
+          </div>
+        ` : `
+          <div class="lesson-actions">
+            <button class="act ok" data-act="confirmed" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Confirmar</button>
+            <button class="act warn" data-act="pending" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-clock"></use></svg>Pendente</button>
+            <button class="act bad" data-act="cancelled" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-close"></use></svg>Cancelar</button>
+            <button class="act done" data-act="done" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Realizado</button>
+            <button class="act" data-act="edit" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-edit"></use></svg>Editar</button>
+            <button class="act bad" data-act="delete" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-trash"></use></svg>Excluir</button>
+          </div>
+        `;
+        
+        card.innerHTML = `
+          <div class="lesson-top">
+            <div class="lesson-title">
+              <div class="n">${escapeHtml(l.student)} ${publicBadgePill}</div>
+              <div class="m"><span class="lt">${l.time}</span></div>
+            </div>
+            <span class="status-pill ${statusClass(displayStatus)}">${statusLabel(displayStatus)}</span>
+          </div>
+          ${publicBookingMeta}
+          ${actionsHtml}
+        `;
+
+        card.addEventListener('click', (e)=>{
+          const btn = e.target.closest('button');
+          if(!btn) return;
+          const act = btn.dataset.act;
+          handleLessonAction(l.id, act);
+        });
+        return card;
+      }
+
+      // ==========
       // Day panel render
       // ==========
       async function renderDayPanel(){
@@ -2935,61 +3231,7 @@
           dayLessons.innerHTML = `<div class="empty-day"><svg class="ico" aria-hidden="true"><use href="#i-inbox"></use></svg><span>Nenhuma aula agendada neste dia.</span></div>`;
         } else {
           dayLessons.innerHTML = "";
-          dayList.forEach(l => {
-            const card = document.createElement('div');
-            card.className = "lesson";
-            card.dataset.id = String(l.id);
-
-            // Determinar status para exibição: se realized é true, mostrar como "done"
-            const displayStatus = (l.realized || l.status === "done") ? "done" : l.status;
-            const isRealized = l.realized || l.status === "done";
-            const isPublicBooking = l.source === 'public_booking';
-            
-            const publicBookingMeta = isPublicBooking && (l.student_email || l.student_whatsapp) ?
-              `<div class="lesson-meta">
-                ${l.student_email ? `<span><svg class="ico ico-xs" aria-hidden="true"><use href="#i-mail"></use></svg>${escapeHtml(l.student_email)}</span>` : ''}
-                ${l.student_whatsapp ? `<span><svg class="ico ico-xs" aria-hidden="true"><use href="#i-phone"></use></svg>${escapeHtml(l.student_whatsapp)}</span>` : ''}
-              </div>` : '';
-            
-            const publicBadgePill = isPublicBooking ? '<span class="public-badge-pill" title="Solicitação via agenda pública"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-globe"></use></svg>Agenda pública</span>' : '';
-            
-            const actionsHtml = isPublicBooking ? `
-              <div class="lesson-actions">
-                <button class="act ok" data-act="public_confirm" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Confirmar</button>
-                <button class="act bad" data-act="public_reject" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-close"></use></svg>Recusar</button>
-              </div>
-            ` : `
-              <div class="lesson-actions">
-                <button class="act ok" data-act="confirmed" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Confirmar</button>
-                <button class="act warn" data-act="pending" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-clock"></use></svg>Pendente</button>
-                <button class="act bad" data-act="cancelled" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-close"></use></svg>Cancelar</button>
-                <button class="act done" data-act="done" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-check"></use></svg>Realizado</button>
-                <button class="act" data-act="edit" type="button" ${isRealized ? 'disabled' : ''}><svg class="ico ico-xs" aria-hidden="true"><use href="#i-edit"></use></svg>Editar</button>
-                <button class="act bad" data-act="delete" type="button"><svg class="ico ico-xs" aria-hidden="true"><use href="#i-trash"></use></svg>Excluir</button>
-              </div>
-            `;
-            
-            card.innerHTML = `
-              <div class="lesson-top">
-                <div class="lesson-title">
-                  <div class="n">${escapeHtml(l.student)} ${publicBadgePill}</div>
-                  <div class="m"><span class="lt">${l.time}</span></div>
-                </div>
-                <span class="status-pill ${statusClass(displayStatus)}">${statusLabel(displayStatus)}</span>
-              </div>
-              ${publicBookingMeta}
-              ${actionsHtml}
-            `;
-
-            card.addEventListener('click', (e)=>{
-              const btn = e.target.closest('button');
-              if(!btn) return;
-              const act = btn.dataset.act;
-              handleLessonAction(l.id, act);
-            });
-
-            dayLessons.appendChild(card);
-          });
+          dayList.forEach(l => dayLessons.appendChild(buildLessonCard(l)));
         }
         dayLessons.dataset.ready = '1';
 
@@ -3011,8 +3253,7 @@
             const res = await fetchJSON(endpoint, { method: 'POST' });
             lessons.splice(i, 1);
             loadedRange = null;
-            if(view==="month") await renderMonth();
-            else await renderWeek();
+            await renderCurrentView();
             await renderDayPanel();
             refreshCounters();
             showToast(res?.message || (act === "public_confirm" ? "Solicitação confirmada." : "Solicitação recusada."));
@@ -3084,8 +3325,7 @@
         
         // Renderizar imediatamente para feedback visual
         refreshCounters();
-        if(view==="month") await renderMonth();
-        else await renderWeek();
+        await renderCurrentView();
         await renderDayPanel();
         
         try {
@@ -3108,16 +3348,14 @@
           
           // Re-renderizar para garantir sincronização com backend
           refreshCounters();
-          if(view==="month") await renderMonth();
-          else await renderWeek();
+          await renderCurrentView();
           await renderDayPanel();
         } catch (error) {
           // Reverter em caso de erro
           lessons[i].status = oldStatus;
           lessons[i].realized = oldRealized;
           refreshCounters();
-          if(view==="month") await renderMonth();
-          else await renderWeek();
+          await renderCurrentView();
           await renderDayPanel();
           console.error('Erro ao atualizar status:', error);
           showToast(`Erro ao atualizar: ${error.message}`, true);
@@ -3140,30 +3378,22 @@
         selected = newSelected;
         
         // keep cursor in same month if month view
-        if(view==="month"){
-          if(selected.getMonth() !== cursor.getMonth() || selected.getFullYear() !== cursor.getFullYear()){
-            cursor = startOfMonth(selected);
-          }
-          // Preservar selected antes de renderizar
-          const savedSelected = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
-          await renderMonth();
-          // Restaurar após renderizar (renderMonth pode ter alterado)
-          selected = savedSelected;
-          selected.setHours(0, 0, 0, 0);
-        } else {
-          // Preservar selected antes de renderizar
-          const savedSelected = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
-          await renderWeek();
-          // Restaurar após renderizar
-          selected = savedSelected;
-          selected.setHours(0, 0, 0, 0);
+        if(view!=="week" && (selected.getMonth() !== cursor.getMonth() || selected.getFullYear() !== cursor.getFullYear())){
+          cursor = startOfMonth(selected);
         }
+        // Preservar selected antes de renderizar
+        const savedSelected = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
+        await renderCurrentView();
+        // Restaurar após renderizar (o render pode ter alterado)
+        selected = savedSelected;
+        selected.setHours(0, 0, 0, 0);
         await renderDayPanel();
         revealDayPanelOnMobile();
       }
 
       // No telemovel o painel do dia fica abaixo da grade: traz ele para a vista.
       function revealDayPanelOnMobile(){
+        if(view === "agenda") return;
         if(!window.matchMedia || !window.matchMedia('(max-width: 760px)').matches) return;
         const panel = document.querySelector('.panel[aria-label="Dia selecionado"]');
         if(!panel) return;
@@ -3181,13 +3411,15 @@
         const now = new Date();
         cursor = startOfMonth(now);
         await selectDay(now);
+        if(view === "agenda") scrollAgendaToToday();
       }
       async function prev(){
-        if(view==="month"){
+        agendaPassadoAberto = false;
+        if(view!=="week"){
           cursor = new Date(cursor.getFullYear(), cursor.getMonth()-1, 1);
           // keep selected in month
           selected = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-          await renderMonth();
+          await renderCurrentView();
           await renderDayPanel();
         } else {
           const ws = startOfWeekSunday(selected);
@@ -3195,10 +3427,11 @@
         }
       }
       async function next(){
-        if(view==="month"){
+        agendaPassadoAberto = false;
+        if(view!=="week"){
           cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
           selected = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-          await renderMonth();
+          await renderCurrentView();
           await renderDayPanel();
         } else {
           const ws = startOfWeekSunday(selected);
@@ -3209,26 +3442,48 @@
       // ==========
       // View switch
       // ==========
-      async function setView(v){
-        view = v;
-        const monthView = $('#monthView');
-        const weekView = $('#weekView');
-        const tabMonth = $('#tabMonth');
-        const tabWeek = $('#tabWeek');
+      const VISTA_GUARDADA = 'educaflow:calendario:vista';
+      const VISTAS = {
+        month:  { painel: '#monthView',  aba: '#tabMonth',  render: () => renderMonth() },
+        week:   { painel: '#weekView',   aba: '#tabWeek',   render: () => renderWeek() },
+        agenda: { painel: '#agendaView', aba: '#tabAgenda', render: () => renderAgenda() },
+      };
 
-        if(v==="month"){
-          if (monthView) monthView.classList.remove('hide');
-          if (weekView) weekView.classList.add('hide');
-          if (tabMonth) tabMonth.classList.add('active');
-          if (tabWeek) tabWeek.classList.remove('active');
-          await renderMonth();
-        } else {
-          if (monthView) monthView.classList.add('hide');
-          if (weekView) weekView.classList.remove('hide');
-          if (tabWeek) tabWeek.classList.add('active');
-          if (tabMonth) tabMonth.classList.remove('active');
-          await renderWeek();
-        }
+      // Redesenha a vista que está no ecrã. Existia como `if month else week`
+      // repetido em seis sítios, e cada sítio era uma hipótese de esquecer uma vista.
+      async function renderCurrentView(){
+        await (VISTAS[view] || VISTAS.month).render();
+      }
+
+      async function setView(v){
+        if(!VISTAS[v]) v = "month";
+        view = v;
+
+        Object.entries(VISTAS).forEach(([nome, def]) => {
+          const painel = $(def.painel);
+          const aba = $(def.aba);
+          const activa = nome === v;
+          if(painel) painel.classList.toggle('hide', !activa);
+          if(aba){
+            aba.classList.toggle('active', activa);
+            aba.setAttribute('aria-selected', activa ? 'true' : 'false');
+          }
+        });
+
+        try { localStorage.setItem(VISTA_GUARDADA, v); } catch(e){ /* modo privado: segue sem lembrar */ }
+
+        await renderCurrentView();
+      }
+
+      // A escolha da vista sobrevive ao recarregar: quem prefere a lista não
+      // devia ter de a escolher outra vez a cada abertura.
+      function vistaInicial(){
+        const noTelemovel = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+        let guardada = null;
+        try { guardada = localStorage.getItem(VISTA_GUARDADA); } catch(e){ guardada = null; }
+        if(guardada === "agenda" && !noTelemovel) return "month";   // a aba nem aparece no computador
+        if(guardada && VISTAS[guardada]) return guardada;
+        return noTelemovel ? "agenda" : "month";
       }
 
       // ==========
@@ -3815,8 +4070,7 @@
       // ==========
       async function refreshAll(){
         refreshCounters();
-        if(view==="month") await renderMonth();
-        else await renderWeek();
+        await renderCurrentView();
         await renderDayPanel();
       }
 
@@ -3846,6 +4100,7 @@
       $('#btnNext')?.addEventListener('click', ()=>next());
       $('#tabMonth')?.addEventListener('click', ()=>setView("month"));
       $('#tabWeek')?.addEventListener('click', ()=>setView("week"));
+      $('#tabAgenda')?.addEventListener('click', ()=>setView("agenda"));
 
       // ==========
       // Navegacao por teclado na grade do mes
@@ -3890,7 +4145,7 @@
       (async function() {
         await loadStudents();
         await refreshAll();
-        await setView("month");
+        await setView(vistaInicial());
       })();
 
       // update now line each minute when week view is active
@@ -3931,8 +4186,7 @@
           }
           
           // Re-renderizar para atualizar as informações dos cards
-          if(view==="month") await renderMonth();
-          else if(view==="week") await renderWeek();
+          await renderCurrentView();
         });
       }
 
