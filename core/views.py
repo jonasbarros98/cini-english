@@ -585,8 +585,13 @@ def _user_has_active_subscription(user):
 
 
 class AlunosView(TemplateView):
-    """View para renderizar a página de alunos"""
-    template_name = "alunos_new.html"
+    """View para renderizar a página de alunos.
+
+    Desde 19/08/2026 serve a versão redesenhada, aprovada pela professora
+    depois de semanas em avaliação na rota fechada. A anterior continua no
+    repositório como `alunos_new.html`: a volta atrás é trocar este nome.
+    """
+    template_name = "alunos_v2.html"
     
     def dispatch(self, request, *args, **kwargs):
         from django.shortcuts import redirect
@@ -7072,8 +7077,13 @@ def calendar_day_note_update(request):
 
 
 class CalendarNewView(TemplateView):
-    """View para renderizar o novo calendário"""
-    template_name = "calendar_new.html"
+    """View para renderizar o calendário.
+
+    Desde 19/08/2026 serve a versão redesenhada, com a vista de lista que o
+    telemóvel precisava. A anterior continua no repositório como
+    `calendar_new.html`: a volta atrás é trocar este nome.
+    """
+    template_name = "calendar_v2.html"
     login_required = True
 
     def dispatch(self, request, *args, **kwargs):
