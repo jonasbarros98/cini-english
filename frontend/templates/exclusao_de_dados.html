@@ -1,0 +1,89 @@
+{% extends "legal_base.html" %}
+
+{% block titulo %}Exclusão de dados{% endblock %}
+{% block descricao %}Como pedir a exclusão dos seus dados do EDUCAflowOne, e o que acontece depois do pedido.{% endblock %}
+
+{% block conteudo %}
+<h1>Exclusão de dados</h1>
+<p class="vigencia">Em vigor desde 20 de agosto de 2026.</p>
+
+<p>
+  Esta página existe para uma coisa só: dizer, sem rodeio, como apagar dados do EDUCAflowOne.
+  O caminho depende de quem você é.
+</p>
+
+<h2>Sou professor e quero apagar a minha conta</h2>
+<ol>
+  <li>
+    Escreva para <a href="mailto:Educaflowone@gmail.com">Educaflowone@gmail.com</a> do
+    <strong>mesmo e-mail com que entra no sistema</strong>, pedindo a exclusão da conta. Pedir do
+    e-mail cadastrado é o que nos permite confirmar que é você.
+  </li>
+  <li>Confirmamos o pedido em até 5 dias úteis.</li>
+  <li>
+    Apagamos a conta, os alunos, as aulas, os planejamentos, os ficheiros e as conversas de WhatsApp
+    associadas em até <strong>30 dias</strong>.
+  </li>
+</ol>
+<p>
+  Se quiser levar os seus dados antes de apagar, peça no mesmo e-mail: enviamos os alunos em planilha
+  e os ficheiros que você tiver anexado.
+</p>
+
+<h2>Sou aluno, pai, mãe ou responsável</h2>
+<p>
+  Quem controla esses dados é o <strong>professor</strong> que cadastrou você, e ele consegue apagar
+  na hora, direto no sistema. Então:
+</p>
+<ol>
+  <li>Fale primeiro com o professor e peça a exclusão.</li>
+  <li>
+    Se ele não responder ou não conseguir, escreva para
+    <a href="mailto:Educaflowone@gmail.com">Educaflowone@gmail.com</a> dizendo o nome do aluno e o
+    nome do professor. Nós entramos em contato com ele e acompanhamos até resolver.
+  </li>
+</ol>
+
+<h2>Quero apagar só as conversas de WhatsApp</h2>
+<p>
+  Se o professor conectou o canal WhatsApp, as mensagens trocadas ficam guardadas no sistema para ele
+  ver a conversa. Para apagar apenas isso:
+</p>
+<ol>
+  <li>O professor pode desconectar o número na tela do canal, o que interrompe novas mensagens.</li>
+  <li>
+    Para apagar o histórico já guardado, peça por e-mail. Apagamos as conversas daquele número em até
+    30 dias, sem apagar o resto da conta.
+  </li>
+</ol>
+<p>
+  Apagar a conversa aqui não apaga a conversa no celular de ninguém, nem nos servidores da Meta. Para
+  isso, use o próprio WhatsApp.
+</p>
+
+<h2>O que não conseguimos apagar imediatamente</h2>
+<ul>
+  <li>
+    <strong>Registos financeiros e fiscais</strong>, que a lei manda guardar por até 5 anos. Ficam
+    guardados apenas para esse fim, fora do uso normal do sistema.
+  </li>
+  <li>
+    <strong>Cópias de segurança</strong>, que são substituídas em ciclo. Um dado apagado pode
+    sobreviver numa cópia por até 30 dias, e desaparece quando aquela cópia é substituída.
+  </li>
+</ul>
+
+<h2>Prazos, em resumo</h2>
+<table>
+  <tr><th>Etapa</th><th>Prazo</th></tr>
+  <tr><td>Confirmação de que recebemos o pedido</td><td>5 dias úteis</td></tr>
+  <tr><td>Exclusão efetiva</td><td>30 dias</td></tr>
+  <tr><td>Desaparecimento das cópias de segurança</td><td>até 30 dias depois</td></tr>
+  <tr><td>Registos fiscais</td><td>até 5 anos, por obrigação legal</td></tr>
+</table>
+
+<p>
+  O tratamento completo dos dados está descrito na
+  <a href="{% url 'privacidade' %}">Política de Privacidade</a>.
+</p>
+{% endblock %}
