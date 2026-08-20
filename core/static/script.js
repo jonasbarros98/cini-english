@@ -1678,12 +1678,13 @@ function renderBillingSummary(data) {
 
 // Gera mensagem baseada no template selecionado
 function generateBillingMessage(template, data) {
-  const studentName = data.student.name.split(" ")[0]; // Primeiro nome
   const amount = formatBRL(data.entry.amount);
   const dueDate = data.entry.due_date ? formatDateBR(data.entry.due_date) : "data não informada";
-  const pixKey = data.student.pix_key || "Informar no contato";
+  // A chave do aluno ganha da do professor: quem preencheu no aluno fez isso
+  // para aquele caso. O servidor ja resolve a do perfil entre CPF/CNPJ e chave
+  // propria, aqui so se escolhe entre as duas.
+  const pixKey = data.student.pix_key || (data.teacher && data.teacher.pix_key) || "Informar no contato";
   const progress = `${data.student.lessons_done}/${data.student.lessons_total}`;
-  const planName = data.student.plan_name || "seu plano";
   
   // Formata informação da parcela
   const installmentText = data.entry.installments > 1 
@@ -1691,9 +1692,9 @@ function generateBillingMessage(template, data) {
     : "Parcela: À vista";
 
   const templates = {
-    friendly: `Olá ${studentName}! 😊
+    friendly: `Olá!
 
-Este é um lembrete referente ao seu ${planName}, com vencimento em ${dueDate}.
+Este é um lembrete referente às suas aulas, com vencimento em ${dueDate}.
 
 Valor: ${amount}
 ${installmentText}
@@ -1702,9 +1703,9 @@ Chave Pix: ${pixKey}
 
 Qualquer dúvida, fico à disposição!`,
 
-    due_today: `Olá ${studentName}! 🟡
+    due_today: `Olá!
 
-Lembrando que o vencimento do seu ${planName} é hoje (${dueDate}).
+Lembrando que o vencimento referente às suas aulas é hoje (${dueDate}).
 
 Valor: ${amount}
 ${installmentText}
@@ -1713,9 +1714,9 @@ Chave Pix: ${pixKey}
 
 Fico aguardando o pagamento. Obrigada!`,
 
-    overdue: `Olá ${studentName}! 🔴
+    overdue: `Olá!
 
-Lembro que o pagamento referente ao seu ${planName} está em atraso.
+O pagamento referente às suas aulas está em atraso.
 
 Valor: ${amount}
 ${installmentText}
@@ -1725,9 +1726,9 @@ Chave Pix: ${pixKey}
 
 Por favor, regularize o quanto antes. Qualquer dúvida, estou à disposição!`,
 
-    thank_you: `Olá ${studentName}! 🙏
+    thank_you: `Olá!
 
-Agradeço pelo pagamento referente ao seu ${planName}.
+Agradeço pelo pagamento referente às suas aulas.
 
 Valor: ${amount}
 ${installmentText}
@@ -1737,6 +1738,18 @@ Fico feliz em ter você como aluno(a)! Qualquer dúvida, estou à disposição.`
   };
 
   return templates[template] || templates.friendly;
+}
+
+// Mostra ou esconde o aviso de chave Pix em falta.
+//
+// Sem isto a funcionalidade fica invisivel: o campo vive dentro de "Mais dados
+// (opcional)" no perfil, que nasce recolhido, e o professor nunca saberia por
+// que a cobranca continua a dizer "Informar no contato".
+function refreshBillingPixHint(data) {
+  const aviso = document.getElementById("billingPixMissing");
+  if (!aviso) return;
+  const temChave = !!(data && (data.student?.pix_key || data.teacher?.pix_key));
+  aviso.style.display = temChave ? "none" : "";
 }
 
 // Seleciona template de mensagem
@@ -1759,6 +1772,7 @@ function selectBillingTemplate(template) {
     if (messageEl) {
       messageEl.value = message;
     }
+    refreshBillingPixHint(currentBillingData);
   }
 }
 

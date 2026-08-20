@@ -808,6 +808,24 @@ class UserProfile(models.Model):
     
     # Campos adicionais do perfil
     cpf_cnpj = models.CharField(max_length=20, blank=True, help_text="CPF ou CNPJ")
+
+    # Chave Pix do professor, usada nas mensagens de cobrança.
+    #
+    # Na prática a maioria recebe no próprio CPF ou CNPJ, e obrigar a digitar
+    # o mesmo número duas vezes convida a erro de digitação num campo onde
+    # errar significa dinheiro no lugar errado. Por isso a marca: ligada, a
+    # cobrança usa o cpf_cnpj acima. Quem recebe noutra chave, telefone,
+    # e-mail ou aleatória, desliga a marca e preenche pix_key.
+    cpf_cnpj_is_pix = models.BooleanField(
+        default=False,
+        help_text="O CPF/CNPJ acima também é a chave Pix",
+    )
+    pix_key = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Chave Pix, quando for diferente do CPF/CNPJ",
+    )
+
     phone = models.CharField(max_length=50, blank=True, help_text="Telefone/WhatsApp")
     cep = models.CharField(max_length=10, blank=True, help_text="CEP")
     address = models.CharField(max_length=255, blank=True, help_text="Endereço completo")
@@ -925,6 +943,17 @@ class UserProfile(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def chave_pix(self):
+        """A chave Pix que vale para as cobranças deste professor.
+
+        Um único lugar a decidir entre a marca no CPF/CNPJ e a chave própria,
+        para a tela de cobrança, a mensagem e qualquer coisa futura darem
+        sempre a mesma resposta. Devolve string vazia quando não há chave.
+        """
+        if self.cpf_cnpj_is_pix and (self.cpf_cnpj or "").strip():
+            return self.cpf_cnpj.strip()
+        return (self.pix_key or "").strip()
 
     def __str__(self):
         profile_display = dict(self.PROFILE_CHOICES).get(self.user_profile, self.user_profile)
