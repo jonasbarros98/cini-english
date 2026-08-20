@@ -65,6 +65,38 @@ def is_enabled() -> bool:
             in ("1", "true", "yes", "on"))
 
 
+def pode_usar_canal(user) -> bool:
+    """Quem enxerga o canal WhatsApp dentro do sistema.
+
+    O piloto e de uma professora so. Enquanto for assim, a lista de convidados
+    vive na variavel WHATSAPP_USUARIOS, com nome de utilizador ou e-mail
+    separados por virgula, e todos os outros recebem 404: nao basta a tela
+    aparecer vazia, ela nao deve existir para quem nao foi convidado.
+
+    Lista vazia significa ninguem, de proposito. Ligar o canal e um ato
+    deliberado, nao um efeito colateral de um deploy.
+    """
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+
+    convidados = {
+        item.strip().lower()
+        for item in os.environ.get("WHATSAPP_USUARIOS", "").split(",")
+        if item.strip()
+    }
+    if not convidados:
+        return False
+
+    identificadores = {
+        (getattr(user, "username", "") or "").lower(),
+        (getattr(user, "email", "") or "").lower(),
+    }
+    identificadores.discard("")
+    return bool(identificadores & convidados)
+
+
 # ---------------------------------------------------------------------------
 # Telefones brasileiros
 # ---------------------------------------------------------------------------

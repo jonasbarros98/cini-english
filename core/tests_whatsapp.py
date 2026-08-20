@@ -39,10 +39,13 @@ from core.models import (
 APP_SECRET = "segredo-de-teste"
 VERIFY_TOKEN = "token-de-verificacao"
 
+CONVIDADOS = "bianca,parceira,prof,outro,estranho"
+
 TEST_ENV = {
     "WHATSAPP_APP_SECRET": APP_SECRET,
     "WHATSAPP_WEBHOOK_VERIFY_TOKEN": VERIFY_TOKEN,
     "WHATSAPP_ENABLED": "true",
+    "WHATSAPP_USUARIOS": CONVIDADOS,
 }
 
 
@@ -622,6 +625,7 @@ class WebhookViewTests(WhatsAppTestBase):
         self.assertEqual(WhatsAppMessage.objects.count(), 0)
 
 
+@mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": CONVIDADOS})
 class InboxApiTests(WhatsAppTestBase):
     """
     A caixa de entrada expõe conversas por HTTP, então a regra de visibilidade
@@ -1104,6 +1108,7 @@ class TemplateTests(WhatsAppTestBase):
         cliente.send_template.assert_not_called()
 
 
+@mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": CONVIDADOS})
 class BillingSendTests(WhatsAppTestBase):
     """
     Fase 3: a cobrança saindo do sistema em vez de copiada à mão.
@@ -1452,6 +1457,7 @@ class SignupTests(TestCase):
         self.assertEqual(WhatsAppAccount.objects.count(), 1)
 
 
+@mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": CONVIDADOS})
 class ManualConnectTests(TestCase):
     """
     Conexão por token colado à mão, o caminho do piloto.
@@ -1589,6 +1595,7 @@ class ManualConnectTests(TestCase):
         self.assertEqual(WhatsAppAccount.objects.count(), 0)
 
 
+@mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": CONVIDADOS})
 class SignupApiTests(TestCase):
     def setUp(self):
         self.dona = User.objects.create_user("bianca", password="x")
@@ -1657,3 +1664,66 @@ class TokenEncryptionTests(TestCase):
         conta.refresh_from_db()
         self.assertNotIn("EAAG-token-real", conta.access_token_encrypted)
         self.assertEqual(conta.get_access_token(), "EAAG-token-real")
+
+
+@mock.patch.dict(os.environ, {"WHATSAPP_ENABLED": "true"})
+class ConviteDoCanalTests(TestCase):
+    """
+    O piloto e de uma professora so.
+
+    Ate a Meta liberar o cadastro por conta propria, o canal existe para quem
+    esta na lista e nao existe para mais ninguem: 404, e nao 403, porque quem
+    nao foi convidado nem deve descobrir que a tela esta la.
+    """
+
+    def setUp(self):
+        self.bianca = User.objects.create_user(
+            "bianca", email="bianca@escola.com", password="x")
+        self.outra = User.objects.create_user(
+            "outra", email="outra@escola.com", password="x")
+
+    def test_lista_vazia_fecha_para_todos(self):
+        with mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": ""}):
+            self.assertFalse(wa.pode_usar_canal(self.bianca))
+            self.assertFalse(wa.pode_usar_canal(self.outra))
+
+    def test_convidada_por_nome_de_utilizador(self):
+        with mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": "bianca"}):
+            self.assertTrue(wa.pode_usar_canal(self.bianca))
+            self.assertFalse(wa.pode_usar_canal(self.outra))
+
+    def test_convidada_por_email_com_maiusculas_e_espacos(self):
+        with mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": " BIANCA@ESCOLA.COM , x@y.com "}):
+            self.assertTrue(wa.pode_usar_canal(self.bianca))
+            self.assertFalse(wa.pode_usar_canal(self.outra))
+
+    def test_sem_sessao_nunca_entra(self):
+        class Anonimo:
+            is_authenticated = False
+        with mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": "bianca"}):
+            self.assertFalse(wa.pode_usar_canal(Anonimo()))
+
+    def test_tela_devolve_404_para_quem_nao_foi_convidado(self):
+        with mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": "bianca"}):
+            self.client.force_login(self.outra)
+            self.assertEqual(self.client.get("/whatsapp/").status_code, 404)
+
+    def test_api_devolve_404_para_quem_nao_foi_convidado(self):
+        with mock.patch.dict(os.environ, {"WHATSAPP_USUARIOS": "bianca"}):
+            self.client.force_login(self.outra)
+            resposta = self.client.get("/api/whatsapp/conversations/")
+            self.assertEqual(resposta.status_code, 404)
+
+    def test_webhook_nao_passa_pelo_convite(self):
+        """Quem chama o webhook e a Meta, sem sessao: o portao mataria o canal."""
+        with mock.patch.dict(os.environ, {
+            "WHATSAPP_USUARIOS": "",
+            "WHATSAPP_WEBHOOK_VERIFY_TOKEN": VERIFY_TOKEN,
+        }):
+            resposta = self.client.get("/api/webhooks/whatsapp/", {
+                "hub.mode": "subscribe",
+                "hub.verify_token": VERIFY_TOKEN,
+                "hub.challenge": "12345",
+            })
+            self.assertEqual(resposta.status_code, 200)
+            self.assertEqual(resposta.content.decode(), "12345")

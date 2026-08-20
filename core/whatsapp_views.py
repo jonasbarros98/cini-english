@@ -11,7 +11,7 @@ import json
 import os
 
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -161,9 +161,12 @@ def _get_conversation_or_none(user, conversation_id):
 
 
 def _require_login(request):
-    """Devolve uma resposta de erro quando não há sessão, ou None."""
+    """Devolve uma resposta de erro quando não há sessão ou convite, ou None."""
     if not request.user.is_authenticated:
         return JsonResponse({"detail": "Não autenticado."}, status=401)
+    if not wa.pode_usar_canal(request.user):
+        # 404 e nao 403: para quem nao foi convidado, o canal nao existe.
+        return JsonResponse({"detail": "Não encontrado."}, status=404)
     return None
 
 
@@ -227,6 +230,9 @@ class WhatsAppInboxView(TemplateView):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect("/login/")
+
+        if not wa.pode_usar_canal(request.user):
+            raise Http404
 
         from core.views import _user_has_active_subscription
 
