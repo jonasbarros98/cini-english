@@ -47,6 +47,16 @@ from .views import (
     send_feature_email_campaign,
     admin_test_subscription_email,
 )
+from .whatsapp_views import (
+    whatsapp_webhook, whatsapp_account_status,
+    WhatsAppInboxView, whatsapp_conversations, whatsapp_messages,
+    whatsapp_send, whatsapp_mark_read, whatsapp_link_student,
+    whatsapp_set_opt_in, whatsapp_templates, whatsapp_students_lookup,
+    whatsapp_signup_config, whatsapp_signup_complete, whatsapp_disconnect,
+    whatsapp_connect_manual,
+    whatsapp_sync_templates, whatsapp_create_template,
+    whatsapp_send_billing, whatsapp_billing_status,
+)
 
 router = DefaultRouter()
 router.register(r"students", StudentViewSet, basename="student")
@@ -125,6 +135,28 @@ urlpatterns = [
     path("api/subscription/create-portal/", create_portal_session, name="create-portal"),
     path("api/subscription/upgrade-portal/", upgrade_portal_session, name="upgrade-portal"),
     path("api/webhooks/stripe/", stripe_webhook, name="stripe-webhook"),
+    # WhatsApp Business (Cloud API). A URL do webhook é cadastrada na Meta e
+    # vale para todas as contas conectadas: quem identifica a conta é o
+    # phone_number_id de dentro do payload.
+    path("api/webhooks/whatsapp/", whatsapp_webhook, name="whatsapp-webhook"),
+    path("api/whatsapp/status/", whatsapp_account_status, name="whatsapp-status"),
+    path("whatsapp/", WhatsAppInboxView.as_view(), name="whatsapp-inbox"),
+    path("api/whatsapp/conversations/", whatsapp_conversations, name="whatsapp-conversations"),
+    path("api/whatsapp/conversations/<int:conversation_id>/messages/", whatsapp_messages, name="whatsapp-messages"),
+    path("api/whatsapp/conversations/<int:conversation_id>/send/", whatsapp_send, name="whatsapp-send"),
+    path("api/whatsapp/conversations/<int:conversation_id>/read/", whatsapp_mark_read, name="whatsapp-read"),
+    path("api/whatsapp/conversations/<int:conversation_id>/link-student/", whatsapp_link_student, name="whatsapp-link-student"),
+    path("api/whatsapp/conversations/<int:conversation_id>/opt-in/", whatsapp_set_opt_in, name="whatsapp-opt-in"),
+    path("api/whatsapp/templates/", whatsapp_templates, name="whatsapp-templates"),
+    path("api/whatsapp/students/", whatsapp_students_lookup, name="whatsapp-students"),
+    path("api/whatsapp/signup/config/", whatsapp_signup_config, name="whatsapp-signup-config"),
+    path("api/whatsapp/signup/complete/", whatsapp_signup_complete, name="whatsapp-signup-complete"),
+    path("api/whatsapp/signup/manual/", whatsapp_connect_manual, name="whatsapp-connect-manual"),
+    path("api/whatsapp/disconnect/", whatsapp_disconnect, name="whatsapp-disconnect"),
+    path("api/whatsapp/templates/sync/", whatsapp_sync_templates, name="whatsapp-templates-sync"),
+    path("api/whatsapp/templates/create/", whatsapp_create_template, name="whatsapp-template-create"),
+    path("api/whatsapp/billing/send/", whatsapp_send_billing, name="whatsapp-billing-send"),
+    path("api/whatsapp/billing/status/", whatsapp_billing_status, name="whatsapp-billing-status"),
     path("planos/", PlanosView.as_view(), name="planos"),
     path("planos-v2/", RedirectView.as_view(url="/planos/", permanent=True), name="planos-v2"),
     path("tutorial/", TutorialView.as_view(), name="tutorial"),

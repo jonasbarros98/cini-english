@@ -1566,9 +1566,111 @@ async function loadBillingData(entryId) {
     }
     
     document.getElementById("billingContent").style.display = "block";
+
+    refreshBillingChannelBox(entryId);
   } catch (error) {
     console.error("Erro ao carregar dados de cobrança:", error);
     alert("Não foi possível carregar os dados de cobrança.");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Envio da cobrança pelo canal WhatsApp conectado
+// ---------------------------------------------------------------------------
+// Substitui o fluxo de copiar o texto e colar no WhatsApp: aqui o sistema
+// envia e registra o BillingLog na mesma transação. A caixa só aparece quando
+// o backend confirma que o envio vai funcionar, e a dica ao lado diz COMO a
+// mensagem vai sair. Sem isso a professora não entende por que às vezes o
+// texto dela vai e às vezes vira um modelo pronto.
+
+async function refreshBillingChannelBox(entryId) {
+  const box = document.getElementById("billingChannelBox");
+  const hint = document.getElementById("billingChannelHint");
+  const err = document.getElementById("billingChannelError");
+  if (!box) return;
+
+  box.hidden = true;
+  if (err) err.hidden = true;
+  if (!entryId) return;
+
+  try {
+    const status = await fetchJSON(
+      `/whatsapp/billing/status/?financial_entry=${entryId}`
+    );
+    if (!status || !status.can_send) return;
+
+    box.hidden = false;
+
+    if (status.window_open) {
+      hint.textContent =
+        "Janela aberta: vai o texto que você escreveu, sem custo.";
+    } else {
+      const pronto =
+        status.templates_ready && currentMessageTemplate
+          ? status.templates_ready[currentMessageTemplate]
+          : false;
+      hint.textContent = pronto
+        ? "Passaram-se 24h: vai um modelo aprovado, com nome, valor e vencimento."
+        : "Passaram-se 24h e ainda não há modelo aprovado para este tipo.";
+    }
+  } catch (error) {
+    // O status é informativo. Se falhar, a tela de cobrança continua
+    // funcionando pelo caminho antigo.
+    console.warn("Status do canal indisponível:", error);
+  }
+}
+
+async function sendBillingThroughChannel() {
+  if (!currentBillingData || !currentMessageTemplate) {
+    alert("Selecione um template de mensagem primeiro.");
+    return;
+  }
+
+  const btn = document.getElementById("billingSendChannel");
+  const err = document.getElementById("billingChannelError");
+  const messageEl = document.getElementById("billingMessage");
+  const message = messageEl ? messageEl.value.trim() : "";
+
+  const rotulo = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+  if (err) err.hidden = true;
+
+  try {
+    // fetch próprio em vez do fetchJSON compartilhado: aquele descarta o corpo
+    // do erro, e aqui o motivo em português é justamente o que a professora
+    // precisa ler ("a janela fechou", "não há modelo aprovado").
+    const resposta = await fetch(`${API_BASE_URL}/whatsapp/billing/send/`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken") || "",
+      },
+      body: JSON.stringify({
+        financial_entry: currentBillingData.entry.id,
+        message_type: currentMessageTemplate,
+        message_content: message,
+      }),
+    });
+
+    let dados = {};
+    try { dados = await resposta.json(); } catch (e) { /* corpo vazio */ }
+
+    if (!resposta.ok) {
+      throw new Error(dados.detail || `Falha ${resposta.status}`);
+    }
+
+    alert("Enviado pelo WhatsApp e registrado no histórico.");
+    await loadBillingData(currentBillingData.entry.id);
+  } catch (error) {
+    if (err) {
+      err.textContent = error.message || "Não foi possível enviar.";
+      err.hidden = false;
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = rotulo;
   }
 }
 
@@ -1773,6 +1875,9 @@ function selectBillingTemplate(template) {
       messageEl.value = message;
     }
     refreshBillingPixHint(currentBillingData);
+    // A dica do canal depende do tipo: um tipo pode ter modelo aprovado e
+    // outro não.
+    refreshBillingChannelBox(currentBillingData.entry.id);
   }
 }
 
@@ -2704,6 +2809,11 @@ function attachForms() {
     billingCopyMessage.addEventListener("click", copyBillingMessage);
   }
 
+
+  const billingSendChannel = document.getElementById("billingSendChannel");
+  if (billingSendChannel) {
+    billingSendChannel.addEventListener("click", sendBillingThroughChannel);
+  }
 
   const billingMarkSent = document.getElementById("billingMarkSent");
   if (billingMarkSent) {

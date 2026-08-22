@@ -455,6 +455,37 @@
     box-shadow: var(--shadow-sm);
   }
 
+  /* ----- Envio pelo canal conectado -----
+     Fica acima das acoes antigas e separado por uma linha: e o caminho novo,
+     e os botoes de copiar e marcar continuam existindo para quem nao conectou
+     numero nenhum. */
+  .billing-channel{
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(15,23,42,.02);
+  }
+  .billing-channel[hidden]{ display: none; }
+  .billing-channel-row{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .billing-channel-hint{
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .billing-channel-error{
+    margin: 8px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--bad);
+  }
+  .billing-channel-error[hidden]{ display: none; }
+
   /* ----- Actions ----- */
   .billing-actions{
     display: grid;
@@ -707,6 +738,18 @@
           <h3 class="billing-card-title">Ações</h3>
           <p class="billing-card-sub">O objetivo é: enviar e registrar.</p>
         </div>
+      </div>
+
+      <!-- Envio pelo canal conectado. Fica oculto ate o backend confirmar que
+           da para enviar: botao que promete e falha e pior que botao ausente. -->
+      <div id="billingChannelBox" class="billing-channel" hidden>
+        <div class="billing-channel-row">
+          <button type="button" class="btn btn-primary" id="billingSendChannel">
+            📨 Enviar pelo EducaFlow
+          </button>
+          <span class="billing-channel-hint" id="billingChannelHint"></span>
+        </div>
+        <p class="billing-channel-error" id="billingChannelError" hidden></p>
       </div>
 
       <div class="billing-actions">
