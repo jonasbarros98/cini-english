@@ -1566,9 +1566,111 @@ async function loadBillingData(entryId) {
     }
     
     document.getElementById("billingContent").style.display = "block";
+
+    refreshBillingChannelBox(entryId);
   } catch (error) {
     console.error("Erro ao carregar dados de cobrança:", error);
     alert("Não foi possível carregar os dados de cobrança.");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Envio da cobrança pelo canal WhatsApp conectado
+// ---------------------------------------------------------------------------
+// Substitui o fluxo de copiar o texto e colar no WhatsApp: aqui o sistema
+// envia e registra o BillingLog na mesma transação. A caixa só aparece quando
+// o backend confirma que o envio vai funcionar, e a dica ao lado diz COMO a
+// mensagem vai sair. Sem isso a professora não entende por que às vezes o
+// texto dela vai e às vezes vira um modelo pronto.
+
+async function refreshBillingChannelBox(entryId) {
+  const box = document.getElementById("billingChannelBox");
+  const hint = document.getElementById("billingChannelHint");
+  const err = document.getElementById("billingChannelError");
+  if (!box) return;
+
+  box.hidden = true;
+  if (err) err.hidden = true;
+  if (!entryId) return;
+
+  try {
+    const status = await fetchJSON(
+      `/whatsapp/billing/status/?financial_entry=${entryId}`
+    );
+    if (!status || !status.can_send) return;
+
+    box.hidden = false;
+
+    if (status.window_open) {
+      hint.textContent =
+        "Janela aberta: vai o texto que você escreveu, sem custo.";
+    } else {
+      const pronto =
+        status.templates_ready && currentMessageTemplate
+          ? status.templates_ready[currentMessageTemplate]
+          : false;
+      hint.textContent = pronto
+        ? "Passaram-se 24h: vai um modelo aprovado, com nome, valor e vencimento."
+        : "Passaram-se 24h e ainda não há modelo aprovado para este tipo.";
+    }
+  } catch (error) {
+    // O status é informativo. Se falhar, a tela de cobrança continua
+    // funcionando pelo caminho antigo.
+    console.warn("Status do canal indisponível:", error);
+  }
+}
+
+async function sendBillingThroughChannel() {
+  if (!currentBillingData || !currentMessageTemplate) {
+    alert("Selecione um template de mensagem primeiro.");
+    return;
+  }
+
+  const btn = document.getElementById("billingSendChannel");
+  const err = document.getElementById("billingChannelError");
+  const messageEl = document.getElementById("billingMessage");
+  const message = messageEl ? messageEl.value.trim() : "";
+
+  const rotulo = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+  if (err) err.hidden = true;
+
+  try {
+    // fetch próprio em vez do fetchJSON compartilhado: aquele descarta o corpo
+    // do erro, e aqui o motivo em português é justamente o que a professora
+    // precisa ler ("a janela fechou", "não há modelo aprovado").
+    const resposta = await fetch(`${API_BASE_URL}/whatsapp/billing/send/`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken") || "",
+      },
+      body: JSON.stringify({
+        financial_entry: currentBillingData.entry.id,
+        message_type: currentMessageTemplate,
+        message_content: message,
+      }),
+    });
+
+    let dados = {};
+    try { dados = await resposta.json(); } catch (e) { /* corpo vazio */ }
+
+    if (!resposta.ok) {
+      throw new Error(dados.detail || `Falha ${resposta.status}`);
+    }
+
+    alert("Enviado pelo WhatsApp e registrado no histórico.");
+    await loadBillingData(currentBillingData.entry.id);
+  } catch (error) {
+    if (err) {
+      err.textContent = error.message || "Não foi possível enviar.";
+      err.hidden = false;
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = rotulo;
   }
 }
 
@@ -1678,12 +1780,13 @@ function renderBillingSummary(data) {
 
 // Gera mensagem baseada no template selecionado
 function generateBillingMessage(template, data) {
-  const studentName = data.student.name.split(" ")[0]; // Primeiro nome
   const amount = formatBRL(data.entry.amount);
   const dueDate = data.entry.due_date ? formatDateBR(data.entry.due_date) : "data não informada";
-  const pixKey = data.student.pix_key || "Informar no contato";
+  // A chave do aluno ganha da do professor: quem preencheu no aluno fez isso
+  // para aquele caso. O servidor ja resolve a do perfil entre CPF/CNPJ e chave
+  // propria, aqui so se escolhe entre as duas.
+  const pixKey = data.student.pix_key || (data.teacher && data.teacher.pix_key) || "Informar no contato";
   const progress = `${data.student.lessons_done}/${data.student.lessons_total}`;
-  const planName = data.student.plan_name || "seu plano";
   
   // Formata informação da parcela
   const installmentText = data.entry.installments > 1 
@@ -1691,9 +1794,9 @@ function generateBillingMessage(template, data) {
     : "Parcela: À vista";
 
   const templates = {
-    friendly: `Olá ${studentName}! 😊
+    friendly: `Olá!
 
-Este é um lembrete referente ao seu ${planName}, com vencimento em ${dueDate}.
+Este é um lembrete referente às suas aulas, com vencimento em ${dueDate}.
 
 Valor: ${amount}
 ${installmentText}
@@ -1702,9 +1805,9 @@ Chave Pix: ${pixKey}
 
 Qualquer dúvida, fico à disposição!`,
 
-    due_today: `Olá ${studentName}! 🟡
+    due_today: `Olá!
 
-Lembrando que o vencimento do seu ${planName} é hoje (${dueDate}).
+Lembrando que o vencimento referente às suas aulas é hoje (${dueDate}).
 
 Valor: ${amount}
 ${installmentText}
@@ -1713,9 +1816,9 @@ Chave Pix: ${pixKey}
 
 Fico aguardando o pagamento. Obrigada!`,
 
-    overdue: `Olá ${studentName}! 🔴
+    overdue: `Olá!
 
-Lembro que o pagamento referente ao seu ${planName} está em atraso.
+O pagamento referente às suas aulas está em atraso.
 
 Valor: ${amount}
 ${installmentText}
@@ -1725,9 +1828,9 @@ Chave Pix: ${pixKey}
 
 Por favor, regularize o quanto antes. Qualquer dúvida, estou à disposição!`,
 
-    thank_you: `Olá ${studentName}! 🙏
+    thank_you: `Olá!
 
-Agradeço pelo pagamento referente ao seu ${planName}.
+Agradeço pelo pagamento referente às suas aulas.
 
 Valor: ${amount}
 ${installmentText}
@@ -1737,6 +1840,18 @@ Fico feliz em ter você como aluno(a)! Qualquer dúvida, estou à disposição.`
   };
 
   return templates[template] || templates.friendly;
+}
+
+// Mostra ou esconde o aviso de chave Pix em falta.
+//
+// Sem isto a funcionalidade fica invisivel: o campo vive dentro de "Mais dados
+// (opcional)" no perfil, que nasce recolhido, e o professor nunca saberia por
+// que a cobranca continua a dizer "Informar no contato".
+function refreshBillingPixHint(data) {
+  const aviso = document.getElementById("billingPixMissing");
+  if (!aviso) return;
+  const temChave = !!(data && (data.student?.pix_key || data.teacher?.pix_key));
+  aviso.style.display = temChave ? "none" : "";
 }
 
 // Seleciona template de mensagem
@@ -1759,6 +1874,10 @@ function selectBillingTemplate(template) {
     if (messageEl) {
       messageEl.value = message;
     }
+    refreshBillingPixHint(currentBillingData);
+    // A dica do canal depende do tipo: um tipo pode ter modelo aprovado e
+    // outro não.
+    refreshBillingChannelBox(currentBillingData.entry.id);
   }
 }
 
@@ -2690,6 +2809,11 @@ function attachForms() {
     billingCopyMessage.addEventListener("click", copyBillingMessage);
   }
 
+
+  const billingSendChannel = document.getElementById("billingSendChannel");
+  if (billingSendChannel) {
+    billingSendChannel.addEventListener("click", sendBillingThroughChannel);
+  }
 
   const billingMarkSent = document.getElementById("billingMarkSent");
   if (billingMarkSent) {

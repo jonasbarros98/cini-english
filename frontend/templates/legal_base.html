@@ -1,0 +1,179 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{% block titulo %}Documentos{% endblock %} • EDUCAflowOne</title>
+  <meta name="description" content="{% block descricao %}Documentos legais do EDUCAflowOne.{% endblock %}" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* Página de documento, não de produto: a única coisa que importa aqui é
+       ser lida sem esforço, inclusive no telemóvel e inclusive impressa. */
+    :root{
+      --tinta:      #101828;
+      --tinta-2:    #344054;
+      --tinta-3:    #667085;
+      --linha:      #e4e7ec;
+      --fundo:      #ffffff;
+      --fundo-2:    #f8fafc;
+      --marca:      #2563eb;
+      --largura:    46rem;
+    }
+    *{ box-sizing: border-box; }
+    html{ -webkit-text-size-adjust: 100%; }
+    body{
+      margin: 0;
+      background: var(--fundo);
+      color: var(--tinta-2);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .topo{
+      border-bottom: 1px solid var(--linha);
+      background: var(--fundo-2);
+    }
+    .topo-interno{
+      max-width: var(--largura);
+      margin: 0 auto;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .marca{
+      display: inline-flex; align-items: center; gap: 10px;
+      font-weight: 800; color: var(--tinta); text-decoration: none;
+      letter-spacing: -.02em;
+    }
+    .marca img{ width: 28px; height: 28px; border-radius: 7px; }
+    .topo nav{ display: flex; gap: 18px; font-size: 14px; font-weight: 600; }
+    .topo nav a{ color: var(--tinta-3); text-decoration: none; }
+    .topo nav a:hover, .topo nav a:focus{ color: var(--marca); }
+
+    main{
+      max-width: var(--largura);
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+    h1{
+      font-size: 2rem;
+      line-height: 1.2;
+      letter-spacing: -.03em;
+      color: var(--tinta);
+      margin: 0 0 8px;
+    }
+    .vigencia{
+      font-size: 14px;
+      color: var(--tinta-3);
+      font-weight: 600;
+      margin: 0 0 32px;
+    }
+    h2{
+      font-size: 1.2rem;
+      line-height: 1.35;
+      letter-spacing: -.02em;
+      color: var(--tinta);
+      margin: 40px 0 12px;
+      padding-top: 24px;
+      border-top: 1px solid var(--linha);
+    }
+    h3{
+      font-size: 1rem;
+      color: var(--tinta);
+      margin: 24px 0 8px;
+    }
+    p, li{ margin: 0 0 14px; }
+    ul, ol{ padding-left: 22px; margin: 0 0 18px; }
+    a{ color: var(--marca); }
+    strong{ color: var(--tinta); }
+
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 22px;
+      font-size: 15px;
+      display: block;
+      overflow-x: auto;
+    }
+    th, td{
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--linha);
+    }
+    th{ color: var(--tinta); font-weight: 700; background: var(--fundo-2); white-space: nowrap; }
+
+    .caixa{
+      border: 1px solid var(--linha);
+      border-left: 3px solid var(--marca);
+      border-radius: 10px;
+      background: var(--fundo-2);
+      padding: 16px 18px;
+      margin: 0 0 24px;
+      font-size: 15px;
+    }
+    .caixa p:last-child{ margin-bottom: 0; }
+
+    .rodape{
+      border-top: 1px solid var(--linha);
+      background: var(--fundo-2);
+      color: var(--tinta-3);
+      font-size: 14px;
+    }
+    .rodape-interno{
+      max-width: var(--largura);
+      margin: 0 auto;
+      padding: 24px 20px 40px;
+    }
+
+    @media (max-width: 600px){
+      body{ font-size: 15px; }
+      h1{ font-size: 1.6rem; }
+      main{ padding: 28px 18px 60px; }
+    }
+    @media print{
+      .topo nav{ display: none; }
+      body{ font-size: 12px; }
+      h2{ page-break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-interno">
+      <a class="marca" href="/">
+        <img src="{% static 'img/educaflow-new.png' %}" alt="" />
+        EDUCAflowOne
+      </a>
+      <nav>
+        <a href="{% url 'privacidade' %}">Privacidade</a>
+        <a href="{% url 'termos' %}">Termos</a>
+        <a href="{% url 'exclusao-de-dados' %}">Excluir dados</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    {% block conteudo %}{% endblock %}
+  </main>
+
+  <footer class="rodape">
+    <div class="rodape-interno">
+      <p>
+        <strong>JB Sistemas e Serviços de Informática LTDA</strong>, CNPJ 44.318.881/0001-69.<br />
+        R. Brigadeiro Franco, 3204, apto. 201, Água Verde, Curitiba, PR, CEP 80.250-042.<br />
+        Contato: <a href="mailto:Educaflowone@gmail.com">Educaflowone@gmail.com</a>
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

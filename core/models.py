@@ -808,6 +808,24 @@ class UserProfile(models.Model):
     
     # Campos adicionais do perfil
     cpf_cnpj = models.CharField(max_length=20, blank=True, help_text="CPF ou CNPJ")
+
+    # Chave Pix do professor, usada nas mensagens de cobrança.
+    #
+    # Na prática a maioria recebe no próprio CPF ou CNPJ, e obrigar a digitar
+    # o mesmo número duas vezes convida a erro de digitação num campo onde
+    # errar significa dinheiro no lugar errado. Por isso a marca: ligada, a
+    # cobrança usa o cpf_cnpj acima. Quem recebe noutra chave, telefone,
+    # e-mail ou aleatória, desliga a marca e preenche pix_key.
+    cpf_cnpj_is_pix = models.BooleanField(
+        default=False,
+        help_text="O CPF/CNPJ acima também é a chave Pix",
+    )
+    pix_key = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Chave Pix, quando for diferente do CPF/CNPJ",
+    )
+
     phone = models.CharField(max_length=50, blank=True, help_text="Telefone/WhatsApp")
     cep = models.CharField(max_length=10, blank=True, help_text="CEP")
     address = models.CharField(max_length=255, blank=True, help_text="Endereço completo")
@@ -925,6 +943,17 @@ class UserProfile(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def chave_pix(self):
+        """A chave Pix que vale para as cobranças deste professor.
+
+        Um único lugar a decidir entre a marca no CPF/CNPJ e a chave própria,
+        para a tela de cobrança, a mensagem e qualquer coisa futura darem
+        sempre a mesma resposta. Devolve string vazia quando não há chave.
+        """
+        if self.cpf_cnpj_is_pix and (self.cpf_cnpj or "").strip():
+            return self.cpf_cnpj.strip()
+        return (self.pix_key or "").strip()
 
     def __str__(self):
         profile_display = dict(self.PROFILE_CHOICES).get(self.user_profile, self.user_profile)
@@ -1454,3 +1483,592 @@ class FeatureEmailLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.campaign.title} → {self.user.email} [{self.status}]"
+
+
+# ===========================================================================
+# WhatsApp Business (Cloud API)
+# ===========================================================================
+#
+# O canal é da conta do professor dono (a escola), não do sistema. Um número
+# atende vários professores parceiros, e cada conversa tem um responsável,
+# herdado de Student.assigned_teacher. O parceiro enxerga só as conversas dos
+# alunos dele; o dono enxerga tudo.
+#
+# A regra de envio vive em core/whatsapp.py. Aqui ficam só o estado e as
+# perguntas que o resto do sistema faz ("a janela está aberta?", "esta pessoa
+# consentiu?").
+
+
+class WhatsAppAccount(models.Model):
+    """Número WhatsApp Business conectado por um professor dono."""
+
+    STATUS_PENDING = "pending"
+    STATUS_CONNECTED = "connected"
+    STATUS_ERROR = "error"
+    STATUS_DISCONNECTED = "disconnected"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Aguardando conexão"),
+        (STATUS_CONNECTED, "Conectado"),
+        (STATUS_ERROR, "Com erro"),
+        (STATUS_DISCONNECTED, "Desconectado"),
+    ]
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="whatsapp_account",
+        help_text="Professor dono da conta (a escola). Parceiros usam o número dele."
+    )
+
+    # Identificadores da Meta
+    waba_id = models.CharField(
+        max_length=64, blank=True,
+        help_text="ID da WhatsApp Business Account do cliente"
+    )
+    phone_number_id = models.CharField(
+        max_length=64, unique=True,
+        help_text="ID do número na Cloud API. É por aqui que o webhook acha a conta."
+    )
+    business_id = models.CharField(
+        max_length=64, blank=True,
+        help_text="ID do Business Manager do cliente"
+    )
+
+    display_phone_number = models.CharField(
+        max_length=32, blank=True,
+        help_text="Número como a Meta devolve, ex.: +55 41 98836-9627"
+    )
+    verified_name = models.CharField(
+        max_length=255, blank=True,
+        help_text="Nome de exibição aprovado pela Meta"
+    )
+
+    # Token de acesso, cifrado em repouso. Nunca ler este campo direto:
+    # usar get_access_token() / set_access_token().
+    access_token_encrypted = models.TextField(
+        blank=True,
+        help_text="Token de acesso cifrado. Não expor em API nem em log."
+    )
+
+    is_coexistence = models.BooleanField(
+        default=True,
+        help_text="Número também ativo no aplicativo do celular. Mensagens enviadas "
+                  "por lá chegam como echo e não passam pela janela de 24h."
+    )
+    is_active = models.BooleanField(
+        default=False,
+        help_text="Interruptor por conta. Desligado, o sistema não envia nada."
+    )
+
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
+    )
+    quality_rating = models.CharField(
+        max_length=20, blank=True,
+        help_text="GREEN, YELLOW ou RED. Cai quando os destinatários denunciam."
+    )
+    messaging_limit = models.CharField(
+        max_length=32, blank=True,
+        help_text="Tier de envio da Meta, ex.: TIER_1K"
+    )
+
+    last_error = models.TextField(blank=True)
+    last_error_at = models.DateTimeField(null=True, blank=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    connected_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Conta WhatsApp"
+        verbose_name_plural = "Contas WhatsApp"
+
+    def __str__(self) -> str:
+        return f"{self.verified_name or self.display_phone_number or self.phone_number_id}"
+
+    def set_access_token(self, plaintext: str) -> None:
+        from core.whatsapp import encrypt_secret
+        self.access_token_encrypted = encrypt_secret(plaintext)
+
+    def get_access_token(self) -> str:
+        from core.whatsapp import decrypt_secret
+        return decrypt_secret(self.access_token_encrypted)
+
+    def get_client(self):
+        """Cliente da Cloud API já configurado para esta conta."""
+        from core.whatsapp import CloudAPIClient
+        return CloudAPIClient(
+            phone_number_id=self.phone_number_id,
+            access_token=self.get_access_token(),
+            waba_id=self.waba_id,
+        )
+
+    @property
+    def can_send(self) -> bool:
+        from core.whatsapp import is_enabled
+        return bool(
+            is_enabled()
+            and self.is_active
+            and self.status == self.STATUS_CONNECTED
+            and self.access_token_encrypted
+        )
+
+    def register_error(self, message: str) -> None:
+        """Guarda a última falha sem derrubar a conta por um erro isolado."""
+        self.last_error = (message or "")[:2000]
+        self.last_error_at = timezone.now()
+        self.save(update_fields=["last_error", "last_error_at", "updated_at"])
+
+
+class WhatsAppContact(models.Model):
+    """
+    Um número que conversa com a escola.
+
+    Nasce da primeira mensagem recebida, mesmo sem aluno ligado: é comum o
+    responsável escrever antes de a professora cadastrar o filho. O vínculo com
+    Student pode ser feito depois, na caixa de entrada.
+    """
+
+    RELATIONSHIP_UNKNOWN = "unknown"
+    RELATIONSHIP_STUDENT = "student"
+    RELATIONSHIP_GUARDIAN = "guardian"
+    RELATIONSHIP_LEAD = "lead"
+    RELATIONSHIP_OTHER = "other"
+
+    RELATIONSHIP_CHOICES = [
+        (RELATIONSHIP_UNKNOWN, "Não identificado"),
+        (RELATIONSHIP_STUDENT, "Aluno"),
+        (RELATIONSHIP_GUARDIAN, "Responsável"),
+        (RELATIONSHIP_LEAD, "Interessado"),
+        (RELATIONSHIP_OTHER, "Outro"),
+    ]
+
+    # Consentimento para receber mensagem iniciada pela escola (template).
+    # Sem isto, disparo em massa vira denúncia e derruba a qualidade do número.
+    OPT_IN_PENDING = "pending"
+    OPT_IN_GRANTED = "granted"
+    OPT_IN_REVOKED = "revoked"
+
+    OPT_IN_CHOICES = [
+        (OPT_IN_PENDING, "Não perguntado"),
+        (OPT_IN_GRANTED, "Aceitou receber"),
+        (OPT_IN_REVOKED, "Pediu para parar"),
+    ]
+
+    account = models.ForeignKey(
+        WhatsAppAccount, on_delete=models.CASCADE, related_name="contacts"
+    )
+    wa_id = models.CharField(
+        max_length=32,
+        help_text="Identificador da Meta, E.164 sem '+'. No Brasil pode vir sem o nono dígito."
+    )
+    phone_e164 = models.CharField(
+        max_length=32, blank=True,
+        help_text="Número normalizado com o nono dígito, para casar com o cadastro."
+    )
+    profile_name = models.CharField(
+        max_length=255, blank=True,
+        help_text="Nome que a pessoa usa no WhatsApp"
+    )
+
+    student = models.ForeignKey(
+        'Student', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="whatsapp_contacts",
+        help_text="Aluno ligado a este número. Um aluno pode ter mãe e pai separados."
+    )
+    relationship = models.CharField(
+        max_length=20, choices=RELATIONSHIP_CHOICES, default=RELATIONSHIP_UNKNOWN
+    )
+
+    opt_in_status = models.CharField(
+        max_length=20, choices=OPT_IN_CHOICES, default=OPT_IN_PENDING
+    )
+    opt_in_at = models.DateTimeField(null=True, blank=True)
+    opt_in_source = models.CharField(
+        max_length=100, blank=True,
+        help_text="Onde o consentimento foi dado: contrato, matrícula, resposta no WhatsApp..."
+    )
+
+    is_blocked = models.BooleanField(
+        default=False,
+        help_text="Não enviar nada para este número, em nenhuma circunstância."
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("account", "wa_id")]
+        indexes = [
+            models.Index(fields=["account", "phone_e164"]),
+            models.Index(fields=["student"]),
+        ]
+        verbose_name = "Contato WhatsApp"
+        verbose_name_plural = "Contatos WhatsApp"
+
+    def __str__(self) -> str:
+        return self.display_name
+
+    @property
+    def display_name(self) -> str:
+        if self.student_id:
+            return self.student.name
+        return self.profile_name or self.formatted_phone
+
+    @property
+    def formatted_phone(self) -> str:
+        from core.whatsapp import format_phone_br
+        return format_phone_br(self.phone_e164 or self.wa_id)
+
+    @property
+    def can_receive_template(self) -> bool:
+        """Mensagem iniciada pela escola exige consentimento registrado."""
+        return not self.is_blocked and self.opt_in_status == self.OPT_IN_GRANTED
+
+    def grant_opt_in(self, source: str) -> None:
+        self.opt_in_status = self.OPT_IN_GRANTED
+        self.opt_in_at = timezone.now()
+        self.opt_in_source = source[:100]
+        self.save(update_fields=["opt_in_status", "opt_in_at", "opt_in_source", "updated_at"])
+
+    def revoke_opt_in(self, source: str = "pedido do contato") -> None:
+        self.opt_in_status = self.OPT_IN_REVOKED
+        self.opt_in_source = source[:100]
+        self.save(update_fields=["opt_in_status", "opt_in_source", "updated_at"])
+
+
+class WhatsAppConversation(models.Model):
+    """
+    A thread com um contato.
+
+    Guarda o que a caixa de entrada precisa responder rápido sem varrer as
+    mensagens: quem atende, quando a janela fecha, quantas não lidas.
+    """
+
+    account = models.ForeignKey(
+        WhatsAppAccount, on_delete=models.CASCADE, related_name="conversations"
+    )
+    contact = models.OneToOneField(
+        WhatsAppContact, on_delete=models.CASCADE, related_name="conversation"
+    )
+
+    assigned_teacher = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="whatsapp_conversations",
+        help_text="Professor responsável. Herdado de Student.assigned_teacher, "
+                  "com o dono da conta como padrão."
+    )
+
+    last_inbound_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Última mensagem recebida. É o que abre a janela de 24h."
+    )
+    last_message_at = models.DateTimeField(null=True, blank=True)
+    last_message_preview = models.CharField(max_length=200, blank=True)
+
+    unread_count = models.PositiveIntegerField(default=0)
+    is_archived = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-last_message_at"]
+        indexes = [
+            models.Index(fields=["account", "-last_message_at"]),
+            models.Index(fields=["assigned_teacher", "-last_message_at"]),
+        ]
+        verbose_name = "Conversa WhatsApp"
+        verbose_name_plural = "Conversas WhatsApp"
+
+    def __str__(self) -> str:
+        return f"Conversa com {self.contact.display_name}"
+
+    @property
+    def window_is_open(self) -> bool:
+        """Dá para enviar texto livre pela API? Fora disso, só template."""
+        from core.whatsapp import window_is_open
+        return window_is_open(self.last_inbound_at)
+
+    @property
+    def window_expires_at(self):
+        from core.whatsapp import window_expires_at
+        return window_expires_at(self.last_inbound_at)
+
+    def resolve_assigned_teacher(self) -> User:
+        """
+        Decide quem atende: o professor do aluno, ou o dono da conta.
+
+        Chamado quando o contato é ligado a um aluno, e quando o aluno troca
+        de professor parceiro.
+        """
+        student = self.contact.student
+        if student and student.assigned_teacher_id:
+            return student.assigned_teacher
+        return self.account.user
+
+    def visible_to(self, user: User) -> bool:
+        """
+        Regra de visibilidade da caixa de entrada.
+
+        O dono da conta vê tudo, porque é o número dele e a responsabilidade é
+        dele. O parceiro vê só o que foi atribuído a ele.
+        """
+        if user.id == self.account.user_id:
+            return True
+        return self.assigned_teacher_id == user.id
+
+
+class WhatsAppTemplate(models.Model):
+    """
+    Template aprovado pela Meta, ligado ao uso que o sistema faz dele.
+
+    O `purpose` é o que permite o código pedir "o template de cobrança em
+    atraso" sem saber o nome que a Meta aprovou, que muda por conta.
+    """
+
+    PURPOSE_BILLING_FRIENDLY = "billing_friendly"
+    PURPOSE_BILLING_DUE_TODAY = "billing_due_today"
+    PURPOSE_BILLING_OVERDUE = "billing_overdue"
+    PURPOSE_BILLING_THANK_YOU = "billing_thank_you"
+    PURPOSE_LESSON_REMINDER = "lesson_reminder"
+    PURPOSE_LESSON_CANCELLED = "lesson_cancelled"
+    PURPOSE_TASK_ASSIGNED = "task_assigned"
+    PURPOSE_PACKAGE_ENDING = "package_ending"
+    PURPOSE_OPT_IN_REQUEST = "opt_in_request"
+    PURPOSE_OTHER = "other"
+
+    PURPOSE_CHOICES = [
+        (PURPOSE_BILLING_FRIENDLY, "Cobrança: lembrete amigável"),
+        (PURPOSE_BILLING_DUE_TODAY, "Cobrança: vence hoje"),
+        (PURPOSE_BILLING_OVERDUE, "Cobrança: em atraso"),
+        (PURPOSE_BILLING_THANK_YOU, "Cobrança: agradecimento"),
+        (PURPOSE_LESSON_REMINDER, "Lembrete de aula"),
+        (PURPOSE_LESSON_CANCELLED, "Aula cancelada"),
+        (PURPOSE_TASK_ASSIGNED, "Tarefa enviada"),
+        (PURPOSE_PACKAGE_ENDING, "Pacote de aulas acabando"),
+        (PURPOSE_OPT_IN_REQUEST, "Pedido de autorização para enviar mensagens"),
+        (PURPOSE_OTHER, "Outro"),
+    ]
+
+    STATUS_PENDING = "PENDING"
+    STATUS_APPROVED = "APPROVED"
+    STATUS_REJECTED = "REJECTED"
+    STATUS_PAUSED = "PAUSED"
+    STATUS_DISABLED = "DISABLED"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Em análise"),
+        (STATUS_APPROVED, "Aprovado"),
+        (STATUS_REJECTED, "Reprovado"),
+        (STATUS_PAUSED, "Pausado pela Meta"),
+        (STATUS_DISABLED, "Desativado"),
+    ]
+
+    CATEGORY_UTILITY = "UTILITY"
+    CATEGORY_MARKETING = "MARKETING"
+    CATEGORY_AUTHENTICATION = "AUTHENTICATION"
+
+    CATEGORY_CHOICES = [
+        (CATEGORY_UTILITY, "Utilidade"),
+        (CATEGORY_MARKETING, "Marketing"),
+        (CATEGORY_AUTHENTICATION, "Autenticação"),
+    ]
+
+    account = models.ForeignKey(
+        WhatsAppAccount, on_delete=models.CASCADE, related_name="templates"
+    )
+    name = models.CharField(max_length=255, help_text="Nome exato aprovado na Meta")
+    language = models.CharField(max_length=10, default="pt_BR")
+    category = models.CharField(
+        max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_UTILITY
+    )
+    purpose = models.CharField(
+        max_length=40, choices=PURPOSE_CHOICES, default=PURPOSE_OTHER
+    )
+
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
+    )
+    body_text = models.TextField(
+        blank=True, help_text="Corpo aprovado, com as chaves {{1}}, {{2}}..."
+    )
+    variable_hints = models.JSONField(
+        default=list, blank=True,
+        help_text="Descrição de cada variável, na ordem. Ex.: ['nome', 'valor', 'vencimento']"
+    )
+
+    rejected_reason = models.TextField(blank=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("account", "name", "language")]
+        verbose_name = "Template WhatsApp"
+        verbose_name_plural = "Templates WhatsApp"
+
+    def __str__(self) -> str:
+        return f"{self.name} [{self.status}]"
+
+    @property
+    def is_usable(self) -> bool:
+        return self.status == self.STATUS_APPROVED
+
+
+class WhatsAppMessage(models.Model):
+    """
+    Uma mensagem, recebida ou enviada.
+
+    Em coexistence, mensagem de saída pode ter nascido no aplicativo do celular
+    (origin=app) em vez de no sistema (origin=api). As duas entram aqui, senão
+    o histórico fica pela metade e a professora não confia na caixa de entrada.
+    """
+
+    DIRECTION_INBOUND = "in"
+    DIRECTION_OUTBOUND = "out"
+
+    DIRECTION_CHOICES = [
+        (DIRECTION_INBOUND, "Recebida"),
+        (DIRECTION_OUTBOUND, "Enviada"),
+    ]
+
+    ORIGIN_API = "api"
+    ORIGIN_APP = "app"
+    ORIGIN_CONTACT = "contact"
+
+    ORIGIN_CHOICES = [
+        (ORIGIN_API, "Enviada pelo sistema"),
+        (ORIGIN_APP, "Enviada pelo aplicativo do celular"),
+        (ORIGIN_CONTACT, "Enviada pelo contato"),
+    ]
+
+    STATUS_QUEUED = "queued"
+    STATUS_SENT = "sent"
+    STATUS_DELIVERED = "delivered"
+    STATUS_READ = "read"
+    STATUS_FAILED = "failed"
+    STATUS_RECEIVED = "received"
+
+    STATUS_CHOICES = [
+        (STATUS_QUEUED, "Na fila"),
+        (STATUS_SENT, "Enviada"),
+        (STATUS_DELIVERED, "Entregue"),
+        (STATUS_READ, "Lida"),
+        (STATUS_FAILED, "Falhou"),
+        (STATUS_RECEIVED, "Recebida"),
+    ]
+
+    conversation = models.ForeignKey(
+        WhatsAppConversation, on_delete=models.CASCADE, related_name="messages"
+    )
+    wamid = models.CharField(
+        max_length=128, unique=True,
+        help_text="ID da mensagem na Meta. Garante idempotência do webhook."
+    )
+
+    direction = models.CharField(max_length=4, choices=DIRECTION_CHOICES)
+    origin = models.CharField(max_length=10, choices=ORIGIN_CHOICES)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_QUEUED
+    )
+
+    message_type = models.CharField(
+        max_length=30, default="text",
+        help_text="text, image, audio, document, template..."
+    )
+    body = models.TextField(blank=True)
+
+    media_id = models.CharField(max_length=128, blank=True)
+    media_mime = models.CharField(max_length=100, blank=True)
+    media_filename = models.CharField(max_length=255, blank=True)
+    media_file = models.FileField(
+        upload_to="whatsapp_media/%Y/%m/", blank=True, null=True,
+        help_text="Cópia local. A URL da Meta expira e o anexo se perderia."
+    )
+
+    template = models.ForeignKey(
+        WhatsAppTemplate, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="messages"
+    )
+    reply_to_wamid = models.CharField(max_length=128, blank=True)
+
+    sent_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="whatsapp_messages_sent",
+        help_text="Quem disparou pelo sistema. Vazio em echo do aplicativo."
+    )
+
+    # Rastro para o resto do sistema: de qual cobrança ou aula esta mensagem
+    # saiu. Permite a ficha do aluno mostrar "cobrança enviada e lida".
+    billing_log = models.ForeignKey(
+        'BillingLog', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="whatsapp_messages"
+    )
+    lesson = models.ForeignKey(
+        'Lesson', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="whatsapp_messages"
+    )
+
+    error_code = models.CharField(max_length=20, blank=True)
+    error_message = models.TextField(blank=True)
+
+    timestamp = models.DateTimeField(help_text="Hora da mensagem segundo a Meta")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["timestamp"]
+        indexes = [
+            models.Index(fields=["conversation", "timestamp"]),
+            models.Index(fields=["status"]),
+        ]
+        verbose_name = "Mensagem WhatsApp"
+        verbose_name_plural = "Mensagens WhatsApp"
+
+    def __str__(self) -> str:
+        arrow = "←" if self.direction == self.DIRECTION_INBOUND else "→"
+        return f"{arrow} {(self.body or self.message_type)[:50]}"
+
+    @property
+    def is_from_app(self) -> bool:
+        """Enviada pela professora no celular, não pelo sistema."""
+        return self.origin == self.ORIGIN_APP
+
+
+class WhatsAppWebhookEvent(models.Model):
+    """
+    Registro cru de cada webhook, para idempotência e para depurar.
+
+    A Meta reentrega o mesmo evento quando não recebe 200 rápido. Sem esta
+    tabela, uma lentidão do banco vira mensagem duplicada na conversa.
+    """
+
+    event_key = models.CharField(
+        max_length=64, unique=True,
+        help_text="Hash do conteúdo do evento. Ver whatsapp.webhook_event_key."
+    )
+    account = models.ForeignKey(
+        WhatsAppAccount, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="webhook_events"
+    )
+    payload = models.JSONField(default=dict)
+
+    processed = models.BooleanField(default=False)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-received_at"]
+        indexes = [models.Index(fields=["-received_at"])]
+        verbose_name = "Evento de webhook WhatsApp"
+        verbose_name_plural = "Eventos de webhook WhatsApp"
+
+    def __str__(self) -> str:
+        state = "ok" if self.processed else "pendente"
+        return f"{self.event_key[:12]} [{state}]"

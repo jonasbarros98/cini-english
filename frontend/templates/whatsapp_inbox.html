@@ -1,0 +1,2131 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  {% include '_meta_pixel.html' %}
+  <title>Conversas • EDUCAflowOne</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles.css' %}" />
+
+  <style>
+    /* ==========================================================================
+       CONVERSAS, sistema visual
+       --------------------------------------------------------------------------
+       Direcao: a mesma da tela de Alunos, minimalista e refinada com disciplina
+       suica. Nao ha razao para esta tela inventar uma linguagem propria: a
+       professora salta de Alunos para Conversas dezenas de vezes por dia.
+
+       Diferenciador: o TRILHO DA JANELA. A regra mais confusa do WhatsApp
+       Business e a janela de 24 horas, que decide se da para escrever livre ou
+       se so sai modelo aprovado. Em vez de explicar isso em texto de ajuda, o
+       trilho no topo da conversa esvazia em tempo real, e quando acaba o campo
+       de escrita se transforma sozinho no seletor de modelos. A regra deixa de
+       ser algo para decorar e passa a ser algo que se ve.
+
+       Regra da casa, herdada de Alunos: nenhuma cor literal fora do :root, e
+       sinal de cor escasso. Aqui o azul e so acao e foco; o ambar so aparece
+       quando a janela esta acabando; o vermelho so em falha de envio. Mensagem
+       enviada pelo celular nao ganha cor nova, ganha rotulo.
+       ========================================================================== */
+    :root{
+      --rgb-ink:      15 23 42;
+      --rgb-brand:    37 99 235;
+      --rgb-ok:       22 163 74;
+      --rgb-warn:    217 119 6;
+      --rgb-danger:  220 38 38;
+
+      --n-0:#ffffff;
+      --n-1:#f8fafc;
+      --n-2:#f1f5f9;
+      --n-3:#e2e8f0;
+      --n-4:#cbd5e1;
+      --n-5:#94a3b8;
+      --n-6:#64748b;
+      --n-7:#475569;
+      --n-8:#334155;
+      --n-9:#0f172a;
+
+      --brand:        #2563eb;
+      --brand-strong: #1d4ed8;
+      --ok:           #16a34a;
+      --warn:         #d97706;
+      --warn-strong:  #92400e;
+      --danger:       #dc2626;
+
+      --surface:       var(--n-0);
+      --surface-2:     var(--n-1);
+      --surface-3:     var(--n-2);
+      --surface-page:  var(--n-2);
+      --surface-inset: rgb(var(--rgb-ink) / .035);
+      --scrim:         rgb(var(--rgb-ink) / .55);
+
+      --text:      var(--n-9);
+      --text-2:    var(--n-7);
+      --text-3:    var(--n-6);
+      --text-soft: var(--n-5);
+      --text-inv:  var(--n-0);
+
+      --border:      rgb(var(--rgb-ink) / .10);
+      --border-soft: rgb(var(--rgb-ink) / .06);
+      --border-firm: rgb(var(--rgb-ink) / .18);
+
+      --brand-tint:    rgb(var(--rgb-brand) / .07);
+      --brand-tint-2:  rgb(var(--rgb-brand) / .13);
+      --brand-line:    rgb(var(--rgb-brand) / .26);
+      --ok-tint:       rgb(var(--rgb-ok) / .09);
+      --ok-line:       rgb(var(--rgb-ok) / .22);
+      --warn-tint:     rgb(var(--rgb-warn) / .12);
+      --warn-line:     rgb(var(--rgb-warn) / .38);
+      --danger-tint:   rgb(var(--rgb-danger) / .08);
+      --danger-line:   rgb(var(--rgb-danger) / .22);
+
+      --shadow-1: 0 1px 2px rgb(var(--rgb-ink) / .04), 0 2px 8px rgb(var(--rgb-ink) / .04);
+      --shadow-2: 0 2px 4px rgb(var(--rgb-ink) / .05), 0 10px 24px rgb(var(--rgb-ink) / .07);
+      --shadow-3: 0 8px 16px rgb(var(--rgb-ink) / .08), 0 32px 64px rgb(var(--rgb-ink) / .14);
+
+      --focus:      var(--brand);
+      --focus-ring: 0 0 0 3px rgb(var(--rgb-brand) / .22);
+      --focus-w:    2px;
+
+      --sp-1: 4px;
+      --sp-2: 8px;
+      --sp-3: 12px;
+      --sp-4: 16px;
+      --sp-5: 20px;
+      --sp-6: 28px;
+      --sp-7: 40px;
+
+      --r-1: 8px;
+      --r-2: 12px;
+      --r-3: 16px;
+      --r-4: 22px;
+      --r-pill: 999px;
+
+      --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      --fs-2xs: 10.5px;
+      --fs-xs:  11.5px;
+      --fs-sm:  12.5px;
+      --fs-md:  13.5px;
+      --fs-lg:  15px;
+      --fs-xl:  clamp(19px, 1.1rem + .6vw, 24px);
+      --lh-tight: 1.2;
+      --lh-base:  1.5;
+      --track-tight: -.02em;
+      --track-wide:  .07em;
+
+      --dur-1: .12s;
+      --dur-2: .2s;
+      --dur-3: .34s;
+      --ease: cubic-bezier(.2, .7, .35, 1);
+
+      /* Medidas da caixa de entrada. A responsividade mora aqui. */
+      --list-w:     minmax(288px, 340px);
+      --bubble-max: min(68ch, 82%);
+      --thread-h:   calc(100vh - 48px);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+
+    body.page-whatsapp{
+      margin:0;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        linear-gradient(180deg, var(--n-1) 0vh, var(--n-1) 62vh, var(--surface-page) 100vh);
+      background-repeat:no-repeat;
+      background-attachment:fixed;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    body.page-whatsapp .app-shell > main.main{
+      border-radius: var(--r-3);
+      min-height:0;
+      padding: 0 !important;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+    }
+
+    body.page-whatsapp a:focus-visible,
+    body.page-whatsapp button:focus-visible,
+    body.page-whatsapp input:focus-visible,
+    body.page-whatsapp select:focus-visible,
+    body.page-whatsapp textarea:focus-visible,
+    body.page-whatsapp [tabindex]:focus-visible{
+      outline: var(--focus-w) solid var(--focus);
+      outline-offset: 2px;
+    }
+    body.page-whatsapp .nav-item:focus-visible,
+    body.page-whatsapp .nav-group-header:focus-visible,
+    body.page-whatsapp .sidebar-card button:focus-visible{
+      outline: var(--focus-w) solid var(--focus);
+      outline-offset: 2px;
+      box-shadow: var(--focus-ring);
+    }
+
+    .ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;
+        stroke-linecap:round;stroke-linejoin:round;flex:none}
+    .ic--sm{width:15px;height:15px}
+    .ic--xs{width:13px;height:13px}
+    .ic--nav{width:18px;height:18px}
+    .icon-sprite{display:none}
+
+    /* ==========================================================================
+       Estrutura: duas colunas no desktop, uma pilha com dois estados no telemovel
+       ========================================================================== */
+    .inbox{
+      display:grid;
+      grid-template-columns: var(--list-w) 1fr;
+      gap: var(--sp-4);
+      height: var(--thread-h);
+      min-height: 520px;
+    }
+
+    .panel{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-3);
+      box-shadow: var(--shadow-1);
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      overflow:hidden;
+    }
+
+    /* --- Coluna da esquerda: as conversas --- */
+    .list-head{
+      padding: var(--sp-4) var(--sp-4) var(--sp-3);
+      border-bottom: 1px solid var(--border-soft);
+      display:grid;
+      gap: var(--sp-3);
+    }
+    .list-title{
+      display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-2);
+    }
+    .list-title h1{
+      font-size: var(--fs-xl);
+      letter-spacing: var(--track-tight);
+      line-height: var(--lh-tight);
+      font-weight:700;
+      margin:0;
+    }
+    .count{
+      font-size: var(--fs-xs);
+      color: var(--text-soft);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .search{position:relative}
+    .search .ic{
+      position:absolute;left:11px;top:50%;transform:translateY(-50%);
+      color: var(--text-soft);pointer-events:none;
+    }
+    .search input{
+      width:100%;
+      padding: 9px 12px 9px 34px;
+      font: inherit;
+      font-size: var(--fs-md);
+      color: var(--text);
+      background: var(--surface-2);
+      border:1px solid var(--border);
+      border-radius: var(--r-2);
+      transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+    }
+    .search input:focus{
+      border-color: var(--brand-line);
+      box-shadow: var(--focus-ring);
+      outline:none;
+      background: var(--surface);
+    }
+    .search input::placeholder{color:var(--text-soft)}
+
+    .chips{display:flex;gap:var(--sp-1);flex-wrap:wrap}
+    .chip{
+      appearance:none;
+      border:1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-3);
+      font: inherit;
+      font-size: var(--fs-xs);
+      font-weight:600;
+      letter-spacing:.01em;
+      padding: 5px 11px;
+      border-radius: var(--r-pill);
+      cursor:pointer;
+      transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease),
+                  border-color var(--dur-1) var(--ease);
+    }
+    .chip:hover{background:var(--surface-3);color:var(--text-2)}
+    .chip[aria-pressed="true"]{
+      background: var(--brand-tint-2);
+      border-color: var(--brand-line);
+      color: var(--brand-strong);
+    }
+
+    .list-scroll{overflow-y:auto;flex:1;min-height:0;scrollbar-width:thin}
+
+    .conv{
+      width:100%;
+      display:grid;
+      grid-template-columns: auto 1fr auto;
+      gap: var(--sp-3);
+      align-items:start;
+      padding: var(--sp-3) var(--sp-4);
+      background:none;border:0;border-bottom:1px solid var(--border-soft);
+      text-align:left;font:inherit;color:inherit;cursor:pointer;
+      transition: background var(--dur-1) var(--ease);
+    }
+    .conv:hover{background:var(--surface-2)}
+    .conv[aria-current="true"]{
+      background: var(--brand-tint);
+      box-shadow: inset 3px 0 0 var(--brand);
+    }
+
+    /* Inicial do nome em vez de foto: o WhatsApp nao entrega a foto pela API,
+       e um placeholder generico seria ruido. */
+    .avatar{
+      width:38px;height:38px;border-radius:var(--r-pill);
+      display:grid;place-items:center;
+      background: var(--surface-3);
+      color: var(--text-2);
+      font-size: var(--fs-md);font-weight:700;
+      letter-spacing: var(--track-tight);
+      border:1px solid var(--border-soft);
+    }
+    .conv[aria-current="true"] .avatar{
+      background: var(--brand-tint-2);color:var(--brand-strong);
+      border-color: var(--brand-line);
+    }
+
+    .conv-body{min-width:0}
+    .conv-name{
+      font-size: var(--fs-md);font-weight:650;
+      letter-spacing: var(--track-tight);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      margin:0 0 2px;
+    }
+    .conv-preview{
+      font-size: var(--fs-sm);color:var(--text-3);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;
+    }
+    .conv-tags{display:flex;gap:var(--sp-1);margin-top:5px;flex-wrap:wrap}
+
+    .tag{
+      font-size: var(--fs-2xs);
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing: var(--track-wide);
+      padding: 2px 6px;
+      border-radius: var(--r-1);
+      border:1px solid var(--border-soft);
+      background: var(--surface-3);
+      color: var(--text-3);
+      white-space:nowrap;
+    }
+    .tag--warn{background:var(--warn-tint);border-color:var(--warn-line);color:var(--warn-strong)}
+    .tag--brand{background:var(--brand-tint-2);border-color:var(--brand-line);color:var(--brand-strong)}
+
+    .conv-meta{display:grid;justify-items:end;gap:5px}
+    .conv-time{
+      font-size: var(--fs-2xs);color:var(--text-soft);
+      font-variant-numeric: tabular-nums;white-space:nowrap;
+    }
+    .unread{
+      min-width:19px;height:19px;padding:0 5px;
+      border-radius:var(--r-pill);
+      background: var(--brand);color:var(--text-inv);
+      font-size: var(--fs-2xs);font-weight:700;
+      display:grid;place-items:center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* --- Coluna da direita: a conversa --- */
+    .thread{min-width:0}
+
+    .thread-head{
+      padding: var(--sp-3) var(--sp-4);
+      border-bottom:1px solid var(--border-soft);
+      display:grid;gap: var(--sp-3);
+      background: var(--surface);
+    }
+    .thread-id{display:flex;align-items:center;gap:var(--sp-3);min-width:0}
+    .thread-id .avatar{width:40px;height:40px}
+    .thread-who{min-width:0;flex:1}
+    .thread-name{
+      font-size: var(--fs-lg);font-weight:700;
+      letter-spacing: var(--track-tight);margin:0;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .thread-sub{
+      font-size: var(--fs-xs);color:var(--text-3);margin:2px 0 0;
+      display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;
+    }
+    .thread-actions{display:flex;gap:var(--sp-2);flex:none}
+
+    .btn{
+      appearance:none;cursor:pointer;font:inherit;
+      font-size: var(--fs-sm);font-weight:600;
+      display:inline-flex;align-items:center;gap:6px;
+      padding: 7px 12px;border-radius: var(--r-2);
+      border:1px solid var(--border);
+      background: var(--surface);color:var(--text-2);
+      transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease),
+                  color var(--dur-1) var(--ease);
+    }
+    .btn:hover{background:var(--surface-2);color:var(--text)}
+    .btn--primary{
+      background: var(--brand);border-color:var(--brand);color:var(--text-inv);
+    }
+    .btn--primary:hover{background:var(--brand-strong);border-color:var(--brand-strong);color:var(--text-inv)}
+    .btn--primary:disabled{background:var(--n-4);border-color:var(--n-4);cursor:not-allowed}
+    .btn--icon{padding:7px;border-radius:var(--r-2)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    /* ==========================================================================
+       O TRILHO DA JANELA
+       --------------------------------------------------------------------------
+       Barra que esvazia com o tempo restante da janela de 24h. Nao e enfeite:
+       e o estado que decide se o campo embaixo aceita texto livre ou so modelo.
+       Fica ambar nas ultimas duas horas e vazio quando fecha.
+       ========================================================================== */
+    .rail{display:grid;gap:6px}
+    .rail-track{
+      height:3px;border-radius:var(--r-pill);
+      background: var(--surface-inset);
+      overflow:hidden;
+    }
+    .rail-fill{
+      height:100%;width:var(--pct, 0%);
+      border-radius:var(--r-pill);
+      background: var(--brand);
+      transition: width var(--dur-3) var(--ease), background var(--dur-2) var(--ease);
+    }
+    .rail[data-state="soon"] .rail-fill{background: var(--warn)}
+    .rail[data-state="closed"] .rail-fill{width:0}
+
+    .rail-label{
+      margin:0;
+      font-size: var(--fs-2xs);
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing: var(--track-wide);
+      color: var(--text-soft);
+      display:flex;align-items:center;gap:6px;
+    }
+    .rail[data-state="open"] .rail-label{color:var(--text-3)}
+    .rail[data-state="soon"] .rail-label{color:var(--warn-strong)}
+    .rail[data-state="closed"] .rail-label{color:var(--text-3)}
+
+    /* --- Mensagens --- */
+    .msgs{
+      flex:1;min-height:0;overflow-y:auto;
+      padding: var(--sp-5) var(--sp-4);
+      display:flex;flex-direction:column;gap:var(--sp-2);
+      background:
+        linear-gradient(180deg, var(--surface-2) 0, var(--surface) 120px);
+      scrollbar-width:thin;
+    }
+
+    .day{
+      align-self:center;
+      font-size: var(--fs-2xs);font-weight:700;
+      text-transform:uppercase;letter-spacing: var(--track-wide);
+      color: var(--text-soft);
+      background: var(--surface);
+      border:1px solid var(--border-soft);
+      padding: 3px 10px;border-radius: var(--r-pill);
+      margin: var(--sp-3) 0 var(--sp-2);
+    }
+
+    .msg{
+      max-width: var(--bubble-max);
+      padding: 9px 12px;
+      border-radius: var(--r-3);
+      font-size: var(--fs-md);
+      line-height: var(--lh-base);
+      position:relative;
+      animation: rise var(--dur-3) var(--ease) both;
+    }
+    @keyframes rise{
+      from{opacity:0;transform:translateY(6px)}
+      to{opacity:1;transform:none}
+    }
+    @media (prefers-reduced-motion: reduce){
+      .msg{animation:none}
+      .rail-fill{transition:none}
+    }
+
+    .msg p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+
+    .msg--in{
+      align-self:flex-start;
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-bottom-left-radius: var(--r-1);
+      box-shadow: var(--shadow-1);
+    }
+    .msg--out{
+      align-self:flex-end;
+      background: var(--brand-tint-2);
+      border:1px solid var(--brand-line);
+      border-bottom-right-radius: var(--r-1);
+    }
+    /* Enviada pelo telemovel, na coexistencia. Nao ganha cor nova: ganha um
+       tracejado na borda e um rotulo. Cor escassa e regra da casa. */
+    .msg--app{
+      background: var(--surface);
+      border-style:dashed;
+      border-color: var(--border-firm);
+    }
+    .msg--failed{
+      background: var(--danger-tint);
+      border-color: var(--danger-line);
+    }
+
+    /* Anexos. A imagem manda no tamanho do balão, então tem teto. */
+    .msg-media{
+      display:block;
+      max-width:100%;
+      max-height:320px;
+      border-radius: var(--r-2);
+      margin-bottom:6px;
+      background: var(--surface-3);
+    }
+    .msg-audio{
+      display:block;
+      width: min(280px, 100%);
+      margin-bottom:6px;
+    }
+    .msg-file{
+      display:inline-flex;align-items:center;gap:6px;
+      padding: 7px 10px;margin-bottom:6px;
+      border:1px solid var(--border);border-radius: var(--r-2);
+      background: var(--surface);
+      color: var(--text-2);
+      font-size: var(--fs-sm);font-weight:600;
+      text-decoration:none;
+      word-break:break-all;
+    }
+    .msg-file:hover{border-color: var(--brand-line);color: var(--brand-strong)}
+    .msg-media-pending{
+      margin:0 0 4px;
+      font-size: var(--fs-xs);
+      font-style:italic;
+      color: var(--text-soft);
+    }
+
+    .msg-foot{
+      display:flex;align-items:center;gap:5px;justify-content:flex-end;
+      margin-top:4px;
+      font-size: var(--fs-2xs);
+      color: var(--text-soft);
+      font-variant-numeric: tabular-nums;
+    }
+    .msg--in .msg-foot{justify-content:flex-start}
+    .msg-origin{
+      font-weight:700;text-transform:uppercase;letter-spacing: var(--track-wide);
+    }
+    .ticks{display:inline-flex;color:var(--text-soft)}
+    .ticks--read{color:var(--brand)}
+    .msg-error{
+      margin-top:5px;font-size:var(--fs-xs);color:var(--danger);font-weight:600;
+    }
+    .msg-template{
+      display:inline-flex;align-items:center;gap:4px;
+      font-size: var(--fs-2xs);font-weight:700;
+      text-transform:uppercase;letter-spacing: var(--track-wide);
+      color: var(--text-soft);margin-bottom:5px;
+    }
+
+    /* --- Campo de escrita --- */
+    .composer{
+      border-top:1px solid var(--border-soft);
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--surface);
+      display:grid;gap: var(--sp-2);
+    }
+    .composer-row{display:flex;gap:var(--sp-2);align-items:flex-end}
+    .composer textarea{
+      flex:1;resize:none;font:inherit;font-size:var(--fs-md);
+      line-height: var(--lh-base);color:var(--text);
+      padding: 10px 12px;
+      border:1px solid var(--border);border-radius: var(--r-2);
+      background: var(--surface-2);
+      max-height: 148px;min-height:42px;
+      transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+    }
+    .composer textarea:focus{
+      border-color: var(--brand-line);box-shadow: var(--focus-ring);
+      outline:none;background:var(--surface);
+    }
+    .composer textarea::placeholder{color:var(--text-soft)}
+    .composer-hint{
+      font-size: var(--fs-2xs);color:var(--text-soft);margin:0;
+    }
+    .composer-error{
+      font-size: var(--fs-xs);color:var(--danger);font-weight:600;margin:0;
+    }
+
+    /* Janela fechada: o campo vira seletor de modelo. A troca e a prova de que
+       a regra foi entendida, sem precisar de aviso escrito. */
+    .locked{
+      display:grid;gap: var(--sp-3);
+      padding: var(--sp-4);
+      border:1px dashed var(--border-firm);
+      border-radius: var(--r-2);
+      background: var(--surface-2);
+    }
+    .locked-title{
+      margin:0;font-size:var(--fs-md);font-weight:700;letter-spacing:var(--track-tight);
+    }
+    .locked-text{margin:0;font-size:var(--fs-sm);color:var(--text-3);line-height:var(--lh-base)}
+    .locked select{
+      font:inherit;font-size:var(--fs-md);color:var(--text);
+      padding: 9px 12px;border:1px solid var(--border);
+      border-radius: var(--r-2);background:var(--surface);width:100%;
+    }
+    .locked select:focus{border-color:var(--brand-line);box-shadow:var(--focus-ring);outline:none}
+    .locked-preview{
+      margin:0;padding: var(--sp-3);
+      background: var(--surface);border:1px solid var(--border-soft);
+      border-radius: var(--r-2);
+      font-size: var(--fs-sm);color:var(--text-2);line-height:var(--lh-base);
+      white-space:pre-wrap;
+    }
+
+    /* --- Estados vazios --- */
+    /* O corpo da conversa nao pode criar caixa propria, senao quebra o flex do
+       painel. Por isso display:contents, e por isso o [hidden] precisa de regra
+       explicita: sozinho ele perderia para o display do elemento. */
+    .thread-body{display:contents}
+    .thread-body[hidden]{display:none}
+
+    .empty{
+      flex:1;display:grid;place-content:center;justify-items:center;
+      gap: var(--sp-3);padding: var(--sp-7) var(--sp-5);text-align:center;
+    }
+    .empty[hidden]{display:none}
+    .empty .ic{width:26px;height:26px;color:var(--text-soft)}
+    .empty h2{
+      margin:0;font-size:var(--fs-lg);font-weight:700;letter-spacing:var(--track-tight);
+    }
+    .empty p{
+      margin:0;font-size:var(--fs-sm);color:var(--text-3);
+      max-width: 42ch;line-height: var(--lh-base);
+    }
+
+    .skeleton{
+      height:14px;border-radius:var(--r-1);
+      background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
+      background-size:200% 100%;
+      animation: shimmer 1.3s infinite linear;
+    }
+    @keyframes shimmer{to{background-position:-200% 0}}
+
+    /* ==========================================================================
+       Conexão do número. Primeira tela de quem ainda não conectou.
+       --------------------------------------------------------------------------
+       Assimétrica de propósito: a coluna larga carrega a promessa e o botão, a
+       estreita carrega a lista do que ter à mão. Centrar tudo num cartão faria
+       a perda de listas de transmissão passar despercebida, e ela precisa ser
+       lida antes do clique, não depois.
+       ========================================================================== */
+    .connect{
+      display:grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(260px, .95fr);
+      gap: var(--sp-6);
+      align-items:start;
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: var(--r-3);
+      box-shadow: var(--shadow-1);
+      padding: var(--sp-7) var(--sp-6);
+    }
+
+    .connect-kicker{
+      margin:0 0 var(--sp-2);
+      font-size: var(--fs-2xs);font-weight:700;
+      text-transform:uppercase;letter-spacing: var(--track-wide);
+      color: var(--brand);
+    }
+    .connect h1{
+      margin:0 0 var(--sp-3);
+      font-size: clamp(22px, 1.2rem + 1.1vw, 30px);
+      line-height: var(--lh-tight);
+      letter-spacing: var(--track-tight);
+      font-weight:700;
+      max-width: 22ch;
+    }
+    .connect-lead{
+      margin:0 0 var(--sp-5);
+      font-size: var(--fs-lg);
+      line-height: var(--lh-base);
+      color: var(--text-2);
+      max-width: 58ch;
+    }
+
+    .connect-points{
+      list-style:none;margin:0 0 var(--sp-6);padding:0;
+      display:grid;gap: var(--sp-3);
+      max-width: 58ch;
+    }
+    .connect-points li{
+      display:grid;grid-template-columns:auto 1fr;gap: var(--sp-3);
+      align-items:start;
+      font-size: var(--fs-md);
+      line-height: var(--lh-base);
+      color: var(--text-2);
+    }
+    .connect-points .ic{color: var(--ok);margin-top:2px}
+    /* O único ponto que é perda fica ambar, e é o terceiro: a professora lê a
+       promessa antes, e o custo depois, sem que o custo se esconda. */
+    .connect-points li:last-child .ic{color: var(--warn)}
+    .connect-points strong{color: var(--text);font-weight:650}
+
+    .connect-actions{display:flex;align-items:center;gap: var(--sp-4);flex-wrap:wrap}
+    .btn--lg{
+      font-size: var(--fs-lg);
+      padding: 12px 20px;
+      border-radius: var(--r-2);
+    }
+    .connect-hint{margin:0;font-size: var(--fs-sm);color: var(--text-3)}
+
+    /* Conexão manual: recolhida, discreta, sem competir com o botão principal. */
+    .manual{
+      margin-top: var(--sp-5);
+      border-top:1px solid var(--border-soft);
+      padding-top: var(--sp-4);
+      max-width: 58ch;
+    }
+    .manual > summary{
+      cursor:pointer;
+      font-size: var(--fs-sm);
+      font-weight:600;
+      color: var(--text-3);
+      list-style:none;
+      display:flex;align-items:center;gap:6px;
+    }
+    .manual > summary::-webkit-details-marker{display:none}
+    .manual > summary::before{
+      content:"›";
+      display:inline-block;
+      transition: transform var(--dur-2) var(--ease);
+      font-size: var(--fs-lg);
+      line-height:1;
+    }
+    .manual[open] > summary::before{transform:rotate(90deg)}
+    .manual > summary:hover{color: var(--text)}
+
+    .manual-body{display:grid;gap: var(--sp-3);padding-top: var(--sp-4)}
+    .manual-lead{
+      margin:0;font-size: var(--fs-sm);color: var(--text-3);
+      line-height: var(--lh-base);
+    }
+    .manual-field input{
+      width:100%;font:inherit;font-size: var(--fs-md);color: var(--text);
+      padding: 9px 12px;
+      border:1px solid var(--border);border-radius: var(--r-2);
+      background: var(--surface-2);
+      font-variant-numeric: tabular-nums;
+    }
+    .manual-field input:focus{
+      border-color: var(--brand-line);box-shadow: var(--focus-ring);
+      outline:none;background: var(--surface);
+    }
+    .manual-check{
+      display:grid;grid-template-columns:auto 1fr;gap: var(--sp-2);
+      align-items:start;
+      font-size: var(--fs-sm);color: var(--text-3);
+      line-height: var(--lh-base);
+    }
+    .manual-check input{margin-top:3px}
+    .manual .btn{justify-self:start}
+
+    .connect-aside{
+      background: var(--surface-2);
+      border:1px solid var(--border-soft);
+      border-radius: var(--r-2);
+      padding: var(--sp-5);
+    }
+    .connect-aside-title{
+      margin:0 0 var(--sp-3);
+      font-size: var(--fs-2xs);font-weight:700;
+      text-transform:uppercase;letter-spacing: var(--track-wide);
+      color: var(--text-soft);
+    }
+    .connect-checklist{
+      margin:0 0 var(--sp-4);padding-left: 1.15rem;
+      display:grid;gap: var(--sp-3);
+      font-size: var(--fs-sm);
+      line-height: var(--lh-base);
+      color: var(--text-2);
+    }
+    .connect-checklist strong{color:var(--text);font-weight:650}
+    .connect-aside-foot{
+      margin:0;padding-top: var(--sp-3);
+      border-top:1px solid var(--border-soft);
+      font-size: var(--fs-sm);
+      line-height: var(--lh-base);
+      color: var(--text-3);
+    }
+
+    @media (max-width: 900px){
+      .connect{
+        grid-template-columns: 1fr;
+        gap: var(--sp-5);
+        padding: var(--sp-5) var(--sp-4);
+      }
+      .connect h1{max-width:none}
+    }
+
+    .side-number{
+      margin: 0 0 var(--sp-3);
+      display:flex;align-items:center;gap:6px;
+      font-size: var(--fs-sm);
+      font-weight:600;
+      color: var(--text-2);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* --- Aviso de canal desligado --- */
+    .notice{
+      display:flex;gap:var(--sp-3);align-items:flex-start;
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--warn-tint);
+      border:1px solid var(--warn-line);
+      border-radius: var(--r-2);
+      margin-bottom: var(--sp-3);
+    }
+    .notice .ic{color:var(--warn-strong);margin-top:1px}
+    .notice p{margin:0;font-size:var(--fs-sm);color:var(--warn-strong);line-height:var(--lh-base)}
+    .notice strong{font-weight:700}
+
+    /* Aviso que pede acao: fica vermelho e carrega o botao junto, porque o
+       caminho da correcao tem de estar ao lado do problema. */
+    .notice--action{
+      background: var(--danger-tint);
+      border-color: var(--danger-line);
+      align-items:flex-start;
+    }
+    .notice--action .ic{color: var(--danger)}
+    .notice--action p{color: var(--danger)}
+    .notice--action > div{display:grid;gap: var(--sp-2);justify-items:start}
+    .notice-detail{
+      font-size: var(--fs-xs) !important;
+      color: var(--text-3) !important;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break:break-word;
+    }
+
+    /* --- Painel lateral de detalhes do contato --- */
+    .sheet{
+      position:fixed;inset:0;z-index:60;
+      display:none;
+    }
+    .sheet[data-open="true"]{display:block}
+    .sheet-scrim{position:absolute;inset:0;background:var(--scrim)}
+    .sheet-card{
+      position:absolute;right:0;top:0;height:100%;width:min(420px,100%);
+      background: var(--surface);
+      border-left:1px solid var(--border);
+      box-shadow: var(--shadow-3);
+      padding: var(--sp-5);
+      display:grid;gap: var(--sp-4);align-content:start;
+      overflow-y:auto;
+      animation: slide var(--dur-3) var(--ease) both;
+    }
+    @keyframes slide{from{transform:translateX(18px);opacity:0}to{transform:none;opacity:1}}
+    .sheet h2{margin:0;font-size:var(--fs-lg);font-weight:700;letter-spacing:var(--track-tight)}
+    .field-label{
+      display:block;font-size:var(--fs-2xs);font-weight:700;
+      text-transform:uppercase;letter-spacing:var(--track-wide);
+      color:var(--text-soft);margin-bottom:5px;
+    }
+    .sheet input, .sheet select{
+      width:100%;font:inherit;font-size:var(--fs-md);color:var(--text);
+      padding:9px 12px;border:1px solid var(--border);
+      border-radius:var(--r-2);background:var(--surface-2);
+    }
+    .sheet input:focus, .sheet select:focus{
+      border-color:var(--brand-line);box-shadow:var(--focus-ring);outline:none;background:var(--surface);
+    }
+    .sheet-rows{display:grid;gap:var(--sp-3)}
+    .sheet-row{
+      display:flex;justify-content:space-between;gap:var(--sp-3);
+      font-size:var(--fs-sm);padding:var(--sp-2) 0;
+      border-bottom:1px solid var(--border-soft);
+    }
+    .sheet-row dt{color:var(--text-soft);margin:0}
+    .sheet-row dd{margin:0;color:var(--text-2);font-weight:600;text-align:right}
+
+    /* --- Voltar, so no telemovel --- */
+    .back{display:none}
+
+    /* ==========================================================================
+       Telemovel. A professora responde no celular tambem, entao a pilha e um
+       estado so por vez: ou a lista, ou a conversa.
+       ========================================================================== */
+    @media (max-width: 900px){
+      :root{ --thread-h: calc(100dvh - 132px); }
+
+      .inbox{
+        grid-template-columns: 1fr;
+        height: var(--thread-h);
+      }
+      .inbox[data-view="thread"] .panel--list{display:none}
+      .inbox[data-view="list"]   .panel--thread{display:none}
+
+      .back{
+        display:inline-flex;align-items:center;gap:5px;
+        appearance:none;background:none;border:0;cursor:pointer;
+        font:inherit;font-size:var(--fs-sm);font-weight:600;
+        color:var(--brand);padding:4px 2px;margin-right:2px;
+      }
+      .msg{max-width: 88%}
+      .thread-actions .btn span{display:none}
+    }
+
+    @media (max-width: 400px){
+      .msgs{padding: var(--sp-4) var(--sp-3)}
+      .list-head, .thread-head, .composer{padding-left:var(--sp-3);padding-right:var(--sp-3)}
+      .conv{padding-left:var(--sp-3);padding-right:var(--sp-3)}
+    }
+  </style>
+</head>
+<body class="page-whatsapp" data-user-id="{{ request.user.id }}">
+  {% include '_mobile_nav.html' %}
+
+  <svg class="icon-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.4 12 4l8 7.4V19a1.6 1.6 0 0 1-1.6 1.6H15v-6H9v6H5.6A1.6 1.6 0 0 1 4 19z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5.2" width="17" height="15.3" rx="2.6"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M12 4 2.6 8.8 12 13.6l9.4-4.8z"/><path d="M6.4 11v4.6c0 1.6 2.5 2.9 5.6 2.9s5.6-1.3 5.6-2.9V11"/><path d="M21.4 8.8v5.4"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M20.2 4.6v13.1c0 .4-.3.8-.7.8-3 .4-5.3 1.1-7.5 2.3-2.2-1.2-4.5-1.9-7.5-2.3a.8.8 0 0 1-.7-.8V4.6"/><path d="M3.8 4.6c3 .4 6 1.2 8.2 2.6 2.2-1.4 5.2-2.2 8.2-2.6M12 7.2v13.6"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.6 7.4a2 2 0 0 1 2-2h3.1l2 2.5h7.7a2 2 0 0 1 2 2v7.7a2 2 0 0 1-2 2h-12.8a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-money" viewBox="0 0 24 24"><rect x="2.6" y="6" width="18.8" height="12" rx="2.4"/><circle cx="12" cy="12" r="2.7"/><path d="M6.2 9.6v4.8M17.8 9.6v4.8"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20.5 12.2c0 3.7-3.8 6.7-8.5 6.7-.98 0-1.93-.13-2.8-.38L4.2 20.3l1.5-3.4a6.4 6.4 0 0 1-2.2-4.7c0-3.7 3.8-6.7 8.5-6.7s8.5 3 8.5 6.7z"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.9"/><path d="M19.2 13.4a7.8 7.8 0 0 0 0-2.8l1.9-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2.4-1.4L14 2.4h-4l-.4 2.8a7.6 7.6 0 0 0-2.4 1.4l-2.3-.9-2 3.4 1.9 1.5a7.8 7.8 0 0 0 0 2.8l-1.9 1.5 2 3.4 2.3-.9c.72.6 1.53 1.08 2.4 1.4l.4 2.8h4l.4-2.8a7.6 7.6 0 0 0 2.4-1.4l2.3.9 2-3.4z"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="2.6" y="5.2" width="18.8" height="13.6" rx="2.4"/><path d="M2.6 10h18.8M6.4 14.8h3.4"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12.4" height="12" rx="2.4"/><path d="m15.4 10.6 5.6-3.2v9.2l-5.6-3.2z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.6"/><path d="M4.8 20.2a7.4 7.4 0 0 1 14.4 0"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14.4 7.6V5.6a2 2 0 0 0-2-2H6.6a2 2 0 0 0-2 2v12.8a2 2 0 0 0 2 2h5.8a2 2 0 0 0 2-2v-2"/><path d="M9.6 12h10.8M20.4 12l-3.2-3.2M20.4 12l-3.2 3.2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.4"/><path d="m20 20-4.4-4.4"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M20.6 3.4 3.8 10.2l6.6 2.6 2.6 6.6z"/><path d="m10.4 12.8 4.4-4.4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.6 4.4 4.4L19 7.4"/></symbol>
+    <symbol id="i-checks" viewBox="0 0 24 24"><path d="m2.6 12.6 4.2 4.2 8.4-9M11.6 16.4l.8.8 8.6-9.4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 1.8"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.6" y="10.4" width="14.8" height="10" rx="2.2"/><path d="M8.2 10.4V7.8a3.8 3.8 0 0 1 7.6 0v2.6"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10.2 13.8a3.6 3.6 0 0 0 5.2 0l2.8-2.8a3.6 3.6 0 0 0-5.1-5.1l-1.5 1.5"/><path d="M13.8 10.2a3.6 3.6 0 0 0-5.2 0l-2.8 2.8a3.6 3.6 0 0 0 5.1 5.1l1.5-1.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4.2 2.9 20h18.2z"/><path d="M12 10v4.4M12 17.2v.5"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3.6 13.4 6 5.6a2 2 0 0 1 1.9-1.4h8.2A2 2 0 0 1 18 5.6l2.4 7.8"/><path d="M3.6 13.4h4.2l1.2 2.6h6l1.2-2.6h4.2v4.6a2 2 0 0 1-2 2H5.6a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19.4 12H5.4M11 6.4 5.4 12l5.6 5.6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11.2v5.2M12 7.7v.5"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M13.6 3.6H7.4a2 2 0 0 0-2 2v12.8a2 2 0 0 0 2 2h9.2a2 2 0 0 0 2-2V8.6z"/><path d="M13.6 3.6v5h5"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.6 3.6h2.9l1.4 3.6-2 1.4a12.2 12.2 0 0 0 6.5 6.5l1.4-2 3.6 1.4v2.9a2 2 0 0 1-2.2 2A17.6 17.6 0 0 1 4.6 5.8a2 2 0 0 1 2-2.2z"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img src="{% static 'img/educaflow-new.png' %}" alt="EDUCAflowOne Logo"></div>
+        <div>
+          <p class="brand-kicker">Dashboard</p>
+          <p class="brand-name">EDUCAflowOne</p>
+        </div>
+      </div>
+      <nav class="nav">
+        {% if not is_partner_teacher %}
+        <a href="/dashboard/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-home"></use></svg></span>
+          <div><p class="nav-title">Dashboard</p><p class="nav-subtitle">Visão geral</p></div>
+        </a>
+        {% endif %}
+        <a href="/calendar/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-calendar"></use></svg></span>
+          <div><p class="nav-title">Calendário</p><p class="nav-subtitle">Agenda visual do mês</p></div>
+        </a>
+        <a href="/alunos/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-cap"></use></svg></span>
+          <div><p class="nav-title">Alunos</p><p class="nav-subtitle">Cadastro e planos</p></div>
+        </a>
+        <a href="/planejamento/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-book"></use></svg></span>
+          <div><p class="nav-title">Planejamento</p><p class="nav-subtitle">Planejar aulas por aluno</p></div>
+        </a>
+        {% if not is_partner_teacher %}
+        <a href="/arquivos/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-folder"></use></svg></span>
+          <div><p class="nav-title">Arquivos</p><p class="nav-subtitle">Sua biblioteca de materiais</p></div>
+        </a>
+        {% endif %}
+        <a href="/financeiro/" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-money"></use></svg></span>
+          <div><p class="nav-title">Financeiro</p><p class="nav-subtitle">Recebimentos do mês</p></div>
+        </a>
+
+        <div class="nav-divider"></div>
+
+        <a href="/whatsapp/" class="nav-item active">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-inbox"></use></svg></span>
+          <div><p class="nav-title">Conversas</p><p class="nav-subtitle">WhatsApp da escola</p></div>
+        </a>
+        {% if not is_partner_teacher %}
+        <a href="/?view=view-billing" class="nav-item">
+          <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-chat"></use></svg></span>
+          <div><p class="nav-title">Cobrança</p><p class="nav-subtitle">WhatsApp + Pix</p></div>
+        </a>
+        {% endif %}
+
+        <div class="nav-divider"></div>
+        {% if not is_partner_teacher %}
+        <div class="nav-group nav-group--collapsed" id="navGroupConta">
+          <button type="button" class="nav-group-header" aria-expanded="false" aria-controls="navGroupContaItems">
+            <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-gear"></use></svg></span>
+            <span class="nav-group-title">Conta</span>
+            <span class="nav-group-chevron" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-group-items" id="navGroupContaItems">
+            <a href="/perfil/" class="nav-item nav-item-nested">
+              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-user"></use></svg></span>
+              <div><p class="nav-title">Perfil</p><p class="nav-subtitle">Dados da conta</p></div>
+            </a>
+            <a href="/planos/" class="nav-item nav-item-nested">
+              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-card"></use></svg></span>
+              <div><p class="nav-title">Plano e Faturamento</p><p class="nav-subtitle">Gerenciar assinatura</p></div>
+            </a>
+            <a href="/tutorial/" class="nav-item nav-item-nested">
+              <span class="nav-emoji"><svg class="ic ic--nav" aria-hidden="true"><use href="#i-video"></use></svg></span>
+              <div><p class="nav-title">Tutorial</p><p class="nav-subtitle">Vídeos rápidos</p></div>
+            </a>
+          </div>
+        </div>
+        {% endif %}
+        <div class="nav-divider"></div>
+      </nav>
+      <div class="sidebar-card">
+        <p class="sidebar-title">Canal</p>
+        {% if wa_account %}
+        <p class="side-number">
+          <svg class="ic ic--xs" aria-hidden="true"><use href="#i-phone"></use></svg>
+          {{ wa_account.display_phone_number|default:"número conectado" }}
+        </p>
+        {% endif %}
+        <ul class="sidebar-highlights">
+          <li><strong id="sideUnread">0</strong> conversas não lidas</li>
+          <li><strong id="sideOpen">0</strong> dentro da janela</li>
+          <li><strong id="sideUnlinked">0</strong> sem aluno ligado</li>
+        </ul>
+        {% if wa_account and not is_partner_teacher %}
+        <button class="primary ghost" id="disconnectBtn"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-link"></use></svg> Trocar número</button>
+        {% endif %}
+        <button class="primary ghost" id="logoutBtn"><svg class="ic ic--sm" aria-hidden="true"><use href="#i-logout"></use></svg> Sair</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      {% if wa_account and wa_account.status != 'connected' %}
+      <!-- Conta existe mas nao serve para enviar: token expirado ou canal
+           desligado. O aviso vem no topo e o painel de conexao logo abaixo,
+           porque o caminho do conserto tem de estar ao lado do problema. Antes
+           disto, uma conta desconectada mostrava a caixa de entrada e nenhuma
+           saida, e era preciso apagar a conta no banco. -->
+      <div class="notice notice--action" role="alert">
+        <svg class="ic ic--sm" aria-hidden="true"><use href="#i-alert"></use></svg>
+        <div>
+          {% if wa_account.status == 'error' %}
+          <p><strong>A conexão com o WhatsApp expirou.</strong> As conversas continuam aqui, mas nada é enviado nem recebido até você reconectar.</p>
+          {% else %}
+          <p><strong>O número está desconectado.</strong> As conversas continuam aqui, e o aplicativo no celular não foi afetado. Reconecte para voltar a enviar e receber.</p>
+          {% endif %}
+          {% if wa_account.last_error %}<p class="notice-detail">{{ wa_account.last_error|truncatechars:180 }}</p>{% endif %}
+          {% if is_partner_teacher %}<p class="notice-detail">Quem reconecta é o dono da conta.</p>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if not wa_account or wa_account.status != 'connected' %}
+      <section class="connect" aria-labelledby="connectTitle">
+        <div class="connect-copy">
+          <p class="connect-kicker">Canal da escola</p>
+          {% if wa_account %}
+          <h1 id="connectTitle">Reconecte o número</h1>
+          <p class="connect-lead">
+            As conversas que já chegaram continuam guardadas. Reconectar apenas devolve ao
+            sistema a permissão de enviar e receber, sem mexer no aplicativo do seu celular.
+          </p>
+          {% else %}
+          <h1 id="connectTitle">Conecte o WhatsApp e traga as conversas para cá</h1>
+          <p class="connect-lead">
+            O número continua no seu celular, com o aplicativo do WhatsApp Business funcionando
+            como sempre. O que muda é que as conversas passam a aparecer também aqui, ao lado da
+            ficha do aluno, do financeiro e da agenda.
+          </p>
+          {% endif %}
+
+          <ul class="connect-points">
+            <li>
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-check"></use></svg>
+              <span><strong>Você não perde o aplicativo nem o histórico.</strong> O que responder pelo
+              celular aparece aqui, e o que enviar daqui aparece no celular.</span>
+            </li>
+            <li>
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-check"></use></svg>
+              <span>As conversas individuais dos <strong>últimos 6 meses</strong> são importadas.</span>
+            </li>
+            <li>
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-alert"></use></svg>
+              <span><strong>Listas de transmissão são desativadas</strong> no aplicativo. Grupos,
+              chamadas e status ficam de fora da integração.</span>
+            </li>
+          </ul>
+
+          <div class="connect-actions">
+            <button class="btn btn--primary btn--lg" type="button" id="connectBtn" disabled>
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-link"></use></svg>
+              Conectar WhatsApp
+            </button>
+            <p class="connect-hint" id="connectHint">A preparar a conexão…</p>
+          </div>
+
+          <p class="composer-error" id="connectError" hidden></p>
+
+          <!-- Caminho do piloto: token gerado à mão no painel da Meta, sem
+               popup. Fica recolhido porque não é o caminho do professor
+               comum, e sim o de quem já vinculou a WABA no Business Manager. -->
+          <details class="manual">
+            <summary>Já vinculei o número no Business Manager, quero colar o token</summary>
+            <div class="manual-body">
+              <p class="manual-lead">
+                Use um <strong>usuário do sistema</strong> com token permanente. Este caminho
+                dispensa o popup, mas o token dá acesso de envio ao número: trate como senha.
+              </p>
+
+              <div class="manual-field">
+                <label class="field-label" for="mWaba">ID da conta de negócio (WABA)</label>
+                <input type="text" id="mWaba" autocomplete="off" spellcheck="false" placeholder="ex.: 123456789012345"/>
+              </div>
+
+              <div class="manual-field">
+                <label class="field-label" for="mPhone">ID do número <span style="text-transform:none;font-weight:500">(opcional, se houver mais de um)</span></label>
+                <input type="text" id="mPhone" autocomplete="off" spellcheck="false" placeholder="deixe vazio para usar o único número"/>
+              </div>
+
+              <div class="manual-field">
+                <label class="field-label" for="mToken">Token de acesso permanente</label>
+                <input type="password" id="mToken" autocomplete="off" spellcheck="false" placeholder="colar aqui"/>
+              </div>
+
+              <label class="manual-check">
+                <input type="checkbox" id="mSync" checked/>
+                <span>Importar contatos e as conversas dos últimos 6 meses. Só funciona nas
+                primeiras 24 horas depois do vínculo na Meta.</span>
+              </label>
+
+              <button class="btn btn--primary" type="button" id="manualBtn">
+                <svg class="ic ic--sm" aria-hidden="true"><use href="#i-link"></use></svg>
+                Conectar com o token
+              </button>
+              <p class="composer-hint" id="manualHint"></p>
+              <p class="composer-error" id="manualError" hidden></p>
+            </div>
+          </details>
+        </div>
+
+        <aside class="connect-aside">
+          <p class="connect-aside-title">Antes de clicar, tenha à mão</p>
+          <ol class="connect-checklist">
+            <li>O <strong>WhatsApp Business atualizado</strong> no celular, versão 2.24.17 ou mais recente.</li>
+            <li>Uma <strong>conta do Facebook</strong>, para autorizar no popup da Meta.</li>
+            <li>O <strong>CNPJ</strong>, se tiver. Sem ele dá para conectar igual, com limite menor.</li>
+            <li>O <strong>nome</strong> que quer exibir para os pais e alunos.</li>
+          </ol>
+          <p class="connect-aside-foot">
+            Depois de conectar, fique por perto nas primeiras 24 horas: é a janela em que a Meta
+            importa as conversas antigas, e ela não se repete.
+          </p>
+        </aside>
+      </section>
+      {% elif not wa_enabled %}
+      <div class="notice" role="status">
+        <svg class="ic ic--sm" aria-hidden="true"><use href="#i-alert"></use></svg>
+        <p><strong>Canal desligado neste ambiente.</strong> As conversas antigas aparecem, mas nada é enviado nem recebido até o canal ser ligado.</p>
+      </div>
+      {% endif %}
+
+      {% if wa_account %}
+      <div class="inbox" id="inbox" data-view="list">
+
+        <!-- ── Conversas ─────────────────────────────────────────────── -->
+        <section class="panel panel--list" aria-label="Conversas">
+          <div class="list-head">
+            <div class="list-title">
+              <h1>Conversas</h1>
+              <span class="count" id="convCount"></span>
+            </div>
+            <div class="search">
+              <svg class="ic ic--sm" aria-hidden="true"><use href="#i-search"></use></svg>
+              <input type="search" id="search" placeholder="Buscar por nome ou telefone" autocomplete="off" aria-label="Buscar conversa"/>
+            </div>
+            <div class="chips" role="group" aria-label="Filtrar conversas">
+              <button class="chip" type="button" data-filter="" aria-pressed="true">Todas</button>
+              <button class="chip" type="button" data-filter="unread" aria-pressed="false">Não lidas</button>
+              <button class="chip" type="button" data-filter="unlinked" aria-pressed="false">Sem aluno</button>
+            </div>
+          </div>
+          <div class="list-scroll" id="convList">
+            <div style="padding:var(--sp-4);display:grid;gap:var(--sp-3)">
+              <div class="skeleton" style="width:70%"></div>
+              <div class="skeleton" style="width:88%"></div>
+              <div class="skeleton" style="width:56%"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Conversa aberta ───────────────────────────────────────── -->
+        <section class="panel panel--thread" aria-label="Mensagens" id="threadPanel">
+          <div class="empty" id="threadEmpty">
+            <svg class="ic" aria-hidden="true"><use href="#i-inbox"></use></svg>
+            <h2>Escolha uma conversa</h2>
+            <p>As mensagens dos pais e alunos aparecem aqui, junto com o que você já respondeu pelo celular.</p>
+          </div>
+
+          <div id="threadContent" class="thread-body" hidden>
+            <header class="thread-head">
+              <div class="thread-id">
+                <button class="back" type="button" id="backBtn">
+                  <svg class="ic ic--sm" aria-hidden="true"><use href="#i-arrow-left"></use></svg> Conversas
+                </button>
+                <div class="avatar" id="threadAvatar">?</div>
+                <div class="thread-who">
+                  <p class="thread-name" id="threadName">—</p>
+                  <p class="thread-sub" id="threadSub"></p>
+                </div>
+                <div class="thread-actions">
+                  <button class="btn" type="button" id="detailsBtn">
+                    <svg class="ic ic--sm" aria-hidden="true"><use href="#i-info"></use></svg><span>Detalhes</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- O trilho da janela -->
+              <div class="rail" id="rail" data-state="closed">
+                <div class="rail-track"><div class="rail-fill" id="railFill"></div></div>
+                <p class="rail-label" id="railLabel">
+                  <svg class="ic ic--xs" aria-hidden="true"><use href="#i-clock"></use></svg>
+                  <span>—</span>
+                </p>
+              </div>
+            </header>
+
+            <div class="msgs" id="msgs"></div>
+
+            <div class="composer" id="composer"></div>
+          </div>
+        </section>
+      </div>
+      {% endif %}
+    </main>
+  </div>
+
+  <!-- Painel de detalhes do contato -->
+  <div class="sheet" id="sheet" data-open="false" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-scrim" id="sheetScrim"></div>
+    <div class="sheet-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3)">
+        <h2 id="sheetTitle">Detalhes do contato</h2>
+        <button class="btn btn--icon" type="button" id="sheetClose" aria-label="Fechar">
+          <svg class="ic ic--sm" aria-hidden="true"><use href="#i-x"></use></svg>
+        </button>
+      </div>
+
+      <dl class="sheet-rows" id="sheetRows"></dl>
+
+      <div>
+        <label class="field-label" for="studentPick">Aluno ligado a este número</label>
+        <select id="studentPick"><option value="">Sem aluno ligado</option></select>
+        <p class="composer-hint" style="margin-top:6px">Ligar o contato ao aluno faz a conversa ir para o professor responsável por ele.</p>
+      </div>
+
+      <div>
+        <label class="field-label" for="optInPick">Autorização para mensagens da escola</label>
+        <select id="optInPick">
+          <option value="pending">Não perguntado</option>
+          <option value="granted">Autorizou receber</option>
+          <option value="revoked">Pediu para parar</option>
+        </select>
+        <p class="composer-hint" style="margin-top:6px">Sem autorização registrada, o sistema não envia cobrança nem lembrete para este número.</p>
+      </div>
+
+      <p class="composer-error" id="sheetError" hidden></p>
+    </div>
+  </div>
+
+  {% include '_support_widget.html' %}
+
+  <script>
+  (function(){
+    'use strict';
+
+    // ── Estado ──────────────────────────────────────────────────────────
+    const state = {
+      conversations: [],
+      currentId: null,
+      filter: '',
+      search: '',
+      templates: [],
+      students: [],
+      sending: false,
+    };
+
+    const el = (id) => document.getElementById(id);
+    const inbox = el('inbox');
+    const currentUserId = Number(document.body.dataset.userId) || null;
+
+    function getCookie(name){
+      const parts = ('; ' + document.cookie).split('; ' + name + '=');
+      return parts.length === 2 ? parts.pop().split(';').shift() : '';
+    }
+
+    async function api(url, options){
+      const opts = Object.assign({ headers: {} }, options || {});
+      opts.headers['X-Requested-With'] = 'XMLHttpRequest';
+      if (opts.method && opts.method !== 'GET'){
+        opts.headers['Content-Type'] = 'application/json';
+        opts.headers['X-CSRFToken'] = getCookie('csrftoken') || '';
+      }
+      const response = await fetch(url, opts);
+      let data = {};
+      try { data = await response.json(); } catch (e) { data = {}; }
+      if (!response.ok){
+        const err = new Error(data.detail || 'Não foi possível completar a ação.');
+        err.status = response.status;
+        throw err;
+      }
+      return data;
+    }
+
+    // Trocar número e reconectar são a mesma operação: desligar o canal sem
+    // apagar conversa nenhuma, para a página voltar a mostrar o painel de
+    // conexão. Sem isto era preciso apagar a conta no banco.
+    function ligarDesconexao(botao, confirmar){
+      if (!botao) return;
+      botao.addEventListener('click', function(){
+        if (confirmar){
+          const ok = window.confirm(
+            'Desligar o WhatsApp desta conta?\n\n' +
+            'As conversas já recebidas continuam guardadas, e o aplicativo no ' +
+            'celular não é afetado. Só para de enviar e de receber até você ' +
+            'conectar de novo.'
+          );
+          if (!ok) return;
+        }
+
+        botao.disabled = true;
+        api('/api/whatsapp/disconnect/', {method:'POST', body:'{}'})
+          .then(function(){ window.location.reload(); })
+          .catch(function(e){
+            window.alert(e.message || 'Não foi possível desligar.');
+            botao.disabled = false;
+          });
+      });
+    }
+
+    // No aviso de credencial expirada não pergunta: a conexão já está morta,
+    // confirmar seria só uma porta a mais no caminho do conserto.
+    ligarDesconexao(el('reconnectBtn'), false);
+    ligarDesconexao(el('disconnectBtn'), true);
+
+    // A barra lateral existe nos dois estados da página, então liga antes de
+    // qualquer saída antecipada.
+    const logout = el('logoutBtn');
+    if (logout){
+      logout.addEventListener('click', function(){
+        fetch('/api/auth/logout/', {
+          method:'POST',
+          headers:{'X-CSRFToken': getCookie('csrftoken') || ''},
+        }).finally(function(){ window.location.href = '/login/'; });
+      });
+    }
+
+    // O painel de conexão e a caixa de entrada podem coexistir: conta
+    // desconectada mostra os dois, o convite para reconectar em cima e as
+    // conversas guardadas embaixo.
+    setupConnect();
+
+    // O resto deste ficheiro assume a caixa de entrada montada.
+    if (!inbox) return;
+
+    // ── Conexão do número (Embedded Signup) ─────────────────────────────
+    //
+    // O popup da Meta devolve duas coisas por caminhos diferentes: o `code`
+    // volta no callback do FB.login, e o `waba_id` chega antes, por
+    // postMessage. Por isso o identificador é guardado à parte e só usado
+    // quando o código aparece.
+    function setupConnect(){
+      const button = el('connectBtn');
+      const hint = el('connectHint');
+      const error = el('connectError');
+
+      // Professor parceiro não vê o painel: quem conecta é o dono da conta.
+      if (!button) return;
+
+      const session = {waba_id: '', phone_number_id: ''};
+      let config = null;
+
+      function fail(message){
+        error.textContent = message;
+        error.hidden = false;
+        button.disabled = false;
+        hint.textContent = 'Se o erro insistir, avise o suporte.';
+      }
+
+      window.addEventListener('message', function(event){
+        let host = '';
+        try { host = new URL(event.origin).hostname; } catch (e) { return; }
+        if (host !== 'facebook.com' && !host.endsWith('.facebook.com')) return;
+
+        let data;
+        try {
+          data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        } catch (e) { return; }
+
+        if (!data || data.type !== 'WA_EMBEDDED_SIGNUP') return;
+
+        // FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING é o evento da coexistência;
+        // os outros dois cobrem o fluxo normal, caso a Meta caia nele.
+        const concluiu = data.event === 'FINISH'
+          || data.event === 'FINISH_ONLY_WABA'
+          || data.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING';
+
+        if (concluiu && data.data){
+          session.waba_id = data.data.waba_id || '';
+          session.phone_number_id = data.data.phone_number_id || '';
+        } else if (data.event === 'CANCEL'){
+          hint.textContent = 'Conexão cancelada. Pode tentar de novo quando quiser.';
+          button.disabled = false;
+        }
+      });
+
+      function loadSdk(version){
+        return new Promise(function(resolve, reject){
+          if (window.FB) { resolve(); return; }
+          const script = document.createElement('script');
+          script.src = 'https://connect.facebook.net/pt_BR/sdk.js';
+          script.async = true;
+          script.defer = true;
+          script.crossOrigin = 'anonymous';
+          script.onload = function(){
+            window.FB.init({
+              appId: config.app_id,
+              autoLogAppEvents: true,
+              xfbml: false,
+              version: version,
+            });
+            resolve();
+          };
+          script.onerror = function(){
+            reject(new Error('Não foi possível carregar o conector da Meta.'));
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      async function connect(){
+        error.hidden = true;
+        button.disabled = true;
+        hint.textContent = 'A abrir a janela da Meta…';
+
+        const extras = {setup: {}, sessionInfoVersion: '3'};
+        if (config.feature_type) extras.featureType = config.feature_type;
+
+        window.FB.login(function(response){
+          const code = response && response.authResponse && response.authResponse.code;
+
+          if (!code){
+            hint.textContent = 'A conexão não foi concluída.';
+            button.disabled = false;
+            return;
+          }
+
+          hint.textContent = 'A ligar o número. Isto leva alguns segundos…';
+
+          api('/api/whatsapp/signup/complete/', {
+            method: 'POST',
+            body: JSON.stringify({
+              code: code,
+              waba_id: session.waba_id,
+              phone_number_id: session.phone_number_id,
+            }),
+          }).then(function(data){
+            hint.textContent = 'Conectado! A carregar as conversas…';
+            if (data.warning) console.warn('[WhatsApp]', data.warning);
+            window.location.reload();
+          }).catch(function(e){
+            fail(e.message);
+          });
+        }, {
+          config_id: config.config_id,
+          response_type: 'code',
+          override_default_response_type: true,
+          extras: extras,
+        });
+      }
+
+      // Caminho manual, independente do popup e do SDK da Meta.
+      const manualBtn = el('manualBtn');
+      if (manualBtn){
+        manualBtn.addEventListener('click', function(){
+          const token = (el('mToken').value || '').trim();
+          const waba = (el('mWaba').value || '').trim();
+          const erroManual = el('manualError');
+          const dicaManual = el('manualHint');
+
+          erroManual.hidden = true;
+
+          if (!waba || !token){
+            erroManual.textContent = 'Preencha o ID da WABA e o token.';
+            erroManual.hidden = false;
+            return;
+          }
+
+          manualBtn.disabled = true;
+          dicaManual.textContent = 'A validar o token na Meta…';
+
+          api('/api/whatsapp/signup/manual/', {
+            method: 'POST',
+            body: JSON.stringify({
+              access_token: token,
+              waba_id: waba,
+              phone_number_id: (el('mPhone').value || '').trim(),
+              sync_history: el('mSync').checked,
+            }),
+          }).then(function(data){
+            // O token não fica no campo depois de aceito.
+            el('mToken').value = '';
+            dicaManual.textContent = 'Conectado a ' + (data.phone || 'número') +
+                                     '. A carregar as conversas…';
+            if (data.warning) console.warn('[WhatsApp]', data.warning);
+            window.location.reload();
+          }).catch(function(e){
+            erroManual.textContent = e.message;
+            erroManual.hidden = false;
+            dicaManual.textContent = '';
+            manualBtn.disabled = false;
+          });
+        });
+      }
+
+      api('/api/whatsapp/signup/config/').then(function(data){
+        config = data;
+
+        if (!config.configured){
+          hint.textContent = 'A integração com a Meta ainda não foi configurada '
+                           + 'neste ambiente. Fale com o suporte.';
+          return;
+        }
+
+        return loadSdk(config.graph_version).then(function(){
+          button.disabled = false;
+          hint.textContent = 'Abre uma janela da Meta. Leva uns 3 minutos.';
+          button.addEventListener('click', connect);
+        });
+      }).catch(function(e){
+        hint.textContent = '';
+        fail(e.message);
+      });
+    }
+
+    // ── Tempo, em português e sem enfeite ───────────────────────────────
+    function shortTime(iso){
+      if (!iso) return '';
+      const d = new Date(iso);
+      const hoje = new Date();
+      const mesmoDia = d.toDateString() === hoje.toDateString();
+      if (mesmoDia){
+        return d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+      }
+      const ontem = new Date(hoje);
+      ontem.setDate(hoje.getDate() - 1);
+      if (d.toDateString() === ontem.toDateString()) return 'ontem';
+      return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+    }
+
+    function dayLabel(iso){
+      const d = new Date(iso);
+      const hoje = new Date();
+      if (d.toDateString() === hoje.toDateString()) return 'Hoje';
+      const ontem = new Date(hoje);
+      ontem.setDate(hoje.getDate() - 1);
+      if (d.toDateString() === ontem.toDateString()) return 'Ontem';
+      return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
+    }
+
+    function remainingText(ms){
+      const totalMin = Math.floor(ms / 60000);
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      if (h > 0) return h + 'h' + String(m).padStart(2,'0');
+      return m + ' min';
+    }
+
+    function initial(name){
+      const clean = (name || '?').trim();
+      return (clean[0] || '?').toUpperCase();
+    }
+
+    function escapeHtml(text){
+      const div = document.createElement('div');
+      div.textContent = text == null ? '' : text;
+      return div.innerHTML;
+    }
+
+    // ── Lista de conversas ──────────────────────────────────────────────
+    async function loadConversations(){
+      const params = new URLSearchParams();
+      if (state.search) params.set('q', state.search);
+      if (state.filter) params.set('filter', state.filter);
+
+      try {
+        const data = await api('/api/whatsapp/conversations/?' + params.toString());
+        state.conversations = data.conversations;
+        renderConversations();
+        renderSidebarCounts();
+      } catch (e){
+        el('convList').innerHTML =
+          '<div class="empty"><h2>Não deu para carregar</h2><p>' + escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderConversations(){
+      const list = el('convList');
+      el('convCount').textContent = state.conversations.length
+        ? state.conversations.length + (state.conversations.length === 1 ? ' conversa' : ' conversas')
+        : '';
+
+      if (!state.conversations.length){
+        list.innerHTML =
+          '<div class="empty">' +
+            '<svg class="ic" aria-hidden="true"><use href="#i-inbox"></use></svg>' +
+            '<h2>Nada por aqui</h2>' +
+            '<p>' + (state.search || state.filter
+              ? 'Nenhuma conversa bate com esse filtro.'
+              : 'Quando um pai ou aluno escrever para o número da escola, a conversa aparece nesta lista.') +
+            '</p>' +
+          '</div>';
+        return;
+      }
+
+      list.innerHTML = state.conversations.map(function(c){
+        // Etiqueta e sinal escasso: so marca o que exige uma decisao. "Janela
+        // aberta" seria a maioria das linhas, entao nao vira etiqueta; quem
+        // mostra o estado da janela e o trilho, dentro da conversa. O que
+        // interessa aqui e o caso em que ela precisa responder e nao pode.
+        const tags = [];
+        if (!c.window_open && c.unread > 0){
+          tags.push('<span class="tag tag--warn">só com modelo</span>');
+        }
+        if (!c.student_id) tags.push('<span class="tag">sem aluno</span>');
+        if (c.opt_in === 'revoked') tags.push('<span class="tag tag--warn">pediu para parar</span>');
+        // O nome do professor so aparece quando a conversa e de outra pessoa.
+        if (c.assigned_teacher && c.assigned_teacher_id !== currentUserId){
+          tags.push('<span class="tag tag--brand">' + escapeHtml(c.assigned_teacher) + '</span>');
+        }
+
+        return '' +
+          '<button class="conv" type="button" data-id="' + c.id + '"' +
+            (c.id === state.currentId ? ' aria-current="true"' : '') + '>' +
+            '<span class="avatar" aria-hidden="true">' + escapeHtml(initial(c.name)) + '</span>' +
+            '<span class="conv-body">' +
+              '<span class="conv-name">' + escapeHtml(c.name) + '</span>' +
+              '<span class="conv-preview">' + escapeHtml(c.preview || 'Sem mensagens') + '</span>' +
+              (tags.length ? '<span class="conv-tags">' + tags.join('') + '</span>' : '') +
+            '</span>' +
+            '<span class="conv-meta">' +
+              '<span class="conv-time">' + shortTime(c.last_message_at) + '</span>' +
+              (c.unread ? '<span class="unread">' + c.unread + '</span>' : '') +
+            '</span>' +
+          '</button>';
+      }).join('');
+
+      Array.prototype.forEach.call(list.querySelectorAll('.conv'), function(button){
+        button.addEventListener('click', function(){
+          openConversation(Number(button.dataset.id));
+        });
+      });
+    }
+
+    function renderSidebarCounts(){
+      const unread = state.conversations.filter(function(c){ return c.unread > 0; }).length;
+      const open = state.conversations.filter(function(c){ return c.window_open; }).length;
+      const unlinked = state.conversations.filter(function(c){ return !c.student_id; }).length;
+      if (el('sideUnread')) el('sideUnread').textContent = unread;
+      if (el('sideOpen')) el('sideOpen').textContent = open;
+      if (el('sideUnlinked')) el('sideUnlinked').textContent = unlinked;
+    }
+
+    // ── Conversa aberta ─────────────────────────────────────────────────
+    async function openConversation(id){
+      state.currentId = id;
+      inbox.dataset.view = 'thread';
+      el('threadEmpty').hidden = true;
+      el('threadContent').hidden = false;
+
+      renderConversations();
+      await loadMessages();
+
+      const conv = currentConversation();
+      if (conv && conv.unread){
+        try {
+          await api('/api/whatsapp/conversations/' + id + '/read/', {method:'POST', body:'{}'});
+          conv.unread = 0;
+          renderConversations();
+          renderSidebarCounts();
+        } catch (e){ /* marcar como lida nunca trava a tela */ }
+      }
+    }
+
+    function currentConversation(){
+      return state.conversations.find(function(c){ return c.id === state.currentId; });
+    }
+
+    async function loadMessages(){
+      if (!state.currentId) return;
+      try {
+        const data = await api('/api/whatsapp/conversations/' + state.currentId + '/messages/');
+        renderThreadHead(data.conversation);
+        renderMessages(data.messages);
+        renderComposer(data.conversation);
+
+        const index = state.conversations.findIndex(function(c){ return c.id === data.conversation.id; });
+        if (index >= 0) state.conversations[index] = Object.assign(
+          {}, data.conversation, {unread: state.conversations[index].unread}
+        );
+      } catch (e){
+        el('msgs').innerHTML = '<div class="empty"><h2>Não deu para carregar</h2><p>' +
+          escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function renderThreadHead(conv){
+      el('threadAvatar').textContent = initial(conv.name);
+      el('threadName').textContent = conv.name;
+
+      const bits = [escapeHtml(conv.phone)];
+      if (conv.student_name){
+        bits.push('<a href="/alunos/" style="color:var(--brand);font-weight:600;text-decoration:none">' +
+                  escapeHtml(conv.student_name) + '</a>');
+      } else {
+        bits.push('<span class="tag">sem aluno ligado</span>');
+      }
+      if (conv.assigned_teacher) bits.push('atende: ' + escapeHtml(conv.assigned_teacher));
+      el('threadSub').innerHTML = bits.join('<span aria-hidden="true">·</span>');
+
+      updateRail(conv);
+    }
+
+    // O trilho: preenchimento proporcional ao que resta das 24 horas.
+    function updateRail(conv){
+      const rail = el('rail');
+      const fill = el('railFill');
+      const label = el('railLabel').querySelector('span');
+      const TOTAL = 24 * 60 * 60 * 1000;
+
+      if (!conv.window_expires_at){
+        rail.dataset.state = 'closed';
+        fill.style.setProperty('--pct', '0%');
+        label.textContent = 'Janela fechada · só mensagem modelo aprovada';
+        return;
+      }
+
+      const restante = new Date(conv.window_expires_at).getTime() - Date.now();
+
+      if (restante <= 0){
+        rail.dataset.state = 'closed';
+        fill.style.setProperty('--pct', '0%');
+        label.textContent = 'Janela fechada · só mensagem modelo aprovada';
+        return;
+      }
+
+      const pct = Math.max(2, Math.min(100, (restante / TOTAL) * 100));
+      fill.style.setProperty('--pct', pct.toFixed(1) + '%');
+      rail.dataset.state = restante < 2 * 60 * 60 * 1000 ? 'soon' : 'open';
+      label.textContent = 'Resposta livre por mais ' + remainingText(restante);
+    }
+
+    function renderMessages(messages){
+      const box = el('msgs');
+
+      if (!messages.length){
+        box.innerHTML = '<div class="empty"><h2>Conversa vazia</h2>' +
+          '<p>Ainda não há mensagens trocadas com este contato.</p></div>';
+        return;
+      }
+
+      let lastDay = '';
+      box.innerHTML = messages.map(function(m){
+        let out = '';
+        const day = dayLabel(m.timestamp);
+        if (day !== lastDay){
+          lastDay = day;
+          out += '<div class="day">' + escapeHtml(day) + '</div>';
+        }
+
+        const classes = ['msg'];
+        classes.push(m.direction === 'in' ? 'msg--in' : 'msg--out');
+        if (m.origin === 'app') classes.push('msg--app');
+        if (m.status === 'failed') classes.push('msg--failed');
+
+        const foot = [];
+        if (m.origin === 'app'){
+          foot.push('<span class="msg-origin">pelo celular</span>');
+        }
+        foot.push('<span>' + new Date(m.timestamp)
+          .toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) + '</span>');
+        if (m.direction === 'out') foot.push(ticks(m.status));
+
+        out += '<div class="' + classes.join(' ') + '">' +
+          (m.template ? '<span class="msg-template">' +
+            '<svg class="ic ic--xs" aria-hidden="true"><use href="#i-file"></use></svg>modelo</span>' : '') +
+          mediaHtml(m) +
+          (m.body ? '<p>' + escapeHtml(m.body) + '</p>' : '') +
+          (m.error ? '<p class="msg-error">' + escapeHtml(m.error) + '</p>' : '') +
+          '<div class="msg-foot">' + foot.join('') + '</div>' +
+        '</div>';
+
+        return out;
+      }).join('');
+
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // Anexo dentro do balão. Imagem aparece, áudio toca, o resto vira link.
+    // Enquanto o download não terminou, mostra o tipo em vez de sumir: some
+    // seria a professora achar que a mensagem veio vazia.
+    function mediaHtml(m){
+      const tipos = ['image','audio','voice','video','document','sticker'];
+      if (tipos.indexOf(m.type) === -1) return '';
+
+      if (!m.media_url){
+        const rotulos = {
+          image:'imagem', audio:'áudio', voice:'áudio', video:'vídeo',
+          document:'documento', sticker:'figurinha',
+        };
+        return '<p class="msg-media-pending">' +
+          (rotulos[m.type] || 'anexo') + ' a carregar…</p>';
+      }
+
+      if (m.type === 'image' || m.type === 'sticker'){
+        return '<a href="' + m.media_url + '" target="_blank" rel="noopener">' +
+               '<img class="msg-media" src="' + m.media_url + '" alt="Imagem recebida"></a>';
+      }
+      if (m.type === 'audio' || m.type === 'voice'){
+        return '<audio class="msg-audio" controls preload="none" src="' + m.media_url + '"></audio>';
+      }
+      if (m.type === 'video'){
+        return '<video class="msg-media" controls preload="none" src="' + m.media_url + '"></video>';
+      }
+      return '<a class="msg-file" href="' + m.media_url + '" target="_blank" rel="noopener">' +
+             '<svg class="ic ic--sm" aria-hidden="true"><use href="#i-file"></use></svg>' +
+             escapeHtml(m.media_filename || 'documento') + '</a>';
+    }
+
+    function ticks(status){
+      if (status === 'failed'){
+        return '<span class="ticks" title="Falhou">' +
+          '<svg class="ic ic--xs" aria-hidden="true"><use href="#i-alert"></use></svg></span>';
+      }
+      if (status === 'read'){
+        return '<span class="ticks ticks--read" title="Lida">' +
+          '<svg class="ic ic--xs" aria-hidden="true"><use href="#i-checks"></use></svg></span>';
+      }
+      if (status === 'delivered'){
+        return '<span class="ticks" title="Entregue">' +
+          '<svg class="ic ic--xs" aria-hidden="true"><use href="#i-checks"></use></svg></span>';
+      }
+      return '<span class="ticks" title="Enviada">' +
+        '<svg class="ic ic--xs" aria-hidden="true"><use href="#i-check"></use></svg></span>';
+    }
+
+    // ── Campo de escrita: muda de forma conforme a janela ────────────────
+    function renderComposer(conv){
+      const box = el('composer');
+
+      if (conv.blocked){
+        box.innerHTML = '<div class="locked">' +
+          '<p class="locked-title">Contato bloqueado</p>' +
+          '<p class="locked-text">Este número está marcado para não receber mensagens. ' +
+          'Desbloqueie em Detalhes para voltar a responder.</p></div>';
+        return;
+      }
+
+      if (conv.window_open){
+        box.innerHTML =
+          '<div class="composer-row">' +
+            '<textarea id="draft" rows="1" placeholder="Escreva para ' +
+              escapeHtml(conv.name.split(' ')[0]) + '" aria-label="Mensagem"></textarea>' +
+            '<button class="btn btn--primary" type="button" id="sendBtn">' +
+              '<svg class="ic ic--sm" aria-hidden="true"><use href="#i-send"></use></svg> Enviar' +
+            '</button>' +
+          '</div>' +
+          '<p class="composer-hint">Enter envia, Shift+Enter quebra linha.</p>' +
+          '<p class="composer-error" id="composerError" hidden></p>';
+
+        const draft = el('draft');
+        draft.addEventListener('input', function(){
+          draft.style.height = 'auto';
+          draft.style.height = Math.min(draft.scrollHeight, 148) + 'px';
+        });
+        draft.addEventListener('keydown', function(event){
+          if (event.key === 'Enter' && !event.shiftKey){
+            event.preventDefault();
+            sendText();
+          }
+        });
+        el('sendBtn').addEventListener('click', sendText);
+        return;
+      }
+
+      // Janela fechada: o campo vira seletor de modelo.
+      const options = state.templates.map(function(t){
+        return '<option value="' + t.id + '">' + escapeHtml(t.purpose) +
+               ' · ' + escapeHtml(t.name) + '</option>';
+      }).join('');
+
+      box.innerHTML = '<div class="locked">' +
+        '<p class="locked-title">' +
+          '<svg class="ic ic--sm" aria-hidden="true" style="vertical-align:-3px"><use href="#i-lock"></use></svg> ' +
+          'Passaram-se mais de 24 horas</p>' +
+        '<p class="locked-text">A Meta só deixa a escola recomeçar a conversa com uma mensagem modelo aprovada. ' +
+          'Assim que ' + escapeHtml(conv.name.split(' ')[0]) + ' responder, a escrita livre volta por mais 24 horas.</p>' +
+        (state.templates.length
+          ? '<select id="templatePick" aria-label="Escolher modelo">' +
+              '<option value="">Escolha um modelo</option>' + options + '</select>' +
+            '<p class="locked-preview" id="templatePreview" hidden></p>' +
+            '<button class="btn btn--primary" type="button" id="sendTemplateBtn" disabled>' +
+              '<svg class="ic ic--sm" aria-hidden="true"><use href="#i-send"></use></svg> Enviar modelo</button>'
+          : '<p class="locked-text"><strong>Nenhum modelo aprovado ainda.</strong> ' +
+            'Enquanto não houver um modelo aprovado pela Meta, só dá para responder quando o contato escrever.</p>') +
+        '<p class="composer-error" id="composerError" hidden></p>' +
+      '</div>';
+
+      const pick = el('templatePick');
+      if (pick){
+        pick.addEventListener('change', function(){
+          const chosen = state.templates.find(function(t){ return String(t.id) === pick.value; });
+          const preview = el('templatePreview');
+          const button = el('sendTemplateBtn');
+          if (chosen && chosen.body){
+            preview.textContent = chosen.body;
+            preview.hidden = false;
+          } else {
+            preview.hidden = true;
+          }
+          button.disabled = !pick.value;
+        });
+        el('sendTemplateBtn').addEventListener('click', sendTemplate);
+      }
+    }
+
+    function showComposerError(message){
+      const box = el('composerError');
+      if (!box) return;
+      box.textContent = message;
+      box.hidden = false;
+    }
+
+    async function sendText(){
+      if (state.sending) return;
+      const draft = el('draft');
+      const body = (draft.value || '').trim();
+      if (!body) return;
+
+      state.sending = true;
+      el('sendBtn').disabled = true;
+
+      try {
+        await api('/api/whatsapp/conversations/' + state.currentId + '/send/', {
+          method:'POST',
+          body: JSON.stringify({body: body}),
+        });
+        draft.value = '';
+        draft.style.height = 'auto';
+        await loadMessages();
+        await loadConversations();
+      } catch (e){
+        showComposerError(e.message);
+      } finally {
+        state.sending = false;
+        const button = el('sendBtn');
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function sendTemplate(){
+      if (state.sending) return;
+      const pick = el('templatePick');
+      if (!pick || !pick.value) return;
+
+      state.sending = true;
+      el('sendTemplateBtn').disabled = true;
+
+      try {
+        await api('/api/whatsapp/conversations/' + state.currentId + '/send/', {
+          method:'POST',
+          body: JSON.stringify({template_id: Number(pick.value), params: []}),
+        });
+        await loadMessages();
+        await loadConversations();
+      } catch (e){
+        showComposerError(e.message);
+        const button = el('sendTemplateBtn');
+        if (button) button.disabled = false;
+      } finally {
+        state.sending = false;
+      }
+    }
+
+    // ── Painel de detalhes ──────────────────────────────────────────────
+    function openSheet(){
+      const conv = currentConversation();
+      if (!conv) return;
+
+      el('sheetError').hidden = true;
+      el('sheetRows').innerHTML = [
+        ['Telefone', conv.phone],
+        ['Nome no WhatsApp', conv.profile_name || '—'],
+        ['Relação', conv.relationship],
+        ['Professor responsável', conv.assigned_teacher || '—'],
+        ['Janela de 24 horas', conv.window_open ? 'aberta' : 'fechada'],
+      ].map(function(row){
+        return '<div class="sheet-row"><dt>' + escapeHtml(row[0]) +
+               '</dt><dd>' + escapeHtml(row[1]) + '</dd></div>';
+      }).join('');
+
+      const pick = el('studentPick');
+      pick.innerHTML = '<option value="">Sem aluno ligado</option>' +
+        state.students.map(function(s){
+          return '<option value="' + s.id + '"' +
+                 (s.id === conv.student_id ? ' selected' : '') + '>' +
+                 escapeHtml(s.name) + '</option>';
+        }).join('');
+
+      el('optInPick').value = conv.opt_in;
+      el('sheet').dataset.open = 'true';
+      el('sheetClose').focus();
+    }
+
+    function closeSheet(){
+      el('sheet').dataset.open = 'false';
+    }
+
+    async function linkStudent(){
+      const pick = el('studentPick');
+      if (!pick.value) return;
+      try {
+        await api('/api/whatsapp/conversations/' + state.currentId + '/link-student/', {
+          method:'POST',
+          body: JSON.stringify({student_id: Number(pick.value)}),
+        });
+        await loadConversations();
+        await loadMessages();
+        closeSheet();
+      } catch (e){
+        el('sheetError').textContent = e.message;
+        el('sheetError').hidden = false;
+      }
+    }
+
+    async function setOptIn(){
+      const value = el('optInPick').value;
+      try {
+        await api('/api/whatsapp/conversations/' + state.currentId + '/opt-in/', {
+          method:'POST',
+          body: JSON.stringify({granted: value === 'granted', source: 'registrado pela professora'}),
+        });
+        await loadConversations();
+      } catch (e){
+        el('sheetError').textContent = e.message;
+        el('sheetError').hidden = false;
+      }
+    }
+
+    // ── Ligações ────────────────────────────────────────────────────────
+    let searchTimer = null;
+    el('search').addEventListener('input', function(event){
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function(){
+        state.search = event.target.value.trim();
+        loadConversations();
+      }, 260);
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(chip){
+      chip.addEventListener('click', function(){
+        Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(other){
+          other.setAttribute('aria-pressed', String(other === chip));
+        });
+        state.filter = chip.dataset.filter;
+        loadConversations();
+      });
+    });
+
+    el('backBtn').addEventListener('click', function(){
+      inbox.dataset.view = 'list';
+    });
+    el('detailsBtn').addEventListener('click', openSheet);
+    el('sheetClose').addEventListener('click', closeSheet);
+    el('sheetScrim').addEventListener('click', closeSheet);
+    el('studentPick').addEventListener('change', linkStudent);
+    el('optInPick').addEventListener('change', setOptIn);
+
+    document.addEventListener('keydown', function(event){
+      if (event.key === 'Escape' && el('sheet').dataset.open === 'true') closeSheet();
+    });
+
+    // ── Arranque e atualização ──────────────────────────────────────────
+    async function boot(){
+      try {
+        const data = await api('/api/whatsapp/templates/');
+        state.templates = data.templates || [];
+      } catch (e){ state.templates = []; }
+
+      try {
+        const data = await api('/api/whatsapp/students/');
+        state.students = data.students || [];
+      } catch (e){ state.students = []; }
+
+      await loadConversations();
+
+      // Numa tela larga a primeira conversa já abre: a coluna vazia ao lado
+      // da lista não ajuda ninguém.
+      if (window.matchMedia('(min-width: 901px)').matches && state.conversations.length){
+        openConversation(state.conversations[0].id);
+      }
+    }
+
+    // O trilho anda sozinho, sem depender de pedido ao servidor.
+    setInterval(function(){
+      const conv = currentConversation();
+      if (conv) updateRail(conv);
+    }, 30000);
+
+    // Sondagem simples. Mensagem nova chega por webhook no servidor; aqui só
+    // se pergunta de vez em quando. Não vale complicar com websocket pelo
+    // volume de uma escola.
+    setInterval(function(){
+      if (document.hidden) return;
+      loadConversations();
+      if (state.currentId) loadMessages();
+    }, 12000);
+
+    boot();
+  })();
+  </script>
+</body>
+</html>

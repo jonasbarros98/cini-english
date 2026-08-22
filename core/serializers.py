@@ -727,7 +727,8 @@ class ProfileSerializer(drf_serializers.ModelSerializer):
         fields = [
             'username', 'email', 'first_name', 'last_name',
             'password', 'password_confirm',
-            'cpf_cnpj', 'phone', 'cep', 'address', 'city', 'state',
+            'cpf_cnpj', 'cpf_cnpj_is_pix', 'pix_key',
+            'phone', 'cep', 'address', 'city', 'state',
             'timezone', 'language', 'photo',
             'google_picture_url', 'google_hosted_domain',
             'is_admin', 'user_profile', 'role',
