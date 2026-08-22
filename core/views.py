@@ -2508,6 +2508,14 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
             'preferred_payment_method': student.preferred_payment_method or '',
         }
         
+        # Chave Pix: a do aluno ganha da do professor, porque quem preencheu no
+        # aluno fez isso de propósito, para aquele caso. Sem nenhuma das duas, a
+        # mensagem cai no "Informar no contato" de sempre.
+        try:
+            chave_do_professor = student.user.profile.chave_pix()
+        except (UserProfile.DoesNotExist, AttributeError):
+            chave_do_professor = ''
+
         # Formata dados do lançamento
         entry_data = {
             'id': entry.id,
@@ -2524,6 +2532,9 @@ class FinancialEntryViewSet(viewsets.ModelViewSet):
         return Response({
             'student': student_data,
             'entry': entry_data,
+            'teacher': {
+                'pix_key': chave_do_professor,
+            },
             'status': {
                 'color': status_color,
                 'text': status_text,
@@ -6362,15 +6373,18 @@ def profile_update_view(request):
             )
 
         # Campos diretos do UserProfile - incluir apenas os que foram enviados
-        profile_fields = ['cpf_cnpj', 'phone', 'cep', 'address', 'city', 'state', 'timezone', 'language',
+        profile_fields = ['cpf_cnpj', 'cpf_cnpj_is_pix', 'pix_key',
+                         'phone', 'cep', 'address', 'city', 'state', 'timezone', 'language',
                          'slug_publico', 'agenda_publica_ativa', 'public_availability', 'public_booking_duration']
         for field in profile_fields:
             if field in raw_data:
                 val = raw_data.get(field)
                 if field == 'slug_publico':
                     serializer_data[field] = (val or '').strip() or None
-                elif field == 'agenda_publica_ativa':
-                    serializer_data[field] = bool(val in (True, 'true', '1', 1))
+                elif field in ('agenda_publica_ativa', 'cpf_cnpj_is_pix'):
+                    # Vem como texto quando o formulario e enviado por FormData,
+                    # e como booleano quando vai por JSON.
+                    serializer_data[field] = bool(val in (True, 'true', 'True', 'on', '1', 1))
                 elif field == 'public_availability':
                     serializer_data[field] = val if isinstance(val, dict) else {}
                 elif field == 'public_booking_duration':

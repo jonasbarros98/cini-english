@@ -443,6 +443,17 @@
                 <div class="field">
                   <label for="cpf_cnpj">CPF/CNPJ</label>
                   <input id="cpf_cnpj" name="cpf_cnpj" type="text" placeholder="000.000.000-00" />
+                  <label for="cpf_cnpj_is_pix" style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:500;cursor:pointer;">
+                    <input id="cpf_cnpj_is_pix" name="cpf_cnpj_is_pix" type="checkbox" style="width:18px;height:18px;margin:0;" />
+                    Este CPF/CNPJ também é minha chave Pix
+                  </label>
+                  <div class="hint">Vai nas mensagens de cobrança, no lugar de “Informar no contato”.</div>
+                </div>
+
+                <div class="field" id="pixKeyField">
+                  <label for="pix_key">Chave Pix</label>
+                  <input id="pix_key" name="pix_key" type="text" placeholder="telefone, e-mail ou chave aleatória" />
+                  <div class="hint">Só se a sua chave for diferente do CPF/CNPJ.</div>
                 </div>
 
               <div class="field">
@@ -670,9 +681,13 @@
 
       const fields = [
         'username','email','first_name','last_name',
-        'password','password2','cpf_cnpj','phone',
+        'password','password2','cpf_cnpj','pix_key','phone',
         'cep','address','city','state','timezone','language'
       ].map($).filter(Boolean);
+
+      // A marca do Pix e caixa de selecao: nao tem .value util, e por isso
+      // viaja fora da lista de campos de texto.
+      const cpfEhPixField = $('cpf_cnpj_is_pix');
       
       // Campo de foto separado (não é texto)
       const photoField = $('photo');
@@ -885,7 +900,16 @@
         for(const el of fields){
           data[el.id] = (el.value ?? '').trim();
         }
+        if(cpfEhPixField) data.cpf_cnpj_is_pix = !!cpfEhPixField.checked;
         return data;
+      }
+
+      // Quando o CPF/CNPJ ja e a chave, o campo de chave diferente so confunde:
+      // duas chaves visiveis ao mesmo tempo levam a pergunta "qual delas vale?".
+      function aplicarVisibilidadeDoPix(){
+        const campo = $('pixKeyField');
+        if(!campo || !cpfEhPixField) return;
+        campo.style.display = cpfEhPixField.checked ? 'none' : '';
       }
 
       function setInitialState(){
@@ -1113,6 +1137,9 @@
           if ($('first_name')) $('first_name').value = data.first_name || '';
           if ($('last_name')) $('last_name').value = data.last_name || '';
           if ($('cpf_cnpj')) $('cpf_cnpj').value = data.cpf_cnpj || '';
+          if (cpfEhPixField) cpfEhPixField.checked = !!data.cpf_cnpj_is_pix;
+          if ($('pix_key')) $('pix_key').value = data.pix_key || '';
+          aplicarVisibilidadeDoPix();
           if ($('phone')) $('phone').value = data.phone || '';
           if ($('cep')) $('cep').value = data.cep || '';
           if ($('address')) $('address').value = data.address || '';
@@ -1427,6 +1454,11 @@
 
         const btnToggle = $('btnToggleOptional');
         if (btnToggle) btnToggle.addEventListener('click', toggleOptionalSection);
+        if (cpfEhPixField) cpfEhPixField.addEventListener('change', () => {
+          aplicarVisibilidadeDoPix();
+          updateHeader();
+          setDirty(isDirty());
+        });
         const btnLookup = $('btnPartnerLookup');
         if (btnLookup) btnLookup.addEventListener('click', addPartnerByEmail);
         const btnCreate = $('btnPartnerCreate');

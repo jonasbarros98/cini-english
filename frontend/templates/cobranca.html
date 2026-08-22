@@ -412,6 +412,18 @@
     box-shadow: 0 0 0 6px var(--ring);
   }
 
+  .billing-pix-missing{
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(180,83,9,.22);
+    border-radius: 12px;
+    background: rgba(180,83,9,.06);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+  .billing-pix-missing a{ font-weight: 800; }
+
   .billing-editor-footer{
     display: flex;
     align-items: center;
@@ -681,6 +693,11 @@
         <span class="char-count"><span id="billingCharCount">0</span> caracteres</span>
         <span class="char-count">Dica: WhatsApp ama mensagens curtas 😄</span>
       </div>
+
+      <p class="billing-pix-missing" id="billingPixMissing" style="display:none;">
+        A mensagem está a dizer <strong>“Informar no contato”</strong> porque não há chave Pix guardada.
+        Defina a sua em <a href="/perfil/">Perfil</a>, dentro de “Mais dados (opcional)”, e ela passa a entrar sozinha em todas as cobranças.
+      </p>
     </section>
 
     <!-- Ações principais -->
