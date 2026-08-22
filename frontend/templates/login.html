@@ -281,6 +281,33 @@
     }
     .field input::placeholder { color: transparent; }
 
+    /* Botao de mostrar/ocultar senha */
+    .field--pw input { padding-right: 52px; }
+    .pw-toggle {
+      position: absolute;
+      top: 50%; right: 8px;
+      transform: translateY(-50%);
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0;
+      border: none; background: transparent;
+      border-radius: 10px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color .15s, background .15s;
+      -webkit-appearance: none;
+    }
+    .pw-toggle:hover { color: var(--text); background: rgba(0,0,0,.05); }
+    .pw-toggle:focus-visible {
+      outline: none;
+      color: var(--brand);
+      box-shadow: 0 0 0 3px var(--brand-glow);
+    }
+    /* svg nao obedece ao atributo hidden: alternamos pela classe do botao */
+    .pw-toggle .pw-icon-hide { display: none; }
+    .pw-toggle.is-visible .pw-icon-show { display: none; }
+    .pw-toggle.is-visible .pw-icon-hide { display: block; }
+
     /* Submit button */
     .submit-btn {
       width: 100%; padding: 0 24px;
@@ -422,10 +449,27 @@
           <label for="username">Usuário</label>
         </div>
 
-        <div class="field">
+        <div class="field field--pw">
           <input type="password" id="password" name="password" required
                  autocomplete="current-password" placeholder="Senha" />
           <label for="password">Senha</label>
+          <button type="button" class="pw-toggle" id="togglePassword"
+                  aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">
+            <svg class="pw-icon-show" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg class="pw-icon-hide" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+              <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
         </div>
 
         <button type="submit" class="submit-btn" id="loginBtn">
@@ -549,6 +593,36 @@
       loginBtn.innerHTML = 'Entrar <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
     }
   });
+
+  // Mostrar/ocultar a senha digitada
+  (function () {
+    const input = document.getElementById("password");
+    const toggle = document.getElementById("togglePassword");
+
+    let timer;
+
+    function render(visivel) {
+      input.type = visivel ? "text" : "password";
+      toggle.classList.toggle("is-visible", visivel);
+      const label = visivel ? "Ocultar senha" : "Mostrar senha";
+      toggle.setAttribute("aria-label", label);
+      toggle.setAttribute("title", label);
+      toggle.setAttribute("aria-pressed", String(visivel));
+    }
+
+    toggle.addEventListener("click", () => {
+      const visivel = input.type === "password";
+      render(visivel);
+      // devolve o foco ao campo com o cursor no fim do texto
+      input.focus();
+      const v = input.value;
+      input.value = "";
+      input.value = v;
+      if (timer) clearTimeout(timer);
+      // a senha volta a ficar oculta sozinha depois de 4s
+      if (visivel) timer = setTimeout(() => render(false), 4000);
+    });
+  })();
 
   document.getElementById("username").focus();
 
