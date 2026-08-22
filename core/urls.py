@@ -84,6 +84,12 @@ urlpatterns = [
     path("dashboard/", DashboardHomeView.as_view(), name="dashboard-home"),
     path("perfil/", PerfilView.as_view(), name="perfil"),
     path("", HomeView.as_view(), name="home"),
+    # Documentos legais. Abertos de proposito, sem sessao: a Meta precisa de os
+    # ler para publicar a app, e quem quer saber o que fazemos com os dados dos
+    # filhos nao devia ter de criar conta para isso.
+    path("privacidade/", TemplateView.as_view(template_name="privacidade.html"), name="privacidade"),
+    path("termos/", TemplateView.as_view(template_name="termos.html"), name="termos"),
+    path("exclusao-de-dados/", TemplateView.as_view(template_name="exclusao_de_dados.html"), name="exclusao-de-dados"),
     path("cobranca/", RedirectView.as_view(url="/?view=view-billing", permanent=False), name="cobranca"),
     path("alunos/", AlunosView.as_view(), name="alunos"),
     path("alunos/<int:student_id>/", AlunoDetalheView.as_view(), name="aluno-detalhe-id"),

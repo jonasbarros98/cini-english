@@ -1,0 +1,182 @@
+{% extends "legal_base.html" %}
+
+{% block titulo %}Política de Privacidade{% endblock %}
+{% block descricao %}Como o EDUCAflowOne trata os dados de professores, alunos e responsáveis, nos termos da LGPD.{% endblock %}
+
+{% block conteudo %}
+<h1>Política de Privacidade</h1>
+<p class="vigencia">Em vigor desde 20 de agosto de 2026.</p>
+
+<p>
+  Esta política explica quais dados o <strong>EDUCAflowOne</strong> recolhe, por que os recolhe,
+  com quem os partilha e o que você pode exigir a respeito deles. Está escrita para ser lida por
+  quem usa o sistema, e não só por advogados.
+</p>
+
+<div class="caixa">
+  <p>
+    <strong>Em uma frase:</strong> o professor é dono dos dados dos seus alunos, nós apenas guardamos
+    e processamos esses dados para o professor conseguir dar aula, cobrar e conversar. Não vendemos
+    dado nenhum, nem usamos os dados dos alunos para publicidade.
+  </p>
+</div>
+
+<h2>1. Quem é o responsável</h2>
+<p>
+  O EDUCAflowOne é operado por <strong>JB Sistemas e Serviços de Informática LTDA</strong>,
+  CNPJ 44.318.881/0001-69, com sede na R. Brigadeiro Franco, 3204, apto. 201, Água Verde,
+  Curitiba, PR, CEP 80.250-042.
+</p>
+<p>
+  Para qualquer assunto desta política, incluindo pedidos de acesso ou exclusão, o contato é
+  <a href="mailto:Educaflowone@gmail.com">Educaflowone@gmail.com</a>.
+</p>
+
+<h2>2. Dois papéis diferentes, e por que isso importa</h2>
+<p>
+  A Lei Geral de Proteção de Dados (Lei 13.709/2018) separa quem <em>decide</em> o uso do dado de
+  quem apenas <em>executa</em>. No EDUCAflowOne os dois papéis existem ao mesmo tempo:
+</p>
+<ul>
+  <li>
+    <strong>Sobre os dados do professor</strong> (a conta, o e-mail, a assinatura, o CPF ou CNPJ
+    para emissão) somos <strong>controladores</strong>: nós decidimos por que aqueles dados existem.
+  </li>
+  <li>
+    <strong>Sobre os dados de alunos e responsáveis</strong>, que o professor cadastra, somos
+    <strong>operadores</strong>: quem decide o que cadastrar, para quê e por quanto tempo é o
+    professor. Ele é o controlador dessas informações, e é dele a obrigação de ter a autorização
+    das famílias.
+  </li>
+</ul>
+
+<h2>3. Que dados são tratados</h2>
+
+<h3>Do professor, quando cria a conta</h3>
+<ul>
+  <li>Nome, e-mail, senha (guardada apenas como resumo criptográfico, nunca em texto).</li>
+  <li>Telefone, endereço, cidade, estado e CEP, quando preenchidos.</li>
+  <li>CPF ou CNPJ e chave Pix, quando preenchidos, usados nas mensagens de cobrança que o próprio professor envia.</li>
+  <li>Foto de perfil, quando enviada.</li>
+  <li>Dados de assinatura e pagamento, processados pela Stripe. <strong>Não recebemos nem guardamos o número do cartão.</strong></li>
+  <li>Se optar por entrar com a conta Google: nome, e-mail e foto fornecidos pelo Google.</li>
+</ul>
+
+<h3>De alunos e responsáveis, cadastrados pelo professor</h3>
+<ul>
+  <li>Nome do aluno, nome do responsável, telefone, e-mail e endereço.</li>
+  <li>Nível, plano contratado, valores, vencimentos e histórico financeiro.</li>
+  <li>Aulas agendadas, realizadas e canceladas, planejamentos, tarefas e materiais.</li>
+  <li>Contratos e ficheiros que o professor anexar.</li>
+  <li>Quando o professor conecta o canal WhatsApp: as mensagens trocadas com aquele contato, incluindo anexos.</li>
+</ul>
+
+<div class="caixa">
+  <p>
+    <strong>Dados de crianças e adolescentes.</strong> Boa parte dos alunos é menor de idade. Esses
+    dados são cadastrados pelo professor, sob responsabilidade dele, e devem ter o consentimento de
+    pelo menos um dos pais ou do responsável legal, como manda o art. 14 da LGPD. Nós tratamos esses
+    dados apenas para executar o serviço contratado pelo professor, e nunca para publicidade.
+  </p>
+</div>
+
+<h3>De quem apenas visita o site</h3>
+<ul>
+  <li>Cookies de sessão, necessários para manter o login e proteger formulários.</li>
+  <li>
+    Meta Pixel, que informa à Meta que houve uma visita, para medir anúncios. Se preferir não ser
+    medido, bloqueie cookies de terceiros no navegador ou use uma extensão de bloqueio; o sistema
+    continua funcionando.
+  </li>
+</ul>
+
+<h2>4. Por que tratamos cada dado</h2>
+<table>
+  <tr><th>Finalidade</th><th>Base legal (LGPD art. 7)</th></tr>
+  <tr><td>Criar e manter a conta, dar acesso ao sistema</td><td>Execução de contrato</td></tr>
+  <tr><td>Cobrar a assinatura e emitir recibo</td><td>Execução de contrato e obrigação legal</td></tr>
+  <tr><td>Guardar e mostrar os dados que o professor cadastra dos alunos</td><td>Execução de contrato, na qualidade de operador</td></tr>
+  <tr><td>Enviar e-mails do próprio serviço, como recuperação de senha e avisos</td><td>Execução de contrato</td></tr>
+  <tr><td>Trocar mensagens pelo canal WhatsApp, quando conectado</td><td>Execução de contrato, e consentimento das famílias obtido pelo professor</td></tr>
+  <tr><td>Medir anúncios com o Meta Pixel</td><td>Legítimo interesse, com possibilidade de recusa</td></tr>
+  <tr><td>Segurança, registos de acesso e prevenção de fraude</td><td>Legítimo interesse</td></tr>
+</table>
+
+<h2>5. Com quem os dados são partilhados</h2>
+<p>Só com quem é necessário para o serviço funcionar, e cada um vê apenas o que precisa:</p>
+<table>
+  <tr><th>Quem</th><th>Para quê</th></tr>
+  <tr><td>Railway</td><td>Hospedagem da aplicação e do banco de dados</td></tr>
+  <tr><td>Cloudflare R2</td><td>Armazenamento de ficheiros, como contratos e materiais</td></tr>
+  <tr><td>Stripe</td><td>Processamento de pagamentos da assinatura</td></tr>
+  <tr><td>Resend</td><td>Envio dos e-mails do sistema</td></tr>
+  <tr><td>Meta (WhatsApp Business Platform)</td><td>Envio e recebimento de mensagens, quando o professor conecta o canal</td></tr>
+  <tr><td>Meta (Pixel)</td><td>Medição de anúncios no site público</td></tr>
+  <tr><td>Google</td><td>Login com conta Google e integração de agenda, quando ativados pelo professor</td></tr>
+</table>
+<p>
+  Alguns desses serviços operam servidores fora do Brasil. Nesses casos a transferência
+  internacional acontece com as salvaguardas contratuais do próprio fornecedor, nos termos do
+  art. 33 da LGPD.
+</p>
+<p><strong>Não vendemos dados, não os cedemos para corretores de dados e não os usamos para treinar modelos.</strong></p>
+
+<h2>6. Por quanto tempo guardamos</h2>
+<ul>
+  <li>Enquanto a conta do professor existir, os dados dele e dos alunos dele ficam guardados.</li>
+  <li>Depois do pedido de exclusão da conta, apagamos em até <strong>30 dias</strong>.</li>
+  <li>
+    Registos financeiros e fiscais podem ser mantidos por até 5 anos, mesmo após a exclusão, por
+    obrigação legal. Nesse período ficam guardados apenas para esse fim.
+  </li>
+  <li>Cópias de segurança são rodadas periodicamente e um dado apagado pode sobreviver nelas por até 30 dias.</li>
+</ul>
+
+<h2>7. Os seus direitos</h2>
+<p>A LGPD garante a você, no art. 18, o direito de:</p>
+<ul>
+  <li>saber se tratamos dados seus, e quais são;</li>
+  <li>corrigir dado incompleto ou errado;</li>
+  <li>pedir cópia dos seus dados em formato legível;</li>
+  <li>pedir a exclusão, respeitados os prazos legais acima;</li>
+  <li>revogar consentimento;</li>
+  <li>saber com quem partilhamos.</li>
+</ul>
+<p>
+  Peça pelo e-mail <a href="mailto:Educaflowone@gmail.com">Educaflowone@gmail.com</a>. Respondemos
+  em até 15 dias. As instruções passo a passo estão em
+  <a href="{% url 'exclusao-de-dados' %}">Exclusão de dados</a>.
+</p>
+<p>
+  Se você é aluno ou responsável e quer que os seus dados sejam apagados, fale primeiro com o
+  <strong>professor</strong>, que é quem controla esses dados e consegue apagá-los na hora. Se não
+  obtiver resposta, escreva para nós e nós intermediamos.
+</p>
+
+<h2>8. Segurança</h2>
+<ul>
+  <li>Todo o tráfego é cifrado por HTTPS.</li>
+  <li>Senhas são guardadas apenas como resumo criptográfico, e ninguém na equipa consegue lê-las.</li>
+  <li>Os tokens de acesso ao WhatsApp são guardados cifrados no banco de dados.</li>
+  <li>Cada professor vê apenas os seus próprios alunos; professores parceiros veem apenas os alunos que lhes foram atribuídos.</li>
+</ul>
+<p>
+  Nenhum sistema é imune. Se acontecer um incidente que possa causar risco relevante, avisaremos os
+  afetados e a ANPD, como manda o art. 48 da LGPD.
+</p>
+
+<h2>9. Mudanças nesta política</h2>
+<p>
+  Quando esta política mudar, a data de vigência no topo muda junto. Se a mudança for relevante,
+  avisamos por e-mail antes de entrar em vigor.
+</p>
+
+<div class="caixa">
+  <p>
+    <strong>Nota honesta sobre este documento.</strong> Ele foi redigido a partir do que o sistema
+    de facto faz, campo a campo e integração a integração, e não a partir de um modelo genérico. Ainda
+    assim, não substitui a revisão de um advogado, que é recomendável antes de qualquer uso perante
+    terceiros.
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "legal_base.html" %}
+
+{% block titulo %}Termos de Uso{% endblock %}
+{% block descricao %}As regras de uso do EDUCAflowOne: assinatura, responsabilidades do professor, e o que cada lado pode esperar.{% endblock %}
+
+{% block conteudo %}
+<h1>Termos de Uso</h1>
+<p class="vigencia">Em vigor desde 20 de agosto de 2026.</p>
+
+<p>
+  Estes termos valem entre você, professor que usa o <strong>EDUCAflowOne</strong>, e
+  <strong>JB Sistemas e Serviços de Informática LTDA</strong>, CNPJ 44.318.881/0001-69. Ao criar
+  conta e usar o sistema, você concorda com eles.
+</p>
+
+<h2>1. O que o EDUCAflowOne é</h2>
+<p>
+  Um sistema para professores particulares organizarem alunos, agenda, planejamento de aulas,
+  materiais, financeiro e cobrança, com canal opcional de WhatsApp. É ferramenta de trabalho: nós
+  fornecemos o software, você conduz as suas aulas e o seu negócio.
+</p>
+
+<h2>2. Conta e acesso</h2>
+<ul>
+  <li>Você precisa de informação verdadeira no cadastro, e é responsável por mantê-la atualizada.</li>
+  <li>A senha é sua e intransferível. O que acontece na sua conta é da sua responsabilidade.</li>
+  <li>
+    Se você cadastra <strong>professores parceiros</strong>, eles acessam apenas os alunos que você
+    lhes atribuir, e você continua responsável pelo que fizerem no sistema.
+  </li>
+  <li>Suspeita de acesso indevido: avise imediatamente em <a href="mailto:Educaflowone@gmail.com">Educaflowone@gmail.com</a>.</li>
+</ul>
+
+<h2>3. Assinatura, teste e pagamento</h2>
+<ul>
+  <li>Há um período de teste gratuito de 7 dias, sem cartão.</li>
+  <li>Depois do teste, o acesso depende de assinatura ativa, cobrada pela Stripe.</li>
+  <li>A assinatura renova automaticamente até você cancelar.</li>
+  <li>
+    O cancelamento vale para o ciclo seguinte, e você continua com acesso até o fim do período já
+    pago. Não há devolução proporcional de período em curso, salvo o direito de arrependimento
+    previsto no art. 49 do Código de Defesa do Consumidor, de 7 dias a contar da contratação.
+  </li>
+  <li>Preços podem mudar, e mudanças são avisadas com pelo menos 30 dias de antecedência.</li>
+</ul>
+
+<h2>4. Os dados dos seus alunos são seus, e a responsabilidade também</h2>
+<div class="caixa">
+  <p>
+    Você cadastra dados de terceiros, muitas vezes de crianças e adolescentes. Perante a LGPD, quem
+    decide sobre esses dados é você, não nós. Isso significa que <strong>obter o consentimento dos
+    pais ou responsáveis é obrigação sua</strong>, e não do sistema.
+  </p>
+</div>
+<ul>
+  <li>Cadastre apenas dados necessários para dar aula e cobrar.</li>
+  <li>Tenha autorização das famílias antes de enviar mensagens automáticas, inclusive cobranças.</li>
+  <li>Atenda os pedidos de exclusão que os alunos ou responsáveis fizerem a você.</li>
+</ul>
+<p>
+  Nós, como operadores, tratamos esses dados apenas para o serviço funcionar, conforme a
+  <a href="{% url 'privacidade' %}">Política de Privacidade</a>.
+</p>
+
+<h2>5. Canal WhatsApp</h2>
+<ul>
+  <li>Conectar o WhatsApp é opcional. Sem conectar, o sistema funciona igual, com envio manual.</li>
+  <li>
+    Ao conectar, você também aceita as regras da Meta para a WhatsApp Business Platform, e é
+    responsável por respeitá-las, incluindo o que pode ser enviado e a quem.
+  </li>
+  <li>
+    Mensagens enviadas pela API são cobradas pela Meta conforme a tabela dela, e essa cobrança é
+    entre você e a Meta.
+  </li>
+  <li>Não use o canal para disparo em massa não solicitado. Isso derruba o número, e a perda é sua.</li>
+</ul>
+
+<h2>6. O que não é permitido</h2>
+<ul>
+  <li>Usar o sistema para atividade ilícita, ou para enviar conteúdo ilegal, ofensivo ou enganoso.</li>
+  <li>Tentar burlar limites técnicos, acessar contas de outros, ou sobrecarregar a infraestrutura de propósito.</li>
+  <li>Revender ou sublicenciar o acesso sem autorização escrita.</li>
+  <li>Copiar o software, decompilar ou criar obra derivada.</li>
+</ul>
+<p>
+  Descumprimento pode levar a suspensão ou encerramento da conta, com aviso sempre que possível.
+</p>
+
+<h2>7. Disponibilidade, e o que prometemos de verdade</h2>
+<p>
+  Trabalhamos para o sistema estar sempre no ar, mas não prometemos operação ininterrupta. Pode haver
+  parada para manutenção, e pode haver falha em serviços de terceiros dos quais dependemos, como
+  hospedagem, pagamentos, e-mail e WhatsApp.
+</p>
+<p>
+  O sistema é fornecido no estado em que se encontra. Não respondemos por lucro cessante, perda de
+  oportunidade, nem por prejuízo decorrente de mensagem que a Meta não entregou. Nossa
+  responsabilidade, quando houver, fica limitada ao valor pago por você nos 12 meses anteriores ao
+  evento.
+</p>
+<p>
+  <strong>O que prometemos e cumprimos:</strong> os seus dados são seus, você pode exportá-los, e se
+  pedir a exclusão nós apagamos nos prazos da política de privacidade.
+</p>
+
+<h2>8. Encerramento</h2>
+<ul>
+  <li>Você pode encerrar quando quiser, pelo e-mail de contato.</li>
+  <li>Podemos encerrar a sua conta em caso de descumprimento destes termos ou de falta de pagamento.</li>
+  <li>Antes de apagar, damos a chance de exportar os dados, salvo em caso de exigência legal.</li>
+</ul>
+
+<h2>9. Mudanças nestes termos</h2>
+<p>
+  Podemos mudar estes termos. Mudança relevante é avisada por e-mail com pelo menos 30 dias de
+  antecedência, e a data de vigência no topo é atualizada. Continuar usando depois disso significa
+  aceitar a nova versão.
+</p>
+
+<h2>10. Lei aplicável e foro</h2>
+<p>
+  Aplica-se a lei brasileira. Fica eleito o foro da comarca de Curitiba, Paraná, ressalvado o direito
+  do consumidor de propor ação no foro do seu domicílio.
+</p>
+
+<div class="caixa">
+  <p>
+    <strong>Nota honesta sobre este documento.</strong> Foi escrito a partir do funcionamento real do
+    sistema, e não de um modelo genérico. Mesmo assim, não substitui revisão jurídica, que é
+    recomendável antes de valer perante terceiros.
+  </p>
+</div>
+{% endblock %}
