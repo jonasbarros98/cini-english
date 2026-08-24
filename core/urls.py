@@ -47,6 +47,9 @@ from .views import (
     send_feature_email_campaign,
     admin_test_subscription_email,
 )
+from .blog_views import (
+    BlogIndexView, BlogPostView, BlogFeed, sitemap_xml, robots_txt,
+)
 from .whatsapp_views import (
     whatsapp_webhook, whatsapp_account_status,
     WhatsAppInboxView, whatsapp_conversations, whatsapp_messages,
@@ -157,6 +160,17 @@ urlpatterns = [
     path("api/whatsapp/templates/create/", whatsapp_create_template, name="whatsapp-template-create"),
     path("api/whatsapp/billing/send/", whatsapp_send_billing, name="whatsapp-billing-send"),
     path("api/whatsapp/billing/status/", whatsapp_billing_status, name="whatsapp-billing-status"),
+    # ── Blog público ──────────────────────────────────────────────────────
+    # Páginas próprias, abertas sem sessão, servidas fora da landing: a landing
+    # só aponta para cá. A ordem importa, "categoria" e "rss" têm de vir antes
+    # do <slug:slug>, senão um artigo chamado "categoria" engoliria a rota.
+    path("blog/", BlogIndexView.as_view(), name="blog-index"),
+    path("blog/rss/", BlogFeed(), name="blog-rss"),
+    path("blog/categoria/<slug:categoria>/", BlogIndexView.as_view(), name="blog-categoria"),
+    path("blog/<slug:slug>/", BlogPostView.as_view(), name="blog-post"),
+    # Os dois ficheiros que o Google procura antes de rastrear qualquer coisa.
+    path("sitemap.xml", sitemap_xml, name="sitemap"),
+    path("robots.txt", robots_txt, name="robots"),
     path("planos/", PlanosView.as_view(), name="planos"),
     path("planos-v2/", RedirectView.as_view(url="/planos/", permanent=True), name="planos-v2"),
     path("tutorial/", TutorialView.as_view(), name="tutorial"),

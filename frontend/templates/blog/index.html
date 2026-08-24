@@ -1,0 +1,149 @@
+{% extends "blog/base.html" %}
+{% load static blog_tags %}
+
+{% block titulo %}{{ titulo_pagina }}{% endblock %}
+{% block descricao %}{{ descricao_pagina }}{% endblock %}
+{% block og_titulo %}{{ titulo_pagina }}{% endblock %}
+{% block og_descricao %}{{ descricao_pagina }}{% endblock %}
+{% block utm_topo %}{% if categoria_atual %}cat-{{ categoria_atual.slug }}{% else %}blog-lista{% endif %}{% endblock %}
+
+{% block dados_estruturados %}
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"Blog",
+  "name":"Blog do EDUCAflowOne",
+  "description":"{{ descricao_pagina|escapejs }}",
+  "url":"{{ canonical }}",
+  "inLanguage":"pt-BR",
+  "publisher":{"@type":"Organization","name":"EDUCAflowOne","url":"{{ request.scheme }}://{{ request.get_host }}/"}
+}
+</script>
+{% endblock %}
+
+{% block estilo_extra %}
+.cabeca{padding-block:clamp(2.5rem,1.5rem + 4vw,4.5rem) 2rem;border-bottom:1px solid var(--c-rule);background:linear-gradient(180deg,var(--c-paper-deep),var(--c-paper))}
+.cabeca h1{font-size:clamp(2rem,1.4rem + 3vw,3.25rem);letter-spacing:-.025em;max-width:20ch;margin-bottom:.85rem}
+.cabeca p{font-size:clamp(1rem,.96rem + .35vw,1.15rem);color:var(--c-ink-muted);max-width:56ch}
+.cabeca__topo{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:flex-end;margin-top:2rem}
+
+.destaque{display:grid;gap:1.75rem;grid-template-columns:1fr;padding-block:clamp(2rem,1.2rem + 3vw,3.5rem);border-bottom:1px solid var(--c-rule)}
+.destaque__capa{border-radius:var(--r-lg);overflow:hidden;aspect-ratio:16/10;background:linear-gradient(135deg,var(--c-paper-deep),var(--c-primary-tint));box-shadow:var(--sh-2);display:grid;place-items:center}
+.destaque__capa img{width:100%;height:100%;object-fit:cover}
+.destaque__capa span{font-family:var(--font-display);font-size:3rem;color:var(--c-primary);opacity:.5}
+.destaque h2{font-size:clamp(1.6rem,1.15rem + 2.1vw,2.6rem);letter-spacing:-.02em;margin-block:.7rem .8rem}
+.destaque p{font-size:1.05rem;color:var(--c-ink-muted);max-width:52ch;margin-bottom:1.25rem}
+.destaque__texto{align-self:center}
+@media (min-width:900px){.destaque{grid-template-columns:1.05fr .95fr;gap:3rem;align-items:center}}
+
+.lista{padding-block:clamp(2.25rem,1.5rem + 3vw,3.5rem)}
+.lista__cabeca{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:center;margin-bottom:1.75rem}
+.lista__cabeca h2{font-size:1.5rem}
+.contagem{font-size:.85rem;color:var(--c-ink-muted)}
+{% endblock %}
+
+{% block conteudo %}
+
+<section class="cabeca">
+  <div class="wrap">
+    {% if categoria_atual %}
+      <p class="kicker"><a href="/blog/">Blog</a> / {{ categoria_atual.name }}</p>
+      <h1>{{ categoria_atual.name }}</h1>
+      <p>{{ categoria_atual.description|default:"Artigos desta editoria." }}</p>
+    {% else %}
+      <p class="kicker">Blog do EDUCAflowOne</p>
+      <h1>O lado administrativo da aula particular, resolvido.</h1>
+      <p>Preço de aula, agenda, cobrança, planejamento, volta às aulas e captação
+         de alunos. Textos escritos para quem dá aula sozinho e não tem secretária.</p>
+    {% endif %}
+
+    <div class="cabeca__topo">
+      <div class="filtros">
+        <a href="/blog/" {% if not categoria_atual %}class="is-active"{% endif %}>Todos</a>
+        {% for c in categorias %}
+          <a href="{{ c.get_absolute_url }}" {% if categoria_atual and categoria_atual.pk == c.pk %}class="is-active"{% endif %}>{{ c.name }}</a>
+        {% endfor %}
+      </div>
+      <form class="busca" role="search" method="get" action="/blog/">
+        <label class="sr-only" for="q">Buscar no blog</label>
+        <input id="q" type="search" name="q" value="{{ busca }}" placeholder="Buscar artigo...">
+        <button class="btn btn--ghost" type="submit">Buscar</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+{% if destaque %}
+<section class="wrap destaque">
+  <a class="destaque__capa" href="{{ destaque.get_absolute_url }}" aria-hidden="true" tabindex="-1">
+    {% if destaque.cover %}<img src="{{ destaque.cover.url }}" alt="{{ destaque.cover_alt }}">
+    {% else %}<span>{{ destaque.title|first }}</span>{% endif %}
+  </a>
+  <div class="destaque__texto">
+    <span class="selo">Em destaque</span>
+    <h2><a href="{{ destaque.get_absolute_url }}">{{ destaque.title }}</a></h2>
+    <p>{{ destaque.resumo }}</p>
+    <div class="meta" style="margin-bottom:1.25rem">
+      {% if destaque.category %}<span>{{ destaque.category.name }}</span><span class="ponto"></span>{% endif %}
+      <span>{{ destaque.published_at|data_extensa }}</span>
+      <span class="ponto"></span>
+      <span>{{ destaque.reading_minutes }} min de leitura</span>
+    </div>
+    <a class="btn btn--primary btn--lg" href="{{ destaque.get_absolute_url }}">Ler o artigo</a>
+  </div>
+</section>
+{% endif %}
+
+<section class="wrap lista">
+  <div class="lista__cabeca">
+    <h2>
+      {% if busca %}Resultados para "{{ busca }}"
+      {% elif categoria_atual %}{{ categoria_atual.name }}
+      {% else %}Todos os artigos{% endif %}
+    </h2>
+    <span class="contagem">{{ total }} artigo{{ total|pluralize }}</span>
+  </div>
+
+  {% if posts %}
+    <div class="cartoes">
+      {% for p in posts %}
+      <article class="cartao">
+        <a href="{{ p.get_absolute_url }}" class="cartao__capa {% if not p.cover %}cartao__capa--vazia{% endif %}" tabindex="-1" aria-hidden="true">
+          {% if p.cover %}<img src="{{ p.cover.url }}" alt="{{ p.cover_alt }}" loading="lazy">
+          {% else %}<span>{{ p.title|first }}</span>{% endif %}
+        </a>
+        <div class="cartao__corpo">
+          {% if p.category %}<span class="cartao__cat">{{ p.category.name }}</span>{% endif %}
+          <h3><a href="{{ p.get_absolute_url }}">{{ p.title }}</a></h3>
+          <p>{{ p.resumo|truncatechars:135 }}</p>
+          <div class="cartao__pe">
+            <span>{{ p.published_at|data_curta }}</span>
+            <span class="ponto"></span>
+            <span>{{ p.reading_minutes }} min</span>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    {% if posts.has_other_pages %}
+    <nav class="paginacao" aria-label="Paginação">
+      {% if posts.has_previous %}<a href="?{% if busca %}q={{ busca }}&amp;{% endif %}page={{ posts.previous_page_number }}">Anterior</a>{% endif %}
+      <span class="atual">{{ posts.number }}</span>
+      <span class="quieto">de {{ posts.paginator.num_pages }}</span>
+      {% if posts.has_next %}<a href="?{% if busca %}q={{ busca }}&amp;{% endif %}page={{ posts.next_page_number }}">Próxima</a>{% endif %}
+    </nav>
+    {% endif %}
+  {% else %}
+    <div class="vazio">
+      <h2>Nada por aqui ainda</h2>
+      <p>{% if busca %}Nenhum artigo encontrado para "{{ busca }}". Tente outra palavra ou volte para a <a href="/blog/">lista completa</a>.{% else %}Os primeiros artigos estão a caminho. Enquanto isso, conheça o sistema.{% endif %}</p>
+    </div>
+  {% endif %}
+</section>
+
+<section class="wrap">
+  {% include "blog/_cta.html" with lugar="lista" campanha="blog-lista" %}
+</section>
+
+{% endblock %}

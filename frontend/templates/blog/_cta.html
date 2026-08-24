@@ -1,0 +1,23 @@
+{% comment %}
+Bloco de conversão do blog.
+
+Parâmetros:
+  lugar     -> vira utm_medium, para separar o CTA do meio do texto do CTA do fim
+  campanha  -> vira utm_campaign, normalmente o slug do artigo
+  post      -> opcional; se o artigo tiver convite próprio, ele ganha do padrão
+
+O destino é sempre /signup/, que já traz "Continuar com Google": o cadastro que
+converte melhor vindo de busca é o de um clique, sem inventar senha.
+{% endcomment %}
+<aside class="cta">
+  <span class="cta__selo">EDUCAflowOne</span>
+  <h3>{% if post.cta_title %}{{ post.cta_title }}{% else %}Pare de ser professor, secretário e cobrador ao mesmo tempo.{% endif %}</h3>
+  <p>{% if post.cta_text %}{{ post.cta_text }}{% else %}Agenda, alunos, financeiro, cobrança automática no Pix e no WhatsApp, planejamento e materiais em um só lugar. Feito no Brasil, para aula particular.{% endif %}</p>
+  <div class="cta__acoes">
+    <a class="btn btn--night btn--lg"
+       href="/signup/?tier=basic&amp;plan=monthly&amp;utm_source=blog&amp;utm_medium={{ lugar|default:'artigo' }}&amp;utm_campaign={{ campanha|default:'blog' }}">
+      {% if post.cta_button %}{{ post.cta_button }}{% else %}Testar 7 dias grátis{% endif %}
+    </a>
+    <span class="cta__nota"><strong>Sem cartão de crédito.</strong> Entra com a conta Google em um clique.</span>
+  </div>
+</aside>

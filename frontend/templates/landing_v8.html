@@ -855,6 +855,9 @@
       <a href="#recursos">Por dentro</a>
       <a href="#planos">Planos</a>
       <a href="#duvidas">Dúvidas</a>
+      <!-- O blog é página própria, em /blog/, e não uma seção desta página:
+           quem chega pelo Google cai direto lá e volta para cá pelo topo. -->
+      <a href="/blog/">Blog</a>
     </nav>
 
     <div class="nav__actions">
@@ -874,6 +877,7 @@
       <a class="drawer__link" href="#recursos">Por dentro <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg></a>
       <a class="drawer__link" href="#planos">Planos <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg></a>
       <a class="drawer__link" href="#duvidas">Dúvidas <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg></a>
+      <a class="drawer__link" href="/blog/">Blog <svg class="ico ico--sm" aria-hidden="true"><use href="#i-seta"/></svg></a>
       <div class="drawer__foot">
         <a href="/login/" class="btn btn--ghost btn--block">Entrar</a>
         <a href="/signup/?tier=basic&plan=monthly" class="btn btn--primary btn--block">Começar grátis</a>
@@ -1405,6 +1409,7 @@
           <li><a href="#recursos">Por dentro</a></li>
           <li><a href="#planos">Planos</a></li>
           <li><a href="#duvidas">Dúvidas</a></li>
+          <li><a href="/blog/">Blog</a></li>
         </ul>
       </div>
 
@@ -1418,13 +1423,13 @@
 
       <div>
         <h4>Legal</h4>
-        <!-- As rotas /termos/ e /privacidade/ NAO existem no core/urls.py, entao
-             os links davam 404. Ficam como texto ate as paginas serem criadas.
-             Um site que vende assinatura no Brasil precisa das duas: crie-as,
-             adicione as rotas, e volte a transformar estes itens em <a>. -->
+        <!-- As páginas legais entraram no ar em 22/08/2026 (merge 07acc5e) e o
+             comentário antigo aqui ainda dizia que não existiam. Voltaram a ser
+             links, que é o que a Meta e a Stripe esperam encontrar no rodapé. -->
         <ul>
-          <li>Termos de uso <span class="quiet">(em breve)</span></li>
-          <li>Privacidade <span class="quiet">(em breve)</span></li>
+          <li><a href="{% url 'termos' %}">Termos de uso</a></li>
+          <li><a href="{% url 'privacidade' %}">Privacidade</a></li>
+          <li><a href="{% url 'exclusao-de-dados' %}">Excluir dados</a></li>
         </ul>
       </div>
     </div>
