@@ -14,4 +14,9 @@ COPY . .
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
-CMD python manage.py migrate --noinput && python manage.py create_master_user 2>/dev/null || true && exec gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+# O blog nasce com os artigos de lancamento. `--se-vazio` faz a semeadura
+# acontecer uma unica vez, na estreia: se ja existir qualquer artigo, o
+# comando nao faz nada, e artigo apagado depois nao ressuscita no proximo
+# deploy. O `|| true` e um segmento a parte de proposito: semear e acessorio
+# e nao pode, em hipotese nenhuma, impedir o gunicorn de arrancar.
+CMD python manage.py migrate --noinput && python manage.py create_master_user 2>/dev/null || true; python manage.py blog_seed --se-vazio --publicar-agora 2 --agendar 2 || true; exec gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
