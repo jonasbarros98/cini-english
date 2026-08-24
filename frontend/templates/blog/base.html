@@ -1,0 +1,317 @@
+{% load static %}<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>{% block titulo %}Blog do EDUCAflowOne{% endblock %}</title>
+<meta name="description" content="{% block descricao %}Conteúdo prático para professor particular: preço de aula, agenda, cobrança, planejamento e captação de alunos.{% endblock %}">
+<link rel="canonical" href="{{ canonical }}">
+{% block robots %}{% endblock %}
+
+<!-- Redes sociais e WhatsApp: sem estas quatro linhas o link colado num grupo
+     de professores aparece como texto cru e ninguém clica. -->
+<meta property="og:site_name" content="EDUCAflowOne">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:type" content="{% block og_tipo %}website{% endblock %}">
+<meta property="og:title" content="{% block og_titulo %}Blog do EDUCAflowOne{% endblock %}">
+<meta property="og:description" content="{% block og_descricao %}Conteúdo prático para quem dá aula particular.{% endblock %}">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="og:image" content="{% block og_imagem %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/educaflow-new.png' %}{% endblock %}">
+<meta name="twitter:card" content="summary_large_image">
+
+<meta name="theme-color" content="#171310">
+<link rel="alternate" type="application/rss+xml" title="Blog do EDUCAflowOne" href="/blog/rss/">
+<link rel="icon" href="{% static 'img/educaflow-new.png' %}">
+
+{% block dados_estruturados %}{% endblock %}
+{% include '_meta_pixel.html' %}
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════
+   BLOG DO EDUCAflowOne
+   Mesma direção da landing v8: caderno pautado, tipografia editorial,
+   índigo como única cor de ação. Sem CDN, sem fonte externa, sem emoji.
+   Se a landing mudar de paleta, os tokens abaixo são o que se copia.
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root{
+  --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", "Times New Roman", serif;
+  --font-body: "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Helvetica, sans-serif;
+
+  --c-paper:#faf7f2;  --c-paper-deep:#f2ece2;  --c-surface:#ffffff;
+  --c-ink:#171310;    --c-ink-soft:#3d362e;    --c-ink-muted:#564e43;
+  --c-rule:#e2d9cb;   --c-rule-strong:#cabfad;
+
+  --c-primary:#4b32cf; --c-primary-deep:#33219b;
+  --c-primary-tint:#ede9ff; --c-primary-line:#c9befb; --c-on-primary:#fff;
+  --c-accent:#f0b429;  --c-accent-soft:#fdf0cf;
+  --c-success:#0f7a53;
+
+  --c-night:#171310; --c-night-2:#221c17; --c-night-rule:#3a312a;
+  --c-night-text:#f6f1e8; --c-night-muted:#b7ab9a;
+
+  --r-sm:8px; --r-md:14px; --r-lg:22px; --r-pill:999px;
+  --sh-1:0 1px 2px rgba(23,19,16,.06), 0 2px 6px rgba(23,19,16,.04);
+  --sh-2:0 2px 6px rgba(23,19,16,.05), 0 10px 26px rgba(23,19,16,.08);
+  --sh-3:0 4px 12px rgba(23,19,16,.06), 0 26px 60px rgba(23,19,16,.14);
+  --sh-key:0 10px 30px rgba(75,50,207,.28);
+
+  --gutter:clamp(1.15rem,.6rem + 2.4vw,2.5rem);
+  --container:74rem;
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:5.5rem}
+body{
+  font-family:var(--font-body); font-size:1rem; line-height:1.62;
+  color:var(--c-ink-soft); background:var(--c-paper);
+  overflow-x:hidden; text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased;
+}
+img{display:block;max-width:100%;height:auto}
+a{color:inherit;text-decoration:none}
+ul,ol{list-style:none}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+h1,h2,h3,h4{font-family:var(--font-display);color:var(--c-ink);font-weight:700;line-height:1.15}
+strong{color:var(--c-ink);font-weight:600}
+::selection{background:var(--c-accent-soft);color:var(--c-ink)}
+:focus-visible{outline:2px solid var(--c-primary);outline-offset:3px;border-radius:4px}
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip-link{position:absolute;left:1rem;top:-4rem;z-index:999;background:var(--c-ink);color:var(--c-paper);padding:.7rem 1.1rem;border-radius:var(--r-sm);transition:top .18s var(--ease)}
+.skip-link:focus{top:1rem}
+
+.wrap{width:100%;max-width:var(--container);margin-inline:auto;padding-inline:var(--gutter)}
+
+/* ─── barra de navegação ────────────────────────────────────────────── */
+.nav{position:sticky;top:0;z-index:60;background:rgba(250,247,242,.88);backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid transparent;transition:border-color .2s,box-shadow .2s}
+.nav.is-stuck{border-bottom-color:var(--c-rule);box-shadow:var(--sh-1)}
+.nav__inner{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:4.25rem}
+.brand{display:inline-flex;align-items:center;gap:.6rem;font-weight:700;color:var(--c-ink);letter-spacing:-.02em}
+.brand img{width:30px;height:30px;border-radius:8px}
+.brand__name span{color:var(--c-primary)}
+.nav__links{display:none;gap:1.6rem;font-size:.9rem;font-weight:600;color:var(--c-ink-muted)}
+.nav__links a:hover{color:var(--c-primary)}
+.nav__links a.is-active{color:var(--c-ink)}
+.nav__actions{display:flex;align-items:center;gap:.6rem}
+.nav__login{display:none;font-size:.9rem;font-weight:600;color:var(--c-ink-muted)}
+.nav__login:hover{color:var(--c-primary)}
+.nav__toggle{display:grid;place-items:center;width:2.6rem;height:2.6rem;border:1px solid var(--c-rule);border-radius:var(--r-sm);background:var(--c-surface)}
+.nav__toggle svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round}
+.nav__toggle .ico--close,.nav__toggle[aria-expanded="true"] .ico--menu{display:none}
+.nav__toggle[aria-expanded="true"] .ico--close{display:block}
+
+.drawer{display:none;border-top:1px solid var(--c-rule);background:var(--c-surface);padding-block:.5rem 1.25rem}
+.drawer.is-open{display:block}
+.drawer a.drawer__link{display:block;padding:.85rem .2rem;border-bottom:1px solid var(--c-rule);font-weight:600;color:var(--c-ink)}
+.drawer__foot{display:grid;gap:.6rem;margin-top:1rem}
+
+@media (min-width:900px){
+  .nav__links{display:flex}
+  .nav__login{display:inline}
+  .nav__toggle{display:none}
+  .drawer{display:none !important}
+}
+
+/* ─── botões ────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.75rem 1.25rem;border-radius:var(--r-pill);font-weight:600;font-size:.925rem;line-height:1;transition:transform .18s var(--ease),box-shadow .18s var(--ease),background-color .18s}
+.btn--primary{background:var(--c-primary);color:var(--c-on-primary);box-shadow:var(--sh-key)}
+.btn--primary:hover{background:var(--c-primary-deep);transform:translateY(-1px)}
+.btn--ghost{border:1px solid var(--c-rule-strong);color:var(--c-ink);background:var(--c-surface)}
+.btn--ghost:hover{border-color:var(--c-primary);color:var(--c-primary)}
+.btn--lg{padding:.95rem 1.6rem;font-size:1rem}
+.btn--block{width:100%}
+.btn--night{background:var(--c-accent);color:var(--c-night);box-shadow:none}
+.btn--night:hover{background:#ffc846;transform:translateY(-1px)}
+
+/* ─── peças comuns ──────────────────────────────────────────────────── */
+.kicker{font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--c-primary);margin-bottom:.75rem}
+.selo{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .7rem;border-radius:var(--r-pill);background:var(--c-primary-tint);color:var(--c-primary-deep);font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;font-size:.8rem;color:var(--c-ink-muted)}
+.meta .ponto{width:3px;height:3px;border-radius:50%;background:var(--c-rule-strong)}
+
+/* ─── rodapé ────────────────────────────────────────────────────────── */
+.foot{background:var(--c-night);color:var(--c-night-muted);padding-block:3.5rem 2rem;margin-top:4rem}
+.foot .brand{color:var(--c-night-text)}
+.foot__grid{display:grid;gap:2.25rem;grid-template-columns:1fr}
+.foot h4{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--c-night-text);font-family:var(--font-body);font-weight:700;margin-bottom:.85rem}
+.foot ul{display:grid;gap:.55rem;font-size:.9rem}
+.foot a:hover{color:var(--c-accent)}
+.foot__tag{margin-top:.9rem;font-size:.9rem;max-width:30ch}
+.foot__bottom{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:space-between;border-top:1px solid var(--c-night-rule);margin-top:2.5rem;padding-top:1.5rem;font-size:.8rem}
+@media (min-width:760px){.foot__grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+
+/* ─── bloco de conversão ────────────────────────────────────────────── */
+.cta{position:relative;overflow:hidden;background:var(--c-night);color:var(--c-night-muted);border-radius:var(--r-lg);padding:clamp(1.75rem,1rem + 3vw,2.75rem);margin-block:2.5rem}
+.cta::after{content:"";position:absolute;inset:auto -18% -55% auto;width:22rem;height:22rem;border-radius:50%;background:radial-gradient(circle,rgba(75,50,207,.42),transparent 65%);pointer-events:none}
+.cta__selo{display:inline-flex;align-items:center;gap:.4rem;font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--c-accent);margin-bottom:.7rem}
+.cta h3{font-size:clamp(1.35rem,1.1rem + 1.2vw,1.85rem);color:var(--c-night-text);margin-bottom:.6rem;max-width:24ch}
+.cta p{font-size:.98rem;max-width:52ch;margin-bottom:1.35rem}
+.cta__acoes{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;position:relative;z-index:1}
+.cta__nota{font-size:.8rem;color:var(--c-night-muted)}
+.cta__nota strong{color:var(--c-night-text)}
+
+/* ─── cartão de artigo ──────────────────────────────────────────────── */
+.cartoes{display:grid;gap:1.5rem;grid-template-columns:1fr}
+@media (min-width:640px){.cartoes{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:1000px){.cartoes{grid-template-columns:repeat(3,1fr)}}
+
+.cartao{display:flex;flex-direction:column;background:var(--c-surface);border:1px solid var(--c-rule);border-radius:var(--r-md);overflow:hidden;box-shadow:var(--sh-1);transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s}
+.cartao:hover{transform:translateY(-3px);box-shadow:var(--sh-2);border-color:var(--c-rule-strong)}
+.cartao__capa{aspect-ratio:16/9;background:var(--c-paper-deep);position:relative;overflow:hidden}
+.cartao__capa img{width:100%;height:100%;object-fit:cover}
+.cartao__capa--vazia{display:grid;place-items:center;background:linear-gradient(135deg,var(--c-paper-deep),var(--c-primary-tint))}
+.cartao__capa--vazia span{font-family:var(--font-display);font-size:2rem;color:var(--c-primary);opacity:.55}
+.cartao__corpo{display:flex;flex-direction:column;gap:.6rem;padding:1.25rem;flex:1}
+.cartao__cat{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-primary)}
+.cartao h3{font-size:1.16rem;line-height:1.28}
+.cartao p{font-size:.92rem;color:var(--c-ink-muted)}
+.cartao__pe{margin-top:auto;padding-top:.4rem;font-size:.78rem;color:var(--c-ink-muted);display:flex;gap:.5rem;align-items:center}
+
+/* ─── faixa de categorias ───────────────────────────────────────────── */
+.filtros{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.35rem;scrollbar-width:thin}
+.filtros a{flex:0 0 auto;padding:.5rem .95rem;border:1px solid var(--c-rule);border-radius:var(--r-pill);background:var(--c-surface);font-size:.85rem;font-weight:600;color:var(--c-ink-muted);white-space:nowrap}
+.filtros a:hover{border-color:var(--c-primary);color:var(--c-primary)}
+.filtros a.is-active{background:var(--c-ink);border-color:var(--c-ink);color:var(--c-paper)}
+
+.busca{display:flex;gap:.5rem;max-width:26rem;width:100%}
+.busca input{flex:1;padding:.7rem 1rem;border:1px solid var(--c-rule);border-radius:var(--r-pill);background:var(--c-surface);font:inherit;font-size:.9rem;color:var(--c-ink)}
+.busca input::placeholder{color:var(--c-ink-muted)}
+
+.paginacao{display:flex;justify-content:center;align-items:center;gap:.5rem;margin-top:3rem;flex-wrap:wrap}
+.paginacao a,.paginacao span{padding:.55rem .9rem;border-radius:var(--r-sm);border:1px solid var(--c-rule);background:var(--c-surface);font-size:.88rem;font-weight:600}
+.paginacao .atual{background:var(--c-ink);color:var(--c-paper);border-color:var(--c-ink)}
+.paginacao .quieto{border:0;background:none;color:var(--c-ink-muted);font-weight:400}
+
+.vazio{text-align:center;padding:4rem 1rem;border:1px dashed var(--c-rule-strong);border-radius:var(--r-md);background:var(--c-surface)}
+.vazio h2{font-size:1.35rem;margin-bottom:.5rem}
+.vazio p{color:var(--c-ink-muted);max-width:42ch;margin:0 auto}
+
+{% block estilo_extra %}{% endblock %}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-fechar" viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></symbol>
+  <symbol id="i-seta" viewBox="0 0 24 24"><path d="M4 12h14.5M13 6.2 18.8 12 13 17.8"/></symbol>
+  <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 1.9"/></symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap nav__inner">
+    <a href="/" class="brand" aria-label="EDUCAflowOne, página inicial">
+      <img src="{% static 'img/educaflow-new.png' %}" alt="Logotipo do EDUCAflowOne">
+      <span class="brand__name">EDUCA<span>flow</span>One</span>
+    </a>
+
+    <nav class="nav__links" aria-label="Navegação do blog">
+      <a href="/blog/" class="is-active">Blog</a>
+      <a href="/#modulos">Módulos</a>
+      <a href="/planos/">Planos</a>
+      <a href="/#duvidas">Dúvidas</a>
+    </nav>
+
+    <div class="nav__actions">
+      <a href="/login/" class="nav__login">Entrar</a>
+      <a href="/signup/?tier=basic&amp;plan=monthly&amp;utm_source=blog&amp;utm_medium=topo&amp;utm_campaign={% block utm_topo %}blog{% endblock %}" class="btn btn--primary">Testar grátis</a>
+      <button class="nav__toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="drawer">
+        <span class="sr-only">Abrir menu</span>
+        <svg class="ico--menu" aria-hidden="true"><use href="#i-menu"/></svg>
+        <svg class="ico--close" aria-hidden="true"><use href="#i-fechar"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="drawer" id="drawer">
+    <div class="wrap">
+      <a class="drawer__link" href="/blog/">Blog</a>
+      {% for c in categorias %}<a class="drawer__link" href="{{ c.get_absolute_url }}">{{ c.name }}</a>{% endfor %}
+      <a class="drawer__link" href="/#modulos">Módulos</a>
+      <a class="drawer__link" href="/planos/">Planos</a>
+      <div class="drawer__foot">
+        <a href="/login/" class="btn btn--ghost btn--block">Entrar</a>
+        <a href="/signup/?tier=basic&amp;plan=monthly&amp;utm_source=blog&amp;utm_medium=menu" class="btn btn--primary btn--block">Testar grátis</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="conteudo">
+{% block conteudo %}{% endblock %}
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <div class="brand">
+          <img src="{% static 'img/educaflow-new.png' %}" alt="Logotipo do EDUCAflowOne">
+          <span class="brand__name">EDUCA<span>flow</span>One</span>
+        </div>
+        <p class="foot__tag">Gestão para quem dá aula particular. Feito no Brasil, em português.</p>
+      </div>
+      <div>
+        <h4>Blog</h4>
+        <ul>
+          <li><a href="/blog/">Todos os artigos</a></li>
+          {% for c in categorias %}<li><a href="{{ c.get_absolute_url }}">{{ c.name }}</a></li>{% endfor %}
+          <li><a href="/blog/rss/">RSS</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Produto</h4>
+        <ul>
+          <li><a href="/#modulos">Módulos</a></li>
+          <li><a href="/planos/">Planos</a></li>
+          <li><a href="/login/">Entrar</a></li>
+          <li><a href="/signup/?tier=basic&amp;plan=monthly&amp;utm_source=blog&amp;utm_medium=rodape">Criar conta</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="{% url 'termos' %}">Termos de uso</a></li>
+          <li><a href="{% url 'privacidade' %}">Privacidade</a></li>
+          <li><a href="{% url 'exclusao-de-dados' %}">Excluir dados</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__bottom">
+      <span>© 2026 EDUCAflowOne. Todos os direitos reservados.</span>
+      <span>Pagamentos processados pela Stripe.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  var nav = document.getElementById('nav');
+  var onScroll = function(){ nav.classList.toggle('is-stuck', window.scrollY > 8); };
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive:true });
+
+  var toggle = document.getElementById('navToggle');
+  var drawer = document.getElementById('drawer');
+  var setDrawer = function(open){
+    drawer.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.querySelector('.sr-only').textContent = open ? 'Fechar menu' : 'Abrir menu';
+  };
+  toggle.addEventListener('click', function(){
+    setDrawer(toggle.getAttribute('aria-expanded') !== 'true');
+  });
+  drawer.addEventListener('click', function(e){ if (e.target.closest('a')) setDrawer(false); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && drawer.classList.contains('is-open')) { setDrawer(false); toggle.focus(); }
+  });
+})();
+</script>
+{% block script_extra %}{% endblock %}
+</body>
+</html>

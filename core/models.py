@@ -2072,3 +2072,246 @@ class WhatsAppWebhookEvent(models.Model):
     def __str__(self) -> str:
         state = "ok" if self.processed else "pendente"
         return f"{self.event_key[:12]} [{state}]"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# BLOG
+#
+# Conteúdo de topo de funil: o professor chega pelo Google procurando "quanto
+# cobrar por aula particular", lê, e encontra o EDUCAflowOne no meio do texto.
+# Por isso o artigo é registro de banco e não template: quem escreve publica
+# pelo /admin/, sem deploy, e a data de publicação é o que o Google lê.
+#
+# O corpo é escrito em Markdown e renderizado por core/blog_markdown.py.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class BlogCategory(models.Model):
+    """Editoria do blog. Existe para o leitor filtrar e para a URL fazer sentido."""
+
+    name = models.CharField(max_length=60, unique=True, verbose_name="Nome")
+    slug = models.SlugField(max_length=80, unique=True)
+    description = models.CharField(
+        max_length=220, blank=True,
+        help_text="Uma linha, aparece no topo da página da categoria."
+    )
+    order = models.PositiveSmallIntegerField(
+        default=0, help_text="Menor número aparece primeiro no menu do blog."
+    )
+
+    class Meta:
+        ordering = ["order", "name"]
+        verbose_name = "Categoria do blog"
+        verbose_name_plural = "Categorias do blog"
+
+    def __str__(self) -> str:
+        return self.name
+
+    def get_absolute_url(self) -> str:
+        return f"/blog/categoria/{self.slug}/"
+
+
+class BlogPostQuerySet(models.QuerySet):
+    def published(self):
+        """
+        Publicado é status publicado E data já vencida: agendar um artigo é só
+        marcar publicado com data futura.
+        """
+        return self.filter(
+            status=BlogPost.STATUS_PUBLISHED,
+            published_at__lte=timezone.now(),
+        )
+
+    def scheduled(self):
+        """
+        A fila. Artigos prontos, marcados como publicados, esperando a data.
+
+        Não existe tarefa periódica por trás disto: o artigo entra no ar porque
+        a consulta de publicados passa a incluí-lo quando o relógio passa da
+        data. Sem worker, sem cron, sem nada para falhar de madrugada.
+        """
+        return self.filter(
+            status=BlogPost.STATUS_PUBLISHED,
+            published_at__gt=timezone.now(),
+        ).order_by("published_at")
+
+
+class BlogPost(models.Model):
+    STATUS_DRAFT = "draft"
+    STATUS_PUBLISHED = "published"
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, "Rascunho"),
+        (STATUS_PUBLISHED, "Publicado"),
+    ]
+
+    title = models.CharField(
+        max_length=160, verbose_name="Título",
+        help_text="O que o Google mostra. Até 60 caracteres aparece inteiro na busca."
+    )
+    slug = models.SlugField(
+        max_length=180, unique=True, blank=True,
+        help_text="Endereço do artigo. Deixe vazio para gerar do título. "
+                  "Depois de publicado, mudar aqui quebra os links que já circulam."
+    )
+    dek = models.CharField(
+        max_length=300, blank=True, verbose_name="Linha de apoio",
+        help_text="A frase abaixo do título, no cartão da lista e nas redes."
+    )
+    category = models.ForeignKey(
+        BlogCategory, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="posts", verbose_name="Categoria"
+    )
+    content = models.TextField(
+        verbose_name="Texto do artigo",
+        help_text="Markdown. ## título de seção, ### subtítulo, - lista, "
+                  "> destaque, **negrito**, [texto](link), | tabela |. "
+                  "Escreva [[cta]] numa linha sozinha para escolher onde entra "
+                  "o convite de cadastro; sem isso ele entra sozinho no meio."
+    )
+
+    cover = models.ImageField(
+        upload_to="blog/capas/%Y/%m/", blank=True, null=True,
+        verbose_name="Imagem de capa",
+        help_text="Proporção 16:9, pelo menos 1200x630 para aparecer bem no WhatsApp."
+    )
+    cover_alt = models.CharField(
+        max_length=180, blank=True, verbose_name="Descrição da capa",
+        help_text="O que a imagem mostra, para quem usa leitor de tela."
+    )
+
+    author_name = models.CharField(max_length=90, default="Equipe EDUCAflowOne", verbose_name="Autor")
+    author_role = models.CharField(max_length=120, blank=True, verbose_name="Cargo do autor")
+
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True
+    )
+    featured = models.BooleanField(
+        default=False, verbose_name="Destaque",
+        help_text="O mais recente marcado assim abre a página do blog."
+    )
+    published_at = models.DateTimeField(
+        null=True, blank=True, db_index=True, verbose_name="Publicado em",
+        help_text="Preenchido sozinho ao publicar. Data futura agenda o artigo."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # SEO. Ficam separados do título porque o título que converte no site e o
+    # título que ganha clique na busca raramente são o mesmo.
+    seo_title = models.CharField(
+        max_length=70, blank=True, verbose_name="Título no Google",
+        help_text="Vazio usa o título do artigo."
+    )
+    seo_description = models.CharField(
+        max_length=180, blank=True, verbose_name="Descrição no Google",
+        help_text="Vazio usa a linha de apoio, ou o primeiro parágrafo."
+    )
+    keywords = models.CharField(
+        max_length=240, blank=True, verbose_name="Palavras-chave",
+        help_text="Separadas por vírgula. Uso interno, para você lembrar do alvo."
+    )
+
+    # Convite de cadastro. Um artigo sobre cobrança converte melhor falando de
+    # cobrança do que repetindo a mesma frase genérica de todos os outros.
+    cta_title = models.CharField(max_length=120, blank=True, verbose_name="Título do convite")
+    cta_text = models.CharField(max_length=300, blank=True, verbose_name="Texto do convite")
+    cta_button = models.CharField(max_length=60, blank=True, verbose_name="Botão do convite")
+
+    views = models.PositiveIntegerField(default=0, verbose_name="Leituras")
+    reading_minutes = models.PositiveSmallIntegerField(default=1, verbose_name="Minutos de leitura")
+
+    objects = BlogPostQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-published_at", "-created_at"]
+        indexes = [
+            # Nome explícito porque a migração deste modelo foi escrita à mão:
+            # deixar o Django batizar sozinho faria os dois discordarem.
+            models.Index(fields=["status", "-published_at"], name="blog_status_data_idx"),
+        ]
+        verbose_name = "Artigo do blog"
+        verbose_name_plural = "Artigos do blog"
+
+    def __str__(self) -> str:
+        return self.title
+
+    def save(self, *args, **kwargs):
+        from django.utils.text import slugify
+
+        from .blog_markdown import reading_minutes as _minutos
+
+        if not self.slug:
+            base = slugify(self.title)[:170] or "artigo"
+            slug, n = base, 2
+            while BlogPost.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base[:170 - len(str(n)) - 1]}-{n}"
+                n += 1
+            self.slug = slug
+
+        # Publicar sem data seria um artigo invisível: a listagem ordena por
+        # data e a consulta de publicados exige data vencida.
+        if self.status == self.STATUS_PUBLISHED and not self.published_at:
+            self.published_at = timezone.now()
+
+        self.reading_minutes = _minutos(self.content)
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self) -> str:
+        return f"/blog/{self.slug}/"
+
+    @property
+    def is_published(self) -> bool:
+        return (
+            self.status == self.STATUS_PUBLISHED
+            and self.published_at is not None
+            and self.published_at <= timezone.now()
+        )
+
+    @property
+    def is_scheduled(self) -> bool:
+        """Pronto e na fila, mas ainda não é a hora dele."""
+        return (
+            self.status == self.STATUS_PUBLISHED
+            and self.published_at is not None
+            and self.published_at > timezone.now()
+        )
+
+    @property
+    def meta_title(self) -> str:
+        return self.seo_title or self.title
+
+    @property
+    def meta_description(self) -> str:
+        from .blog_markdown import plain_excerpt
+
+        return self.seo_description or self.dek or plain_excerpt(self.content)
+
+    @property
+    def resumo(self) -> str:
+        """O que vai no cartão da listagem."""
+        from .blog_markdown import plain_excerpt
+
+        return self.dek or plain_excerpt(self.content, 200)
+
+    def render_html(self) -> str:
+        """HTML do corpo, já com o ponto de inserção do convite de cadastro."""
+        from .blog_markdown import auto_cta, render
+
+        html, _ = render(self.content)
+        return auto_cta(html)
+
+    def sumario(self) -> list:
+        """Lista de seções (h2) para o índice lateral. Só vale a pena com três ou mais."""
+        from .blog_markdown import render
+
+        _, toc = render(self.content)
+        return toc if len(toc) >= 3 else []
+
+    def relacionados(self, limite: int = 3):
+        qs = BlogPost.objects.published().exclude(pk=self.pk)
+        mesmos = list(qs.filter(category=self.category)[:limite]) if self.category_id else []
+        if len(mesmos) < limite:
+            faltam = limite - len(mesmos)
+            ids = [p.pk for p in mesmos]
+            mesmos += list(qs.exclude(pk__in=ids)[:faltam])
+        return mesmos

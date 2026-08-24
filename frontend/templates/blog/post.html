@@ -1,0 +1,239 @@
+{% extends "blog/base.html" %}
+{% load static blog_tags %}
+
+{% block titulo %}{{ post.meta_title }} | EDUCAflowOne{% endblock %}
+{% block descricao %}{{ post.meta_description }}{% endblock %}
+{% block og_tipo %}article{% endblock %}
+{% block og_titulo %}{{ post.meta_title }}{% endblock %}
+{% block og_descricao %}{{ post.meta_description }}{% endblock %}
+{% block utm_topo %}{{ post.slug }}{% endblock %}
+{% block og_imagem %}{% if post.cover %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/educaflow-new.png' %}{% endif %}{% endblock %}
+{% block robots %}{% if previa %}<meta name="robots" content="noindex, nofollow">{% endif %}{% endblock %}
+
+{% block dados_estruturados %}
+{# Article + BreadcrumbList: é o que faz a busca do Google mostrar data,
+   autor e a trilha "educaflowone.com.br > Blog > Categoria" no resultado. #}
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"BlogPosting",
+  "headline":"{{ post.title|escapejs }}",
+  "description":"{{ post.meta_description|escapejs }}",
+  "inLanguage":"pt-BR",
+  "datePublished":"{{ post.published_at|date:'c' }}",
+  "dateModified":"{{ post.updated_at|date:'c' }}",
+  "author":{"@type":"{% if post.author_name == 'Equipe EDUCAflowOne' %}Organization{% else %}Person{% endif %}","name":"{{ post.author_name|escapejs }}"},
+  "publisher":{
+    "@type":"Organization","name":"EDUCAflowOne",
+    "logo":{"@type":"ImageObject","url":"{{ request.scheme }}://{{ request.get_host }}{% static 'img/educaflow-new.png' %}"}
+  },
+  "mainEntityOfPage":{"@type":"WebPage","@id":"{{ canonical }}"}{% if post.cover %},
+  "image":["{{ request.scheme }}://{{ request.get_host }}{{ post.cover.url }}"]{% endif %}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"BreadcrumbList",
+  "itemListElement":[
+    {"@type":"ListItem","position":1,"name":"Início","item":"{{ request.scheme }}://{{ request.get_host }}/"},
+    {"@type":"ListItem","position":2,"name":"Blog","item":"{{ request.scheme }}://{{ request.get_host }}/blog/"}{% if post.category %},
+    {"@type":"ListItem","position":3,"name":"{{ post.category.name|escapejs }}","item":"{{ request.scheme }}://{{ request.get_host }}{{ post.category.get_absolute_url }}"}{% endif %}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block estilo_extra %}
+/* barra de progresso da leitura */
+.progresso{position:fixed;top:0;left:0;height:3px;width:0;background:var(--c-primary);z-index:80;transition:width .1s linear}
+
+.trilha{font-size:.8rem;color:var(--c-ink-muted);padding-top:1.5rem}
+.trilha a:hover{color:var(--c-primary)}
+
+.aviso{margin-top:1.25rem;padding:.85rem 1.1rem;border:1px solid var(--c-accent);background:var(--c-accent-soft);border-radius:var(--r-sm);font-size:.88rem;color:var(--c-ink)}
+
+.artigo__cabeca{padding-block:1rem 2rem;border-bottom:1px solid var(--c-rule)}
+.artigo__cabeca h1{font-size:clamp(1.95rem,1.35rem + 3.2vw,3.35rem);letter-spacing:-.028em;max-width:22ch;margin-block:.7rem .9rem}
+.artigo__dek{font-size:clamp(1.05rem,.98rem + .5vw,1.28rem);color:var(--c-ink-muted);max-width:58ch;margin-bottom:1.4rem}
+.autor{display:flex;align-items:center;gap:.75rem;font-size:.86rem;color:var(--c-ink-muted)}
+.autor__inicial{display:grid;place-items:center;width:2.6rem;height:2.6rem;border-radius:50%;background:var(--c-primary-tint);color:var(--c-primary-deep);font-family:var(--font-display);font-weight:700;font-size:1.1rem}
+.autor strong{display:block;color:var(--c-ink);font-size:.92rem}
+
+.capa{margin-block:2rem;border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh-2)}
+.capa img{width:100%;aspect-ratio:16/9;object-fit:cover}
+
+.artigo{display:grid;grid-template-columns:1fr;gap:2.5rem;padding-block:2.5rem}
+@media (min-width:1040px){
+  .artigo{grid-template-columns:minmax(0,1fr) 18rem;gap:4rem;align-items:start}
+  .lateral{position:sticky;top:6rem}
+}
+
+/* ─── corpo do artigo ───────────────────────────────────────────────── */
+.corpo{max-width:68ch;font-size:1.075rem;line-height:1.78}
+.corpo > * + *{margin-top:1.15rem}
+.corpo h2{font-size:clamp(1.45rem,1.2rem + 1.3vw,2rem);letter-spacing:-.02em;margin-top:2.75rem;padding-top:1.5rem;border-top:1px solid var(--c-rule)}
+.corpo h3{font-size:1.2rem;margin-top:2rem}
+.corpo p{color:var(--c-ink-soft)}
+.corpo a{color:var(--c-primary-deep);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+.corpo a:hover{background:var(--c-primary-tint)}
+.corpo ul,.corpo ol{padding-left:1.35rem;display:grid;gap:.6rem}
+.corpo ul li{list-style:none;position:relative;padding-left:1rem}
+.corpo ul li::before{content:"";position:absolute;left:0;top:.72em;width:.42rem;height:.42rem;border-radius:50%;background:var(--c-primary)}
+.corpo ol{counter-reset:passo;list-style:none;padding-left:0}
+.corpo ol li{counter-increment:passo;position:relative;padding-left:2.4rem}
+.corpo ol li::before{content:counter(passo);position:absolute;left:0;top:.05em;width:1.7rem;height:1.7rem;display:grid;place-items:center;border-radius:50%;background:var(--c-primary-tint);color:var(--c-primary-deep);font-size:.82rem;font-weight:700;font-family:var(--font-body)}
+.corpo blockquote{margin-block:1.75rem;padding:1.15rem 1.35rem;border-left:3px solid var(--c-accent);background:var(--c-accent-soft);border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:1.02rem;color:var(--c-ink)}
+.corpo code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.9em;background:var(--c-paper-deep);padding:.12em .38em;border-radius:4px}
+.corpo pre{background:var(--c-night);color:var(--c-night-text);padding:1.1rem;border-radius:var(--r-sm);overflow-x:auto;font-size:.9rem}
+.corpo pre code{background:none;padding:0;color:inherit}
+.corpo hr{border:0;border-top:1px solid var(--c-rule);margin-block:2.25rem}
+.corpo figure{margin-block:2rem}
+.corpo figure img{border-radius:var(--r-md);box-shadow:var(--sh-1)}
+.corpo figcaption{margin-top:.6rem;font-size:.84rem;color:var(--c-ink-muted);text-align:center}
+.corpo .tabela-rolavel{overflow-x:auto;margin-block:1.75rem;border:1px solid var(--c-rule);border-radius:var(--r-md);background:var(--c-surface)}
+.corpo table{width:100%;border-collapse:collapse;font-size:.94rem}
+.corpo th,.corpo td{text-align:left;padding:.75rem 1rem;border-bottom:1px solid var(--c-rule);vertical-align:top}
+.corpo th{background:var(--c-paper-deep);color:var(--c-ink);font-weight:700;white-space:nowrap;font-size:.86rem}
+.corpo tbody tr:last-child td{border-bottom:0}
+.corpo .cta{margin-block:2.75rem}
+
+/* ─── coluna lateral ────────────────────────────────────────────────── */
+.sumario{border:1px solid var(--c-rule);border-radius:var(--r-md);background:var(--c-surface);padding:1.15rem 1.25rem;box-shadow:var(--sh-1)}
+.sumario h2{font-family:var(--font-body);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--c-ink-muted);margin-bottom:.8rem}
+.sumario ol{display:grid;gap:.55rem;font-size:.88rem;counter-reset:s}
+.sumario a{color:var(--c-ink-muted);display:block;border-left:2px solid var(--c-rule);padding-left:.75rem}
+.sumario a:hover{color:var(--c-primary);border-left-color:var(--c-primary)}
+
+.lateral .cta{margin-top:1.25rem;padding:1.35rem}
+.lateral .cta h3{font-size:1.1rem;max-width:none}
+.lateral .cta p{font-size:.88rem;margin-bottom:1rem}
+.lateral .cta__acoes{flex-direction:column;align-items:stretch}
+.lateral .cta__nota{font-size:.75rem;text-align:center}
+.lateral .cta::after{display:none}
+
+.compartilhar{margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--c-rule);display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;font-size:.86rem;color:var(--c-ink-muted)}
+.compartilhar a,.compartilhar button{padding:.5rem .95rem;border:1px solid var(--c-rule);border-radius:var(--r-pill);background:var(--c-surface);font-size:.84rem;font-weight:600;color:var(--c-ink)}
+.compartilhar a:hover,.compartilhar button:hover{border-color:var(--c-primary);color:var(--c-primary)}
+
+.relacionados{padding-block:3rem;border-top:1px solid var(--c-rule)}
+.relacionados h2{font-size:1.5rem;margin-bottom:1.5rem}
+{% endblock %}
+
+{% block conteudo %}
+<div class="progresso" id="progresso" aria-hidden="true"></div>
+
+<div class="wrap">
+  <p class="trilha"><a href="/">Início</a> / <a href="/blog/">Blog</a>{% if post.category %} / <a href="{{ post.category.get_absolute_url }}">{{ post.category.name }}</a>{% endif %}</p>
+
+  {% if previa %}
+  <p class="aviso"><strong>Pré-visualização.</strong>
+    {% if post.is_scheduled %}Este artigo está agendado para {{ post.published_at|data_hora }} e ainda não aparece para o público.
+    {% else %}Este artigo é um rascunho e ainda não aparece para o público.{% endif %}
+  </p>
+  {% endif %}
+
+  <header class="artigo__cabeca">
+    {% if post.category %}<a class="selo" href="{{ post.category.get_absolute_url }}">{{ post.category.name }}</a>{% endif %}
+    <h1>{{ post.title }}</h1>
+    {% if post.dek %}<p class="artigo__dek">{{ post.dek }}</p>{% endif %}
+    <div class="autor">
+      <span class="autor__inicial" aria-hidden="true">{{ post.author_name|first }}</span>
+      <span>
+        <strong>{{ post.author_name }}</strong>
+        {% if post.author_role %}{{ post.author_role }} · {% endif %}
+        <time datetime="{{ post.published_at|iso }}">{{ post.published_at|data_extensa }}</time>
+        · {{ post.reading_minutes }} min de leitura
+      </span>
+    </div>
+  </header>
+
+  {% if post.cover %}
+  <figure class="capa"><img src="{{ post.cover.url }}" alt="{{ post.cover_alt }}"></figure>
+  {% endif %}
+
+  <div class="artigo">
+    <article class="corpo">
+      {% for bloco in blocos %}
+        {{ bloco|safe }}
+        {% if not forloop.last %}{% include "blog/_cta.html" with lugar="meio-do-artigo" campanha=post.slug post=post %}{% endif %}
+      {% endfor %}
+
+      {% include "blog/_cta.html" with lugar="fim-do-artigo" campanha=post.slug post=post %}
+
+      <div class="compartilhar">
+        <span>Compartilhe com quem também dá aula:</span>
+        <a href="https://wa.me/?text={{ post.title|urlencode }}%20{{ canonical|urlencode }}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ canonical|urlencode }}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <button type="button" id="copiarLink" data-url="{{ canonical }}">Copiar link</button>
+      </div>
+    </article>
+
+    <aside class="lateral">
+      {% if sumario %}
+      <nav class="sumario" aria-label="Índice do artigo">
+        <h2>Neste artigo</h2>
+        <ol>
+          {% for s in sumario %}<li><a href="#{{ s.id }}">{{ s.texto }}</a></li>{% endfor %}
+        </ol>
+      </nav>
+      {% endif %}
+      {% include "blog/_cta.html" with lugar="lateral" campanha=post.slug post=post %}
+    </aside>
+  </div>
+</div>
+
+{% if relacionados %}
+<section class="wrap relacionados">
+  <h2>Leia também</h2>
+  <div class="cartoes">
+    {% for p in relacionados %}
+    <article class="cartao">
+      <a href="{{ p.get_absolute_url }}" class="cartao__capa {% if not p.cover %}cartao__capa--vazia{% endif %}" tabindex="-1" aria-hidden="true">
+        {% if p.cover %}<img src="{{ p.cover.url }}" alt="{{ p.cover_alt }}" loading="lazy">
+        {% else %}<span>{{ p.title|first }}</span>{% endif %}
+      </a>
+      <div class="cartao__corpo">
+        {% if p.category %}<span class="cartao__cat">{{ p.category.name }}</span>{% endif %}
+        <h3><a href="{{ p.get_absolute_url }}">{{ p.title }}</a></h3>
+        <p>{{ p.resumo|truncatechars:120 }}</p>
+        <div class="cartao__pe"><span>{{ p.reading_minutes }} min de leitura</span></div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block script_extra %}
+<script>
+(function(){
+  'use strict';
+  var barra = document.getElementById('progresso');
+  var artigo = document.querySelector('.corpo');
+  if (barra && artigo) {
+    var atualizar = function(){
+      var topo = artigo.offsetTop;
+      var altura = artigo.offsetHeight - window.innerHeight;
+      var lido = altura > 0 ? (window.scrollY - topo) / altura : 0;
+      barra.style.width = Math.min(100, Math.max(0, lido * 100)) + '%';
+    };
+    atualizar();
+    window.addEventListener('scroll', atualizar, { passive:true });
+    window.addEventListener('resize', atualizar);
+  }
+
+  var botao = document.getElementById('copiarLink');
+  if (botao && navigator.clipboard) {
+    botao.addEventListener('click', function(){
+      navigator.clipboard.writeText(botao.dataset.url).then(function(){
+        var antes = botao.textContent;
+        botao.textContent = 'Link copiado';
+        setTimeout(function(){ botao.textContent = antes; }, 2000);
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}
